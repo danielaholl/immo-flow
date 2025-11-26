@@ -80,39 +80,51 @@ Guidelines:
 
 Remember: You're helping users make informed investment decisions.`;
 
-    // TODO: Replace with actual AI API call (OpenAI, Claude, etc.)
-    // For now, return a mock response
-    const mockResponse = `Ich habe Ihre Frage verstanden: "${message}". ${
-      propertyContext
-        ? 'Basierend auf den Immobiliendaten kann ich Ihnen helfen.'
-        : 'Wie kann ich Ihnen bei Ihrer Immobiliensuche behilflich sein?'
-    }`;
+    // Get OpenAI API key from environment
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
 
-    // In production, you would call an AI API here:
-    /*
+    if (!openaiApiKey) {
+      console.error('OPENAI_API_KEY not set');
+      return new Response(
+        JSON.stringify({ error: 'AI service not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Call OpenAI API
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
+        'Authorization': `Bearer ${openaiApiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4',
+        model: 'gpt-4o-mini', // Cost-effective model, or use 'gpt-4' for better quality
         messages: [
           { role: 'system', content: systemPrompt },
           ...conversationHistory,
           { role: 'user', content: message },
         ],
+        temperature: 0.7,
+        max_tokens: 500,
       }),
     });
 
+    if (!openaiResponse.ok) {
+      const errorData = await openaiResponse.json();
+      console.error('OpenAI API error:', errorData);
+      return new Response(
+        JSON.stringify({ error: 'AI service error', details: errorData }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const aiData = await openaiResponse.json();
     const reply = aiData.choices[0].message.content;
-    */
 
     return new Response(
       JSON.stringify({
-        message: mockResponse,
+        message: reply,
         propertyId,
         timestamp: new Date().toISOString(),
       }),

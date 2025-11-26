@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { sendChatMessage, type ChatMessage } from '@immoflow/api';
 
 export interface Message {
   id: string;
@@ -10,9 +11,10 @@ export interface Message {
 export interface ChatAssistantProps {
   onSearch?: (query: string) => void;
   className?: string;
+  propertyId?: string;
 }
 
-export function ChatAssistant({ onSearch, className = '' }: ChatAssistantProps) {
+export function ChatAssistant({ onSearch, className = '', propertyId }: ChatAssistantProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -45,28 +47,48 @@ export function ChatAssistant({ onSearch, className = '' }: ChatAssistantProps) 
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const userInput = input;
     setInput('');
     setIsLoading(true);
 
     try {
-      // Simulate AI response - replace with actual API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Build conversation history for context
+      const conversationHistory: ChatMessage[] = messages.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      }));
+
+      // Call the real AI API
+      const response = await sendChatMessage({
+        message: userInput,
+        propertyId,
+        conversationHistory,
+      });
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: `Ich suche nach Immobilien basierend auf Ihrer Anfrage: "${input}". Die Ergebnisse werden unten angezeigt.`,
-        timestamp: new Date(),
+        content: response.message,
+        timestamp: new Date(response.timestamp),
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
 
       // Trigger search if callback provided
       if (onSearch) {
-        onSearch(input);
+        onSearch(userInput);
       }
     } catch (error) {
       console.error('Error sending message:', error);
+
+      // Show error message to user
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: 'Entschuldigung, es gab einen Fehler beim Abrufen der Antwort. Bitte versuchen Sie es erneut.',
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
