@@ -46,3 +46,6 @@ Thumbs.db
 # Supabase
 supabase/.branches
 supabase/.temp
+
+# Setup scripts with secrets (do not commit!)
+setup-openai.sh
