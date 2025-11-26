@@ -1,11 +1,6 @@
 # Supabase Configuration
 # https://supabase.com/docs/guides/cli/config
 
-[project]
-# Project ID (replace with your actual project ID)
-# Get it from: https://app.supabase.com/project/_/settings/general
-project_id = "your-project-id"
-
 [api]
 # Port for local Supabase API
 port = 54321
@@ -35,16 +30,3 @@ additional_redirect_urls = ["http://localhost:19006"] # Expo dev server
 enable_signup = true
 double_confirm_changes = true
 enable_confirmations = false # Set to true in production
-
-# Email templates
-[auth.email.template.invite]
-subject = "You have been invited"
-content_path = "./supabase/templates/invite.html"
-
-[auth.email.template.confirmation]
-subject = "Confirm Your Email"
-content_path = "./supabase/templates/confirmation.html"
-
-[auth.email.template.recovery]
-subject = "Reset Your Password"
-content_path = "./supabase/templates/recovery.html"
