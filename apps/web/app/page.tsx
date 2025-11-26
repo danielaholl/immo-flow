@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { getProperties } from '@immoflow/api';
-import { PropertyCard } from '@immoflow/ui';
+import { PropertyCard, ChatAssistant } from '@immoflow/ui';
 import type { Property } from '@immoflow/database';
 
 /**
@@ -12,6 +12,7 @@ import type { Property } from '@immoflow/database';
 export default function HomePage() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   useEffect(() => {
     async function loadProperties() {
@@ -26,6 +27,12 @@ export default function HomePage() {
     }
     loadProperties();
   }, []);
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    // TODO: Implement actual search/filtering logic
+    console.log('Searching for:', query);
+  };
 
   return (
     <main className="min-h-screen bg-background">
@@ -61,10 +68,15 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* AI Chat Assistant */}
+      <section className="container mx-auto px-4 py-8">
+        <ChatAssistant onSearch={handleSearch} className="max-w-4xl mx-auto" />
+      </section>
+
       {/* Properties Grid */}
       <section className="container mx-auto px-4 py-12">
         <h3 className="text-3xl font-bold text-text-primary mb-8">
-          Entdecke neue Immobilien
+          {searchQuery ? `Suchergebnisse für: "${searchQuery}"` : 'Entdecke neue Immobilien'}
         </h3>
 
         {loading ? (
