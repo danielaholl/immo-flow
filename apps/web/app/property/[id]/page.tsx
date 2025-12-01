@@ -330,9 +330,9 @@ export default function PropertyPage() {
         </div>
 
         {/* Right Column - Property Details (Scrollable) */}
-        <div className="lg:w-1/2 p-4 lg:p-8 flex flex-col lg:h-[calc(100vh-80px)]">
+        <div className="lg:w-1/2 flex flex-col lg:h-[calc(100vh-80px)]">
           {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto p-4 lg:p-8 lg:pr-0">
             {/* Unlock Full Details Section - Only show if no consent */}
             {!hasConsent && !isOwner && (
               <div className="mb-8 p-6 bg-blue-50 rounded-2xl border border-blue-100">
@@ -399,7 +399,7 @@ export default function PropertyPage() {
           </div>
 
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3 mt-auto bg-white pt-4 pb-4">
+          <div className="flex flex-col sm:flex-row gap-3 mt-auto bg-white pt-4 pb-4 px-4 lg:px-8">
             {isOwner ? (
               <>
                 <button
