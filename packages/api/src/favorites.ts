@@ -4,13 +4,14 @@
 import { supabase, Favorite, FavoriteInsert } from '@immoflow/database';
 
 /**
- * Get all favorites for a user
+ * Get all favorites for a user (only active properties)
  */
 export async function getUserFavorites(userId: string): Promise<Favorite[]> {
   const { data, error } = await supabase
     .from('favorites')
-    .select('*, properties(*)')
+    .select('*, properties!inner(*)')
     .eq('user_id', userId)
+    .eq('properties.status', 'active')
     .order('created_at', { ascending: false });
 
   if (error) {

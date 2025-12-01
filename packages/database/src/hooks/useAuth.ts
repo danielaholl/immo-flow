@@ -4,8 +4,7 @@
  * React hook for authentication
  */
 import { useEffect, useState } from 'react';
-import { supabase } from '../client';
-import type { User, Session } from '@supabase/supabase-js';
+import { supabase, type User, type Session } from '../client';
 
 export interface UseAuthResult {
   user: User | null;

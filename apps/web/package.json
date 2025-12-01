@@ -9,24 +9,27 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@immoflow/api": "workspace:*",
+    "@immoflow/database": "workspace:*",
+    "@immoflow/ui": "workspace:*",
+    "@immoflow/utils": "workspace:*",
+    "@supabase/auth-helpers-nextjs": "^0.10.0",
+    "@supabase/ssr": "^0.8.0",
+    "lucide-react": "^0.555.0",
     "next": "14.0.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-native-web": "^0.19.0",
-    "@immoflow/ui": "workspace:*",
-    "@immoflow/database": "workspace:*",
-    "@immoflow/api": "workspace:*",
-    "@immoflow/utils": "workspace:*"
+    "react-native-web": "^0.19.0"
   },
   "devDependencies": {
-    "@immoflow/typescript-config": "workspace:*",
     "@immoflow/tailwind-config": "workspace:*",
+    "@immoflow/typescript-config": "workspace:*",
     "@types/node": "^20.0.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
-    "typescript": "^5.3.0",
     "autoprefixer": "^10.4.0",
     "postcss": "^8.4.0",
-    "tailwindcss": "^3.4.0"
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.3.0"
   }
 }

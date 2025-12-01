@@ -4,5 +4,6 @@
  */
 
 export * from './client';
-export * from './hooks';
-export * from './database.types';
+// Note: Hooks are not exported to avoid React dependency issues during build
+// export * from './hooks';
+export type { Database } from './database.types';

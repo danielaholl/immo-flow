@@ -4,7 +4,7 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
-    "generate-types": "supabase gen types typescript --project-id YOUR_PROJECT_ID > src/database.types.ts",
+    "generate-types": "supabase gen types typescript --project-id lntoolqtllivzdkhvvqf > src/database.types.ts",
     "lint": "eslint .",
     "type-check": "tsc --noEmit"
   },

@@ -1,23 +1,54 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { getPropertyById } from '@immoflow/api';
-import { formatPrice, formatArea, formatRooms } from '@immoflow/utils';
-import { Badge } from '@immoflow/ui';
-import type { Property } from '@immoflow/database';
+import { getPropertyWithOwner, PropertyWithOwner, hasPropertyConsent, grantPropertyConsent, deactivateProperty, getUserFavorites, upsertConsent, hasFullConsent, trackInteraction, updateUserPreferences, getPropertyEvaluation, PropertyAIEvaluation } from '@immoflow/api';
+import { formatPrice } from '@immoflow/utils';
+import { ChatModal, InvestmentScoreCard } from '@immoflow/ui';
+import { ChartNoAxesCombined, Pencil, Power, Calendar, TrendingUp } from 'lucide-react';
+import { useAuthContext } from '@/app/providers/AuthProvider';
+import { Header } from '@/app/components/Header';
+import { LocationDisplay } from '@/app/components/LocationDisplay';
+import { PropertyImageSlideshow } from '@/app/components/PropertyImageSlideshow';
+import { FavoriteButton } from '@/app/components/FavoriteButton';
+import { CommissionConsentDialog } from '@/app/components/CommissionConsentDialog';
 
 export default function PropertyPage() {
   const params = useParams();
   const router = useRouter();
-  const [property, setProperty] = useState<Property | null>(null);
+  const { user } = useAuthContext();
+  const [property, setProperty] = useState<PropertyWithOwner | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isChatModalOpen, setIsChatModalOpen] = useState(false);
+  const [hasConsent, setHasConsent] = useState(false);
+  const [consentLoading, setConsentLoading] = useState(false);
+  const [isDeactivating, setIsDeactivating] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [isConsentDialogOpen, setIsConsentDialogOpen] = useState(false);
+  const [hasCommissionConsent, setHasCommissionConsent] = useState(false);
+  const [evaluation, setEvaluation] = useState<PropertyAIEvaluation | null>(null);
+  const [evaluationLoading, setEvaluationLoading] = useState(false);
+
+  // Track time spent on page for recommendations
+  const pageLoadTime = useRef<number>(Date.now());
+  const hasTrackedView = useRef<boolean>(false);
+
+  // Check if current user is the owner of this property
+  const isOwner = user && property && property.user_id === user.id;
+
+  const handleProtectedAction = (action: () => void) => {
+    if (!user) {
+      router.push(`/auth/login?redirectTo=/property/${params.id}`);
+      return;
+    }
+    action();
+  };
 
   useEffect(() => {
     async function loadProperty() {
       try {
         const id = params.id as string;
-        const data = await getPropertyById(id);
+        const data = await getPropertyWithOwner(id);
         if (!data) {
           router.push('/');
           return;
@@ -33,10 +64,203 @@ export default function PropertyPage() {
     loadProperty();
   }, [params.id, router]);
 
+  // Load user consent status for this specific property
+  useEffect(() => {
+    async function loadConsentStatus() {
+      if (!user || !property) {
+        setHasConsent(false);
+        setHasCommissionConsent(false);
+        return;
+      }
+      try {
+        // Check old property consent (for address visibility)
+        const propertyConsent = await hasPropertyConsent(user.id, property.id);
+        setHasConsent(propertyConsent);
+
+        // Check new commission consent (for address + commission agreement)
+        const fullConsent = await hasFullConsent(user.id, property.id);
+        setHasCommissionConsent(fullConsent);
+      } catch (error) {
+        console.error('Error loading consent status:', error);
+        setHasConsent(false);
+        setHasCommissionConsent(false);
+      }
+    }
+    loadConsentStatus();
+  }, [user, property]);
+
+  // Load favorite status
+  useEffect(() => {
+    async function loadFavoriteStatus() {
+      if (!user || !property) {
+        setIsFavorite(false);
+        return;
+      }
+      try {
+        const favorites = await getUserFavorites(user.id);
+        const isFav = favorites.some((f: any) => f.property_id === property.id);
+        setIsFavorite(isFav);
+      } catch (error) {
+        console.error('Error loading favorite status:', error);
+        setIsFavorite(false);
+      }
+    }
+    loadFavoriteStatus();
+  }, [user, property]);
+
+  // Load AI investment evaluation
+  useEffect(() => {
+    async function loadEvaluation() {
+      if (!property) {
+        setEvaluation(null);
+        return;
+      }
+      setEvaluationLoading(true);
+      try {
+        const evalData = await getPropertyEvaluation(property.id);
+        setEvaluation(evalData);
+      } catch (error) {
+        console.error('Error loading evaluation:', error);
+        setEvaluation(null);
+      } finally {
+        setEvaluationLoading(false);
+      }
+    }
+    loadEvaluation();
+  }, [property]);
+
+  // Track property view for recommendations algorithm
+  useEffect(() => {
+    if (!user || !property || isOwner || hasTrackedView.current) return;
+
+    async function trackView() {
+      try {
+        // Track the view interaction
+        await trackInteraction(user!.id, property!.id, 'view', {
+          source: 'property_detail',
+        });
+
+        hasTrackedView.current = true;
+
+        // Update user preferences in background (non-blocking)
+        updateUserPreferences(user!.id).catch((err) => {
+          console.error('Error updating user preferences:', err);
+        });
+      } catch (error) {
+        console.error('Error tracking view:', error);
+      }
+    }
+
+    trackView();
+
+    // Track dwell time when user leaves the page
+    return () => {
+      if (!hasTrackedView.current) return;
+
+      const dwellTimeSeconds = Math.round((Date.now() - pageLoadTime.current) / 1000);
+
+      // Only track meaningful dwell times (> 3 seconds)
+      if (dwellTimeSeconds > 3) {
+        // Use sendBeacon for reliable tracking on page unload
+        if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function' && user && property) {
+          // Note: In production, you'd send this to an endpoint
+          // For now, we'll just log it
+          console.log('Dwell time:', dwellTimeSeconds, 'seconds');
+        }
+      }
+    };
+  }, [user, property, isOwner]);
+
+  // Grant consent for this specific property
+  const handleGrantConsent = async () => {
+    if (!user) {
+      router.push(`/auth/login?redirectTo=/property/${params.id}`);
+      return;
+    }
+
+    if (!property) return;
+
+    setConsentLoading(true);
+    try {
+      await grantPropertyConsent(user.id, property.id);
+      setHasConsent(true);
+    } catch (error) {
+      console.error('Error granting consent:', error);
+      alert('Fehler beim Erteilen der Einwilligung. Bitte versuchen Sie es erneut.');
+    } finally {
+      setConsentLoading(false);
+    }
+  };
+
+  const handleCommissionConsentAccept = async () => {
+    if (!user || !property) return;
+
+    setConsentLoading(true);
+    try {
+      // Save commission consent
+      await upsertConsent({
+        user_id: user.id,
+        property_id: property.id,
+        commission_accepted: true,
+        data_sharing_accepted: true,
+      });
+
+      // Also save old property consent for backwards compatibility
+      await grantPropertyConsent(user.id, property.id);
+
+      setHasCommissionConsent(true);
+      setHasConsent(true);
+      setIsConsentDialogOpen(false);
+    } catch (error) {
+      console.error('Error granting commission consent:', error);
+      alert('Fehler beim Speichern der Einwilligung. Bitte versuchen Sie es erneut.');
+    } finally {
+      setConsentLoading(false);
+    }
+  };
+
+  const handleShowAddress = () => {
+    if (!user) {
+      router.push(`/auth/login?redirectTo=/property/${params.id}`);
+      return;
+    }
+
+    // Open consent dialog if consent not yet given
+    if (!hasCommissionConsent) {
+      setIsConsentDialogOpen(true);
+    }
+  };
+
+  // Handle property deactivation
+  const handleDeactivate = async () => {
+    if (!property || !isOwner) return;
+
+    if (!confirm('Möchten Sie dieses Inserat wirklich deaktivieren? Es wird nicht mehr in der Übersicht angezeigt.')) {
+      return;
+    }
+
+    setIsDeactivating(true);
+    try {
+      await deactivateProperty(property.id);
+      router.push('/my-properties');
+    } catch (error) {
+      console.error('Error deactivating property:', error);
+      alert('Fehler beim Deaktivieren des Inserats. Bitte versuchen Sie es erneut.');
+    } finally {
+      setIsDeactivating(false);
+    }
+  };
+
+  const getScoreColor = (score: number) => {
+    if (score >= 85) return '#22C55E';
+    if (score >= 70) return '#F59E0B';
+    return '#EF4444';
+  };
+
   if (loading) {
     return (
-      <main className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-text-secondary">Lade Property...</p>
+      <main className="min-h-screen bg-white flex items-center justify-center">
+        <p className="text-gray-500">Lade Property...</p>
       </main>
     );
   }
@@ -45,123 +269,330 @@ export default function PropertyPage() {
     return null;
   }
 
+  const pricePerSqm = property.sqm > 0 ? Math.round(property.price / property.sqm) : 0;
+
   return (
-    <main className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-surface border-b border-border sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <a href="/" className="text-2xl font-bold text-primary">
-            ← ImmoFlow
-          </a>
-        </div>
-      </header>
+    <main className="min-h-screen bg-white">
+      <Header />
 
-      {/* Images Gallery */}
-      <div className="w-full h-96 bg-gray-200 relative overflow-x-auto flex">
-        {property.images.map((image, idx) => (
-          <img
-            key={idx}
-            src={image}
-            alt={`${property.title} - Bild ${idx + 1}`}
-            className="h-full w-auto object-cover"
+      {/* Two Column Layout - Full Height */}
+      <div className="flex flex-col lg:flex-row" style={{ height: 'calc(100vh - 80px)' }}>
+        {/* Left Column - Property Card with Slideshow */}
+        <div className="lg:w-1/2 lg:sticky lg:top-20 lg:h-[calc(100vh-80px)] p-4 lg:p-6">
+          <PropertyImageSlideshow
+            images={property.images}
+            title={property.title}
+            className="h-full shadow-xl"
+            showCounter={true}
+            showProgressBars={true}
+            overlay={
+              !isOwner && user && (
+                <FavoriteButton
+                  userId={user.id}
+                  propertyId={property.id}
+                  isFavorite={isFavorite}
+                  onToggle={setIsFavorite}
+                  size="lg"
+                  variant="overlay"
+                  className="absolute top-14 right-4 z-20"
+                />
+              )
+            }
           />
-        ))}
-      </div>
+        </div>
 
-      {/* Content */}
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        {/* Title & Location */}
-        <h1 className="text-4xl font-bold text-text-primary mb-2">{property.title}</h1>
-        <p className="text-xl text-text-secondary mb-8">📍 {property.location}</p>
+        {/* Right Column - Property Details (Scrollable) */}
+        <div className="lg:w-1/2 lg:overflow-y-auto p-4 lg:p-8 flex flex-col lg:h-[calc(100vh-80px)]">
+          {/* Unlock Full Details Section - Only show if no consent */}
+          {!hasConsent && !isOwner && (
+            <div className="mb-8 p-6 bg-blue-50 rounded-2xl border border-blue-100">
+              <h3 className="text-xl font-bold mb-3 text-gray-900">
+                Vollständige Details freischalten
+              </h3>
+              <p className="text-sm text-gray-700 mb-4 leading-relaxed">
+                Um die vollständige Adresse und weitere Details zu sehen, stimmen Sie bitte der Weitergabe Ihrer Kontaktdaten an den Makler zu.
+              </p>
+              <button
+                onClick={handleGrantConsent}
+                disabled={consentLoading}
+                className="bg-gray-900 text-white font-semibold py-2.5 px-6 rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              >
+                {consentLoading ? 'Wird freigeschaltet...' : user ? 'Adresse freischalten' : 'Anmelden zum Freischalten'}
+              </button>
+            </div>
+          )}
 
-        {/* Price & Details */}
-        <div className="mb-8">
-          <p className="text-5xl font-bold text-text-primary mb-2">
+          {/* Price */}
+          <h1 className="font-bold text-gray-900 mb-2" style={{ fontSize: '33px' }}>
             {formatPrice(property.price)}
-          </p>
-          <p className="text-lg text-text-secondary">
-            {formatArea(property.sqm)} • {formatRooms(property.rooms)}
-            {property.yield && ` • 📈 ${property.yield}% Rendite`}
-          </p>
-        </div>
+          </h1>
 
-        {/* AI Score */}
-        {property.ai_score && (
-          <div className="mb-8 p-6 bg-surface border border-border rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold mb-1">AI Investment Score</h3>
-                <p className="text-sm text-text-secondary">
-                  Basierend auf Lage, Preis, Rendite und Zustand
-                </p>
+          {/* Location */}
+          <LocationDisplay
+            location={property.location}
+            address={property.address}
+            showAddress={Boolean(!(property.require_address_consent ?? false) || hasCommissionConsent || isOwner)}
+            onRequestAddress={handleShowAddress}
+            className="mb-4"
+            style={{ fontSize: '18px' }}
+          />
+
+          {/* Title */}
+          <h2 className="font-semibold text-gray-900 mb-6" style={{ fontSize: '22px' }}>
+            {property.title}
+          </h2>
+
+          {/* Details Grid */}
+          <div className="grid grid-cols-3 gap-4 mb-6 pb-6 border-b border-gray-200">
+            <div>
+              <p className="text-sm text-gray-500">Zimmer</p>
+              <p className="text-lg font-semibold text-gray-900">{property.rooms}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Fläche</p>
+              <p className="text-lg font-semibold text-gray-900">{property.sqm} m²</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Preis/m²</p>
+              <p className="text-lg font-semibold text-gray-900">{formatPrice(pricePerSqm)}</p>
+            </div>
+          </div>
+
+          {/* Yield */}
+          {property.yield && (
+            <div className="flex items-center gap-2 mb-6 pb-6 border-b border-gray-200">
+              <ChartNoAxesCombined size={20} className="text-gray-700" />
+              <span className="text-lg font-semibold text-gray-900">{property.yield}% Rendite</span>
+            </div>
+          )}
+
+          {/* Description */}
+          {property.description && (
+            <div className="mb-6 pb-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Beschreibung</h3>
+              <p className="text-gray-700 leading-relaxed" style={{ fontSize: '18px' }}>
+                {property.description}
+              </p>
+            </div>
+          )}
+
+          {/* Features */}
+          {property.features && property.features.length > 0 && (
+            <div className="mb-6 pb-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Ausstattung</h3>
+              <div className="flex flex-wrap gap-2">
+                {property.features.map((feature, idx) => (
+                  <span
+                    key={idx}
+                    className="px-4 py-2 bg-white border-2 border-gray-900 text-gray-900 rounded-full text-base font-medium"
+                  >
+                    {feature}
+                  </span>
+                ))}
               </div>
-              <div className="text-5xl font-bold text-success">★ {property.ai_score}</div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Features */}
-        {property.features.length > 0 && (
-          <div className="mb-8">
-            <h3 className="text-2xl font-bold mb-4">Ausstattung</h3>
-            <div className="flex flex-wrap gap-2">
-              {property.features.map((feature, idx) => (
-                <Badge key={idx}>{feature}</Badge>
-              ))}
+          {/* AI Investment Evaluation */}
+          {(property.ai_investment_score || evaluation) && (
+            <div className="mb-6">
+              {evaluationLoading ? (
+                <div className="bg-gray-50 rounded-lg p-6">
+                  <p className="text-gray-500 text-center">Lade Investment-Bewertung...</p>
+                </div>
+              ) : (
+                <InvestmentScoreCard
+                  score={property.ai_investment_score}
+                  breakdown={
+                    evaluation
+                      ? {
+                          location_score: evaluation.location_score,
+                          price_score: evaluation.price_score,
+                          yield_score: evaluation.yield_score,
+                          appreciation_score: evaluation.appreciation_score,
+                          features_score: evaluation.features_score,
+                        }
+                      : undefined
+                  }
+                  metrics={
+                    evaluation
+                      ? {
+                          price_per_sqm: evaluation.price_per_sqm,
+                          estimated_monthly_rent: evaluation.estimated_monthly_rent,
+                          gross_yield_percentage: evaluation.gross_yield_percentage,
+                        }
+                      : undefined
+                  }
+                />
+              )}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Description */}
-        {property.description && (
-          <div className="mb-8">
-            <h3 className="text-2xl font-bold mb-4">Beschreibung</h3>
-            <p className="text-base text-text-primary leading-relaxed whitespace-pre-line">
-              {property.description}
-            </p>
-          </div>
-        )}
+          {/* Highlights */}
+          {property.highlights && property.highlights.length > 0 && (
+            <div className="mb-6 pb-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Highlights</h3>
+              <ul className="space-y-2">
+                {property.highlights.map((highlight, idx) => (
+                  <li key={idx} className="flex items-start gap-2">
+                    <span className="text-green-500">✓</span>
+                    <span className="text-gray-700" style={{ fontSize: '18px' }}>{highlight}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
-        {/* Highlights */}
-        {property.highlights.length > 0 && (
-          <div className="mb-8">
-            <h3 className="text-2xl font-bold mb-4">Highlights</h3>
-            <ul className="space-y-2">
-              {property.highlights.map((highlight, idx) => (
-                <li key={idx} className="flex items-start">
-                  <span className="text-success mr-2">✓</span>
-                  <span>{highlight}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+          {/* Red Flags */}
+          {property.red_flags && property.red_flags.length > 0 && (
+            <div className="mb-6 pb-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Zu beachten</h3>
+              <ul className="space-y-2">
+                {property.red_flags.map((flag, idx) => (
+                  <li key={idx} className="flex items-start gap-2 text-amber-600">
+                    <span>⚠️</span>
+                    <span style={{ fontSize: '18px' }}>{flag}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
-        {/* Red Flags */}
-        {property.red_flags.length > 0 && (
-          <div className="mb-8">
-            <h3 className="text-2xl font-bold mb-4">Zu beachten</h3>
-            <ul className="space-y-2">
-              {property.red_flags.map((flag, idx) => (
-                <li key={idx} className="flex items-start text-warning">
-                  <span className="mr-2">⚠️</span>
-                  <span>{flag}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+          {/* Besichtigungstermine */}
+          {!isOwner && (
+            <div className="mb-6 pb-6 border-b border-gray-200">
+              <div className="flex items-center gap-2 mb-4">
+                <Calendar size={20} className="text-gray-700" />
+                <h3 className="text-lg font-semibold text-gray-900">Besichtigungstermine</h3>
+              </div>
+              <div className="space-y-2">
+                <div
+                  onClick={() => handleProtectedAction(() => alert('Termin wird gebucht...'))}
+                  className="p-4 bg-white border border-gray-200 rounded-xl hover:border-gray-300 transition-colors cursor-pointer"
+                >
+                  <div className="font-medium text-gray-900">Montag, 1. Dezember 2025</div>
+                  <div className="text-sm text-gray-500">14:00 Uhr</div>
+                </div>
+                <div
+                  onClick={() => handleProtectedAction(() => alert('Termin wird gebucht...'))}
+                  className="p-4 bg-white border border-gray-200 rounded-xl hover:border-gray-300 transition-colors cursor-pointer"
+                >
+                  <div className="font-medium text-gray-900">Mittwoch, 3. Dezember 2025</div>
+                  <div className="text-sm text-gray-500">16:00 Uhr</div>
+                </div>
+                <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl opacity-60">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium text-gray-500">Freitag, 5. Dezember 2025</div>
+                      <div className="text-sm text-gray-400">10:00 Uhr</div>
+                    </div>
+                    <span className="text-sm text-gray-500">Ausgebucht</span>
+                  </div>
+                </div>
+              </div>
+              {!user && (
+                <p className="mt-3 text-sm text-gray-600 text-center">
+                  <a href={`/auth/login?redirectTo=/property/${params.id}`} className="text-primary hover:underline font-medium">
+                    Melden Sie sich an
+                  </a>, um einen Termin zu buchen
+                </p>
+              )}
+            </div>
+          )}
 
-        {/* CTA */}
-        <div className="flex gap-4 mt-12">
-          <button className="flex-1 bg-primary text-white font-semibold py-4 px-6 rounded-lg hover:opacity-90">
-            Besichtigung buchen
-          </button>
-          <button className="flex-1 bg-transparent border-2 border-border text-text-primary font-semibold py-4 px-6 rounded-lg hover:bg-surface">
-            Makler kontaktieren
-          </button>
+          {/* Anbieter Info */}
+          {property.owner && !isOwner && (
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Anbieter</h3>
+              <div className="flex items-center gap-4">
+                {property.owner.avatar_url ? (
+                  <img
+                    src={property.owner.avatar_url}
+                    alt={`${property.owner.first_name || ''} ${property.owner.last_name || ''}`}
+                    className="w-16 h-16 rounded-full object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                    <span className="text-2xl font-bold text-gray-400">
+                      {(property.owner.first_name?.charAt(0) || 'A').toUpperCase()}
+                    </span>
+                  </div>
+                )}
+                <div>
+                  <h4 className="font-bold text-gray-900">
+                    {property.owner.first_name || property.owner.last_name
+                      ? `${property.owner.first_name || ''} ${property.owner.last_name || ''}`.trim()
+                      : 'Privater Anbieter'}
+                  </h4>
+                  {property.owner.company && (
+                    <p className="text-sm text-gray-600">{property.owner.company}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* CTA Buttons */}
+          <div className="flex flex-col sm:flex-row gap-3 mt-auto bg-white pt-4 pb-4">
+            {isOwner ? (
+              <>
+                <button
+                  onClick={() => router.push(`/property/${property.id}/edit`)}
+                  className="flex-1 bg-primary text-white font-semibold py-4 px-6 rounded-xl hover:opacity-90 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Pencil size={20} />
+                  Bearbeiten
+                </button>
+                <button
+                  onClick={handleDeactivate}
+                  disabled={isDeactivating}
+                  className="flex-1 bg-white border-2 border-gray-300 text-gray-700 font-semibold py-4 px-6 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <Power size={20} />
+                  {isDeactivating ? 'Wird deaktiviert...' : 'Deaktivieren'}
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => handleProtectedAction(() => setIsChatModalOpen(true))}
+                  className="flex-1 bg-primary text-white font-semibold py-4 px-6 rounded-xl hover:opacity-90 transition-colors"
+                >
+                  {user ? 'AI-Assistent fragen' : 'Anmelden für AI-Assistent'}
+                </button>
+                <button
+                  onClick={() => handleProtectedAction(() => alert('Makler wird kontaktiert...'))}
+                  className="flex-1 bg-white border-2 border-gray-300 text-gray-900 font-semibold py-4 px-6 rounded-xl hover:border-gray-400 transition-colors"
+                >
+                  {user ? 'Makler kontaktieren' : 'Anmelden zum Kontaktieren'}
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Commission Consent Dialog */}
+      <CommissionConsentDialog
+        isOpen={isConsentDialogOpen}
+        onClose={() => setIsConsentDialogOpen(false)}
+        onAccept={handleCommissionConsentAccept}
+        commissionRate={property.commission_rate || undefined}
+        propertyPrice={property.price}
+        propertyTitle={property.title}
+      />
+
+      {/* Chat Modal */}
+      <ChatModal
+        isOpen={isChatModalOpen}
+        onClose={() => setIsChatModalOpen(false)}
+        propertyId={property.id}
+        propertyTitle={property.title}
+      />
     </main>
   );
 }

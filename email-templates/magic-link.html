@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anmeldung - ImmoFlow</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; background-color: #F7F7F7;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #F7F7F7; padding: 40px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #FFFFFF; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);">
+
+          <!-- Header -->
+          <tr>
+            <td style="padding: 48px 40px 32px; text-align: center; border-bottom: 1px solid #DDDDDD;">
+              <h1 style="margin: 0; color: #222222; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">
+                ImmoFlow
+              </h1>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 48px 40px;">
+              <h2 style="margin: 0 0 16px; color: #222222; font-size: 24px; font-weight: 600; line-height: 1.3;">
+                Ihr Anmelde-Link
+              </h2>
+
+              <p style="margin: 0 0 32px; color: #717171; font-size: 16px; line-height: 1.5;">
+                Klicken Sie auf den Button unten, um sich bei ImmoFlow anzumelden. Kein Passwort erforderlich!
+              </p>
+
+              <!-- CTA Button -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" style="padding: 0 0 32px;">
+                    <a href="{{ .ConfirmationURL }}"
+                       style="display: inline-block; background-color: #FF385C; color: #FFFFFF; text-decoration: none; padding: 14px 24px; border-radius: 8px; font-size: 16px; font-weight: 600;">
+                      Jetzt anmelden
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <div style="background-color: #FEF3C7; border: 1px solid #FDE68A; padding: 16px 20px; border-radius: 8px; margin-bottom: 24px;">
+                <p style="margin: 0; color: #92400E; font-size: 14px; line-height: 1.5;">
+                  <strong>Hinweis:</strong> Dieser Link ist nur für 1 Stunde gültig und kann nur einmal verwendet werden.
+                </p>
+              </div>
+
+              <div style="background-color: #F7F7F7; padding: 16px 20px; border-radius: 8px; margin-bottom: 32px;">
+                <p style="margin: 0 0 8px; color: #222222; font-size: 14px; font-weight: 600;">
+                  Alternativ können Sie diesen Link kopieren:
+                </p>
+                <p style="margin: 0; color: #717171; font-size: 13px; word-break: break-all; line-height: 1.5;">
+                  {{ .ConfirmationURL }}
+                </p>
+              </div>
+
+              <p style="margin: 0 0 16px; color: #717171; font-size: 14px; line-height: 1.5;">
+                Wenn Sie diese Anmeldung nicht angefordert haben, können Sie diese E-Mail ignorieren.
+              </p>
+
+              <p style="margin: 0; color: #717171; font-size: 14px; line-height: 1.5;">
+                Viele Grüße,<br>
+                <strong style="color: #222222;">Das ImmoFlow Team</strong>
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #F7F7F7; padding: 32px 40px; text-align: center; border-top: 1px solid #DDDDDD;">
+              <p style="margin: 0 0 8px; color: #717171; font-size: 12px;">
+                © {{ .Year }} ImmoFlow. Alle Rechte vorbehalten.
+              </p>
+              <p style="margin: 0; color: #717171; font-size: 12px;">
+                Die moderne Plattform für Immobilien-Investment in Deutschland
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

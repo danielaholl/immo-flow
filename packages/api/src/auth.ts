@@ -7,7 +7,8 @@ import type { User } from '@supabase/supabase-js';
 export interface SignUpParams {
   email: string;
   password: string;
-  name?: string;
+  firstName?: string;
+  lastName?: string;
 }
 
 export interface SignInParams {
@@ -18,13 +19,14 @@ export interface SignInParams {
 /**
  * Sign up a new user
  */
-export async function signUp({ email, password, name }: SignUpParams): Promise<User> {
+export async function signUp({ email, password, firstName, lastName }: SignUpParams): Promise<User> {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: {
-        name,
+        first_name: firstName,
+        last_name: lastName,
       },
     },
   });

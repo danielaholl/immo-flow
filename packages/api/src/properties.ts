@@ -4,6 +4,21 @@
  */
 import { supabase, Property, PropertyInsert } from '@immoflow/database';
 
+export interface PropertyOwner {
+  id: string;
+  user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
+  company: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+}
+
+export interface PropertyWithOwner extends Property {
+  owner?: PropertyOwner | null;
+}
+
 export interface GetPropertiesParams {
   location?: string;
   minPrice?: number;
@@ -99,6 +114,45 @@ export async function getPropertyById(id: string): Promise<Property | null> {
 }
 
 /**
+ * Get a single property by ID with owner profile data
+ */
+export async function getPropertyWithOwner(id: string): Promise<PropertyWithOwner | null> {
+  // First get the property
+  const { data: property, error: propertyError } = await supabase
+    .from('properties')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (propertyError) {
+    if (propertyError.code === 'PGRST116') {
+      return null; // Property not found
+    }
+    console.error('Error fetching property:', propertyError);
+    throw new Error(`Failed to fetch property: ${propertyError.message}`);
+  }
+
+  // Then get the owner profile if user_id exists
+  let owner: PropertyOwner | null = null;
+  if (property.user_id) {
+    const { data: ownerData, error: ownerError } = await supabase
+      .from('user_profiles')
+      .select('id, user_id, first_name, last_name, phone, company, avatar_url, bio')
+      .eq('user_id', property.user_id)
+      .single();
+
+    if (!ownerError && ownerData) {
+      owner = ownerData;
+    }
+  }
+
+  return {
+    ...property,
+    owner,
+  } as PropertyWithOwner;
+}
+
+/**
  * Create a new property
  */
 export async function createProperty(property: PropertyInsert): Promise<Property> {
@@ -182,4 +236,99 @@ export async function searchProperties(query: string): Promise<Property[]> {
   }
 
   return data || [];
+}
+
+/**
+ * Get properties by user ID
+ */
+export async function getPropertiesByUserId(userId: string): Promise<Property[]> {
+  const { data, error } = await supabase
+    .from('properties')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching user properties:', error);
+    throw new Error(`Failed to fetch user properties: ${error.message}`);
+  }
+
+  return data || [];
+}
+
+/**
+ * Deactivate a property (set status to 'archived')
+ */
+export async function deactivateProperty(id: string): Promise<Property> {
+  const { data, error } = await supabase
+    .from('properties')
+    .update({ status: 'archived' })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error deactivating property:', error);
+    throw new Error(`Failed to deactivate property: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Activate a property (set status to 'active')
+ */
+export async function activateProperty(id: string): Promise<Property> {
+  const { data, error } = await supabase
+    .from('properties')
+    .update({ status: 'active' })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error activating property:', error);
+    throw new Error(`Failed to activate property: ${error.message}`);
+  }
+
+  return data;
+}
+
+export interface AISearchCriteria {
+  location?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  rooms?: number;
+  minSqm?: number;
+  maxSqm?: number;
+  features?: string[];
+}
+
+export interface AISearchResponse {
+  properties: Property[];
+  criteria: AISearchCriteria;
+  query: string;
+  count: number;
+}
+
+/**
+ * Search properties using AI-powered natural language query
+ * Example: "3 Zimmer Wohnung in München mit Balkon unter 500000€"
+ */
+export async function searchPropertiesWithAI(query: string): Promise<AISearchResponse> {
+  try {
+    const { data, error } = await supabase.functions.invoke('ai-property-search', {
+      body: { query },
+    });
+
+    if (error) {
+      console.error('Error calling ai-property-search function:', error);
+      throw new Error(error.message || 'Failed to search properties with AI');
+    }
+
+    return data as AISearchResponse;
+  } catch (error) {
+    console.error('Error in searchPropertiesWithAI:', error);
+    throw error;
+  }
 }

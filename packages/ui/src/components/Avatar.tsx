@@ -1,6 +1,11 @@
 import React from 'react';
-import { View, Image, Text, StyleSheet, ViewStyle } from 'react-native';
+import { View, Image, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
 import { colors, typography } from '../theme';
+
+interface SizeStyles {
+  container: ViewStyle;
+  initials: TextStyle;
+}
 
 export interface AvatarProps {
   uri?: string;
@@ -10,7 +15,7 @@ export interface AvatarProps {
 }
 
 export function Avatar({ uri, name, size = 'md', style }: AvatarProps) {
-  const sizeStyles = styles[size];
+  const sizeStyles: SizeStyles = sizeStylesMap[size];
 
   const getInitials = (fullName: string) => {
     const names = fullName.trim().split(' ');
@@ -27,7 +32,7 @@ export function Avatar({ uri, name, size = 'md', style }: AvatarProps) {
   return (
     <View style={[styles.container, sizeStyles.container, style]}>
       {uri ? (
-        <Image source={{ uri }} style={[styles.image, sizeStyles.container]} />
+        <Image source={{ uri }} style={styles.image as any} />
       ) : name ? (
         <View
           style={[
@@ -64,6 +69,9 @@ const styles = StyleSheet.create({
     color: colors.text.inverse,
     fontWeight: typography.fontWeight.bold,
   },
+});
+
+const sizeStylesMap: Record<string, SizeStyles> = {
   sm: {
     container: {
       width: 32,
@@ -104,4 +112,4 @@ const styles = StyleSheet.create({
       fontSize: typography.fontSize.xxxl,
     },
   },
-});
+};

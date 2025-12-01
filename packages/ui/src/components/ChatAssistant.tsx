@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { sendChatMessage, type ChatMessage } from '@immoflow/api';
+import { Search, Home, User } from 'lucide-react';
 
 export interface Message {
   id: string;
@@ -14,19 +15,16 @@ export interface ChatAssistantProps {
   propertyId?: string;
 }
 
+/**
+ * ChatGPT-style Chat Assistant
+ * Clean, minimal design focused on conversation
+ */
 export function ChatAssistant({ onSearch, className = '', propertyId }: ChatAssistantProps) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      content: 'Hallo! Ich bin Ihr KI-Assistent für die Immobiliensuche. Wie kann ich Ihnen helfen? Sie können mich zum Beispiel fragen: "Zeige mir 3-Zimmer Wohnungen in Berlin unter 500.000€"',
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -35,6 +33,14 @@ export function ChatAssistant({ onSearch, className = '', propertyId }: ChatAssi
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+      inputRef.current.style.height = inputRef.current.scrollHeight + 'px';
+    }
+  }, [input]);
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -94,163 +100,136 @@ export function ChatAssistant({ onSearch, className = '', propertyId }: ChatAssi
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
   };
 
-  const quickActions = [
-    'Wohnungen in Berlin',
-    '3 Zimmer unter 500k',
-    'Neubau mit Balkon',
-    'Beste Investitionen',
+  const examplePrompts = [
+    '3-Zimmer Wohnung in Berlin unter 500.000€',
+    'Neubau mit Balkon in München',
+    'Beste Investment-Immobilien',
+    'Wohnung mit guter Rendite',
   ];
 
   return (
-    <div className={`bg-white rounded-2xl shadow-lg border border-gray-200 ${className}`}>
-      {/* Header */}
-      <div
-        className="flex items-center justify-between p-4 border-b border-gray-200 cursor-pointer"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full flex items-center justify-center">
-            <svg
-              className="w-6 h-6 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+    <>
+      {/* Input Area - Premium Airbnb Style at Top */}
+      <div className="w-full pb-6 pt-6 mb-8">
+        <div className="max-w-4xl mx-auto px-6">
+          <div className="relative flex items-center bg-white rounded-full shadow-[0_2px_16px_rgba(0,0,0,0.08),0_8px_32px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_24px_rgba(0,0,0,0.12),0_12px_48px_rgba(0,0,0,0.08)] transition-all duration-300 border border-gray-100">
+
+            {/* Input Section */}
+            <div className="flex-1 pl-8 pr-4 py-5">
+              <div className="flex flex-col">
+
+                <textarea
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Welche Immobilie gefällt es dir heute?"
+                  rows={1}
+                  disabled={isLoading}
+                  className="w-full resize-none outline-none text-gray-800 placeholder-gray-400 text-[15px] leading-tight max-h-20 overflow-y-auto disabled:opacity-50 bg-transparent font-normal"
+                  style={{ minHeight: '22px' }}
+                />
+              </div>
+            </div>
+
+            {/* Search Button - Premium Airbnb Style */}
+            <button
+              onClick={handleSend}
+              disabled={!input.trim() || isLoading}
+              className="flex-shrink-0 w-14 h-14 mr-2.5 bg-gradient-to-br from-[#FF385C] via-[#E61E4D] to-[#D70466] hover:from-[#E61E4D] hover:via-[#D70466] hover:to-[#C1003D] text-white rounded-full flex items-center justify-center transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed shadow-[0_2px_12px_rgba(230,30,77,0.4)] hover:shadow-[0_4px_20px_rgba(230,30,77,0.6)] hover:scale-105 active:scale-95"
+              aria-label="Suchen"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-              />
-            </svg>
+              <Search className="w-[18px] h-[18px]" strokeWidth={2.5} />
+            </button>
           </div>
-          <div>
-            <h3 className="font-semibold text-gray-900">KI-Assistent</h3>
-            <p className="text-sm text-gray-500">Ihre intelligente Immobiliensuche</p>
-          </div>
+
+          <p className="text-[11px] text-gray-500 text-center mt-3 font-medium">
+            ImmoFlow nutzt KI. Prüfe wichtige Informationen.
+          </p>
         </div>
-        <button className="text-gray-400 hover:text-gray-600">
-          <svg
-            className={`w-5 h-5 transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 9l-7 7-7-7"
-            />
-          </svg>
-        </button>
       </div>
 
-      {/* Chat Content */}
-      {isExpanded && (
-        <>
-          {/* Messages */}
-          <div className="h-80 overflow-y-auto p-4 space-y-4">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-2 ${
-                    message.role === 'user'
-                      ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white'
-                      : 'bg-gray-100 text-gray-900'
-                  }`}
-                >
-                  <p className="text-sm">{message.content}</p>
-                  <p
-                    className={`text-xs mt-1 ${
-                      message.role === 'user' ? 'text-pink-100' : 'text-gray-500'
-                    }`}
-                  >
-                    {message.timestamp.toLocaleTimeString('de-DE', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </p>
-                </div>
-              </div>
-            ))}
-            {isLoading && (
-              <div className="flex justify-start">
-                <div className="bg-gray-100 rounded-2xl px-4 py-2">
-                  <div className="flex space-x-2">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></div>
-                  </div>
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Quick Actions */}
-          <div className="px-4 py-2 border-t border-gray-200">
-            <p className="text-xs text-gray-500 mb-2">Schnellsuche:</p>
-            <div className="flex flex-wrap gap-2">
-              {quickActions.map((action, index) => (
+      {/* Messages Area */}
+      <div className={`w-full ${className}`}>
+        {messages.length === 0 ? (
+          // Empty state with example prompts
+          <div className="flex flex-col items-center justify-center min-h-[40vh] space-y-6 px-4 py-8">
+            <div className="flex flex-wrap justify-center gap-2 w-full max-w-3xl">
+              {examplePrompts.map((prompt, index) => (
                 <button
                   key={index}
-                  onClick={() => {
-                    setInput(action);
-                  }}
-                  className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors"
+                  onClick={() => setInput(prompt)}
+                  className="px-4 py-2 text-sm text-gray-700 bg-white border border-gray-200 rounded-full hover:border-gray-300 hover:shadow-sm transition-all group hover:text-gray-900"
                 >
-                  {action}
+                  {prompt}
                 </button>
               ))}
             </div>
           </div>
-
-          {/* Input */}
-          <div className="p-4 border-t border-gray-200">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Fragen Sie nach Immobilien..."
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                disabled={isLoading}
-              />
-              <button
-                onClick={handleSend}
-                disabled={!input.trim() || isLoading}
-                className="px-6 py-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-full font-medium hover:shadow-lg transition-shadow disabled:opacity-50 disabled:cursor-not-allowed"
+        ) : (
+          // Messages
+          <div className="space-y-6 max-w-3xl mx-auto py-8 px-4">
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex gap-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                  />
-                </svg>
-              </button>
-            </div>
+                {message.role === 'assistant' && (
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Home className="w-5 h-5 text-white" />
+                  </div>
+                )}
+
+                <div className={`flex-1 ${message.role === 'user' ? 'max-w-2xl' : ''}`}>
+                  <div
+                    className={`rounded-2xl px-5 py-3 ${
+                      message.role === 'user'
+                        ? 'bg-gray-100 text-gray-900 ml-auto'
+                        : 'bg-white text-gray-900'
+                    }`}
+                  >
+                    <p className="text-[15px] leading-relaxed whitespace-pre-wrap">
+                      {message.content}
+                    </p>
+                  </div>
+                </div>
+
+                {message.role === 'user' && (
+                  <div className="w-8 h-8 bg-gray-700 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <User className="w-5 h-5 text-white" />
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {/* Loading indicator */}
+            {isLoading && (
+              <div className="flex gap-4 justify-start">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Home className="w-5 h-5 text-white" />
+                </div>
+                <div className="bg-white rounded-2xl px-5 py-3">
+                  <div className="flex space-x-2">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
           </div>
-        </>
-      )}
-    </div>
+        )}
+      </div>
+    </>
+
   );
 }

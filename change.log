@@ -1,0 +1,720 @@
+# Changelog - ImmoFlow
+
+## 2025-11-29 (Latest Session)
+
+### Added
+
+#### 1. PropertyImagePlaceholder Component (`packages/ui/src/components/PropertyImagePlaceholder.tsx`)
+- **New reusable component** for standard property image placeholders
+- Features:
+  - House icon from Lucide React
+  - Gray gradient background (`from-gray-100 to-gray-200`)
+  - Configurable icon size (default: 48px)
+  - Optional text display (e.g., "Kein Bild verfügbar", "Fotos hinzufügen")
+  - Flexible className support for custom styling
+- Used as fallback across the application:
+  - PropertyImageSlideshow (when no images or image load error)
+  - Create listing page preview
+  - Profile page property/favorite cards
+
+#### 2. Address Consent Requirement Feature
+- **New database field**: `require_address_consent` (boolean) in properties table
+- **Database migration**: `supabase/migrations/20241129200000_add_require_address_consent.sql`
+- **Create listing flow update**:
+  - New question (index 7): "Soll die Adresse erst nach Provisionsvereinbarung angezeigt werden?"
+  - Two options: "Ja, erst nach Vereinbarung" or "Nein, Adresse direkt anzeigen"
+  - Field only shown if commission is selected
+- **Property detail page logic**:
+  - Address shown immediately if `require_address_consent = false`
+  - Address requires consent dialog if `require_address_consent = true`
+  - Address always shown to property owner
+
+#### 3. Commission-Based Listing Flow
+- **Removed agent/private person question** from create listing
+- **New commission question** (index 5): "Bieten Sie diese Immobilie mit Provision an?"
+  - Yes/No options instead of agent/private selection
+- **Conditional flow**:
+  - If "Yes": Show commission rate question + address consent question
+  - If "No": Skip both questions, set commission_rate to undefined
+- **Updated field mapping**:
+  - Question indices updated throughout handleQuickReply
+  - All subsequent questions shifted appropriately
+
+### Changed
+
+#### Profile Page Major Redesign (`apps/web/app/profile/page.tsx`)
+- **Layout restructured**: Left sidebar (400px fixed) + Right content (flex-1)
+  - Left: Profile settings aligned to left edge with `lg:pl-8`
+  - Right: Properties and favorites with more space
+- **Removed sections**:
+  - "Einstellungen" section (Address sharing toggle)
+  - Removed related imports: Settings icon
+- **Property & Favorite Cards**:
+  - Changed from grid to flexbox layout (`flex flex-wrap`)
+  - Fixed card width: 250px (previously responsive grid)
+  - Displays all properties/favorites (no 4-item limit)
+  - Enhanced card information:
+    - Larger price text (`text-lg`)
+    - Title (`text-sm`)
+    - Location with MapPin icon
+    - Size (m²), Rooms, Price per m²
+    - Status badge and view count
+- **Vergleichsansicht Button**:
+  - Moved from bottom to header area next to title
+  - Changed icon from `Eye` to `Rows3` (Lucide)
+  - Shorter text: "Vergleichsansicht" (instead of full button)
+  - Always visible when items exist
+  - Positioned between title and action buttons
+
+#### Create Listing Page Quick Reply Display
+- **Fixed overflow issue**: "die vorschläge werden nicht ganz angezeigt"
+- Added `w-full` to container
+- Added `whitespace-normal text-left` to buttons for proper text wrapping
+
+#### PropertyImageSlideshow Error Handling
+- **Image load errors**: Shows PropertyImagePlaceholder component
+- **No images**: Shows PropertyImagePlaceholder instead of custom div
+- Uses `imageError` state to track and display fallback
+
+### Technical Details
+
+#### Database Migration
+```sql
+-- supabase/migrations/20241129200000_add_require_address_consent.sql
+ALTER TABLE properties
+ADD COLUMN require_address_consent BOOLEAN DEFAULT false;
+
+COMMENT ON COLUMN properties.require_address_consent IS
+  'Whether address should only be shown after consent/commission agreement';
+```
+
+#### Address Visibility Logic
+```typescript
+// apps/web/app/property/[id]/page.tsx:265
+<LocationDisplay
+  location={property.location}
+  address={property.address}
+  showAddress={!property.require_address_consent || hasCommissionConsent || isOwner}
+  onRequestAddress={handleShowAddress}
+/>
+```
+
+#### Profile Page Layout
+```typescript
+// Two-column layout without max-width constraint
+<div className="flex flex-col lg:flex-row gap-8 py-8">
+  {/* Left Column - 400px fixed */}
+  <div className="lg:w-[400px] lg:flex-shrink-0 px-4 lg:pl-8 lg:pr-0">
+    {/* Profile settings */}
+  </div>
+
+  {/* Right Column - Takes remaining space */}
+  <div className="flex-1 px-4 lg:pr-8 lg:pl-0">
+    {/* Properties & Favorites */}
+  </div>
+</div>
+```
+
+#### Property Card Enhancement
+```typescript
+// Fixed width cards with detailed info
+<div className="w-[250px]">
+  <div className="p-3">
+    <p className="text-primary font-bold text-lg">{formatPrice(price)}</p>
+    <h3 className="text-sm truncate">{title}</h3>
+    <div className="flex items-center gap-1 text-xs">
+      <MapPin size={12} />
+      <span>{location}</span>
+    </div>
+    <div className="flex items-center gap-3 text-xs">
+      <span>{sqm} m²</span>
+      <span>•</span>
+      <span>{rooms} Zi.</span>
+      <span>•</span>
+      <span>{pricePerSqm}/m²</span>
+    </div>
+  </div>
+</div>
+```
+
+### Files Modified
+```
+packages/ui/src/components/PropertyImagePlaceholder.tsx  # NEW: Reusable placeholder
+packages/ui/src/components/index.ts                      # Export PropertyImagePlaceholder
+apps/web/app/components/PropertyImageSlideshow.tsx       # Use placeholder component
+apps/web/app/create-listing/page.tsx                     # Commission flow, placeholder, fixes
+apps/web/app/property/[id]/page.tsx                      # Address consent logic
+apps/web/app/profile/page.tsx                            # Major redesign
+packages/database/src/database.types.ts                  # Updated with require_address_consent
+supabase/migrations/20241129200000_add_require_address_consent.sql  # NEW migration
+```
+
+### UI/UX Improvements
+- **Consistent placeholder**: Same house icon used everywhere
+- **Better commission flow**: Clearer yes/no question instead of agent/private
+- **Flexible address sharing**: Per-property control over address visibility
+- **Improved profile layout**: More space for properties and favorites
+- **Better card information**: More details at a glance
+- **Fixed text wrapping**: Quick reply options fully visible
+
+---
+
+## 2025-11-29
+
+### Added
+
+#### 1. Reusable FavoriteButton Component (`apps/web/app/components/FavoriteButton.tsx`)
+- **New reusable component** for favorite/heart button functionality
+- Three variants:
+  - `overlay`: Large heart for image overlays (♥ character with text-stroke)
+  - `card`: Small badge on property cards (Lucide Heart icon)
+  - `standalone`: Regular button style
+- Three sizes: `sm`, `md`, `lg`
+- Props:
+  - `userId`, `propertyId`: Required for API calls
+  - `isFavorite`: Initial state
+  - `onToggle`: Callback when state changes
+  - `size`, `variant`, `className`: Styling options
+- Handles optimistic UI updates and loading states
+- Integrated into: Property detail page, Suggestion page, Profile page, Favorites page
+
+#### 2. Profile Page Redesign (`apps/web/app/profile/page.tsx`)
+- **Two-column layout**: Profile settings (left), Properties & Favorites (right)
+- **Limited display**: Shows only first 4 items in each section
+- **"Alle anzeigen" buttons**: Navigate to full Favoriten/Meine Inserate pages when >4 items
+- Profile card with avatar, name, email
+- Contact info section (phone, email)
+- Settings section with notifications toggle
+- Account section with email display and password change option
+- Edit Profile and Logout buttons side by side
+- Horizontal separator between Inserate and Favoriten sections
+
+#### 3. Favorites Page Split-Layout (`apps/web/app/favorites/page.tsx`)
+- **Complete redesign** with master-detail layout
+- **Left column (1/3)**: Scrollable list of favorite property cards
+  - Compact horizontal cards with thumbnail, price, title, location
+  - AI score badge on thumbnail
+  - Selected state with primary border and ring
+- **Right column (2/3)**: Full property details of selected item
+  - PropertyImageSlideshow with FavoriteButton overlay
+  - Consent unlock section (blue box) or "Einwilligung erteilt" message (green box)
+  - Price, location with optional address (if consented)
+  - Property details grid (rooms, sqm, price/sqm)
+  - Yield, description, features, AI score sections
+  - "Details ansehen" and remove from favorites buttons
+- Click on slideshow navigates to property detail page
+
+#### 4. My Properties Page Split-Layout (`apps/web/app/my-properties/page.tsx`)
+- **Complete redesign** with master-detail layout (same pattern as Favorites)
+- **Left column**: Property list with status filter (Alle, Aktiv, Inaktiv)
+  - Status badges: Aktiv (green), Ausstehend (yellow), Inaktiv (gray), Verkauft (blue)
+  - Views count and favorites count on each card
+  - "+" button to create new listing
+- **Right column**: Full property details with stats
+  - PropertyImageSlideshow
+  - Status badge, price, location with address
+  - Stats grid (rooms, sqm, views, favorites)
+  - Yield, description, features, AI score
+  - "Bearbeiten" and "Aktivieren/Deaktivieren" buttons
+- Click on slideshow navigates to property detail page
+
+#### 5. PropertyImageSlideshow Click Areas (`apps/web/app/components/PropertyImageSlideshow.tsx`)
+- **New `onClick` prop**: Handler for main content area clicks
+- **Separated click zones**:
+  - Top 40px: Progress bars area (for image switching)
+  - Below progress bars: Main clickable area (for navigation)
+  - Overlay area: FavoriteButton with own click handler
+- **stopPropagation** on progress bars and overlay to prevent bubbling
+
+#### 6. Small Screen Slideshow Optimization (`apps/web/app/components/PropertyImageSlideshow.tsx`)
+- **Intersection Observer** tracks visibility of each slideshow
+- **Global registry** manages which slideshow is most visible
+- **Only one active**: On screens <1024px, only the most visible slideshow animates
+- **Automatic pause/resume**: Other slideshows pause automatically
+- **Large screens**: All slideshows run in parallel (no restriction)
+- **New `slideshowId` prop**: Optional unique identifier for tracking
+
+### Changed
+
+#### FavoriteButton Position
+- **Before**: Bottom-right of slideshow image (`bottom-6 right-16`)
+- **After**: Top-right below progress bars (`top-14 right-4 z-20`)
+- Updated in: `property/[id]/page.tsx`, `suggestion/[id]/page.tsx`, `favorites/page.tsx`
+
+#### Profile Page Layout
+- **Before**: Single column with tabs for Inserate/Favoriten
+- **After**: Two-column layout, both sections visible, limited to 4 items each
+
+### Files Modified
+```
+apps/web/app/components/FavoriteButton.tsx        # NEW: Reusable favorite button
+apps/web/app/components/PropertyImageSlideshow.tsx # Click areas, visibility tracking
+apps/web/app/profile/page.tsx                      # Two-column, limited items, buttons
+apps/web/app/favorites/page.tsx                    # Complete redesign with split-layout
+apps/web/app/my-properties/page.tsx                # Complete redesign with split-layout
+apps/web/app/property/[id]/page.tsx                # FavoriteButton position
+apps/web/app/suggestion/[id]/page.tsx              # FavoriteButton position
+```
+
+### Technical Details
+
+#### FavoriteButton Implementation
+```typescript
+interface FavoriteButtonProps {
+  userId: string;
+  propertyId: string;
+  isFavorite: boolean;
+  onToggle?: (newState: boolean) => void;
+  size?: 'sm' | 'md' | 'lg';
+  variant?: 'overlay' | 'card' | 'standalone';
+  className?: string;
+}
+```
+
+#### Slideshow Visibility Tracking
+```typescript
+// Global registry
+let activeSlideshowId: string | null = null;
+let slideshowVisibilityMap: Map<string, number> = new Map();
+let updateCallbacks: Map<string, (isActive: boolean) => void> = new Map();
+
+// IntersectionObserver with thresholds 0-100% in 10% steps
+const observer = new IntersectionObserver(callback, {
+  threshold: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+});
+```
+
+---
+
+## 2025-11-28
+
+### Added
+
+#### 1. Create Listing Page - AI Chat Assistant (`apps/web/app/create-listing/page.tsx`)
+- **Chat-based property listing creation** with AI assistant
+- Multi-step question flow covering:
+  - Property type, location, size, rooms, price
+  - Features selection with checkboxes
+  - Image upload with preview
+  - AI-generated description with textarea
+  - Viewing appointments selection (moved to last step)
+- **Live Preview** component showing property card in real-time
+- Price per sqm calculation in preview and bottom bar
+- Progress bar in primary color
+
+#### 2. Database Migration for Property Publishing
+- **New migration**: `supabase/migrations/20241128120000_fix_properties_rls.sql`
+- Added `seller_id` column to properties table (references auth.users)
+- Fixed RLS policy: "Authenticated users can create properties"
+- Allows any authenticated user to insert new properties
+
+#### 3. Property Publishing Feature
+- "Veröffentlichen" button saves property to Supabase database
+- Automatically sets `seller_id` to current user
+- Navigates to property detail page after successful creation
+- Error handling with user-friendly alerts
+
+### Changed
+
+#### Create Listing Page Layout
+- **Responsive design**: Preview below chat on mobile, side-by-side on desktop
+- Removed image carousel navigation arrows and dots from preview
+- Fixed auto-scroll: Only chat container scrolls, not entire page
+- Question order: Appointments moved to be the last step
+- Buttons styled in primary color (`bg-primary`)
+
+#### Database Types (`packages/database/src/database.types.ts`)
+- Added `seller_id: string | null` to properties Row, Insert, and Update types
+
+### Fixed
+
+#### Favorite Button Not Clickable (`packages/ui/src/components/PropertyCard.tsx`)
+- **Problem**: Heart/favorite button was not responding to clicks on overview page
+- **Root Cause**: Navigation areas had `zIndex: 5`, covering the favorite button
+- **Solution**:
+  - Added `zIndex: 20` to favoriteButton style
+  - Increased padding from default to 12 for larger click target
+  - Added `cursor: pointer` for better UX
+- File: `packages/ui/src/components/PropertyCard.tsx:321-329`
+
+```typescript
+favoriteButton: {
+  position: 'absolute',
+  bottom: 100,
+  right: 16,
+  padding: 12,
+  zIndex: 20,
+  cursor: 'pointer',
+},
+```
+
+#### Auto-Scroll Issue in Create Listing
+- **Problem**: Preview section scrolled back to top every few seconds
+- **Root Cause**: `scrollIntoView` was affecting entire page
+- **Solution**: Changed to direct `scrollTop` manipulation on chat container only
+
+```typescript
+useEffect(() => {
+  const scrollToBottom = () => {
+    if (chatContainerRef.current) {
+      const scrollContainer = chatContainerRef.current.querySelector('.overflow-y-auto');
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }
+    }
+  };
+  const timer = setTimeout(scrollToBottom, 100);
+  return () => clearTimeout(timer);
+}, [messages, isTyping]);
+```
+
+#### Property Creation Errors
+- **Error 1**: `property_type` column doesn't exist → Removed from propertyData
+- **Error 2**: RLS policy violation (403) → Created new permissive INSERT policy
+
+### Files Modified
+```
+apps/web/app/create-listing/page.tsx           # Major feature: listing creation with AI
+packages/database/src/database.types.ts        # Added seller_id type
+packages/ui/src/components/PropertyCard.tsx    # Fixed favorite button clickability
+supabase/migrations/20241128120000_fix_properties_rls.sql  # New migration
+```
+
+### Technical Details
+
+#### handlePublish Implementation
+```typescript
+const handlePublish = async () => {
+  if (!user) return;
+  setIsSubmitting(true);
+  try {
+    const propertyData = {
+      title: listingData.title || 'Neue Immobilie',
+      location: listingData.location || '',
+      price: listingData.price || 0,
+      sqm: listingData.sqm || 0,
+      rooms: listingData.rooms || 0,
+      images: listingData.images || [],
+      features: listingData.features || [],
+      description: listingData.description || '',
+      highlights: [],
+      red_flags: [],
+      seller_id: user.id,
+    };
+    const createdProperty = await createProperty(propertyData);
+    router.push(`/property/${createdProperty.id}`);
+  } catch (error) {
+    alert('Fehler beim Erstellen des Inserats.');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+```
+
+#### RLS Migration
+```sql
+DROP POLICY IF EXISTS "Agents can create properties" ON properties;
+CREATE POLICY "Authenticated users can create properties"
+  ON properties FOR INSERT
+  TO authenticated
+  WITH CHECK (true);
+
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS seller_id UUID REFERENCES auth.users(id);
+```
+
+---
+
+## 2025-11-26 (Evening Session)
+
+### Changed
+
+#### Homepage Layout (`apps/web/app/page.tsx`)
+- **Chat Button Position**: Moved floating chat button from bottom-right to top-right
+  - Initial position: `fixed bottom-6 right-6`
+  - Final position: `fixed top-24 right-6`
+  - Adjusted to avoid overlap with navigation menu
+  - File: `apps/web/app/page.tsx:164`
+
+#### Property Details Page (`apps/web/app/property/[id]/page.tsx`)
+- **Major Redesign**: Added multiple new sections and features
+
+### Added
+
+#### 1. ChatModal Component Integration
+- Imported and integrated ChatModal component to property details page
+- Added modal state management with `isChatModalOpen`
+- Modal opens when clicking "AI-Assistent" button
+- Passes propertyId and propertyTitle to modal for context-aware conversations
+- File: `apps/web/app/property/[id]/page.tsx:7,15,250-255`
+
+#### 2. Vollständige Details Section
+- Added "Vollständige Details freischalten" (Unlock Full Details) section
+- Light blue background (`bg-blue-50`) with rounded corners
+- Includes explanatory text about data sharing with broker
+- Black button: "Einwilligung erteilen" (Give Consent)
+- File: `apps/web/app/property/[id]/page.tsx:155-166`
+
+#### 3. Besichtigungstermine Section (Viewing Appointments)
+- Calendar icon with section title "Besichtigungstermine"
+- Three appointment options displayed:
+  - **Monday, December 1, 2025** at 14:00 (available, clickable)
+  - **Wednesday, December 3, 2025** at 16:00 (available, clickable)
+  - **Friday, December 5, 2025** at 10:00 (fully booked, grayed out)
+- Different styling for available vs. booked appointments
+- Hover effects on available appointments
+- File: `apps/web/app/property/[id]/page.tsx:168-207`
+
+#### 4. Makler Info Section (Broker Information)
+- Profile card for real estate agent
+- Circular profile image (Anna Schmidt)
+- Agent name: "Anna Schmidt"
+- Company: "Premium Immobilien GmbH"
+- Clean white card design with border
+- File: `apps/web/app/property/[id]/page.tsx:209-224`
+
+#### 5. AI-Assistent Button
+- New primary button with blue-purple gradient
+- Icon: Chat/message icon (SVG)
+- Text: "AI-Assistent"
+- Opens ChatModal when clicked
+- Positioned as first button in button row
+- File: `apps/web/app/property/[id]/page.tsx:229-237`
+
+### Changed (Property Details Page)
+
+#### Button Layout Reorganization
+- **Before**: Two buttons in a row (Besichtigung buchen, Makler kontaktieren)
+- **After**: Three buttons in one row
+- **New Order**:
+  1. AI-Assistent (blue-purple gradient, with chat icon)
+  2. Makler kontaktieren (outlined, white background)
+  3. Kaufzusage senden (primary red, formerly "Besichtigung buchen")
+- All buttons use `flex-1` for equal width distribution
+- File: `apps/web/app/property/[id]/page.tsx:228-244`
+
+#### Button Text Updates
+- Changed: "Besichtigung buchen" → "Kaufzusage senden" (Send Purchase Commitment)
+- Reflects more serious intent of property purchase
+- File: `apps/web/app/property/[id]/page.tsx:241-243`
+
+### UI/UX Improvements
+
+#### Design Consistency
+- All sections use consistent rounded corners (`rounded-2xl`)
+- Uniform spacing with `mb-8` between sections
+- Professional color scheme:
+  - Blue-50 for information boxes
+  - White cards with gray borders
+  - Gray-50 for disabled/booked states
+  - Gradient buttons for primary actions
+
+#### Interactive Elements
+- Hover effects on available appointment slots
+- Cursor changes to pointer for clickable items
+- Smooth transitions on button hovers
+- Scale effects on chat button (hover: 110%, active: 95%)
+
+### Technical Implementation
+
+#### SVG Icons
+- Calendar icon for Besichtigungstermine section
+- Chat icon for AI-Assistent button
+- Inline SVG for better performance
+- Stroke-based icons for consistency
+
+#### Component Structure
+```typescript
+// New imports
+import { Badge, ChatModal } from '@immoflow/ui';
+
+// New state
+const [isChatModalOpen, setIsChatModalOpen] = useState(false);
+
+// ChatModal integration
+<ChatModal
+  isOpen={isChatModalOpen}
+  onClose={() => setIsChatModalOpen(false)}
+  propertyId={property.id}
+  propertyTitle={property.title}
+/>
+```
+
+### Files Modified (This Session)
+```
+apps/web/app/page.tsx                             # Chat button position
+apps/web/app/property/[id]/page.tsx               # Major redesign with new sections
+```
+
+### Visual Changes
+- Added 4 new sections to property details page
+- Reorganized CTA buttons from 2 to 3 buttons
+- Improved visual hierarchy with sectioned layout
+- Better user flow: Info → Appointments → Broker → Actions
+
+### User Flow Improvements
+1. User views property details
+2. Can unlock full details by giving consent
+3. Can see available viewing appointments
+4. Can see broker information
+5. Multiple action options:
+   - Ask AI assistant about property
+   - Contact broker directly
+   - Send purchase commitment
+
+---
+
+## 2025-11-26 (Earlier Session)
+
+### Fixed
+- **Module Resolution Error**: Added missing `@immoflow/api` dependency to `packages/ui/package.json`
+  - Fixed error: "Module not found: Can't resolve '@immoflow/api'"
+  - Added `"@immoflow/api": "workspace:*"` to UI package dependencies
+  - Ran `pnpm install` to link workspace packages
+  - File: `packages/ui/package.json:22`
+
+### Added
+
+#### 1. SearchBar Component (Airbnb-Style) - Later Removed
+- Created `packages/ui/src/components/SearchBar.tsx`
+- Airbnb-inspired search interface with filters:
+  - Location search
+  - Price range (Min/Max)
+  - Number of rooms
+  - Size in sqm (Min/Max)
+  - Quick reset functionality
+  - Responsive design for web and mobile
+- **Note**: This component was later removed in favor of AI-driven search
+
+#### 2. ChatGPT-Style AI Search Interface
+- **Completely redesigned** `packages/ui/src/components/ChatAssistant.tsx`
+- New features:
+  - Clean, minimal ChatGPT-inspired design
+  - Empty state with 4 example prompts
+  - User and AI avatars (left/right layout)
+  - Auto-resizing textarea input
+  - Smooth animations and loading states
+  - Disclaimer text at bottom
+  - No collapsible header - always visible
+  - Blue/purple gradient for AI avatar
+  - Gray color scheme instead of pink/purple
+
+#### 3. AI-Powered Property Search Integration
+- Updated `apps/web/app/page.tsx`:
+  - Removed Airbnb-style SearchBar
+  - Integrated ChatGPT-style ChatAssistant prominently
+  - Added AI-driven property filtering logic
+  - Connected chat responses to property grid filtering
+  - New layout: Chat interface above property cards
+  - Hero section redesigned with focus on AI search
+
+### Changed
+
+#### Homepage Layout (`apps/web/app/page.tsx`)
+- **Before**: Traditional search with Airbnb-style filters
+- **After**: ChatGPT-style conversational AI search
+- Key changes:
+  - Removed SearchBar component import
+  - Removed SearchFilters type import
+  - Simplified state management (removed activeFilters)
+  - Updated handleSearch function for text-based filtering
+  - New section layout with 600px height chat container
+  - Updated property grid header logic
+
+#### Component Exports (`packages/ui/src/components/index.ts`)
+- Added: `export * from './SearchBar';` (later this component became unused)
+
+### Implementation Details
+
+#### AI Search Flow
+1. User enters query in chat interface
+2. Query sent to OpenAI via Supabase Edge Function
+3. AI responds with property recommendations
+4. Frontend filters properties based on user query
+5. Property grid updates automatically
+
+#### Search Functionality
+```typescript
+const handleSearch = (query: string) => {
+  setSearchQuery(query);
+  if (!query || query.trim() === '') {
+    setFilteredProperties(properties);
+    return;
+  }
+  const searchTerm = query.toLowerCase();
+  const filtered = properties.filter(property =>
+    property.location.toLowerCase().includes(searchTerm) ||
+    property.title.toLowerCase().includes(searchTerm)
+  );
+  setFilteredProperties(filtered);
+};
+```
+
+#### ChatGPT-Style Features
+- **Empty State**: Shows 4 example prompts in grid layout
+- **Message Layout**: Avatar + bubble design
+- **Input Field**: Auto-growing textarea with max-height
+- **Loading State**: Animated dots in assistant message bubble
+- **Colors**:
+  - AI Avatar: Blue to purple gradient
+  - User Avatar: Dark gray
+  - Messages: White/light gray backgrounds
+  - Input: White with gray border
+
+### Technical Stack
+- React 18.2.0
+- Next.js 14.0.4
+- TypeScript 5.3.0
+- Tailwind CSS (utility classes)
+- OpenAI gpt-4o-mini
+- Supabase Edge Functions
+
+### Files Modified
+```
+packages/ui/package.json                          # Added @immoflow/api dependency
+packages/ui/src/components/SearchBar.tsx          # Created (unused after redesign)
+packages/ui/src/components/ChatAssistant.tsx      # Completely redesigned
+packages/ui/src/components/index.ts               # Added SearchBar export
+apps/web/app/page.tsx                             # Major refactor for AI search
+```
+
+### Performance
+- Initial compilation: 3.4s (1165 modules)
+- Hot reload compilation: ~300-500ms
+- Running on: http://localhost:3000
+
+### Known Issues
+- Warning: "shadow*" style props are deprecated. Use "boxShadow"
+  - Non-critical, doesn't affect functionality
+  - Appears in React Native components
+
+### Next Steps
+- Consider removing SearchBar.tsx file (currently unused)
+- Implement advanced AI-powered filtering logic
+- Add property detail page integration
+- Test OpenAI API integration with real queries
+- Optimize search algorithm for better relevance
+
+---
+
+## Previous Changes (From Earlier Sessions)
+
+### OpenAI Integration
+- Created Supabase Edge Function: `supabase/functions/ai-chat/index.ts`
+- Implemented real OpenAI API integration with gpt-4o-mini model
+- Created API wrapper: `packages/api/src/chat.ts`
+- Deployed Edge Function with OpenAI API key
+
+### Environment Configuration
+- Created `.env.local` files for web and admin apps
+- Created `.env` file for mobile app
+- Configured Supabase credentials across all apps
+
+### Supabase Setup
+- Fixed `config.toml` validation errors
+- Deployed Edge Functions to production
+- Set up secrets management for API keys
+
+### Repository Initialization
+- Created GitHub repository: danielaholl/immo-flow
+- Initial commit with 89 files (16,260 lines)
+- Set up monorepo structure with Turborepo

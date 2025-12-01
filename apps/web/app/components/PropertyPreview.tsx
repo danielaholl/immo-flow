@@ -1,0 +1,139 @@
+'use client';
+
+import React from 'react';
+import { MapPin } from 'lucide-react';
+
+export interface PropertyPreviewData {
+  images: string[];
+  price: number;
+  commission_rate?: number;
+  location: string;
+  title: string;
+  type?: string;
+  sqm: number;
+  rooms: number;
+  description: string;
+  features?: string[];
+}
+
+export interface PropertyPreviewProps {
+  data: PropertyPreviewData;
+  className?: string;
+}
+
+/**
+ * Wiederverwendbare Live-Vorschau Komponente für Immobilien
+ * Verwendet in: Create Listing, Edit Property
+ */
+export function PropertyPreview({ data, className = '' }: PropertyPreviewProps) {
+  const formatPrice = (price: number) => {
+    if (!price || price === 0) return '€ 0';
+    return new Intl.NumberFormat('de-DE', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(price);
+  };
+
+  const pricePerSqm = data.sqm > 0 ? Math.round(data.price / data.sqm) : 0;
+
+  return (
+    <div className={`bg-white rounded-2xl shadow-lg overflow-hidden ${className}`}>
+      {/* Property Details */}
+      <div className="p-6 lg:p-8">
+        {/* Type Badge */}
+        {data.type && data.type !== 'Immobilie' && (
+          <span className="inline-block px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium mb-3">
+            {data.type}
+          </span>
+        )}
+
+        {/* Price */}
+        <h1 className="font-bold text-gray-900 mb-2" style={{ fontSize: '33px' }}>
+          {data.price > 0 ? formatPrice(data.price) : 'Preis nicht angegeben'}
+        </h1>
+
+        {/* Commission */}
+        {data.commission_rate && data.commission_rate > 0 && (
+          <p className="text-base text-gray-600 mb-4">
+            zzgl. {data.commission_rate}% Provision
+          </p>
+        )}
+
+        {/* Location */}
+        {data.location && (
+          <div className="flex items-center gap-2 text-gray-600 mb-4">
+            <MapPin size={18} />
+            <span style={{ fontSize: '18px' }}>{data.location}</span>
+          </div>
+        )}
+
+        {/* Title */}
+        {data.title && (
+          <h2 className="font-semibold text-gray-900 mb-6" style={{ fontSize: '22px' }}>
+            {data.title}
+          </h2>
+        )}
+
+        {/* Details Grid */}
+        <div className="grid grid-cols-3 gap-4 mb-6 pb-6 border-b border-gray-200">
+          <div>
+            <p className="text-sm text-gray-500">Zimmer</p>
+            <p className="text-lg font-semibold text-gray-900">
+              {data.rooms > 0 ? data.rooms : '-'}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Fläche</p>
+            <p className="text-lg font-semibold text-gray-900">
+              {data.sqm > 0 ? `${data.sqm} m²` : '-'}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Preis/m²</p>
+            <p className="text-lg font-semibold text-gray-900">
+              {pricePerSqm > 0 ? formatPrice(pricePerSqm) : '-'}
+            </p>
+          </div>
+        </div>
+
+        {/* Description */}
+        {data.description && (
+          <div className="mb-6 pb-6 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Beschreibung</h3>
+            <p className="text-gray-700 leading-relaxed line-clamp-6" style={{ fontSize: '18px' }}>
+              {data.description}
+            </p>
+          </div>
+        )}
+
+        {/* Features */}
+        {data.features && data.features.length > 0 && (
+          <div className="mb-6 pb-6 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Ausstattung</h3>
+            <div className="flex flex-wrap gap-2">
+              {data.features.map((feature, idx) => (
+                <span
+                  key={idx}
+                  className="px-4 py-2 bg-white border-2 border-gray-900 text-gray-900 rounded-full text-base font-medium"
+                >
+                  {feature}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!data.title && !data.location && !data.description && data.price === 0 && (
+          <div className="text-center py-8">
+            <p className="text-gray-400 text-sm">
+              Die Vorschau wird aktualisiert, sobald Sie Informationen eingeben
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
