@@ -480,7 +480,7 @@ export default function CreateListingPage() {
 
   const handleFeaturesSubmit = () => {
     const featureLabels = selectedFeatures.map(value => {
-      const option = QUESTIONS[8].multiSelectOptions?.find(o => o.value === value);
+      const option = QUESTIONS[currentQuestionIndex].multiSelectOptions?.find(o => o.value === value);
       return option?.label || value;
     });
 
@@ -689,7 +689,11 @@ export default function CreateListingPage() {
   };
 
   const handlePublish = async () => {
-    if (!user) return;
+    console.log('[handlePublish] Starting...', { hasUser: !!user });
+    if (!user) {
+      console.log('[handlePublish] No user, returning');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -709,7 +713,12 @@ export default function CreateListingPage() {
         require_address_consent: listingData.require_address_consent || false,
       };
 
+      console.log('[handlePublish] Property data prepared:', propertyData);
+      console.log('[handlePublish] Calling createProperty...');
+
       const createdProperty = await createProperty(propertyData);
+
+      console.log('[handlePublish] Property created:', createdProperty.id);
 
       // Trigger AI investment evaluation in background (non-blocking)
       evaluatePropertyInvestment(createdProperty.id).catch((err) => {
@@ -717,11 +726,15 @@ export default function CreateListingPage() {
         // Don't block user flow if evaluation fails
       });
 
-      router.push(`/property/${createdProperty.id}`);
+      console.log('[handlePublish] Navigating to property page...');
+      // Use window.location.href for reliable navigation after async operation
+      window.location.href = `/property/${createdProperty.id}`;
+      console.log('[handlePublish] Navigation called');
     } catch (error) {
-      console.error('Error creating property:', error);
+      console.error('[handlePublish] Error creating property:', error);
       alert('Fehler beim Erstellen des Inserats. Bitte versuchen Sie es erneut.');
     } finally {
+      console.log('[handlePublish] Finally block, setting isSubmitting to false');
       setIsSubmitting(false);
     }
   };
@@ -763,20 +776,21 @@ export default function CreateListingPage() {
     <main className="min-h-screen bg-gray-50">
       <Header />
 
-      <div className="h-[calc(100vh-64px)] flex flex-col px-4 py-4">
-        {/* Progress Bar */}
-        <div className="mb-4 max-w-6xl mx-auto w-full">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-700">Fortschritt</span>
-            <span className="text-sm font-medium text-gray-700">{progress}%</span>
-          </div>
-          <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-primary transition-all duration-500"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
+      {/* Progress Bar - Full Width */}
+      <div className="w-full bg-white border-b border-gray-200 px-6 py-4 mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-medium text-gray-700">Fortschritt</span>
+          <span className="text-sm font-medium text-gray-700">{progress}%</span>
         </div>
+        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-primary transition-all duration-500"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="h-[calc(100vh-128px)] flex flex-col px-4 py-4">
 
         {/* Three Column Layout - Images | Details | Chat */}
         <div className="flex flex-col lg:flex-row" style={{ height: 'calc(100vh - 160px)' }}>
