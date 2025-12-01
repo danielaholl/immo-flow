@@ -35,8 +35,8 @@ export async function getUserFavorites(userId: string): Promise<Favorite[]> {
   if (userIds.length > 0) {
     const { data: profiles, error: profilesError } = await supabase
       .from('user_profiles')
-      .select('id, first_name, last_name, company, avatar_url')
-      .in('id', userIds);
+      .select('id, user_id, first_name, last_name, company, avatar_url')
+      .in('user_id', userIds);
 
     if (profilesError) {
       console.error('Error fetching owner profiles:', profilesError);
@@ -45,8 +45,8 @@ export async function getUserFavorites(userId: string): Promise<Favorite[]> {
     }
   }
 
-  // Map owner profiles to properties
-  const profilesMap = new Map(ownerProfiles.map(p => [p.id, p]));
+  // Map owner profiles to properties (using user_id as key)
+  const profilesMap = new Map(ownerProfiles.map(p => [p.user_id, p]));
 
   return data.map((fav: any) => ({
     ...fav,
