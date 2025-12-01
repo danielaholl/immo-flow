@@ -1,31 +1,57 @@
 'use client';
 
 import React from 'react';
-import { MapPin } from 'lucide-react';
+import { MapPin, ChartNoAxesCombined } from 'lucide-react';
+import { InvestmentScoreCard } from '@immoflow/ui';
 
 export interface PropertyPreviewData {
   images: string[];
   price: number;
   commission_rate?: number;
   location: string;
+  address?: string;
   title: string;
   type?: string;
   sqm: number;
   rooms: number;
   description: string;
   features?: string[];
+  yield?: number;
+  highlights?: string[];
+  red_flags?: string[];
+  ai_investment_score?: number;
+  require_address_consent?: boolean;
+  evaluation?: {
+    location_score: number;
+    price_score: number;
+    yield_score: number;
+    appreciation_score: number;
+    features_score: number;
+    price_per_sqm: number;
+    estimated_monthly_rent: number;
+    gross_yield_percentage: number;
+  };
 }
 
 export interface PropertyPreviewProps {
   data: PropertyPreviewData;
   className?: string;
+  showAddress?: boolean;
+  onRequestAddress?: () => void;
+  showInvestmentScore?: boolean;
 }
 
 /**
  * Wiederverwendbare Live-Vorschau Komponente für Immobilien
  * Verwendet in: Create Listing, Edit Property
  */
-export function PropertyPreview({ data, className = '' }: PropertyPreviewProps) {
+export function PropertyPreview({
+  data,
+  className = '',
+  showAddress = false,
+  onRequestAddress,
+  showInvestmentScore = true,
+}: PropertyPreviewProps) {
   const formatPrice = (price: number) => {
     if (!price || price === 0) return '€ 0';
     return new Intl.NumberFormat('de-DE', {
@@ -37,6 +63,9 @@ export function PropertyPreview({ data, className = '' }: PropertyPreviewProps) 
   };
 
   const pricePerSqm = data.sqm > 0 ? Math.round(data.price / data.sqm) : 0;
+
+  // Determine if we should show address
+  const shouldShowAddress = showAddress || !(data.require_address_consent ?? false);
 
   return (
     <div className={`bg-white rounded-2xl shadow-lg overflow-hidden ${className}`}>
@@ -63,9 +92,22 @@ export function PropertyPreview({ data, className = '' }: PropertyPreviewProps) 
 
         {/* Location */}
         {data.location && (
-          <div className="flex items-center gap-2 text-gray-600 mb-4">
-            <MapPin size={18} />
-            <span style={{ fontSize: '18px' }}>{data.location}</span>
+          <div className="mb-4">
+            <div className="flex items-center gap-2 text-gray-600">
+              <MapPin size={18} />
+              <span style={{ fontSize: '18px' }}>
+                {data.location}
+                {shouldShowAddress && data.address && ` • ${data.address}`}
+              </span>
+            </div>
+            {!shouldShowAddress && data.address && onRequestAddress && (
+              <button
+                onClick={onRequestAddress}
+                className="mt-2 text-sm text-primary hover:underline"
+              >
+                Vollständige Adresse anzeigen
+              </button>
+            )}
           </div>
         )}
 
@@ -98,11 +140,19 @@ export function PropertyPreview({ data, className = '' }: PropertyPreviewProps) 
           </div>
         </div>
 
+        {/* Yield */}
+        {data.yield && (
+          <div className="flex items-center gap-2 mb-6 pb-6 border-b border-gray-200">
+            <ChartNoAxesCombined size={20} className="text-gray-700" />
+            <span className="text-lg font-semibold text-gray-900">{data.yield}% Rendite</span>
+          </div>
+        )}
+
         {/* Description */}
         {data.description && (
           <div className="mb-6 pb-6 border-b border-gray-200">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Beschreibung</h3>
-            <p className="text-gray-700 leading-relaxed line-clamp-6" style={{ fontSize: '18px' }}>
+            <p className="text-gray-700 leading-relaxed" style={{ fontSize: '18px' }}>
               {data.description}
             </p>
           </div>
@@ -122,6 +172,65 @@ export function PropertyPreview({ data, className = '' }: PropertyPreviewProps) 
                 </span>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* AI Investment Evaluation */}
+        {showInvestmentScore && (data.ai_investment_score || data.evaluation) && (
+          <div className="mb-6">
+            <InvestmentScoreCard
+              score={data.ai_investment_score}
+              breakdown={
+                data.evaluation
+                  ? {
+                      location_score: data.evaluation.location_score,
+                      price_score: data.evaluation.price_score,
+                      yield_score: data.evaluation.yield_score,
+                      appreciation_score: data.evaluation.appreciation_score,
+                      features_score: data.evaluation.features_score,
+                    }
+                  : undefined
+              }
+              metrics={
+                data.evaluation
+                  ? {
+                      price_per_sqm: data.evaluation.price_per_sqm,
+                      estimated_monthly_rent: data.evaluation.estimated_monthly_rent,
+                      gross_yield_percentage: data.evaluation.gross_yield_percentage,
+                    }
+                  : undefined
+              }
+            />
+          </div>
+        )}
+
+        {/* Highlights */}
+        {data.highlights && data.highlights.length > 0 && (
+          <div className="mb-6 pb-6 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Highlights</h3>
+            <ul className="space-y-2">
+              {data.highlights.map((highlight, idx) => (
+                <li key={idx} className="flex items-start gap-2">
+                  <span className="text-green-500">✓</span>
+                  <span className="text-gray-700" style={{ fontSize: '18px' }}>{highlight}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Red Flags */}
+        {data.red_flags && data.red_flags.length > 0 && (
+          <div className="mb-6 pb-6 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Zu beachten</h3>
+            <ul className="space-y-2">
+              {data.red_flags.map((flag, idx) => (
+                <li key={idx} className="flex items-start gap-2 text-amber-600">
+                  <span>⚠️</span>
+                  <span style={{ fontSize: '18px' }}>{flag}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
