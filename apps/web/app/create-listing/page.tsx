@@ -370,17 +370,17 @@ export default function CreateListingPage() {
 
   // Update preview in real-time for text inputs
   useEffect(() => {
-    if (currentQuestionIndex === 5 && textInput) {
-      // Street address
+    if (currentQuestionIndex === 4 && textInput) {
+      // Street address (Index 4)
       setListingData(prev => ({ ...prev, street_address: textInput }));
-    } else if (currentQuestionIndex === 15 && textInput) {
-      // Key points (Stichpunkte)
+    } else if (currentQuestionIndex === 14 && textInput) {
+      // Key points (Stichpunkte) (Index 14)
       setKeyPoints(textInput);
-    } else if (currentQuestionIndex === 16 && textInput) {
-      // Description
+    } else if (currentQuestionIndex === 15 && textInput) {
+      // Description (Index 15)
       setListingData(prev => ({ ...prev, description: textInput }));
-    } else if (currentQuestionIndex === 17 && textInput) {
-      // Title
+    } else if (currentQuestionIndex === 16 && textInput) {
+      // Title (Index 16)
       setListingData(prev => ({ ...prev, title: textInput }));
     }
   }, [textInput, currentQuestionIndex]);
@@ -390,37 +390,37 @@ export default function CreateListingPage() {
     if (awaitingUsableAreaSize && numberInput) {
       // Usable area size (after ratio selection)
       setListingData(prev => ({ ...prev, usable_area: parseInt(numberInput) }));
-    } else if (currentQuestionIndex === 6 && numberInput) {
-      // Total floors
+    } else if (currentQuestionIndex === 5 && numberInput) {
+      // Total floors (Index 5)
       setListingData(prev => ({ ...prev, total_floors: parseInt(numberInput) }));
-    } else if (currentQuestionIndex === 8 && numberInput) {
-      // Sqm (Wohnfläche)
+    } else if (currentQuestionIndex === 7 && numberInput) {
+      // Sqm (Wohnfläche) (Index 7)
       setListingData(prev => ({ ...prev, sqm: parseInt(numberInput) }));
-    } else if (currentQuestionIndex === 10 && numberInput) {
-      // Rooms
+    } else if (currentQuestionIndex === 9 && numberInput) {
+      // Rooms (Index 9)
       setListingData(prev => ({ ...prev, rooms: parseInt(numberInput) }));
-    } else if (currentQuestionIndex === 11 && numberInput) {
-      // Bathrooms
+    } else if (currentQuestionIndex === 10 && numberInput) {
+      // Bathrooms (Index 10)
       setListingData(prev => ({ ...prev, bathrooms: parseInt(numberInput) }));
-    } else if (currentQuestionIndex === 18 && numberInput) {
-      // Price
+    } else if (currentQuestionIndex === 17 && numberInput) {
+      // Price (Index 17)
       setListingData(prev => ({ ...prev, price: parseInt(numberInput) }));
-    } else if (currentQuestionIndex === 19 && numberInput) {
-      // Monthly fee (Hausgeld)
+    } else if (currentQuestionIndex === 18 && numberInput) {
+      // Monthly fee (Hausgeld) (Index 18)
       setListingData(prev => ({ ...prev, monthly_fee: parseInt(numberInput) }));
-    } else if (currentQuestionIndex === 20 && numberInput) {
-      // Year built
+    } else if (currentQuestionIndex === 19 && numberInput) {
+      // Year built (Index 19)
       setListingData(prev => ({ ...prev, year_built: parseInt(numberInput) }));
-    } else if (currentQuestionIndex === 25 && numberInput) {
-      // Commission rate
+    } else if (currentQuestionIndex === 24 && numberInput) {
+      // Commission rate (Index 24)
       setListingData(prev => ({ ...prev, commission_rate: parseFloat(numberInput) }));
     }
   }, [numberInput, currentQuestionIndex, awaitingUsableAreaSize]);
 
   // Update preview in real-time for features selection
   useEffect(() => {
-    if (currentQuestionIndex === 13 && selectedFeatures.length > 0) {
-      // Features
+    if (currentQuestionIndex === 12 && selectedFeatures.length > 0) {
+      // Features (Index 12)
       setListingData(prev => ({ ...prev, features: selectedFeatures }));
     }
   }, [selectedFeatures, currentQuestionIndex]);
@@ -557,8 +557,8 @@ export default function CreateListingPage() {
       const newData = { ...listingData, floor_level: option.value };
       console.log('Setting floor_level:', newData);
       setListingData(newData);
-    } else if (currentQuestionIndex === 9) {
-      // Usable area ratio
+    } else if (currentQuestionIndex === 8) {
+      // Usable area ratio (Index 8)
       if (option.value === 'none') {
         const newData = { ...listingData, usable_area: 0, usable_area_ratio: 'none' };
         console.log('Setting usable_area to none:', newData);
@@ -584,33 +584,33 @@ export default function CreateListingPage() {
         }, 500);
         return; // Don't proceed to next question yet
       }
-    } else if (currentQuestionIndex === 12) {
-      // Condition
+    } else if (currentQuestionIndex === 11) {
+      // Condition (Index 11)
       const newData = { ...listingData, condition: option.value };
       console.log('Setting condition:', newData);
       setListingData(newData);
-    } else if (currentQuestionIndex === 14) {
-      // Available from (Bezugsfrei ab)
+    } else if (currentQuestionIndex === 13) {
+      // Available from (Bezugsfrei ab) (Index 13)
       const newData = { ...listingData, available_from: option.value };
       console.log('Setting available_from:', newData);
       setListingData(newData);
-    } else if (currentQuestionIndex === 21) {
-      // Heating type
+    } else if (currentQuestionIndex === 20) {
+      // Heating type (Index 20)
       const newData = { ...listingData, heating_type: option.value };
       console.log('Setting heating_type:', newData);
       setListingData(newData);
-    } else if (currentQuestionIndex === 22) {
-      // Energy source
+    } else if (currentQuestionIndex === 21) {
+      // Energy source (Index 21)
       const newData = { ...listingData, energy_source: option.value };
       console.log('Setting energy_source:', newData);
       setListingData(newData);
-    } else if (currentQuestionIndex === 23) {
-      // Energy certificate
+    } else if (currentQuestionIndex === 22) {
+      // Energy certificate (Index 22)
       const newData = { ...listingData, energy_certificate: option.value };
       console.log('Setting energy_certificate:', newData);
       setListingData(newData);
-    } else if (currentQuestionIndex === 24) {
-      // Provision Ja/Nein
+    } else if (currentQuestionIndex === 23) {
+      // Provision Ja/Nein (Index 23)
       if (option.value === 'with_commission') {
         const newData = { ...listingData, user_type: 'agent' };
         console.log('Setting user_type agent:', newData);
@@ -625,8 +625,8 @@ export default function CreateListingPage() {
         setTimeout(() => addBotMessage(currentQuestionIndex + 3), 500);
       }
       return;
-    } else if (currentQuestionIndex === 26) {
-      // Address consent requirement
+    } else if (currentQuestionIndex === 25) {
+      // Address consent requirement (Index 25)
       const newData = {
         ...listingData,
         require_address_consent: option.value === 'require_consent'
@@ -680,8 +680,8 @@ export default function CreateListingPage() {
       const newData = { ...listingData, street_address: textInput };
       console.log('Setting street_address:', newData);
       setListingData(newData);
-    } else if (currentQuestionIndex === 15) {
-      // Key points (Stichpunkte)
+    } else if (currentQuestionIndex === 14) {
+      // Key points (Stichpunkte) (Index 14)
       console.log('Setting key points:', textInput);
       const userKeyPoints = textInput;
       setKeyPoints(userKeyPoints);
@@ -703,13 +703,13 @@ export default function CreateListingPage() {
         }, 500);
       }, 500);
       return; // Early return to prevent default flow
-    } else if (currentQuestionIndex === 16) {
-      // Description
+    } else if (currentQuestionIndex === 15) {
+      // Description (Index 15)
       const newData = { ...listingData, description: textInput };
       console.log('Setting description:', newData);
       setListingData(newData);
-    } else if (currentQuestionIndex === 17) {
-      // Title
+    } else if (currentQuestionIndex === 16) {
+      // Title (Index 16)
       const newData = { ...listingData, title: textInput };
       console.log('Setting title:', newData);
       setListingData(newData);
@@ -738,28 +738,28 @@ export default function CreateListingPage() {
     addUserMessage(`${numberInput} ${question.unit}`);
 
     // Save to listing data based on current question
-    if (currentQuestionIndex === 6) {
-      // Total floors
+    if (currentQuestionIndex === 5) {
+      // Total floors (Index 5)
       const newData = { ...listingData, total_floors: parseInt(numberInput) };
       console.log('Setting total_floors:', newData);
       setListingData(newData);
-    } else if (currentQuestionIndex === 8) {
-      // Sqm (Wohnfläche)
+    } else if (currentQuestionIndex === 7) {
+      // Sqm (Wohnfläche) (Index 7)
       const newData = { ...listingData, sqm: parseInt(numberInput) };
       console.log('Setting sqm:', newData);
       setListingData(newData);
-    } else if (currentQuestionIndex === 10) {
-      // Rooms
+    } else if (currentQuestionIndex === 9) {
+      // Rooms (Index 9)
       const newData = { ...listingData, rooms: parseInt(numberInput) };
       console.log('Setting rooms:', newData);
       setListingData(newData);
-    } else if (currentQuestionIndex === 11) {
-      // Bathrooms
+    } else if (currentQuestionIndex === 10) {
+      // Bathrooms (Index 10)
       const newData = { ...listingData, bathrooms: parseInt(numberInput) };
       console.log('Setting bathrooms:', newData);
       setListingData(newData);
-    } else if (currentQuestionIndex === 18) {
-      // Price (Kaufpreis)
+    } else if (currentQuestionIndex === 17) {
+      // Price (Kaufpreis) (Index 17)
       const price = parseInt(numberInput);
       const newData = { ...listingData, price };
       console.log('Setting price:', newData);
@@ -777,18 +777,18 @@ export default function CreateListingPage() {
           setMessages(prev => [...prev, pricePerSqmMessage]);
         }, 500);
       }
-    } else if (currentQuestionIndex === 19) {
-      // Monthly fee (Hausgeld)
+    } else if (currentQuestionIndex === 18) {
+      // Monthly fee (Hausgeld) (Index 18)
       const newData = { ...listingData, monthly_fee: parseInt(numberInput) };
       console.log('Setting monthly_fee:', newData);
       setListingData(newData);
-    } else if (currentQuestionIndex === 20) {
-      // Year built
+    } else if (currentQuestionIndex === 19) {
+      // Year built (Index 19)
       const newData = { ...listingData, year_built: parseInt(numberInput) };
       console.log('Setting year_built:', newData);
       setListingData(newData);
-    } else if (currentQuestionIndex === 25) {
-      // Commission rate
+    } else if (currentQuestionIndex === 24) {
+      // Commission rate (Index 24)
       const newData = { ...listingData, commission_rate: parseFloat(numberInput) };
       console.log('Setting commission_rate:', newData);
       setListingData(newData);
