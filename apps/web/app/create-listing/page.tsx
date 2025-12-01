@@ -40,29 +40,45 @@ interface ListingData {
   property_type: string;
   title: string;
   location: string;
+  postal_code?: string;
+  street_address?: string;
   price: number;
   commission_rate?: number;
   require_address_consent?: boolean;
   sqm: number;
+  usable_area?: number;
+  usable_area_ratio?: string;
   rooms: number;
+  bathrooms?: number;
   condition: string;
   features: string[];
   images: string[];
   description?: string;
   viewing_appointments?: ViewingAppointment[];
+  total_floors?: number;
+  floor_level?: string;
+  available_from?: string;
+  monthly_fee?: number;
+  year_built?: number;
+  heating_type?: string;
+  energy_source?: string;
+  energy_certificate?: string;
 }
 
 const QUESTIONS: Omit<Message, 'id'>[] = [
+  // 1. Willkommen (ohne Icon)
   {
     type: 'bot',
-    content: 'Hey! Lass uns gemeinsam dein Inserat erstellen. 🏠',
+    content: 'Hey! Lass uns gemeinsam dein Inserat erstellen.',
     inputType: 'none',
   },
+  // 2. Bilder hochladen
   {
     type: 'bot',
     content: 'Laden Sie Bilder Ihrer Immobilie hoch (optional):',
     inputType: 'image-upload',
   },
+  // 3. Immobilientyp
   {
     type: 'bot',
     content: 'Welche Art von Immobilie möchten Sie inserieren?',
@@ -74,50 +90,43 @@ const QUESTIONS: Omit<Message, 'id'>[] = [
       { label: 'Gewerbe', value: 'commercial', icon: <Warehouse size={20} /> },
     ],
   },
-  {
-    type: 'bot',
-    content: 'Geben Sie Ihrer Immobilie einen aussagekräftigen Titel:',
-    inputType: 'text',
-    defaultValue: 'Charmante Altbauwohnung mit Balkon',
-  },
+  // 4. Standort PLZ
   {
     type: 'bot',
     content: 'Wo befindet sich die Immobilie? (Postleitzahl)',
     inputType: 'text',
     defaultValue: '10405',
   },
+  // 5. Straße mit Nummer
   {
     type: 'bot',
-    content: 'Was ist der Verkaufspreis?',
-    inputType: 'number',
-    unit: '€',
-    defaultValue: '320000',
+    content: 'Wie lautet die Straße und Hausnummer?',
+    inputType: 'text',
+    defaultValue: 'Prenzlauer Allee 123',
   },
+  // 6. Wie viele Stockwerke hat das Haus?
   {
     type: 'bot',
-    content: 'Bieten Sie diese Immobilie mit Provision an?',
+    content: 'Wie viele Stockwerke hat das Gebäude insgesamt?',
+    inputType: 'number',
+    unit: 'Stockwerke',
+    defaultValue: '5',
+  },
+  // 7. Welches Stockwerk?
+  {
+    type: 'bot',
+    content: 'In welchem Stockwerk befindet sich die Immobilie?',
     inputType: 'quick-reply',
     options: [
-      { label: 'Ja, mit Provision', value: 'with_commission' },
-      { label: 'Nein, ohne Provision', value: 'no_commission' },
+      { label: 'Erdgeschoss', value: 'EG' },
+      { label: 'Dachgeschoss', value: 'DG' },
+      { label: '1. OG', value: '1' },
+      { label: '2. OG', value: '2' },
+      { label: '3. OG', value: '3' },
+      { label: '4. OG+', value: '4' },
     ],
   },
-  {
-    type: 'bot',
-    content: 'Wie hoch ist die Provision (in %)?',
-    inputType: 'number',
-    unit: '%',
-    defaultValue: '3.57',
-  },
-  {
-    type: 'bot',
-    content: 'Soll die Adresse erst nach Provisionsvereinbarung angezeigt werden?',
-    inputType: 'quick-reply',
-    options: [
-      { label: 'Ja, erst nach Vereinbarung', value: 'require_consent' },
-      { label: 'Nein, Adresse direkt anzeigen', value: 'show_immediately' },
-    ],
-  },
+  // 8. Fläche (sqm)
   {
     type: 'bot',
     content: 'Wie groß ist die Wohnfläche?',
@@ -125,6 +134,19 @@ const QUESTIONS: Omit<Message, 'id'>[] = [
     unit: 'm²',
     defaultValue: '75',
   },
+  // 9. Nutzfläche mit Anteil
+  {
+    type: 'bot',
+    content: 'Gibt es Nutzfläche (z.B. Keller, Dachboden)? Wenn ja, mit welchem Anteil wird sie gerechnet?',
+    inputType: 'quick-reply',
+    options: [
+      { label: 'Voll (1/1)', value: '1/1' },
+      { label: 'Halb (1/2)', value: '1/2' },
+      { label: 'Viertel (1/4)', value: '1/4' },
+      { label: 'Nicht vorhanden', value: 'none' },
+    ],
+  },
+  // 10. Anzahl Zimmer
   {
     type: 'bot',
     content: 'Wie viele Zimmer hat die Immobilie?',
@@ -132,6 +154,15 @@ const QUESTIONS: Omit<Message, 'id'>[] = [
     unit: 'Zimmer',
     defaultValue: '3',
   },
+  // 11. Anzahl Badezimmer
+  {
+    type: 'bot',
+    content: 'Wie viele Badezimmer gibt es?',
+    inputType: 'number',
+    unit: 'Badezimmer',
+    defaultValue: '1',
+  },
+  // 12. Objekt Zustand
   {
     type: 'bot',
     content: 'In welchem Zustand befindet sich die Immobilie?',
@@ -144,6 +175,7 @@ const QUESTIONS: Omit<Message, 'id'>[] = [
       { label: 'Renovierungsbedürftig', value: 'needs_renovation' },
     ],
   },
+  // 13. Ausstattung (Features)
   {
     type: 'bot',
     content: 'Welche Ausstattungsmerkmale hat die Immobilie? (Mehrfachauswahl möglich)',
@@ -161,18 +193,129 @@ const QUESTIONS: Omit<Message, 'id'>[] = [
       { label: 'Barrierefrei', value: 'barrierefrei' },
     ],
   },
+  // 14. Bezugfrei ab
+  {
+    type: 'bot',
+    content: 'Wann ist die Immobilie bezugsfrei?',
+    inputType: 'quick-reply',
+    options: [
+      { label: 'Sofort', value: 'sofort' },
+      { label: 'Nach Vereinbarung', value: 'nach_vereinbarung' },
+    ],
+  },
+  // 15. Stichpunkte
   {
     type: 'bot',
     content: 'Gib mir ein paar Stichpunkte zu deiner Immobilie (z.B. Besonderheiten, Lage, Ausstattung):',
     inputType: 'text',
     defaultValue: 'ruhige Lage, renoviert 2020, Südbalkon',
   },
+  // 16. Beschreibung (AI-generiert)
   {
     type: 'bot',
     content: 'Perfekt! Ich erstelle jetzt eine Beschreibung basierend auf deinen Angaben:',
     inputType: 'textarea',
     placeholder: 'Beschreibung wird generiert...',
   },
+  // 17. Titel (MOVED hier)
+  {
+    type: 'bot',
+    content: 'Geben Sie Ihrer Immobilie einen aussagekräftigen Titel:',
+    inputType: 'text',
+    defaultValue: 'Charmante Altbauwohnung mit Balkon',
+  },
+  // 18. Kaufpreis (inkl. Garage/Stellplatz)
+  {
+    type: 'bot',
+    content: 'Was ist der Kaufpreis (inkl. Garage/Stellplatz)?',
+    inputType: 'number',
+    unit: '€',
+    defaultValue: '320000',
+  },
+  // 19. Höhe Hausgeld
+  {
+    type: 'bot',
+    content: 'Wie hoch ist das monatliche Hausgeld?',
+    inputType: 'number',
+    unit: '€/Monat',
+    defaultValue: '250',
+  },
+  // 20. Baujahr
+  {
+    type: 'bot',
+    content: 'In welchem Jahr wurde das Gebäude gebaut?',
+    inputType: 'number',
+    unit: '',
+    defaultValue: '1920',
+  },
+  // 21. Heizungsart
+  {
+    type: 'bot',
+    content: 'Welche Heizungsart hat die Immobilie?',
+    inputType: 'quick-reply',
+    options: [
+      { label: 'Zentralheizung', value: 'central' },
+      { label: 'Fußbodenheizung', value: 'floor' },
+      { label: 'Gasheizung', value: 'gas' },
+      { label: 'Wärmepumpe', value: 'heat_pump' },
+      { label: 'Fernwärme', value: 'district' },
+      { label: 'Sonstige', value: 'other' },
+    ],
+  },
+  // 22. Energieträger
+  {
+    type: 'bot',
+    content: 'Welcher Energieträger wird verwendet?',
+    inputType: 'quick-reply',
+    options: [
+      { label: 'Gas', value: 'gas' },
+      { label: 'Öl', value: 'oil' },
+      { label: 'Strom', value: 'electricity' },
+      { label: 'Fernwärme', value: 'district_heating' },
+      { label: 'Solar', value: 'solar' },
+      { label: 'Sonstige', value: 'other' },
+    ],
+  },
+  // 23. Energieausweis
+  {
+    type: 'bot',
+    content: 'Welcher Energieausweis liegt vor?',
+    inputType: 'quick-reply',
+    options: [
+      { label: 'Bedarfsausweis', value: 'demand' },
+      { label: 'Verbrauchsausweis', value: 'consumption' },
+      { label: 'Nicht vorhanden', value: 'none' },
+    ],
+  },
+  // 24. Provision
+  {
+    type: 'bot',
+    content: 'Bieten Sie diese Immobilie mit Provision an?',
+    inputType: 'quick-reply',
+    options: [
+      { label: 'Ja, mit Provision', value: 'with_commission' },
+      { label: 'Nein, ohne Provision', value: 'no_commission' },
+    ],
+  },
+  // 25. Provisions-Satz
+  {
+    type: 'bot',
+    content: 'Wie hoch ist die Provision (in %)?',
+    inputType: 'number',
+    unit: '%',
+    defaultValue: '3.57',
+  },
+  // 26. Adress- und Provisions-Vereinbarung
+  {
+    type: 'bot',
+    content: 'Soll die Adresse erst nach Provisionsvereinbarung angezeigt werden?',
+    inputType: 'quick-reply',
+    options: [
+      { label: 'Ja, erst nach Vereinbarung', value: 'require_consent' },
+      { label: 'Nein, Adresse direkt anzeigen', value: 'show_immediately' },
+    ],
+  },
+  // 27. Besichtigungstermine
   {
     type: 'bot',
     content: 'Wann können Interessenten die Immobilie besichtigen? Wählen Sie bis zu 3 Termine:',
@@ -226,38 +369,53 @@ export default function CreateListingPage() {
 
   // Update preview in real-time for text inputs
   useEffect(() => {
-    if (currentQuestionIndex === 3 && textInput) {
-      // Title
-      setListingData(prev => ({ ...prev, title: textInput }));
-    } else if (currentQuestionIndex === 13 && textInput) {
+    if (currentQuestionIndex === 5 && textInput) {
+      // Street address
+      setListingData(prev => ({ ...prev, street_address: textInput }));
+    } else if (currentQuestionIndex === 15 && textInput) {
       // Key points (Stichpunkte)
       setKeyPoints(textInput);
-    } else if (currentQuestionIndex === 14 && textInput) {
+    } else if (currentQuestionIndex === 16 && textInput) {
       // Description
       setListingData(prev => ({ ...prev, description: textInput }));
+    } else if (currentQuestionIndex === 17 && textInput) {
+      // Title
+      setListingData(prev => ({ ...prev, title: textInput }));
     }
   }, [textInput, currentQuestionIndex]);
 
   // Update preview in real-time for number inputs
   useEffect(() => {
-    if (currentQuestionIndex === 5 && numberInput) {
-      // Price (was 4, now 5)
-      setListingData(prev => ({ ...prev, price: parseInt(numberInput) }));
-    } else if (currentQuestionIndex === 7 && numberInput) {
-      // Commission rate (was 6, now 7)
-      setListingData(prev => ({ ...prev, commission_rate: parseFloat(numberInput) }));
-    } else if (currentQuestionIndex === 9 && numberInput) {
-      // Sqm (was 8, now 9)
+    if (currentQuestionIndex === 6 && numberInput) {
+      // Total floors
+      setListingData(prev => ({ ...prev, total_floors: parseInt(numberInput) }));
+    } else if (currentQuestionIndex === 8 && numberInput) {
+      // Sqm (Wohnfläche)
       setListingData(prev => ({ ...prev, sqm: parseInt(numberInput) }));
     } else if (currentQuestionIndex === 10 && numberInput) {
-      // Rooms (was 9, now 10)
+      // Rooms
       setListingData(prev => ({ ...prev, rooms: parseInt(numberInput) }));
+    } else if (currentQuestionIndex === 11 && numberInput) {
+      // Bathrooms
+      setListingData(prev => ({ ...prev, bathrooms: parseInt(numberInput) }));
+    } else if (currentQuestionIndex === 18 && numberInput) {
+      // Price
+      setListingData(prev => ({ ...prev, price: parseInt(numberInput) }));
+    } else if (currentQuestionIndex === 19 && numberInput) {
+      // Monthly fee (Hausgeld)
+      setListingData(prev => ({ ...prev, monthly_fee: parseInt(numberInput) }));
+    } else if (currentQuestionIndex === 20 && numberInput) {
+      // Year built
+      setListingData(prev => ({ ...prev, year_built: parseInt(numberInput) }));
+    } else if (currentQuestionIndex === 25 && numberInput) {
+      // Commission rate
+      setListingData(prev => ({ ...prev, commission_rate: parseFloat(numberInput) }));
     }
   }, [numberInput, currentQuestionIndex]);
 
   // Update preview in real-time for features selection
   useEffect(() => {
-    if (currentQuestionIndex === 12 && selectedFeatures.length > 0) {
+    if (currentQuestionIndex === 13 && selectedFeatures.length > 0) {
       // Features
       setListingData(prev => ({ ...prev, features: selectedFeatures }));
     }
@@ -386,12 +544,53 @@ export default function CreateListingPage() {
 
     // Save to listing data based on current question
     if (currentQuestionIndex === 2) {
-      // Property type (was 1, now 2)
+      // Property type
       const newData = { ...listingData, property_type: option.value };
       console.log('Setting property_type:', newData);
       setListingData(newData);
-    } else if (currentQuestionIndex === 6) {
-      // Provision Ja/Nein (was 5, now 6)
+    } else if (currentQuestionIndex === 7) {
+      // Floor level (EG, DG, 1. OG, etc.)
+      const newData = { ...listingData, floor_level: option.value };
+      console.log('Setting floor_level:', newData);
+      setListingData(newData);
+    } else if (currentQuestionIndex === 9) {
+      // Usable area ratio
+      if (option.value === 'none') {
+        const newData = { ...listingData, usable_area: 0, usable_area_ratio: 'none' };
+        console.log('Setting usable_area to none:', newData);
+        setListingData(newData);
+      } else {
+        const newData = { ...listingData, usable_area_ratio: option.value };
+        console.log('Setting usable_area_ratio:', newData);
+        setListingData(newData);
+      }
+    } else if (currentQuestionIndex === 12) {
+      // Condition
+      const newData = { ...listingData, condition: option.value };
+      console.log('Setting condition:', newData);
+      setListingData(newData);
+    } else if (currentQuestionIndex === 14) {
+      // Available from (Bezugsfrei ab)
+      const newData = { ...listingData, available_from: option.value };
+      console.log('Setting available_from:', newData);
+      setListingData(newData);
+    } else if (currentQuestionIndex === 21) {
+      // Heating type
+      const newData = { ...listingData, heating_type: option.value };
+      console.log('Setting heating_type:', newData);
+      setListingData(newData);
+    } else if (currentQuestionIndex === 22) {
+      // Energy source
+      const newData = { ...listingData, energy_source: option.value };
+      console.log('Setting energy_source:', newData);
+      setListingData(newData);
+    } else if (currentQuestionIndex === 23) {
+      // Energy certificate
+      const newData = { ...listingData, energy_certificate: option.value };
+      console.log('Setting energy_certificate:', newData);
+      setListingData(newData);
+    } else if (currentQuestionIndex === 24) {
+      // Provision Ja/Nein
       if (option.value === 'with_commission') {
         const newData = { ...listingData, user_type: 'agent' };
         console.log('Setting user_type agent:', newData);
@@ -406,18 +605,13 @@ export default function CreateListingPage() {
         setTimeout(() => addBotMessage(currentQuestionIndex + 3), 500);
       }
       return;
-    } else if (currentQuestionIndex === 8) {
-      // Address consent requirement (was 7, now 8)
+    } else if (currentQuestionIndex === 26) {
+      // Address consent requirement
       const newData = {
         ...listingData,
         require_address_consent: option.value === 'require_consent'
       };
       console.log('Setting require_address_consent:', newData);
-      setListingData(newData);
-    } else if (currentQuestionIndex === 11) {
-      // Condition (was 10, now 11)
-      const newData = { ...listingData, condition: option.value };
-      console.log('Setting condition:', newData);
       setListingData(newData);
     }
 
@@ -430,13 +624,8 @@ export default function CreateListingPage() {
     addUserMessage(textInput);
 
     // Save to listing data based on current question
-    if (currentQuestionIndex === 3) {
-      // Title
-      const newData = { ...listingData, title: textInput };
-      console.log('Setting title:', newData);
-      setListingData(newData);
-    } else if (currentQuestionIndex === 4) {
-      // Location (Postal Code) - Get city and district from AI
+    if (currentQuestionIndex === 4) {
+      // Postal Code - Get city and district from AI
       const postalCode = textInput.trim();
 
       // Show loading message
@@ -460,13 +649,18 @@ export default function CreateListingPage() {
         }];
       });
 
-      const newData = { ...listingData, location: fullLocation };
-      console.log('Setting location:', newData);
+      const newData = { ...listingData, postal_code: postalCode, location: fullLocation };
+      console.log('Setting postal_code and location:', newData);
       setListingData(newData);
       setTextInput('');
       setTimeout(() => addBotMessage(currentQuestionIndex + 1), 500);
       return; // Early return to prevent default flow
-    } else if (currentQuestionIndex === 13) {
+    } else if (currentQuestionIndex === 5) {
+      // Street address
+      const newData = { ...listingData, street_address: textInput };
+      console.log('Setting street_address:', newData);
+      setListingData(newData);
+    } else if (currentQuestionIndex === 15) {
       // Key points (Stichpunkte)
       console.log('Setting key points:', textInput);
       const userKeyPoints = textInput;
@@ -489,10 +683,15 @@ export default function CreateListingPage() {
         }, 500);
       }, 500);
       return; // Early return to prevent default flow
-    } else if (currentQuestionIndex === 14) {
+    } else if (currentQuestionIndex === 16) {
       // Description
       const newData = { ...listingData, description: textInput };
       console.log('Setting description:', newData);
+      setListingData(newData);
+    } else if (currentQuestionIndex === 17) {
+      // Title
+      const newData = { ...listingData, title: textInput };
+      console.log('Setting title:', newData);
       setListingData(newData);
     }
 
@@ -500,32 +699,66 @@ export default function CreateListingPage() {
     setTimeout(() => addBotMessage(currentQuestionIndex + 1), 500);
   };
 
-  const handleNumberSubmit = () => {
+  const handleNumberSubmit = async () => {
     if (!numberInput) return;
 
     const question = QUESTIONS[currentQuestionIndex];
     addUserMessage(`${numberInput} ${question.unit}`);
 
     // Save to listing data based on current question
-    if (currentQuestionIndex === 5) {
-      // Price (was 4, now 5)
-      const newData = { ...listingData, price: parseInt(numberInput) };
-      console.log('Setting price:', newData);
+    if (currentQuestionIndex === 6) {
+      // Total floors
+      const newData = { ...listingData, total_floors: parseInt(numberInput) };
+      console.log('Setting total_floors:', newData);
       setListingData(newData);
-    } else if (currentQuestionIndex === 7) {
-      // Commission rate (was 6, now 7)
-      const newData = { ...listingData, commission_rate: parseFloat(numberInput) };
-      console.log('Setting commission_rate:', newData);
-      setListingData(newData);
-    } else if (currentQuestionIndex === 9) {
-      // Sqm (was 8, now 9)
+    } else if (currentQuestionIndex === 8) {
+      // Sqm (Wohnfläche)
       const newData = { ...listingData, sqm: parseInt(numberInput) };
       console.log('Setting sqm:', newData);
       setListingData(newData);
     } else if (currentQuestionIndex === 10) {
-      // Rooms (was 9, now 10)
+      // Rooms
       const newData = { ...listingData, rooms: parseInt(numberInput) };
       console.log('Setting rooms:', newData);
+      setListingData(newData);
+    } else if (currentQuestionIndex === 11) {
+      // Bathrooms
+      const newData = { ...listingData, bathrooms: parseInt(numberInput) };
+      console.log('Setting bathrooms:', newData);
+      setListingData(newData);
+    } else if (currentQuestionIndex === 18) {
+      // Price (Kaufpreis)
+      const price = parseInt(numberInput);
+      const newData = { ...listingData, price };
+      console.log('Setting price:', newData);
+      setListingData(newData);
+
+      // Calculate and show price per sqm in chat
+      if (listingData.sqm && listingData.sqm > 0) {
+        const pricePerSqm = Math.round(price / listingData.sqm);
+        const pricePerSqmMessage: Message = {
+          id: `bot-price-per-sqm-${Date.now()}`,
+          type: 'bot',
+          content: `Das entspricht ${formatPrice(pricePerSqm)}/m²`,
+        };
+        setTimeout(() => {
+          setMessages(prev => [...prev, pricePerSqmMessage]);
+        }, 500);
+      }
+    } else if (currentQuestionIndex === 19) {
+      // Monthly fee (Hausgeld)
+      const newData = { ...listingData, monthly_fee: parseInt(numberInput) };
+      console.log('Setting monthly_fee:', newData);
+      setListingData(newData);
+    } else if (currentQuestionIndex === 20) {
+      // Year built
+      const newData = { ...listingData, year_built: parseInt(numberInput) };
+      console.log('Setting year_built:', newData);
+      setListingData(newData);
+    } else if (currentQuestionIndex === 25) {
+      // Commission rate
+      const newData = { ...listingData, commission_rate: parseFloat(numberInput) };
+      console.log('Setting commission_rate:', newData);
       setListingData(newData);
     }
 
@@ -827,19 +1060,50 @@ Schreibe einen verkaufsstarken Text in professionellem Stil. Die Beschreibung so
     setIsSubmitting(true);
     try {
       const propertyData = {
+        // Basic info
         title: listingData.title || 'Neue Immobilie',
-        location: listingData.location || '',
-        price: listingData.price || 0,
-        sqm: listingData.sqm || 0,
-        rooms: listingData.rooms || 0,
-        images: listingData.images || [],
-        features: listingData.features || [],
         description: listingData.description || '',
+        property_type: listingData.property_type,
+
+        // Location
+        location: listingData.location || '',
+        postal_code: listingData.postal_code,
+        street_address: listingData.street_address,
+
+        // Pricing
+        price: listingData.price || 0,
+        commission_rate: listingData.commission_rate,
+        monthly_fee: listingData.monthly_fee,
+        require_address_consent: listingData.require_address_consent || false,
+
+        // Size & Rooms
+        sqm: listingData.sqm || 0,
+        usable_area: listingData.usable_area,
+        usable_area_ratio: listingData.usable_area_ratio,
+        rooms: listingData.rooms || 0,
+        bathrooms: listingData.bathrooms,
+
+        // Building info
+        total_floors: listingData.total_floors,
+        floor_level: listingData.floor_level,
+        year_built: listingData.year_built,
+        condition: listingData.condition,
+
+        // Energy & Heating
+        heating_type: listingData.heating_type,
+        energy_source: listingData.energy_source,
+        energy_certificate: listingData.energy_certificate,
+
+        // Features & availability
+        features: listingData.features || [],
+        available_from: listingData.available_from,
+        images: listingData.images || [],
+
+        // AI & Metadata
         highlights: [],
         red_flags: [],
         user_id: user.id,
-        commission_rate: listingData.commission_rate,
-        require_address_consent: listingData.require_address_consent || false,
+        viewing_appointments: listingData.viewing_appointments,
       };
 
       console.log('[handlePublish] Property data prepared:', propertyData);
