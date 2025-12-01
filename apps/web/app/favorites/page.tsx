@@ -326,16 +326,6 @@ export default function FavoritesPage() {
                     )}
                   </div>
 
-                  {/* CTA Buttons */}
-                  <div className="flex flex-col sm:flex-row gap-3 bg-white p-4 lg:p-8 pt-4">
-                    <button
-                      onClick={() => handleRemoveFavorite(selectedProperty.id)}
-                      className="flex-1 bg-white border-2 border-gray-300 text-gray-900 font-semibold py-4 px-6 rounded-xl hover:border-gray-400 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Heart size={20} className="fill-primary text-primary" />
-                      Aus Favoriten entfernen
-                    </button>
-                  </div>
                 </div>
               </>
             ) : (
