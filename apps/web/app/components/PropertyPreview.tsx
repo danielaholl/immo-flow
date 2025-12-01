@@ -270,40 +270,40 @@ export function PropertyPreview({
         )}
 
         {/* Anbieter Info */}
-        {data.owner && (
-          <div className="mb-6 bg-white rounded-lg border shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Anbieter</h3>
-            <div className="flex items-center gap-4">
-              {data.owner.avatar_url ? (
-                <img
-                  src={data.owner.avatar_url}
-                  alt={`${data.owner.first_name || ''} ${data.owner.last_name || ''}`}
-                  className="w-16 h-16 rounded-full object-cover"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.style.display = 'none';
-                  }}
-                />
-              ) : (
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                  <span className="text-2xl font-bold text-gray-400">
-                    {(data.owner.first_name?.charAt(0) || 'A').toUpperCase()}
-                  </span>
-                </div>
-              )}
-              <div>
-                <h4 className="font-bold text-gray-900">
-                  {data.owner.first_name || data.owner.last_name
-                    ? `${data.owner.first_name || ''} ${data.owner.last_name || ''}`.trim()
-                    : 'Privater Anbieter'}
-                </h4>
-                {data.owner.company && (
-                  <p className="text-sm text-gray-600">{data.owner.company}</p>
-                )}
+        <div className="mb-6 bg-white rounded-lg border shadow-sm p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Anbieter</h3>
+          <div className="flex items-center gap-4">
+            {data.owner?.avatar_url ? (
+              <img
+                src={data.owner.avatar_url}
+                alt={`${data.owner.first_name || ''} ${data.owner.last_name || ''}`}
+                className="w-16 h-16 rounded-full object-cover"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                }}
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                <span className="text-2xl font-bold text-gray-400">
+                  {data.owner?.first_name?.charAt(0)?.toUpperCase() || 'P'}
+                </span>
               </div>
+            )}
+            <div>
+              <h4 className="font-bold text-gray-900">
+                {data.owner?.first_name || data.owner?.last_name
+                  ? `${data.owner.first_name || ''} ${data.owner.last_name || ''}`.trim()
+                  : 'Privater Anbieter'}
+              </h4>
+              {data.owner?.company ? (
+                <p className="text-sm text-gray-600">{data.owner.company}</p>
+              ) : (
+                <p className="text-sm text-gray-500">Keine weiteren Informationen verfügbar</p>
+              )}
             </div>
           </div>
-        )}
+        </div>
 
         {/* Empty State */}
         {!data.title && !data.location && !data.description && data.price === 0 && (
