@@ -27,7 +27,7 @@ export async function getUserFavorites(userId: string): Promise<Favorite[]> {
   const userIds = [...new Set(
     data
       .map((fav: any) => fav.properties?.user_id)
-      .filter((id: string | undefined) => id !== undefined)
+      .filter((id: string | undefined | null) => id !== undefined && id !== null)
   )] as string[];
 
   // Fetch owner profiles for all properties
