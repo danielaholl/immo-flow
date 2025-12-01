@@ -68,9 +68,9 @@ export function PropertyPreview({
   const shouldShowAddress = showAddress || !(data.require_address_consent ?? false);
 
   return (
-    <div className={`bg-white rounded-2xl shadow-lg overflow-hidden ${className}`}>
+    <div className={`bg-white rounded-2xl shadow-lg ${className}`}>
       {/* Property Details */}
-      <div className="p-6 lg:p-8">
+      <div>
         {/* Type Badge */}
         {data.type && data.type !== 'Immobilie' && (
           <span className="inline-block px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium mb-3">
