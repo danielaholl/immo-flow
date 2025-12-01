@@ -355,6 +355,7 @@ export default function CreateListingPage() {
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const [previewImageIndex, setPreviewImageIndex] = useState(0);
   const [keyPoints, setKeyPoints] = useState('');
+  const [awaitingUsableAreaSize, setAwaitingUsableAreaSize] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -386,7 +387,10 @@ export default function CreateListingPage() {
 
   // Update preview in real-time for number inputs
   useEffect(() => {
-    if (currentQuestionIndex === 6 && numberInput) {
+    if (awaitingUsableAreaSize && numberInput) {
+      // Usable area size (after ratio selection)
+      setListingData(prev => ({ ...prev, usable_area: parseInt(numberInput) }));
+    } else if (currentQuestionIndex === 6 && numberInput) {
       // Total floors
       setListingData(prev => ({ ...prev, total_floors: parseInt(numberInput) }));
     } else if (currentQuestionIndex === 8 && numberInput) {
@@ -411,7 +415,7 @@ export default function CreateListingPage() {
       // Commission rate
       setListingData(prev => ({ ...prev, commission_rate: parseFloat(numberInput) }));
     }
-  }, [numberInput, currentQuestionIndex]);
+  }, [numberInput, currentQuestionIndex, awaitingUsableAreaSize]);
 
   // Update preview in real-time for features selection
   useEffect(() => {
@@ -560,9 +564,25 @@ export default function CreateListingPage() {
         console.log('Setting usable_area to none:', newData);
         setListingData(newData);
       } else {
+        // Save ratio and ask for size
         const newData = { ...listingData, usable_area_ratio: option.value };
         console.log('Setting usable_area_ratio:', newData);
         setListingData(newData);
+
+        // Ask for usable area size
+        setAwaitingUsableAreaSize(true);
+        setTimeout(() => {
+          const sizeQuestion: Message = {
+            id: `bot-usable-area-size-${Date.now()}`,
+            type: 'bot',
+            content: 'Wie groß ist die Nutzfläche?',
+            inputType: 'number',
+            unit: 'm²',
+            defaultValue: '10',
+          };
+          setMessages(prev => [...prev, sizeQuestion]);
+        }, 500);
+        return; // Don't proceed to next question yet
       }
     } else if (currentQuestionIndex === 12) {
       // Condition
@@ -701,6 +721,18 @@ export default function CreateListingPage() {
 
   const handleNumberSubmit = async () => {
     if (!numberInput) return;
+
+    // Special case: Handle usable area size (after ratio selection)
+    if (awaitingUsableAreaSize) {
+      addUserMessage(`${numberInput} m²`);
+      const newData = { ...listingData, usable_area: parseInt(numberInput) };
+      console.log('Setting usable_area:', newData);
+      setListingData(newData);
+      setAwaitingUsableAreaSize(false);
+      setNumberInput('');
+      setTimeout(() => addBotMessage(currentQuestionIndex + 1), 500);
+      return;
+    }
 
     const question = QUESTIONS[currentQuestionIndex];
     addUserMessage(`${numberInput} ${question.unit}`);
@@ -1023,9 +1055,9 @@ Schreibe einen verkaufsstarken Text in professionellem Stil. Die Beschreibung so
     try {
       console.log('Generating AI description...');
 
-      // Timeout nach 10 Sekunden
+      // Timeout nach 30 Sekunden
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Timeout')), 10000)
+        setTimeout(() => reject(new Error('Timeout')), 30000)
       );
 
       const apiPromise = sendChatMessage({ message: prompt });
