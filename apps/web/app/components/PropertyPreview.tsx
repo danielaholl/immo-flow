@@ -242,7 +242,7 @@ export function PropertyPreview({
 
         {/* Anbieter Info */}
         {data.owner && (
-          <div className="mb-6 p-4 border-2 border-gray-200 rounded-xl">
+          <div className="mb-6 bg-white rounded-lg border shadow-sm p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Anbieter</h3>
             <div className="flex items-center gap-4">
               {data.owner.avatar_url ? (
