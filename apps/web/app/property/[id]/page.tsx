@@ -332,10 +332,10 @@ export default function PropertyPage() {
         {/* Right Column - Property Details (Scrollable) */}
         <div className="lg:w-1/2 flex flex-col lg:h-[calc(100vh-80px)]">
           {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto p-4 lg:p-8 lg:pr-0">
+          <div className="flex-1 overflow-y-auto">
             {/* Unlock Full Details Section - Only show if no consent */}
             {!hasConsent && !isOwner && (
-              <div className="mb-8 p-6 bg-blue-50 rounded-2xl border border-blue-100">
+              <div className="p-6 bg-blue-50 rounded-2xl border border-blue-100">
                 <h3 className="text-xl font-bold mb-3 text-gray-900">
                   Vollständige Details freischalten
                 </h3>
@@ -363,7 +363,7 @@ export default function PropertyPage() {
 
             {/* Anbieter Info */}
             {property.owner && !isOwner && (
-              <div className="mb-8">
+              <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Anbieter</h3>
                 <div className="flex items-center gap-4">
                 {property.owner.avatar_url ? (
@@ -399,7 +399,7 @@ export default function PropertyPage() {
           </div>
 
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3 mt-auto bg-white pt-4 pb-4 px-4 lg:px-8">
+          <div className="flex flex-col sm:flex-row gap-3 bg-white">
             {isOwner ? (
               <>
                 <button

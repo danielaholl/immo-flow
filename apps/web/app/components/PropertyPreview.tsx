@@ -73,26 +73,26 @@ export function PropertyPreview({
       <div>
         {/* Type Badge */}
         {data.type && data.type !== 'Immobilie' && (
-          <span className="inline-block px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium mb-3">
+          <span className="inline-block px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium">
             {data.type}
           </span>
         )}
 
         {/* Price */}
-        <h1 className="font-bold text-gray-900 mb-2" style={{ fontSize: '33px' }}>
+        <h1 className="font-bold text-gray-900" style={{ fontSize: '33px' }}>
           {data.price > 0 ? formatPrice(data.price) : 'Preis nicht angegeben'}
         </h1>
 
         {/* Commission */}
         {data.commission_rate && data.commission_rate > 0 && (
-          <p className="text-base text-gray-600 mb-4">
+          <p className="text-base text-gray-600">
             zzgl. {data.commission_rate}% Provision
           </p>
         )}
 
         {/* Location */}
         {data.location && (
-          <div className="mb-4">
+          <div>
             <div className="flex items-center gap-2 text-gray-600">
               <MapPin size={18} />
               <span style={{ fontSize: '18px' }}>
@@ -103,7 +103,7 @@ export function PropertyPreview({
             {!shouldShowAddress && data.address && onRequestAddress && (
               <button
                 onClick={onRequestAddress}
-                className="mt-2 text-sm text-primary hover:underline"
+                className="text-sm text-primary hover:underline"
               >
                 Vollständige Adresse anzeigen
               </button>
@@ -113,13 +113,13 @@ export function PropertyPreview({
 
         {/* Title */}
         {data.title && (
-          <h2 className="font-semibold text-gray-900 mb-6" style={{ fontSize: '22px' }}>
+          <h2 className="font-semibold text-gray-900" style={{ fontSize: '22px' }}>
             {data.title}
           </h2>
         )}
 
         {/* Details Grid */}
-        <div className="grid grid-cols-3 gap-4 mb-6 pb-6 border-b border-gray-200">
+        <div className="grid grid-cols-3 gap-4">
           <div>
             <p className="text-sm text-gray-500">Zimmer</p>
             <p className="text-lg font-semibold text-gray-900">
@@ -142,7 +142,7 @@ export function PropertyPreview({
 
         {/* Yield */}
         {data.yield && (
-          <div className="flex items-center gap-2 mb-6 pb-6 border-b border-gray-200">
+          <div className="flex items-center gap-2">
             <ChartNoAxesCombined size={20} className="text-gray-700" />
             <span className="text-lg font-semibold text-gray-900">{data.yield}% Rendite</span>
           </div>
@@ -150,8 +150,8 @@ export function PropertyPreview({
 
         {/* Description */}
         {data.description && (
-          <div className="mb-6 pb-6 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Beschreibung</h3>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Beschreibung</h3>
             <p className="text-gray-700 leading-relaxed" style={{ fontSize: '18px' }}>
               {data.description}
             </p>
@@ -160,8 +160,8 @@ export function PropertyPreview({
 
         {/* Features */}
         {data.features && data.features.length > 0 && (
-          <div className="mb-6 pb-6 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Ausstattung</h3>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Ausstattung</h3>
             <div className="flex flex-wrap gap-2">
               {data.features.map((feature, idx) => (
                 <span
@@ -177,7 +177,7 @@ export function PropertyPreview({
 
         {/* AI Investment Evaluation */}
         {showInvestmentScore && (data.ai_investment_score || data.evaluation) && (
-          <div className="mb-6">
+          <div>
             <InvestmentScoreCard
               score={data.ai_investment_score}
               breakdown={
@@ -206,8 +206,8 @@ export function PropertyPreview({
 
         {/* Highlights */}
         {data.highlights && data.highlights.length > 0 && (
-          <div className="mb-6 pb-6 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Highlights</h3>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Highlights</h3>
             <ul className="space-y-2">
               {data.highlights.map((highlight, idx) => (
                 <li key={idx} className="flex items-start gap-2">
@@ -221,8 +221,8 @@ export function PropertyPreview({
 
         {/* Red Flags */}
         {data.red_flags && data.red_flags.length > 0 && (
-          <div className="mb-6 pb-6 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Zu beachten</h3>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Zu beachten</h3>
             <ul className="space-y-2">
               {data.red_flags.map((flag, idx) => (
                 <li key={idx} className="flex items-start gap-2 text-amber-600">
