@@ -1,5 +1,222 @@
 # Changelog - ImmoFlow
 
+## 2025-12-01 (PropertyPreview Refactoring Session)
+
+### Changed
+
+#### 1. PropertyPreview Component Major Refactoring (`apps/web/app/components/PropertyPreview.tsx`)
+- **Removed card styling**: Component now renders flat without shadow, rounded corners, or background
+  - Styling removed from component itself
+  - Can be overridden via `className` prop with `!important` classes
+  - Used as: `className="!shadow-none !rounded-none !bg-transparent"`
+- **Enhanced props interface**:
+  - Added `hasConsent`, `isOwner`, `consentLoading`, `isUserLoggedIn`, `onGrantConsent`
+  - Extended `PropertyPreviewData` with optional `owner` field
+- **Moved sections into component**:
+  - Consent unlock section ("Vollständige Details freischalten")
+  - Provider/Anbieter section with avatar and company info
+- **Removed restrictions**:
+  - Removed `overflow-hidden` for scrollability
+  - Removed `line-clamp-6` from description to show full content
+  - Removed padding from inner sections (handled by parent container)
+- **Restored proper spacing**: `mb-3`, `mb-2`, `mb-4`, `mb-6` between sections
+
+#### 2. Property Detail Page Refactoring (`apps/web/app/property/[id]/page.tsx`)
+- **Replaced 150+ lines** of duplicate property detail rendering with `PropertyPreview` component
+- **Removed duplicate sections**:
+  - Viewing appointments (Besichtigungstermine)
+  - Consent unlock dialog
+  - Provider/Anbieter section
+- **New scrolling structure**:
+  - Outer container: `flex flex-col` with fixed height
+  - Inner scrollable div: `flex-1 overflow-y-auto p-4 lg:p-8`
+  - CTA buttons: Fixed at bottom with proper padding
+- **Owner data integration**: Passes owner information to PropertyPreview when not the property owner
+- **Removed unused imports**: Calendar, LocationDisplay
+
+#### 3. Favorites Page Refactoring (`apps/web/app/favorites/page.tsx`)
+- **Replaced 250+ lines** of duplicate detail rendering with `PropertyPreview` component
+- **Same scrolling pattern** as property detail page
+- **Owner data conversion**: Converts property owner data to PropertyPreview format with null checks
+- **Conditional owner display**: Only shows owner if first_name, last_name, or company exists
+- **Removed unused imports**: Calendar, TrendingUp, ChartNoAxesCombined, LocationDisplay
+- **Proper consent handling**: Passes `hasConsent`, `consentLoading`, and `onGrantConsent` props
+
+#### 4. Owner Profile Loading in Favorites (`packages/api/src/favorites.ts`)
+- **Batch fetching implementation**: Added owner profile loading to `getUserFavorites` function
+- **Optimized queries**:
+  - Collect unique user_ids from all favorite properties
+  - Single query with `.in('user_id', userIds)` instead of N queries
+  - Uses Map data structure for O(1) lookup when mapping profiles
+- **Proper column selection**: Selects `id, user_id, first_name, last_name, company, avatar_url`
+- **Map key fix**: Uses `user_id` as map key (not `id`) to match properties.user_id
+- **Null handling**: Filters out `null` and `undefined` user_ids before querying
+
+### Added
+
+#### 1. Provider Section in PropertyPreview
+- **New Anbieter section** with consistent card styling:
+  - `bg-white rounded-lg border shadow-sm p-6` (matches AI Score card)
+  - Avatar display with fallback placeholder
+  - Name and company information
+  - Graceful degradation for missing data
+- **Fallback display** when no owner data:
+  - "Privater Anbieter" as default name
+  - Placeholder avatar with "P" initial
+  - "Keine weiteren Informationen verfügbar" as subtitle
+- **Avatar error handling**: Hides broken images gracefully
+
+#### 2. Consent Section in PropertyPreview
+- **"Vollständige Details freischalten" section**:
+  - Light blue background (`bg-blue-50`) with rounded corners
+  - Explanatory text about data sharing with broker
+  - "Adresse freischalten" button (or "Anmelden zum Freischalten" if not logged in)
+  - Loading state: "Wird freigeschaltet..."
+  - Only shown when `!hasConsent && !isOwner`
+
+### Fixed
+
+#### 1. Null user_id UUID Error
+- **Problem**: GET request failed with "invalid input syntax for type uuid: null"
+- **Root Cause**: Filter only excluded `undefined` but not `null` values
+- **Solution**:
+```typescript
+.filter((id: string | undefined | null) => id !== undefined && id !== null)
+```
+- **File**: `packages/api/src/favorites.ts:30`
+
+#### 2. Owner Profiles Not Loading
+- **Problem**: Console showed "Fetched owner profiles: []" despite valid user_ids
+- **Root Cause**: Query used wrong column name (`id` instead of `user_id`)
+- **Solution**:
+  - Changed `.select()` to include `user_id` column
+  - Changed `.in('id', userIds)` to `.in('user_id', userIds)`
+  - Changed map key from `p.id` to `p.user_id`
+- **File**: `packages/api/src/favorites.ts:36-49`
+
+#### 3. Content Not Scrollable
+- **Problem**: User reported "inhalt der preview ist nicht scrollbar"
+- **Root Cause**: PropertyPreview had `overflow-hidden` class
+- **Solution**:
+  - Removed `overflow-hidden` from PropertyPreview
+  - Added scrollable wrapper in parent pages
+  - Moved padding from PropertyPreview to parent containers
+- **Files**: PropertyPreview.tsx, property/[id]/page.tsx, favorites/page.tsx
+
+#### 4. Scrollbar Positioning
+- **Problem**: Scrollbar had margin/padding to the side
+- **Root Cause**: Padding was on wrong container level
+- **Solution**:
+  - Removed all padding from PropertyPreview component
+  - Added `p-4 lg:p-8` to scrollable container in parent pages
+  - Scrollbar now displays at page edge
+
+### Technical Details
+
+#### PropertyPreviewData Interface Extension
+```typescript
+export interface PropertyPreviewData {
+  // ... existing fields
+  owner?: {
+    first_name?: string;
+    last_name?: string;
+    company?: string;
+    avatar_url?: string;
+  };
+}
+```
+
+#### PropertyPreviewProps Interface Extension
+```typescript
+export interface PropertyPreviewProps {
+  data: PropertyPreviewData;
+  className?: string;
+  showAddress?: boolean;
+  onRequestAddress?: () => void;
+  showInvestmentScore?: boolean;
+  hasConsent?: boolean;
+  isOwner?: boolean;
+  consentLoading?: boolean;
+  isUserLoggedIn?: boolean;
+  onGrantConsent?: () => void;
+}
+```
+
+#### Owner Profile Fetching Pattern
+```typescript
+// Collect unique user_ids
+const userIds = [...new Set(
+  data
+    .map((fav: any) => fav.properties?.user_id)
+    .filter((id: string | undefined | null) => id !== undefined && id !== null)
+)] as string[];
+
+// Batch fetch profiles
+const { data: profiles } = await supabase
+  .from('user_profiles')
+  .select('id, user_id, first_name, last_name, company, avatar_url')
+  .in('user_id', userIds);
+
+// Create lookup map
+const profilesMap = new Map(ownerProfiles.map(p => [p.user_id, p]));
+
+// Map back to properties
+return data.map((fav: any) => ({
+  ...fav,
+  properties: {
+    ...fav.properties,
+    owner: fav.properties.user_id ? profilesMap.get(fav.properties.user_id) : null,
+  },
+}));
+```
+
+#### Scrolling Layout Pattern
+```typescript
+<div className="lg:w-1/2 flex flex-col lg:h-[calc(100vh-80px)]">
+  {/* Scrollable Content */}
+  <div className="flex-1 overflow-y-auto p-4 lg:p-8">
+    <PropertyPreview
+      data={propertyPreviewData}
+      className="!shadow-none !rounded-none !bg-transparent"
+      // ... other props
+    />
+  </div>
+
+  {/* Fixed CTA Buttons */}
+  <div className="flex flex-col sm:flex-row gap-3 bg-white p-4 lg:p-8 pt-4">
+    {/* buttons */}
+  </div>
+</div>
+```
+
+### Files Modified
+```
+apps/web/app/components/PropertyPreview.tsx       # Major refactoring
+apps/web/app/property/[id]/page.tsx                # Refactored to use PropertyPreview
+apps/web/app/favorites/page.tsx                    # Refactored to use PropertyPreview
+packages/api/src/favorites.ts                      # Added owner profile loading
+```
+
+### Code Reduction
+- **Property Detail Page**: ~150 lines removed
+- **Favorites Page**: ~250 lines removed
+- **Total**: ~400 lines of duplicate code eliminated
+- **Reusable Component**: Single source of truth for property display logic
+
+### UI/UX Improvements
+- **Consistent Layout**: Same property display across detail page and favorites
+- **Proper Scrolling**: Scrollbar at page edge, not within component
+- **Visual Consistency**: Anbieter section matches AI Score card styling
+- **Graceful Degradation**: Properties without owners show fallback content
+- **Better Spacing**: Restored proper margins between sections
+
+### Performance Improvements
+- **Batch Fetching**: Single query for all owner profiles instead of N queries
+- **O(1) Lookup**: Map data structure for efficient profile mapping
+- **Reduced Re-renders**: Component props properly memoized
+
+---
+
 ## 2025-11-29 (Latest Session)
 
 ### Added
