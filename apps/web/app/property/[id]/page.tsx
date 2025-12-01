@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { getPropertyWithOwner, PropertyWithOwner, hasPropertyConsent, grantPropertyConsent, deactivateProperty, getUserFavorites, upsertConsent, hasFullConsent, trackInteraction, updateUserPreferences, getPropertyEvaluation, PropertyAIEvaluation } from '@immoflow/api';
 import { formatPrice } from '@immoflow/utils';
 import { ChatModal } from '@immoflow/ui';
-import { Pencil, Power, Calendar } from 'lucide-react';
+import { Pencil, Power } from 'lucide-react';
 import { useAuthContext } from '@/app/providers/AuthProvider';
 import { Header } from '@/app/components/Header';
 import { PropertyImageSlideshow } from '@/app/components/PropertyImageSlideshow';
@@ -356,49 +356,8 @@ export default function PropertyPage() {
             showAddress={Boolean(!(property.require_address_consent ?? false) || hasCommissionConsent || isOwner)}
             onRequestAddress={handleShowAddress}
             showInvestmentScore={!evaluationLoading}
+            className="!shadow-none !rounded-none !bg-transparent"
           />
-
-          {/* Besichtigungstermine */}
-          {!isOwner && (
-            <div className="mb-6 pb-6 border-b border-gray-200">
-              <div className="flex items-center gap-2 mb-4">
-                <Calendar size={20} className="text-gray-700" />
-                <h3 className="text-lg font-semibold text-gray-900">Besichtigungstermine</h3>
-              </div>
-              <div className="space-y-2">
-                <div
-                  onClick={() => handleProtectedAction(() => alert('Termin wird gebucht...'))}
-                  className="p-4 bg-white border border-gray-200 rounded-xl hover:border-gray-300 transition-colors cursor-pointer"
-                >
-                  <div className="font-medium text-gray-900">Montag, 1. Dezember 2025</div>
-                  <div className="text-sm text-gray-500">14:00 Uhr</div>
-                </div>
-                <div
-                  onClick={() => handleProtectedAction(() => alert('Termin wird gebucht...'))}
-                  className="p-4 bg-white border border-gray-200 rounded-xl hover:border-gray-300 transition-colors cursor-pointer"
-                >
-                  <div className="font-medium text-gray-900">Mittwoch, 3. Dezember 2025</div>
-                  <div className="text-sm text-gray-500">16:00 Uhr</div>
-                </div>
-                <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl opacity-60">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium text-gray-500">Freitag, 5. Dezember 2025</div>
-                      <div className="text-sm text-gray-400">10:00 Uhr</div>
-                    </div>
-                    <span className="text-sm text-gray-500">Ausgebucht</span>
-                  </div>
-                </div>
-              </div>
-              {!user && (
-                <p className="mt-3 text-sm text-gray-600 text-center">
-                  <a href={`/auth/login?redirectTo=/property/${params.id}`} className="text-primary hover:underline font-medium">
-                    Melden Sie sich an
-                  </a>, um einen Termin zu buchen
-                </p>
-              )}
-            </div>
-          )}
 
           {/* Anbieter Info */}
           {property.owner && !isOwner && (
