@@ -624,8 +624,8 @@ export default function CreateListingPage() {
     addUserMessage(textInput);
 
     // Save to listing data based on current question
-    if (currentQuestionIndex === 4) {
-      // Postal Code - Get city and district from AI
+    if (currentQuestionIndex === 3) {
+      // Postal Code - Get city and district from AI (Index 3)
       const postalCode = textInput.trim();
 
       // Show loading message
@@ -655,8 +655,8 @@ export default function CreateListingPage() {
       setTextInput('');
       setTimeout(() => addBotMessage(currentQuestionIndex + 1), 500);
       return; // Early return to prevent default flow
-    } else if (currentQuestionIndex === 5) {
-      // Street address
+    } else if (currentQuestionIndex === 4) {
+      // Street address (Index 4)
       const newData = { ...listingData, street_address: textInput };
       console.log('Setting street_address:', newData);
       setListingData(newData);
