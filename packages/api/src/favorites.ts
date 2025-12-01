@@ -4,7 +4,7 @@
 import { supabase, Favorite, FavoriteInsert } from '@immoflow/database';
 
 /**
- * Get all favorites for a user (only active properties)
+ * Get all favorites for a user (only active properties) with owner data
  */
 export async function getUserFavorites(userId: string): Promise<Favorite[]> {
   const { data, error } = await supabase
@@ -19,7 +19,42 @@ export async function getUserFavorites(userId: string): Promise<Favorite[]> {
     throw new Error(`Failed to fetch favorites: ${error.message}`);
   }
 
-  return data || [];
+  if (!data || data.length === 0) {
+    return [];
+  }
+
+  // Get unique user_ids from properties
+  const userIds = [...new Set(
+    data
+      .map((fav: any) => fav.properties?.user_id)
+      .filter((id: string | undefined) => id !== undefined)
+  )] as string[];
+
+  // Fetch owner profiles for all properties
+  let ownerProfiles: any[] = [];
+  if (userIds.length > 0) {
+    const { data: profiles, error: profilesError } = await supabase
+      .from('user_profiles')
+      .select('id, first_name, last_name, company, avatar_url')
+      .in('id', userIds);
+
+    if (profilesError) {
+      console.error('Error fetching owner profiles:', profilesError);
+    } else {
+      ownerProfiles = profiles || [];
+    }
+  }
+
+  // Map owner profiles to properties
+  const profilesMap = new Map(ownerProfiles.map(p => [p.id, p]));
+
+  return data.map((fav: any) => ({
+    ...fav,
+    properties: {
+      ...fav.properties,
+      owner: fav.properties.user_id ? profilesMap.get(fav.properties.user_id) : null,
+    },
+  }));
 }
 
 /**

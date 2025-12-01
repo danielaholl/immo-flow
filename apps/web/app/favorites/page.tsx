@@ -165,6 +165,12 @@ export default function FavoritesPage() {
     red_flags: selectedProperty.red_flags,
     ai_investment_score: selectedProperty.ai_score,
     require_address_consent: selectedProperty.require_address_consent,
+    owner: (selectedProperty as any).owner ? {
+      first_name: (selectedProperty as any).owner.first_name,
+      last_name: (selectedProperty as any).owner.last_name,
+      company: (selectedProperty as any).owner.company,
+      avatar_url: (selectedProperty as any).owner.avatar_url,
+    } : undefined,
   } : null;
 
   return (
