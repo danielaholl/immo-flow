@@ -9,8 +9,8 @@ import type { Property } from '@immoflow/database';
 import { Header } from '../components/Header';
 import { PropertyImageSlideshow } from '../components/PropertyImageSlideshow';
 import { FavoriteButton } from '../components/FavoriteButton';
-import { LocationDisplay } from '../components/LocationDisplay';
-import { MapPin, Home, Heart, Calendar, TrendingUp, ChartNoAxesCombined } from 'lucide-react';
+import { PropertyPreview, PropertyPreviewData } from '../components/PropertyPreview';
+import { MapPin, Home, Heart } from 'lucide-react';
 
 interface FavoriteWithProperty {
   id: string;
@@ -147,6 +147,26 @@ export default function FavoritesPage() {
   const selectedFavorite = favorites[selectedIndex];
   const selectedProperty = selectedFavorite?.properties;
 
+  // Convert property data to PropertyPreview format
+  const propertyPreviewData: PropertyPreviewData | null = selectedProperty ? {
+    images: selectedProperty.images || [],
+    price: selectedProperty.price || 0,
+    commission_rate: selectedProperty.commission_rate,
+    location: selectedProperty.location || '',
+    address: selectedProperty.address,
+    title: selectedProperty.title || '',
+    type: selectedProperty.property_type,
+    sqm: selectedProperty.sqm || 0,
+    rooms: selectedProperty.rooms || 0,
+    description: selectedProperty.description || '',
+    features: selectedProperty.features,
+    yield: selectedProperty.yield,
+    highlights: selectedProperty.highlights,
+    red_flags: selectedProperty.red_flags,
+    ai_investment_score: selectedProperty.ai_score,
+    require_address_consent: selectedProperty.require_address_consent,
+  } : null;
+
   return (
     <main className="min-h-screen bg-white">
       <Header />
@@ -278,248 +298,26 @@ export default function FavoritesPage() {
                 </div>
 
                 {/* Right - Property Details (Scrollable) */}
-                <div className="lg:w-1/2 lg:overflow-y-auto p-4 lg:p-8 flex flex-col lg:h-full">
-                  {/* Unlock Full Details Section - Only show if no consent */}
-                  {!shouldShowAddress(selectedProperty.id) && (
-                    <div className="mb-8 p-6 bg-blue-50 rounded-2xl border border-blue-100">
-                      <h3 className="text-xl font-bold mb-3 text-gray-900">
-                        Vollständige Details freischalten
-                      </h3>
-                      <p className="text-sm text-gray-700 mb-4 leading-relaxed">
-                        Um die vollständige Adresse und weitere Details zu sehen, stimmen Sie bitte der Weitergabe Ihrer Kontaktdaten an den Makler zu.
-                      </p>
-                      <button
-                        onClick={() => handleGrantConsent(selectedProperty.id)}
-                        disabled={consentLoading}
-                        className="bg-gray-900 text-white font-semibold py-2.5 px-6 rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                      >
-                        {consentLoading ? 'Wird freigeschaltet...' : 'Adresse freischalten'}
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Price */}
-                  <h1 className="font-bold text-gray-900 mb-2" style={{ fontSize: '33px' }}>
-                    {formatPrice(selectedProperty.price)}
-                  </h1>
-
-                  {/* Location */}
-                  <LocationDisplay
-                    location={selectedProperty.location}
-                    address={selectedProperty.address}
-                    showAddress={shouldShowAddress(selectedProperty.id)}
-                    className="mb-4"
-                    style={{ fontSize: '18px' }}
-                  />
-
-                  {/* Title */}
-                  <h2 className="font-semibold text-gray-900 mb-6" style={{ fontSize: '22px' }}>
-                    {selectedProperty.title}
-                  </h2>
-
-                  {/* Details Grid */}
-                  <div className="grid grid-cols-3 gap-4 mb-6 pb-6 border-b border-gray-200">
-                    <div>
-                      <p className="text-sm text-gray-500">Zimmer</p>
-                      <p className="text-lg font-semibold text-gray-900">{selectedProperty.rooms}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Fläche</p>
-                      <p className="text-lg font-semibold text-gray-900">{selectedProperty.sqm} m²</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Preis/m²</p>
-                      <p className="text-lg font-semibold text-gray-900">
-                        {formatPrice(Math.round(selectedProperty.price / selectedProperty.sqm))}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Yield */}
-                  {selectedProperty.yield && (
-                    <div className="flex items-center gap-2 mb-6 pb-6 border-b border-gray-200">
-                      <ChartNoAxesCombined size={20} className="text-gray-700" />
-                      <span className="text-lg font-semibold text-gray-900">{selectedProperty.yield}% Rendite</span>
-                    </div>
-                  )}
-
-                  {/* Description */}
-                  {selectedProperty.description && (
-                    <div className="mb-6 pb-6 border-b border-gray-200">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Beschreibung</h3>
-                      <p className="text-gray-700 leading-relaxed" style={{ fontSize: '18px' }}>
-                        {selectedProperty.description}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Features */}
-                  {selectedProperty.features && selectedProperty.features.length > 0 && (
-                    <div className="mb-6 pb-6 border-b border-gray-200">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Ausstattung</h3>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedProperty.features.map((feature, idx) => (
-                          <span
-                            key={idx}
-                            className="px-4 py-2 bg-white border-2 border-gray-900 text-gray-900 rounded-full text-base font-medium"
-                          >
-                            {feature}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* KI-Bewertung */}
-                  {selectedProperty.ai_score && (
-                    <div className="mb-6 pb-6 border-b border-gray-200">
-                      <div className="bg-white border border-gray-200 rounded-2xl p-6">
-                        {/* Header */}
-                        <div className="flex items-center justify-between mb-6">
-                          <div className="flex items-center gap-2">
-                            <TrendingUp size={20} className="text-gray-700" />
-                            <h3 className="text-lg font-semibold text-gray-900">KI-Bewertung</h3>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-4 h-4 rounded-full"
-                              style={{ backgroundColor: getScoreColor(selectedProperty.ai_score) }}
-                            />
-                            <span className="text-2xl font-bold text-gray-900">{selectedProperty.ai_score}/100</span>
-                          </div>
-                        </div>
-
-                        {/* Score Categories */}
-                        <div className="space-y-4">
-                          {/* Lage */}
-                          <div className="flex items-center justify-end gap-4">
-                            <span className="text-gray-600 flex-1">Lage</span>
-                            <div className="w-40 h-2.5 bg-gray-200 rounded-full overflow-hidden">
-                              <div
-                                className="h-full rounded-full"
-                                style={{
-                                  width: `${Math.min(95, selectedProperty.ai_score + 3)}%`,
-                                  backgroundColor: '#22C55E'
-                                }}
-                              />
-                            </div>
-                            <span className="text-gray-700 font-medium w-8 text-right">{Math.min(95, selectedProperty.ai_score + 3)}</span>
-                          </div>
-
-                          {/* Rendite */}
-                          <div className="flex items-center justify-end gap-4">
-                            <span className="text-gray-600 flex-1">Rendite</span>
-                            <div className="w-40 h-2.5 bg-gray-200 rounded-full overflow-hidden">
-                              <div
-                                className="h-full rounded-full"
-                                style={{
-                                  width: `${Math.max(70, selectedProperty.ai_score - 7)}%`,
-                                  backgroundColor: '#22C55E'
-                                }}
-                              />
-                            </div>
-                            <span className="text-gray-700 font-medium w-8 text-right">{Math.max(70, selectedProperty.ai_score - 7)}</span>
-                          </div>
-
-                          {/* Wertsteigerung */}
-                          <div className="flex items-center justify-end gap-4">
-                            <span className="text-gray-600 flex-1">Wertsteigerung</span>
-                            <div className="w-40 h-2.5 bg-gray-200 rounded-full overflow-hidden">
-                              <div
-                                className="h-full rounded-full"
-                                style={{
-                                  width: `${Math.min(95, selectedProperty.ai_score + 3)}%`,
-                                  backgroundColor: '#22C55E'
-                                }}
-                              />
-                            </div>
-                            <span className="text-gray-700 font-medium w-8 text-right">{Math.min(95, selectedProperty.ai_score + 3)}</span>
-                          </div>
-
-                          {/* Steuervorteile */}
-                          <div className="flex items-center justify-end gap-4">
-                            <span className="text-gray-600 flex-1">Steuervorteile</span>
-                            <div className="w-40 h-2.5 bg-gray-200 rounded-full overflow-hidden">
-                              <div
-                                className="h-full rounded-full"
-                                style={{
-                                  width: `${Math.max(75, selectedProperty.ai_score - 2)}%`,
-                                  backgroundColor: '#22C55E'
-                                }}
-                              />
-                            </div>
-                            <span className="text-gray-700 font-medium w-8 text-right">{Math.max(75, selectedProperty.ai_score - 2)}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Highlights */}
-                  {selectedProperty.highlights && selectedProperty.highlights.length > 0 && (
-                    <div className="mb-6 pb-6 border-b border-gray-200">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Highlights</h3>
-                      <ul className="space-y-2">
-                        {selectedProperty.highlights.map((highlight, idx) => (
-                          <li key={idx} className="flex items-start gap-2">
-                            <span className="text-green-500">✓</span>
-                            <span className="text-gray-700" style={{ fontSize: '18px' }}>{highlight}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* Red Flags */}
-                  {selectedProperty.red_flags && selectedProperty.red_flags.length > 0 && (
-                    <div className="mb-6 pb-6 border-b border-gray-200">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Zu beachten</h3>
-                      <ul className="space-y-2">
-                        {selectedProperty.red_flags.map((flag, idx) => (
-                          <li key={idx} className="flex items-start gap-2 text-amber-600">
-                            <span>⚠️</span>
-                            <span style={{ fontSize: '18px' }}>{flag}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* Besichtigungstermine */}
-                  <div className="mb-6 pb-6 border-b border-gray-200">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Calendar size={20} className="text-gray-700" />
-                      <h3 className="text-lg font-semibold text-gray-900">Besichtigungstermine</h3>
-                    </div>
-                    <div className="space-y-2">
-                      <div
-                        onClick={() => alert('Termin wird gebucht...')}
-                        className="p-4 bg-white border border-gray-200 rounded-xl hover:border-gray-300 transition-colors cursor-pointer"
-                      >
-                        <div className="font-medium text-gray-900">Montag, 1. Dezember 2025</div>
-                        <div className="text-sm text-gray-500">14:00 Uhr</div>
-                      </div>
-                      <div
-                        onClick={() => alert('Termin wird gebucht...')}
-                        className="p-4 bg-white border border-gray-200 rounded-xl hover:border-gray-300 transition-colors cursor-pointer"
-                      >
-                        <div className="font-medium text-gray-900">Mittwoch, 3. Dezember 2025</div>
-                        <div className="text-sm text-gray-500">16:00 Uhr</div>
-                      </div>
-                      <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl opacity-60">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="font-medium text-gray-500">Freitag, 5. Dezember 2025</div>
-                            <div className="text-sm text-gray-400">10:00 Uhr</div>
-                          </div>
-                          <span className="text-sm text-gray-500">Ausgebucht</span>
-                        </div>
-                      </div>
-                    </div>
+                <div className="lg:w-1/2 flex flex-col lg:h-full">
+                  {/* Scrollable Content */}
+                  <div className="flex-1 overflow-y-auto p-4 lg:p-8">
+                    {propertyPreviewData && (
+                      <PropertyPreview
+                        data={propertyPreviewData}
+                        showAddress={shouldShowAddress(selectedProperty.id)}
+                        className="!shadow-none !rounded-none !bg-transparent"
+                        hasConsent={shouldShowAddress(selectedProperty.id)}
+                        isOwner={false}
+                        consentLoading={consentLoading}
+                        isUserLoggedIn={Boolean(user)}
+                        onGrantConsent={() => handleGrantConsent(selectedProperty.id)}
+                        showInvestmentScore={true}
+                      />
+                    )}
                   </div>
 
                   {/* CTA Buttons */}
-                  <div className="flex flex-col sm:flex-row gap-3 mt-auto bg-white pt-4 pb-4">
+                  <div className="flex flex-col sm:flex-row gap-3 bg-white p-4 lg:p-8 pt-4">
                     <button
                       onClick={() => handleRemoveFavorite(selectedProperty.id)}
                       className="flex-1 bg-white border-2 border-gray-300 text-gray-900 font-semibold py-4 px-6 rounded-xl hover:border-gray-400 transition-colors flex items-center justify-center gap-2"
