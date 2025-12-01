@@ -297,6 +297,12 @@ export default function PropertyPage() {
       estimated_monthly_rent: evaluation.estimated_monthly_rent,
       gross_yield_percentage: evaluation.gross_yield_percentage,
     } : undefined,
+    owner: property.owner && !isOwner ? {
+      first_name: property.owner.first_name,
+      last_name: property.owner.last_name,
+      company: property.owner.company,
+      avatar_url: property.owner.avatar_url,
+    } : undefined,
   };
 
   return (
@@ -360,42 +366,6 @@ export default function PropertyPage() {
               showInvestmentScore={!evaluationLoading}
               className="!shadow-none !rounded-none !bg-transparent"
             />
-
-            {/* Anbieter Info */}
-            {property.owner && !isOwner && (
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Anbieter</h3>
-                <div className="flex items-center gap-4">
-                {property.owner.avatar_url ? (
-                  <img
-                    src={property.owner.avatar_url}
-                    alt={`${property.owner.first_name || ''} ${property.owner.last_name || ''}`}
-                    className="w-16 h-16 rounded-full object-cover"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                    }}
-                  />
-                ) : (
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                    <span className="text-2xl font-bold text-gray-400">
-                      {(property.owner.first_name?.charAt(0) || 'A').toUpperCase()}
-                    </span>
-                  </div>
-                )}
-                <div>
-                  <h4 className="font-bold text-gray-900">
-                    {property.owner.first_name || property.owner.last_name
-                      ? `${property.owner.first_name || ''} ${property.owner.last_name || ''}`.trim()
-                      : 'Privater Anbieter'}
-                  </h4>
-                  {property.owner.company && (
-                    <p className="text-sm text-gray-600">{property.owner.company}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
           </div>
 
           {/* CTA Buttons */}
