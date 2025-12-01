@@ -45,6 +45,11 @@ export interface PropertyPreviewProps {
   showAddress?: boolean;
   onRequestAddress?: () => void;
   showInvestmentScore?: boolean;
+  hasConsent?: boolean;
+  isOwner?: boolean;
+  consentLoading?: boolean;
+  isUserLoggedIn?: boolean;
+  onGrantConsent?: () => void;
 }
 
 /**
@@ -57,6 +62,11 @@ export function PropertyPreview({
   showAddress = false,
   onRequestAddress,
   showInvestmentScore = true,
+  hasConsent = false,
+  isOwner = false,
+  consentLoading = false,
+  isUserLoggedIn = false,
+  onGrantConsent,
 }: PropertyPreviewProps) {
   const formatPrice = (price: number) => {
     if (!price || price === 0) return '€ 0';
@@ -77,6 +87,25 @@ export function PropertyPreview({
     <div className={`bg-white rounded-2xl shadow-lg ${className}`}>
       {/* Property Details */}
       <div>
+        {/* Unlock Full Details Section */}
+        {!hasConsent && !isOwner && (
+          <div className="mb-6 p-6 bg-blue-50 rounded-2xl border border-blue-100">
+            <h3 className="text-xl font-bold mb-3 text-gray-900">
+              Vollständige Details freischalten
+            </h3>
+            <p className="text-sm text-gray-700 mb-4 leading-relaxed">
+              Um die vollständige Adresse und weitere Details zu sehen, stimmen Sie bitte der Weitergabe Ihrer Kontaktdaten an den Makler zu.
+            </p>
+            <button
+              onClick={onGrantConsent}
+              disabled={consentLoading}
+              className="bg-gray-900 text-white font-semibold py-2.5 px-6 rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              {consentLoading ? 'Wird freigeschaltet...' : isUserLoggedIn ? 'Adresse freischalten' : 'Anmelden zum Freischalten'}
+            </button>
+          </div>
+        )}
+
         {/* Type Badge */}
         {data.type && data.type !== 'Immobilie' && (
           <span className="inline-block px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium mb-3">

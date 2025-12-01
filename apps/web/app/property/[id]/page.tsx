@@ -339,25 +339,6 @@ export default function PropertyPage() {
         <div className="lg:w-1/2 flex flex-col lg:h-[calc(100vh-80px)]">
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto p-4 lg:p-8">
-            {/* Unlock Full Details Section - Only show if no consent */}
-            {!hasConsent && !isOwner && (
-              <div className="p-6 bg-blue-50 rounded-2xl border border-blue-100">
-                <h3 className="text-xl font-bold mb-3 text-gray-900">
-                  Vollständige Details freischalten
-                </h3>
-                <p className="text-sm text-gray-700 mb-4 leading-relaxed">
-                  Um die vollständige Adresse und weitere Details zu sehen, stimmen Sie bitte der Weitergabe Ihrer Kontaktdaten an den Makler zu.
-                </p>
-                <button
-                  onClick={handleGrantConsent}
-                  disabled={consentLoading}
-                  className="bg-gray-900 text-white font-semibold py-2.5 px-6 rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                >
-                  {consentLoading ? 'Wird freigeschaltet...' : user ? 'Adresse freischalten' : 'Anmelden zum Freischalten'}
-                </button>
-              </div>
-            )}
-
             {/* Property Preview Component */}
             <PropertyPreview
               data={propertyPreviewData}
@@ -365,6 +346,11 @@ export default function PropertyPage() {
               onRequestAddress={handleShowAddress}
               showInvestmentScore={!evaluationLoading}
               className="!shadow-none !rounded-none !bg-transparent"
+              hasConsent={hasConsent}
+              isOwner={Boolean(isOwner)}
+              consentLoading={consentLoading}
+              isUserLoggedIn={Boolean(user)}
+              onGrantConsent={handleGrantConsent}
             />
           </div>
 
