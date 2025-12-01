@@ -4,14 +4,14 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getPropertyWithOwner, PropertyWithOwner, hasPropertyConsent, grantPropertyConsent, deactivateProperty, getUserFavorites, upsertConsent, hasFullConsent, trackInteraction, updateUserPreferences, getPropertyEvaluation, PropertyAIEvaluation } from '@immoflow/api';
 import { formatPrice } from '@immoflow/utils';
-import { ChatModal, InvestmentScoreCard } from '@immoflow/ui';
-import { ChartNoAxesCombined, Pencil, Power, Calendar, TrendingUp } from 'lucide-react';
+import { ChatModal } from '@immoflow/ui';
+import { Pencil, Power, Calendar } from 'lucide-react';
 import { useAuthContext } from '@/app/providers/AuthProvider';
 import { Header } from '@/app/components/Header';
-import { LocationDisplay } from '@/app/components/LocationDisplay';
 import { PropertyImageSlideshow } from '@/app/components/PropertyImageSlideshow';
 import { FavoriteButton } from '@/app/components/FavoriteButton';
 import { CommissionConsentDialog } from '@/app/components/CommissionConsentDialog';
+import { PropertyPreview, PropertyPreviewData } from '@/app/components/PropertyPreview';
 
 export default function PropertyPage() {
   const params = useParams();
@@ -269,7 +269,35 @@ export default function PropertyPage() {
     return null;
   }
 
-  const pricePerSqm = property.sqm > 0 ? Math.round(property.price / property.sqm) : 0;
+  // Convert property data to PropertyPreview format
+  const propertyPreviewData: PropertyPreviewData = {
+    images: property.images || [],
+    price: property.price || 0,
+    commission_rate: property.commission_rate,
+    location: property.location || '',
+    address: property.address,
+    title: property.title || '',
+    type: property.property_type,
+    sqm: property.sqm || 0,
+    rooms: property.rooms || 0,
+    description: property.description || '',
+    features: property.features,
+    yield: property.yield,
+    highlights: property.highlights,
+    red_flags: property.red_flags,
+    ai_investment_score: property.ai_investment_score,
+    require_address_consent: property.require_address_consent,
+    evaluation: evaluation ? {
+      location_score: evaluation.location_score,
+      price_score: evaluation.price_score,
+      yield_score: evaluation.yield_score,
+      appreciation_score: evaluation.appreciation_score,
+      features_score: evaluation.features_score,
+      price_per_sqm: evaluation.price_per_sqm,
+      estimated_monthly_rent: evaluation.estimated_monthly_rent,
+      gross_yield_percentage: evaluation.gross_yield_percentage,
+    } : undefined,
+  };
 
   return (
     <main className="min-h-screen bg-white">
@@ -322,141 +350,13 @@ export default function PropertyPage() {
             </div>
           )}
 
-          {/* Price */}
-          <h1 className="font-bold text-gray-900 mb-2" style={{ fontSize: '33px' }}>
-            {formatPrice(property.price)}
-          </h1>
-
-          {/* Location */}
-          <LocationDisplay
-            location={property.location}
-            address={property.address}
+          {/* Property Preview Component */}
+          <PropertyPreview
+            data={propertyPreviewData}
             showAddress={Boolean(!(property.require_address_consent ?? false) || hasCommissionConsent || isOwner)}
             onRequestAddress={handleShowAddress}
-            className="mb-4"
-            style={{ fontSize: '18px' }}
+            showInvestmentScore={!evaluationLoading}
           />
-
-          {/* Title */}
-          <h2 className="font-semibold text-gray-900 mb-6" style={{ fontSize: '22px' }}>
-            {property.title}
-          </h2>
-
-          {/* Details Grid */}
-          <div className="grid grid-cols-3 gap-4 mb-6 pb-6 border-b border-gray-200">
-            <div>
-              <p className="text-sm text-gray-500">Zimmer</p>
-              <p className="text-lg font-semibold text-gray-900">{property.rooms}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Fläche</p>
-              <p className="text-lg font-semibold text-gray-900">{property.sqm} m²</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Preis/m²</p>
-              <p className="text-lg font-semibold text-gray-900">{formatPrice(pricePerSqm)}</p>
-            </div>
-          </div>
-
-          {/* Yield */}
-          {property.yield && (
-            <div className="flex items-center gap-2 mb-6 pb-6 border-b border-gray-200">
-              <ChartNoAxesCombined size={20} className="text-gray-700" />
-              <span className="text-lg font-semibold text-gray-900">{property.yield}% Rendite</span>
-            </div>
-          )}
-
-          {/* Description */}
-          {property.description && (
-            <div className="mb-6 pb-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Beschreibung</h3>
-              <p className="text-gray-700 leading-relaxed" style={{ fontSize: '18px' }}>
-                {property.description}
-              </p>
-            </div>
-          )}
-
-          {/* Features */}
-          {property.features && property.features.length > 0 && (
-            <div className="mb-6 pb-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Ausstattung</h3>
-              <div className="flex flex-wrap gap-2">
-                {property.features.map((feature, idx) => (
-                  <span
-                    key={idx}
-                    className="px-4 py-2 bg-white border-2 border-gray-900 text-gray-900 rounded-full text-base font-medium"
-                  >
-                    {feature}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* AI Investment Evaluation */}
-          {(property.ai_investment_score || evaluation) && (
-            <div className="mb-6">
-              {evaluationLoading ? (
-                <div className="bg-gray-50 rounded-lg p-6">
-                  <p className="text-gray-500 text-center">Lade Investment-Bewertung...</p>
-                </div>
-              ) : (
-                <InvestmentScoreCard
-                  score={property.ai_investment_score}
-                  breakdown={
-                    evaluation
-                      ? {
-                          location_score: evaluation.location_score,
-                          price_score: evaluation.price_score,
-                          yield_score: evaluation.yield_score,
-                          appreciation_score: evaluation.appreciation_score,
-                          features_score: evaluation.features_score,
-                        }
-                      : undefined
-                  }
-                  metrics={
-                    evaluation
-                      ? {
-                          price_per_sqm: evaluation.price_per_sqm,
-                          estimated_monthly_rent: evaluation.estimated_monthly_rent,
-                          gross_yield_percentage: evaluation.gross_yield_percentage,
-                        }
-                      : undefined
-                  }
-                />
-              )}
-            </div>
-          )}
-
-          {/* Highlights */}
-          {property.highlights && property.highlights.length > 0 && (
-            <div className="mb-6 pb-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Highlights</h3>
-              <ul className="space-y-2">
-                {property.highlights.map((highlight, idx) => (
-                  <li key={idx} className="flex items-start gap-2">
-                    <span className="text-green-500">✓</span>
-                    <span className="text-gray-700" style={{ fontSize: '18px' }}>{highlight}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Red Flags */}
-          {property.red_flags && property.red_flags.length > 0 && (
-            <div className="mb-6 pb-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Zu beachten</h3>
-              <ul className="space-y-2">
-                {property.red_flags.map((flag, idx) => (
-                  <li key={idx} className="flex items-start gap-2 text-amber-600">
-                    <span>⚠️</span>
-                    <span style={{ fontSize: '18px' }}>{flag}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
 
           {/* Besichtigungstermine */}
           {!isOwner && (
