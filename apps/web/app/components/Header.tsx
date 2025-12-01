@@ -3,36 +3,9 @@
 import Link from 'next/link';
 import { Heart, HouseHeart } from 'lucide-react';
 import { useAuthContext } from '../providers/AuthProvider';
-import { useState, useEffect } from 'react';
-import { getPropertiesByUserId } from '@immoflow/api';
 
 export function Header() {
   const { user, profile, loading } = useAuthContext();
-  const [propertiesCount, setPropertiesCount] = useState<number>(0);
-  const [loadingProperties, setLoadingProperties] = useState(true);
-
-  // Load user properties count
-  useEffect(() => {
-    const loadPropertiesCount = async () => {
-      if (!user) {
-        setPropertiesCount(0);
-        setLoadingProperties(false);
-        return;
-      }
-
-      try {
-        const properties = await getPropertiesByUserId(user.id);
-        setPropertiesCount(properties.length);
-      } catch (error) {
-        console.error('Error loading properties count:', error);
-        setPropertiesCount(0);
-      } finally {
-        setLoadingProperties(false);
-      }
-    };
-
-    loadPropertiesCount();
-  }, [user]);
 
   return (
     <header className="bg-surface border-b border-border sticky top-0 z-50 h-20">
@@ -50,24 +23,24 @@ export function Header() {
             <Link href="/" className="text-text-primary hover:text-primary text-base">
               Discover
             </Link>
-            {!loading && (
+            {loading ? (
+              // Skeleton loader while auth is loading
+              <div className="flex gap-6 items-center">
+                <div className="w-20 h-4 bg-gray-200 rounded animate-pulse"></div>
+                <div className="w-24 h-4 bg-gray-200 rounded animate-pulse"></div>
+                <div className="w-16 h-4 bg-gray-200 rounded animate-pulse"></div>
+                <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse"></div>
+              </div>
+            ) : (
               <>
                 {user ? (
                   <>
                     <Link href="/favorites" className="text-text-primary hover:text-primary text-base">
                       Favoriten
                     </Link>
-                    {!loadingProperties && (
-                      propertiesCount === 0 ? (
-                        <Link href="/create-listing" className="text-text-primary hover:text-primary text-base">
-                          Inserat erstellen
-                        </Link>
-                      ) : (
-                        <Link href="/my-properties" className="text-text-primary hover:text-primary text-base">
-                          Meine Inserate
-                        </Link>
-                      )
-                    )}
+                    <Link href="/my-properties" className="text-text-primary hover:text-primary text-base">
+                      Inserate
+                    </Link>
                     <Link href="/profile" className="text-text-primary hover:text-primary text-base font-medium">
                       Profil
                     </Link>

@@ -55,8 +55,13 @@ interface ListingData {
 const QUESTIONS: Omit<Message, 'id'>[] = [
   {
     type: 'bot',
-    content: 'Willkommen beim Inserat-Assistenten! 🏠 Ich helfe Ihnen Schritt für Schritt, Ihr perfektes Immobilieninserat zu erstellen. Lassen Sie uns beginnen!',
+    content: 'Hey! Lass uns gemeinsam dein Inserat erstellen. 🏠',
     inputType: 'none',
+  },
+  {
+    type: 'bot',
+    content: 'Laden Sie Bilder Ihrer Immobilie hoch (optional):',
+    inputType: 'image-upload',
   },
   {
     type: 'bot',
@@ -77,9 +82,9 @@ const QUESTIONS: Omit<Message, 'id'>[] = [
   },
   {
     type: 'bot',
-    content: 'Wo befindet sich die Immobilie?',
+    content: 'Wo befindet sich die Immobilie? (Postleitzahl)',
     inputType: 'text',
-    defaultValue: 'Berlin Prenzlauer Berg',
+    defaultValue: '10405',
   },
   {
     type: 'bot',
@@ -158,14 +163,15 @@ const QUESTIONS: Omit<Message, 'id'>[] = [
   },
   {
     type: 'bot',
-    content: 'Laden Sie Bilder Ihrer Immobilie hoch (optional):',
-    inputType: 'image-upload',
+    content: 'Gib mir ein paar Stichpunkte zu deiner Immobilie (z.B. Besonderheiten, Lage, Ausstattung):',
+    inputType: 'text',
+    defaultValue: 'ruhige Lage, renoviert 2020, Südbalkon',
   },
   {
     type: 'bot',
-    content: 'Ich habe eine Beschreibung für Sie erstellt. Sie können diese anpassen oder übernehmen:',
+    content: 'Perfekt! Ich erstelle jetzt eine Beschreibung basierend auf deinen Angaben:',
     inputType: 'textarea',
-    placeholder: 'Beschreibung bearbeiten...',
+    placeholder: 'Beschreibung wird generiert...',
   },
   {
     type: 'bot',
@@ -205,6 +211,7 @@ export default function CreateListingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const [previewImageIndex, setPreviewImageIndex] = useState(0);
+  const [keyPoints, setKeyPoints] = useState('');
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -219,13 +226,13 @@ export default function CreateListingPage() {
 
   // Update preview in real-time for text inputs
   useEffect(() => {
-    if (currentQuestionIndex === 2 && textInput) {
+    if (currentQuestionIndex === 3 && textInput) {
       // Title
       setListingData(prev => ({ ...prev, title: textInput }));
-    } else if (currentQuestionIndex === 3 && textInput) {
-      // Location
-      setListingData(prev => ({ ...prev, location: textInput }));
-    } else if (currentQuestionIndex === 12 && textInput) {
+    } else if (currentQuestionIndex === 13 && textInput) {
+      // Key points (Stichpunkte)
+      setKeyPoints(textInput);
+    } else if (currentQuestionIndex === 14 && textInput) {
       // Description
       setListingData(prev => ({ ...prev, description: textInput }));
     }
@@ -233,24 +240,24 @@ export default function CreateListingPage() {
 
   // Update preview in real-time for number inputs
   useEffect(() => {
-    if (currentQuestionIndex === 4 && numberInput) {
-      // Price
+    if (currentQuestionIndex === 5 && numberInput) {
+      // Price (was 4, now 5)
       setListingData(prev => ({ ...prev, price: parseInt(numberInput) }));
-    } else if (currentQuestionIndex === 6 && numberInput) {
-      // Commission rate
+    } else if (currentQuestionIndex === 7 && numberInput) {
+      // Commission rate (was 6, now 7)
       setListingData(prev => ({ ...prev, commission_rate: parseFloat(numberInput) }));
-    } else if (currentQuestionIndex === 8 && numberInput) {
-      // Sqm
-      setListingData(prev => ({ ...prev, sqm: parseInt(numberInput) }));
     } else if (currentQuestionIndex === 9 && numberInput) {
-      // Rooms
+      // Sqm (was 8, now 9)
+      setListingData(prev => ({ ...prev, sqm: parseInt(numberInput) }));
+    } else if (currentQuestionIndex === 10 && numberInput) {
+      // Rooms (was 9, now 10)
       setListingData(prev => ({ ...prev, rooms: parseInt(numberInput) }));
     }
   }, [numberInput, currentQuestionIndex]);
 
   // Update preview in real-time for features selection
   useEffect(() => {
-    if (currentQuestionIndex === 11 && selectedFeatures.length > 0) {
+    if (currentQuestionIndex === 12 && selectedFeatures.length > 0) {
       // Features
       setListingData(prev => ({ ...prev, features: selectedFeatures }));
     }
@@ -343,13 +350,6 @@ export default function CreateListingPage() {
       return;
     }
 
-    setIsTyping(true);
-
-    // Simulate typing delay
-    await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 400));
-
-    setIsTyping(false);
-
     const question = QUESTIONS[questionIndex];
     const newMessage: Message = {
       id: `bot-${Date.now()}`,
@@ -359,9 +359,16 @@ export default function CreateListingPage() {
     setMessages(prev => [...prev, newMessage]);
     setCurrentQuestionIndex(questionIndex);
 
+    // Set default value for text/number inputs if available
+    if (question.inputType === 'text' && question.defaultValue) {
+      setTextInput(question.defaultValue);
+    } else if (question.inputType === 'number' && question.defaultValue) {
+      setNumberInput(question.defaultValue);
+    }
+
     // If it's the welcome message, automatically show next question
     if (question.inputType === 'none') {
-      setTimeout(() => addBotMessage(questionIndex + 1), 1000);
+      setTimeout(() => addBotMessage(questionIndex + 1), 500);
     }
   };
 
@@ -378,12 +385,13 @@ export default function CreateListingPage() {
     addUserMessage(option.label);
 
     // Save to listing data based on current question
-    if (currentQuestionIndex === 1) {
+    if (currentQuestionIndex === 2) {
+      // Property type (was 1, now 2)
       const newData = { ...listingData, property_type: option.value };
       console.log('Setting property_type:', newData);
       setListingData(newData);
-    } else if (currentQuestionIndex === 5) {
-      // Provision Ja/Nein
+    } else if (currentQuestionIndex === 6) {
+      // Provision Ja/Nein (was 5, now 6)
       if (option.value === 'with_commission') {
         const newData = { ...listingData, user_type: 'agent' };
         console.log('Setting user_type agent:', newData);
@@ -398,15 +406,16 @@ export default function CreateListingPage() {
         setTimeout(() => addBotMessage(currentQuestionIndex + 3), 500);
       }
       return;
-    } else if (currentQuestionIndex === 7) {
-      // Address consent requirement
+    } else if (currentQuestionIndex === 8) {
+      // Address consent requirement (was 7, now 8)
       const newData = {
         ...listingData,
         require_address_consent: option.value === 'require_consent'
       };
       console.log('Setting require_address_consent:', newData);
       setListingData(newData);
-    } else if (currentQuestionIndex === 10) {
+    } else if (currentQuestionIndex === 11) {
+      // Condition (was 10, now 11)
       const newData = { ...listingData, condition: option.value };
       console.log('Setting condition:', newData);
       setListingData(newData);
@@ -415,22 +424,73 @@ export default function CreateListingPage() {
     setTimeout(() => addBotMessage(currentQuestionIndex + 1), 500);
   };
 
-  const handleTextSubmit = () => {
+  const handleTextSubmit = async () => {
     if (!textInput.trim()) return;
 
     addUserMessage(textInput);
 
     // Save to listing data based on current question
-    if (currentQuestionIndex === 2) {
+    if (currentQuestionIndex === 3) {
+      // Title
       const newData = { ...listingData, title: textInput };
       console.log('Setting title:', newData);
       setListingData(newData);
-    } else if (currentQuestionIndex === 3) {
-      const newData = { ...listingData, location: textInput };
+    } else if (currentQuestionIndex === 4) {
+      // Location (Postal Code) - Get city and district from AI
+      const postalCode = textInput.trim();
+
+      // Show loading message
+      const loadingMessage: Message = {
+        id: `bot-loading-${Date.now()}`,
+        type: 'bot',
+        content: 'Ermittle Stadtteil und Ort...',
+      };
+      setMessages(prev => [...prev, loadingMessage]);
+
+      // Get location details from AI
+      const fullLocation = await getLocationFromPostalCode(postalCode);
+
+      // Remove loading message and add result
+      setMessages(prev => {
+        const filtered = prev.filter(m => m.id !== loadingMessage.id);
+        return [...filtered, {
+          id: `bot-location-${Date.now()}`,
+          type: 'bot',
+          content: `📍 ${fullLocation}`,
+        }];
+      });
+
+      const newData = { ...listingData, location: fullLocation };
       console.log('Setting location:', newData);
       setListingData(newData);
-    } else if (currentQuestionIndex === 12) {
-      // Description (index 12, before appointments)
+      setTextInput('');
+      setTimeout(() => addBotMessage(currentQuestionIndex + 1), 500);
+      return; // Early return to prevent default flow
+    } else if (currentQuestionIndex === 13) {
+      // Key points (Stichpunkte)
+      console.log('Setting key points:', textInput);
+      const userKeyPoints = textInput;
+      setKeyPoints(userKeyPoints);
+      setTextInput('');
+
+      // Move to description question and auto-generate description
+      setTimeout(async () => {
+        addBotMessage(currentQuestionIndex + 1);
+        // Generate description after a short delay
+        setTimeout(async () => {
+          setIsGeneratingDescription(true);
+          try {
+            const generatedDesc = await generateDescriptionWithAI(userKeyPoints);
+            setTextInput(generatedDesc);
+            setListingData(prev => ({ ...prev, description: generatedDesc }));
+          } finally {
+            setIsGeneratingDescription(false);
+          }
+        }, 500);
+      }, 500);
+      return; // Early return to prevent default flow
+    } else if (currentQuestionIndex === 14) {
+      // Description
       const newData = { ...listingData, description: textInput };
       console.log('Setting description:', newData);
       setListingData(newData);
@@ -447,19 +507,23 @@ export default function CreateListingPage() {
     addUserMessage(`${numberInput} ${question.unit}`);
 
     // Save to listing data based on current question
-    if (currentQuestionIndex === 4) {
+    if (currentQuestionIndex === 5) {
+      // Price (was 4, now 5)
       const newData = { ...listingData, price: parseInt(numberInput) };
       console.log('Setting price:', newData);
       setListingData(newData);
-    } else if (currentQuestionIndex === 6) {
+    } else if (currentQuestionIndex === 7) {
+      // Commission rate (was 6, now 7)
       const newData = { ...listingData, commission_rate: parseFloat(numberInput) };
       console.log('Setting commission_rate:', newData);
       setListingData(newData);
-    } else if (currentQuestionIndex === 8) {
+    } else if (currentQuestionIndex === 9) {
+      // Sqm (was 8, now 9)
       const newData = { ...listingData, sqm: parseInt(numberInput) };
       console.log('Setting sqm:', newData);
       setListingData(newData);
-    } else if (currentQuestionIndex === 9) {
+    } else if (currentQuestionIndex === 10) {
+      // Rooms (was 9, now 10)
       const newData = { ...listingData, rooms: parseInt(numberInput) };
       console.log('Setting rooms:', newData);
       setListingData(newData);
@@ -490,14 +554,20 @@ export default function CreateListingPage() {
     setTimeout(() => addBotMessage(currentQuestionIndex + 1), 500);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
+  // Helper function to process image files
+  const processImageFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
     console.log('Uploading', files.length, 'images');
 
     // Convert files to data URLs for preview
     Array.from(files).forEach(file => {
+      // Check if file is an image
+      if (!file.type.startsWith('image/')) {
+        console.warn('Skipping non-image file:', file.name);
+        return;
+      }
+
       const reader = new FileReader();
       reader.onload = (event) => {
         if (event.target?.result) {
@@ -506,9 +576,39 @@ export default function CreateListingPage() {
       };
       reader.readAsDataURL(file);
     });
+  };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    processImageFiles(e.target.files);
     // Reset input to allow selecting the same file again
     e.target.value = '';
+  };
+
+  // Drag and drop handlers for file upload
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDragOverUpload = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDropUpload = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    const files = e.dataTransfer.files;
+    processImageFiles(files);
   };
 
   const handleRemoveImage = (index: number) => {
@@ -520,8 +620,18 @@ export default function CreateListingPage() {
 
   // Drag & Drop handlers for image reordering
   const [draggedImageIndex, setDraggedImageIndex] = useState<number | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  // Best practice reorder function (inspired by react-beautiful-dnd)
+  const reorderImages = (list: string[], startIndex: number, endIndex: number): string[] => {
+    const result = Array.from(list);
+    const [removed] = result.splice(startIndex, 1);
+    result.splice(endIndex, 0, removed);
+    return result;
+  };
 
   const handleDragStart = (index: number) => {
+    console.log('handleDragStart:', index);
     setDraggedImageIndex(index);
   };
 
@@ -543,20 +653,15 @@ export default function CreateListingPage() {
       return;
     }
 
-    const newImages = [...uploadedImages];
-    const draggedImage = newImages[draggedImageIndex];
+    console.log('Before reorder:', uploadedImages);
+    console.log('Moving from index', draggedImageIndex, 'to index', dropIndex);
 
-    console.log('Before reorder:', newImages);
-
-    // Remove from old position
-    newImages.splice(draggedImageIndex, 1);
-    // Insert at new position
-    newImages.splice(dropIndex, 0, draggedImage);
+    // Use best practice reorder function (react-beautiful-dnd approach)
+    const newImages = reorderImages(uploadedImages, draggedImageIndex, dropIndex);
 
     console.log('After reorder:', newImages);
 
     setUploadedImages(newImages);
-    // Update listingData to persist the order
     setListingData(prev => ({ ...prev, images: newImages }));
     setDraggedImageIndex(null);
   };
@@ -569,19 +674,9 @@ export default function CreateListingPage() {
     addUserMessage(uploadedImages.length > 0 ? `${uploadedImages.length} Bild(er) hochgeladen` : 'Keine Bilder');
     setListingData(prev => ({ ...prev, images: uploadedImages.length > 0 ? uploadedImages : ['https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800'] }));
 
-    // Auto-generate description with AI after images
-    setIsGeneratingDescription(true);
-    setTimeout(async () => {
+    // Simply move to next question
+    setTimeout(() => {
       addBotMessage(currentQuestionIndex + 1);
-      try {
-        const generatedDesc = await generateDescriptionWithAI();
-        setTextInput(generatedDesc);
-      } catch (error) {
-        console.error('Error generating description:', error);
-        setTextInput('');
-      } finally {
-        setIsGeneratingDescription(false);
-      }
     }, 500);
   };
 
@@ -631,8 +726,31 @@ export default function CreateListingPage() {
     setTimeout(() => addBotMessage(currentQuestionIndex + 1), 500);
   };
 
+  // Get location details from postal code using AI
+  const getLocationFromPostalCode = async (postalCode: string): Promise<string> => {
+    const prompt = `Für die Postleitzahl ${postalCode} in Deutschland: Nenne mir nur den Stadtteil und die Stadt im Format "Stadtteil, Stadt" (z.B. "Prenzlauer Berg, Berlin" oder "Altstadt, München"). Antworte nur mit dem Stadtteil und Stadt, nichts anderes.`;
+
+    try {
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Timeout')), 5000)
+      );
+
+      const apiPromise = sendChatMessage({ message: prompt });
+      const response = await Promise.race([apiPromise, timeoutPromise]);
+
+      let location = response.message.trim();
+      // Remove quotes if present
+      location = location.replace(/^["']|["']$/g, '');
+
+      return location;
+    } catch (error) {
+      console.error('Error getting location from postal code:', error);
+      return postalCode; // Fallback to just the postal code
+    }
+  };
+
   // Auto-generate description using AI API
-  const generateDescriptionWithAI = async (): Promise<string> => {
+  const generateDescriptionWithAI = async (userKeyPoints?: string): Promise<string> => {
     const type = PROPERTY_TYPE_LABELS[listingData.property_type || ''] || 'Immobilie';
     const location = listingData.location || 'attraktiver Lage';
     const sqm = listingData.sqm ? `${listingData.sqm}m²` : '';
@@ -640,6 +758,7 @@ export default function CreateListingPage() {
     const condition = CONDITION_LABELS[listingData.condition || ''] || '';
     const features = listingData.features?.join(', ') || '';
     const price = listingData.price ? formatPrice(listingData.price) : '';
+    const points = userKeyPoints || keyPoints;
 
     // Fallback description
     const fallbackDesc = () => {
@@ -649,14 +768,24 @@ export default function CreateListingPage() {
       if (sqm) parts.push(`mit ${sqm}`);
       if (rooms) parts.push(`und ${rooms}`);
       if (condition) parts.push(`${condition}`);
+      if (points) parts.push(`${points}`);
 
       let desc = parts.join(' ') + '.';
       if (features) desc += ` Ausstattung: ${features}.`;
 
-      return desc.length > 150 ? desc.substring(0, 147) + '...' : desc;
+      return desc.length > 500 ? desc.substring(0, 497) + '...' : desc;
     };
 
-    const prompt = `Erstelle eine kurze, ansprechende Immobilien-Beschreibung (max 150 Zeichen) für: ${type} in ${location}, ${sqm}, ${rooms}, ${condition}. Features: ${features}. Preis: ${price}. Nur die Beschreibung, ohne Anführungszeichen.`;
+    const prompt = `Erstelle eine ansprechende Immobilien-Beschreibung (max. 500 Zeichen, ca. 5-7 Sätze) basierend auf:
+Art: ${type}
+Lage: ${location}
+Größe: ${sqm}, ${rooms}
+Zustand: ${condition}
+Features: ${features}
+Preis: ${price}
+Stichpunkte des Besitzers: ${points || 'keine angegeben'}
+
+Schreibe einen verkaufsstarken Text in professionellem Stil. Die Beschreibung soll informativ und ansprechend sein. Ohne Anführungszeichen.`;
 
     try {
       console.log('Generating AI description...');
@@ -672,13 +801,13 @@ export default function CreateListingPage() {
 
       console.log('AI response:', response);
 
-      // Ensure max 150 characters
+      // Ensure max 500 characters
       let desc = response.message.trim();
       // Remove quotes if present
       desc = desc.replace(/^["']|["']$/g, '');
 
-      if (desc.length > 150) {
-        desc = desc.substring(0, 147) + '...';
+      if (desc.length > 500) {
+        desc = desc.substring(0, 497) + '...';
       }
 
       return desc || fallbackDesc();
@@ -739,6 +868,29 @@ export default function CreateListingPage() {
     }
   };
 
+  const handleRestart = () => {
+    // Reset all states
+    setMessages([]);
+    setCurrentQuestionIndex(0);
+    setIsTyping(false);
+    setTextInput('');
+    setNumberInput('');
+    setSelectedFeatures([]);
+    setUploadedImages([]);
+    setListingData({});
+    setSelectedAppointments([]);
+    setIsComplete(false);
+    setIsSubmitting(false);
+    setIsGeneratingDescription(false);
+    setPreviewImageIndex(0);
+    setKeyPoints('');
+
+    // Start conversation again
+    setTimeout(() => {
+      addBotMessage(0);
+    }, 300);
+  };
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('de-DE', {
       style: 'currency',
@@ -773,11 +925,11 @@ export default function CreateListingPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <main className="h-screen overflow-hidden bg-gray-50">
       <Header />
 
       {/* Progress Bar - Full Width */}
-      <div className="w-full bg-white border-b border-gray-200 px-6 py-4 mb-4">
+      <div className="w-full bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-medium text-gray-700">Fortschritt</span>
           <span className="text-sm font-medium text-gray-700">{progress}%</span>
@@ -790,12 +942,12 @@ export default function CreateListingPage() {
         </div>
       </div>
 
-      <div className="h-[calc(100vh-128px)] flex flex-col px-4 py-4">
+      <div className="h-[calc(100vh-148px)] flex flex-col">
 
         {/* Three Column Layout - Images | Details | Chat */}
-        <div className="flex flex-col lg:flex-row" style={{ height: 'calc(100vh - 160px)' }}>
-          {/* Left Column - Image Slideshow (Sticky) */}
-          <div className="lg:w-1/3 lg:sticky lg:top-20 lg:h-[calc(100vh-160px)] p-4 lg:p-6">
+        <div className="flex flex-col lg:flex-row h-full">
+          {/* Left Column - Image Slideshow */}
+          <div className="lg:w-1/3 p-4 lg:p-6 h-full">
             <PropertyImageSlideshow
               images={currentPreviewImages}
               title={listingData.title || 'Immobilie'}
@@ -808,7 +960,7 @@ export default function CreateListingPage() {
           </div>
 
           {/* Middle Column - Property Details (Scrollable) */}
-          <div className="lg:w-1/3 lg:overflow-y-auto p-4 lg:p-8 lg:h-[calc(100vh-160px)]">
+          <div className="lg:w-1/3 lg:overflow-y-auto p-4 lg:p-8 h-full">
             {/* Price */}
             <h1 className="font-bold text-gray-900 mb-2" style={{ fontSize: '33px' }}>
               {listingData.price && listingData.price > 0 ? formatPrice(listingData.price) : 'Preis nicht angegeben'}
@@ -909,14 +1061,14 @@ export default function CreateListingPage() {
           </div>
 
           {/* Right Column - Chat Assistant (Scrollable) */}
-          <div className="lg:w-1/3 lg:overflow-y-auto p-4 lg:p-8 flex flex-col lg:h-[calc(100vh-160px)]">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">KI-Assistent</h3>
+          <div className="lg:w-1/3 flex flex-col h-full overflow-hidden border-l border-gray-200">
+            <h3 className="text-xl font-semibold text-gray-900 mb-4 px-4 lg:px-8 pt-4 lg:pt-8">KI-Assistent</h3>
 
               <div
                 ref={chatContainerRef}
-                className="bg-white rounded-2xl shadow-lg flex flex-col flex-1 min-h-0"
+                className="flex flex-col flex-1 min-h-0"
               >
-                <div className="flex-1 overflow-y-auto p-6 space-y-5">
+                <div className="flex-1 overflow-y-auto p-6 space-y-5 bg-white">
                   {messages.map((message) => (
                   <div
                     key={message.id}
@@ -970,8 +1122,8 @@ export default function CreateListingPage() {
                 </div>
 
               {/* Input Area */}
-              <div className="p-4 border-t border-gray-200 flex-shrink-0 bg-white">
-              {!isComplete && !isTyping && currentQuestion && (
+              <div className="p-4 border-t border-gray-200 flex-shrink-0 bg-white min-h-[100px]">
+              {!isComplete && currentQuestion && (
                 <>
                   {/* Quick Reply Buttons */}
                   {currentQuestion.inputType === 'quick-reply' && currentQuestion.options && (
@@ -980,7 +1132,8 @@ export default function CreateListingPage() {
                         <button
                           key={option.value}
                           onClick={() => handleQuickReply(option)}
-                          className="flex items-center justify-center gap-2 px-4 py-3 bg-white border-2 border-gray-200 rounded-xl hover:border-primary hover:bg-primary/5 transition-colors text-center"
+                          disabled={isTyping}
+                          className="flex items-center justify-center gap-2 px-4 py-3 bg-white border-2 border-gray-200 rounded-xl hover:border-primary hover:bg-primary/5 transition-colors text-center disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {option.icon}
                           <span className="font-medium text-gray-800">{option.label}</span>
@@ -997,13 +1150,14 @@ export default function CreateListingPage() {
                         type="text"
                         value={textInput}
                         onChange={(e) => setTextInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleTextSubmit()}
+                        onKeyDown={(e) => e.key === 'Enter' && !isTyping && handleTextSubmit()}
                         placeholder={currentQuestion.placeholder}
-                        className="flex-1 px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:border-primary focus:outline-none transition-colors"
+                        disabled={isTyping}
+                        className="flex-1 px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:border-primary focus:outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                       <button
                         onClick={handleTextSubmit}
-                        disabled={!textInput.trim()}
+                        disabled={!textInput.trim() || isTyping}
                         className="px-4 py-3 bg-primary text-white rounded-xl disabled:opacity-50 hover:bg-primary-dark transition-colors"
                       >
                         <Send size={20} />
@@ -1020,15 +1174,16 @@ export default function CreateListingPage() {
                           type="number"
                           value={numberInput}
                           onChange={(e) => setNumberInput(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && handleNumberSubmit()}
+                          onKeyDown={(e) => e.key === 'Enter' && !isTyping && handleNumberSubmit()}
                           placeholder={currentQuestion.placeholder}
-                          className="flex-1 px-4 py-3 bg-transparent focus:outline-none"
+                          disabled={isTyping}
+                          className="flex-1 px-4 py-3 bg-transparent focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                         />
                         <span className="pr-4 text-gray-500 font-medium">{currentQuestion.unit}</span>
                       </div>
                       <button
                         onClick={handleNumberSubmit}
-                        disabled={!numberInput}
+                        disabled={!numberInput || isTyping}
                         className="px-4 py-3 bg-primary text-white rounded-xl disabled:opacity-50 hover:bg-primary-dark transition-colors"
                       >
                         <Send size={20} />
@@ -1044,7 +1199,8 @@ export default function CreateListingPage() {
                           <button
                             key={option.value}
                             onClick={() => handleFeatureToggle(option.value)}
-                            className={`px-3 py-2 rounded-lg border-2 transition-colors text-sm ${
+                            disabled={isTyping}
+                            className={`px-3 py-2 rounded-lg border-2 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed ${
                               selectedFeatures.includes(option.value)
                                 ? 'border-primary bg-primary/5 text-primary'
                                 : 'border-gray-200 bg-white text-gray-700 hover:border-primary/30'
@@ -1059,7 +1215,8 @@ export default function CreateListingPage() {
                       </div>
                       <button
                         onClick={handleFeaturesSubmit}
-                        className="w-full py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary-dark transition-colors flex items-center justify-center gap-2"
+                        disabled={isTyping}
+                        className="w-full py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary-dark transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Weiter
                         <ChevronRight size={18} />
@@ -1069,7 +1226,7 @@ export default function CreateListingPage() {
 
                   {/* Image Upload */}
                   {currentQuestion.inputType === 'image-upload' && (
-                    <div className="bg-white rounded-xl p-4 border-2 border-gray-200">
+                    <div>
                       <input
                         ref={fileInputRef}
                         type="file"
@@ -1078,6 +1235,38 @@ export default function CreateListingPage() {
                         onChange={handleImageUpload}
                         className="hidden"
                       />
+
+                      {/* Drag and Drop Zone */}
+                      <div
+                        onClick={() => !isTyping && fileInputRef.current?.click()}
+                        onDragEnter={handleDragEnter}
+                        onDragOver={handleDragOverUpload}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDropUpload}
+                        className={`mb-4 border-2 border-dashed rounded-2xl p-12 text-center transition-all cursor-pointer ${
+                          isDragOver
+                            ? 'border-primary bg-primary/5 scale-[1.02]'
+                            : 'border-gray-300 bg-white hover:border-primary/50 hover:bg-gray-50'
+                        } ${isTyping ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${
+                          isDragOver ? 'bg-primary/10' : 'bg-gray-100'
+                        }`}>
+                          <ImagePlus
+                            size={32}
+                            className={`${isDragOver ? 'text-primary' : 'text-gray-400'}`}
+                          />
+                        </div>
+                        <h4 className={`text-lg font-semibold mb-2 ${isDragOver ? 'text-primary' : 'text-gray-900'}`}>
+                          Bilder hochladen
+                        </h4>
+                        <p className="text-sm text-gray-500 mb-2">
+                          {isDragOver ? 'Bilder hier ablegen...' : 'Klicken Sie hier oder ziehen Sie Bilder hierher'}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          Erlaubte Formate: JPG, PNG, WebP, GIF • Max. 10 MB pro Bild
+                        </p>
+                      </div>
 
                       {/* Uploaded Images Preview */}
                       {uploadedImages.length > 0 && (
@@ -1094,10 +1283,17 @@ export default function CreateListingPage() {
                                 }}
                                 onDragOver={(e) => {
                                   e.preventDefault();
+                                  e.stopPropagation();
                                   e.dataTransfer.dropEffect = 'move';
+                                }}
+                                onDragEnter={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
                                 }}
                                 onDrop={(e) => {
                                   e.preventDefault();
+                                  e.stopPropagation();
+                                  console.log('onDrop triggered for index:', idx);
                                   handleDrop(idx);
                                 }}
                                 onDragEnd={handleDragEnd}
@@ -1132,27 +1328,14 @@ export default function CreateListingPage() {
                         </div>
                       )}
 
-                      <div className="flex gap-2 mb-3">
-                        <button
-                          onClick={() => fileInputRef.current?.click()}
-                          className="flex-1 py-3 px-4 border-2 border-dashed border-gray-300 rounded-xl text-gray-600 hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2"
-                        >
-                          <ImagePlus size={20} />
-                          Bilder auswählen
-                        </button>
-                        <button
-                          onClick={handleImagesSubmit}
-                          className="py-3 px-6 bg-primary text-white rounded-xl font-medium hover:bg-primary-dark transition-colors flex items-center gap-2"
-                        >
-                          Weiter
-                          <ChevronRight size={18} />
-                        </button>
-                      </div>
-
-                      {/* Allowed formats info */}
-                      <p className="text-xs text-gray-400 text-center">
-                        Erlaubte Formate: JPG, PNG, WebP, GIF • Max. 10 MB pro Bild
-                      </p>
+                      <button
+                        onClick={handleImagesSubmit}
+                        disabled={isTyping}
+                        className="w-full py-3 bg-primary text-white rounded-lg font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Weiter
+                        <ChevronRight size={18} />
+                      </button>
                     </div>
                   )}
 
@@ -1222,13 +1405,13 @@ export default function CreateListingPage() {
                             value={textInput}
                             onChange={(e) => setTextInput(e.target.value)}
                             placeholder={currentQuestion.placeholder || 'Beschreibung eingeben...'}
-                            rows={4}
-                            maxLength={150}
+                            rows={6}
+                            maxLength={500}
                             className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:border-primary focus:outline-none transition-colors resize-none text-gray-800"
                           />
                           <div className="flex items-center justify-between mt-2 mb-3">
                             <span className="text-xs text-gray-500">
-                              {textInput.length}/150 Zeichen
+                              {textInput.length}/500 Zeichen
                             </span>
                             <button
                               onClick={async () => {
@@ -1259,6 +1442,21 @@ export default function CreateListingPage() {
                     </div>
                   )}
                 </>
+              )}
+
+              {/* Restart Button when completed */}
+              {isComplete && (
+                <div className="flex justify-center">
+                  <button
+                    onClick={handleRestart}
+                    className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors flex items-center gap-2"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                    </svg>
+                    Neustarten
+                  </button>
+                </div>
               )}
               </div>
             </div>

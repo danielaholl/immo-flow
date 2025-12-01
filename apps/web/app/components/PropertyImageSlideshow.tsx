@@ -41,6 +41,7 @@ export function PropertyImageSlideshow({
   const [isActiveSlideshow, setIsActiveSlideshow] = useState(true);
   const [isSmallScreen, setIsSmallScreen] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [hasReachedEnd, setHasReachedEnd] = useState(false);
   const animationFrameRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -95,7 +96,7 @@ export function PropertyImageSlideshow({
   }, [isSmallScreen, manager]);
 
   // Determine if slideshow should be running
-  const shouldAnimate = hasMultipleImages && (!isSmallScreen || isActiveSlideshow);
+  const shouldAnimate = hasMultipleImages && (!isSmallScreen || isActiveSlideshow) && !hasReachedEnd;
 
   // Animated slideshow with progress bar
   const animate = useCallback((timestamp: number) => {
@@ -110,7 +111,16 @@ export function PropertyImageSlideshow({
     if (elapsed >= duration) {
       // Move to next image
       setCurrentImageIndex((prev) => {
-        const newIndex = prev >= (images?.length || 1) - 1 ? 0 : prev + 1;
+        const isLastImage = prev >= (images?.length || 1) - 1;
+
+        // Stop at last image instead of looping back to 0
+        if (isLastImage) {
+          setProgress(100); // Set progress to 100% on last image
+          setHasReachedEnd(true); // Mark slideshow as ended
+          return prev; // Stay on last image
+        }
+
+        const newIndex = prev + 1;
         onImageChange?.(newIndex);
         return newIndex;
       });
@@ -118,8 +128,11 @@ export function PropertyImageSlideshow({
       setProgress(0);
     }
 
-    animationFrameRef.current = requestAnimationFrame(animate);
-  }, [images?.length, duration, onImageChange]);
+    // Only continue animation if not at the end
+    if (!hasReachedEnd) {
+      animationFrameRef.current = requestAnimationFrame(animate);
+    }
+  }, [images?.length, duration, onImageChange, hasReachedEnd]);
 
   useEffect(() => {
     if (!shouldAnimate) {
@@ -147,8 +160,12 @@ export function PropertyImageSlideshow({
     setCurrentImageIndex(newIndex);
     startTimeRef.current = 0;
     setProgress(0);
+    // Reset hasReachedEnd if user manually goes back to an earlier image
+    if (newIndex < (images?.length || 1) - 1) {
+      setHasReachedEnd(false);
+    }
     onImageChange?.(newIndex);
-  }, [onImageChange]);
+  }, [onImageChange, images?.length]);
 
   const aspectRatioClass = {
     square: 'aspect-square',
