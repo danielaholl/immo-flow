@@ -1,88 +1,167 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthContext } from '@/app/providers/AuthProvider';
-import { getPropertiesByUserId, activateProperty, deactivateProperty } from '@immoflow/api';
 import type { Property } from '@immoflow/database';
 import { Header } from '../components/Header';
 import { PropertyImageSlideshow } from '../components/PropertyImageSlideshow';
-import { LocationDisplay } from '../components/LocationDisplay';
-import { MapPin, Home, Plus, Eye, Pencil, Power, ChartNoAxesCombined, TrendingUp, Heart } from 'lucide-react';
+import { PropertyPreview, PropertyPreviewData } from '../components/PropertyPreview';
+import { SellerAnalysis, SellerAnalysisEmpty, type SellerAnalysisData } from '../components/SellerAnalysis';
+import { DeletePropertyModal } from '../components/DeletePropertyModal';
+import { PropertyStatistics, type PropertyStatisticsData } from '../components/PropertyStatistics';
+import { MapPin, Home, Plus, Eye, Pencil, Power, Heart, X } from 'lucide-react';
+import { trpc } from '@/lib/trpc';
 
 type StatusFilter = 'all' | 'active' | 'archived' | 'pending' | 'sold';
 
 export default function MyPropertiesPage() {
   const { user, loading: authLoading } = useAuthContext();
   const router = useRouter();
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [activatingId, setActivatingId] = useState<string | null>(null);
-  const [deactivatingId, setDeactivatingId] = useState<string | null>(null);
 
+  // Delete modal state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [propertyToDelete, setPropertyToDelete] = useState<{ id: string; title: string; price: number } | null>(null);
+
+  // Deactivate modal state
+  const [deactivateModalOpen, setDeactivateModalOpen] = useState(false);
+  const [propertyToDeactivate, setPropertyToDeactivate] = useState<{ id: string; title: string; price: number } | null>(null);
+
+  // Performance tracking
+  const pageLoadStartTimeRef = useRef(performance.now());
+  const renderCountRef = useRef(0);
+  const pageLoadLoggedRef = useRef(false);
+
+  renderCountRef.current += 1;
+
+  // Fetch user's properties with tRPC
+  const { data: properties = [], isLoading: loading } = trpc.properties.getByUserId.useQuery(undefined, {
+    enabled: !!user,
+    onSuccess: () => {
+      const duration = performance.now() - pageLoadStartTimeRef.current;
+      console.log(`📄 [PERF-MY-PROPS] Properties loaded in ${duration.toFixed(2)}ms`);
+    },
+  });
+
+  // Fetch AI response statistics for selected property
+  const selectedProperty = properties.length > 0 ? properties[selectedIndex] : null;
+  const { data: aiStats } = trpc.messaging.getAIResponseStats.useQuery(
+    { propertyId: selectedProperty?.id },
+    { enabled: !!user && !!selectedProperty }
+  );
+
+  // Get utils for cache invalidation
+  const utils = trpc.useContext();
+
+  // Activate mutation
+  const activateMutation = trpc.properties.activate.useMutation({
+    onSuccess: () => {
+      utils.properties.getByUserId.invalidate();
+    },
+    onError: (error) => {
+      console.error('Error activating property:', error);
+      alert('Fehler beim Aktivieren des Inserats.');
+    },
+  });
+
+  // Deactivate mutation
+  const deactivateMutation = trpc.properties.deactivate.useMutation({
+    onSuccess: () => {
+      utils.properties.getByUserId.invalidate();
+      // Close modal
+      setDeactivateModalOpen(false);
+      setPropertyToDeactivate(null);
+    },
+    onError: (error) => {
+      console.error('Error deactivating property:', error);
+      alert('Fehler beim Deaktivieren des Inserats.');
+      setDeactivateModalOpen(false);
+      setPropertyToDeactivate(null);
+    },
+  });
+
+  // Generate seller analysis mutation
+  const generateSellerAnalysisMutation = trpc.properties.generateSellerAnalysis.useMutation({
+    onSuccess: () => {
+      utils.properties.getByUserId.invalidate();
+    },
+    onError: (error) => {
+      console.error('Error generating seller analysis:', error);
+      alert('Fehler bei der Verkäufer-Analyse. Bitte versuchen Sie es erneut.');
+    },
+  });
+
+  // Delete mutation
+  const deleteMutation = trpc.properties.delete.useMutation({
+    onSuccess: () => {
+      utils.properties.getByUserId.invalidate();
+      // Reset to first property if current one is deleted
+      setSelectedIndex(0);
+      // Close modal
+      setDeleteModalOpen(false);
+      setPropertyToDelete(null);
+    },
+    onError: (error) => {
+      console.error('Error deleting property:', error);
+      alert('Fehler beim Löschen des Inserats.');
+      setDeleteModalOpen(false);
+      setPropertyToDelete(null);
+    },
+  });
+
+  // Redirect to login if not authenticated
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/auth/login?redirectTo=/my-properties');
-      return;
-    }
-
-    if (user) {
-      loadProperties();
     }
   }, [user, authLoading, router]);
 
-  const loadProperties = async () => {
-    if (!user) return;
-
-    try {
-      setLoading(true);
-      const data = await getPropertiesByUserId(user.id);
-      setProperties(data);
-    } catch (error) {
-      console.error('Error loading properties:', error);
-    } finally {
-      setLoading(false);
+  // Log page fully loaded
+  useEffect(() => {
+    if (!loading && !authLoading && !pageLoadLoggedRef.current) {
+      const pageLoadTime = performance.now() - pageLoadStartTimeRef.current;
+      console.log(`📄 [PERF-MY-PROPS] Page fully loaded in ${pageLoadTime.toFixed(2)}ms (${(pageLoadTime / 1000).toFixed(2)}s)`);
+      console.log(`📄 [PERF-MY-PROPS] Total renders: ${renderCountRef.current}`);
+      pageLoadLoggedRef.current = true;
     }
-  };
+  }, [loading, authLoading]);
 
   const handleActivate = async (propertyId: string) => {
-    try {
-      setActivatingId(propertyId);
-      await activateProperty(propertyId);
-      setProperties(prev => prev.map(p =>
-        p.id === propertyId ? { ...p, status: 'active' } : p
-      ));
-    } catch (error) {
-      console.error('Error activating property:', error);
-      alert('Fehler beim Aktivieren des Inserats.');
-    } finally {
-      setActivatingId(null);
-    }
+    activateMutation.mutate({ id: propertyId });
   };
 
-  const handleDeactivate = async (propertyId: string) => {
-    try {
-      setDeactivatingId(propertyId);
-      const result = await deactivateProperty(propertyId);
-      console.log('Deactivation result:', result);
-      setProperties(prev => prev.map(p =>
-        p.id === propertyId ? { ...p, status: 'archived' } : p
-      ));
-    } catch (error: any) {
-      console.error('Error deactivating property:', error);
-      console.error('Error details:', {
-        message: error?.message,
-        code: error?.code,
-        details: error?.details,
-        hint: error?.hint,
-      });
-      alert(`Fehler beim Deaktivieren des Inserats: ${error?.message || 'Unbekannter Fehler'}`);
-    } finally {
-      setDeactivatingId(null);
-    }
+  const handleDeactivateClick = (property: { id: string; title: string; price: number }) => {
+    setPropertyToDeactivate(property);
+    setDeactivateModalOpen(true);
+  };
+
+  const handleDeactivateConfirm = (reason: string, soldPrice?: number) => {
+    if (!propertyToDeactivate) return;
+
+    // For now, just deactivate - we could extend the API to accept reason and soldPrice later
+    deactivateMutation.mutate({ id: propertyToDeactivate.id });
+  };
+
+  const handleGenerateSellerAnalysis = async (propertyId: string) => {
+    generateSellerAnalysisMutation.mutate({ propertyId });
+  };
+
+  const handleDeleteClick = (property: { id: string; title: string; price: number }) => {
+    setPropertyToDelete(property);
+    setDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = (reason: string, soldPrice?: number) => {
+    if (!propertyToDelete) return;
+
+    deleteMutation.mutate({
+      id: propertyToDelete.id,
+      reason: reason as 'sold' | 'not_relevant' | 'temporarily_offline',
+      soldPrice: soldPrice,
+    });
   };
 
   // Filter properties based on selected status
@@ -113,12 +192,6 @@ export default function MyPropertiesPage() {
     }).format(price);
   };
 
-  const getScoreColor = (score: number) => {
-    if (score >= 85) return '#22C55E';
-    if (score >= 70) return '#F59E0B';
-    return '#EF4444';
-  };
-
   const getStatusBadge = (status: string | null) => {
     switch (status) {
       case 'active':
@@ -145,7 +218,50 @@ export default function MyPropertiesPage() {
     );
   }
 
-  const selectedProperty = sortedProperties[selectedIndex];
+  // Convert property data to PropertyPreview format
+  // Extract detailed evaluation data from JSONB field
+  const detailedEval = selectedProperty ? (selectedProperty as any).ai_detailed_evaluation : null;
+
+  const propertyPreviewData: PropertyPreviewData | null = selectedProperty ? {
+    images: selectedProperty.images || [],
+    price: selectedProperty.price || 0,
+    commission_rate: selectedProperty.commission_rate ?? undefined,
+    location: selectedProperty.location || '',
+    address: selectedProperty.address ?? undefined,
+    title: selectedProperty.title || '',
+    type: (selectedProperty as any).property_type ?? undefined,
+    sqm: selectedProperty.sqm || 0,
+    rooms: selectedProperty.rooms || 0,
+    description: selectedProperty.description || '',
+    features: selectedProperty.features ?? undefined,
+    yield: selectedProperty.yield ?? undefined,
+    highlights: selectedProperty.highlights ?? undefined,
+    red_flags: selectedProperty.red_flags ?? undefined,
+    ai_investment_score: (selectedProperty as any).ai_investment_score ?? selectedProperty.ai_score ?? undefined,
+    require_address_consent: false,
+    monthly_fee: (selectedProperty as any).monthly_fee ?? undefined,
+    usable_area: (selectedProperty as any).usable_area ?? undefined,
+    usable_area_ratio: (selectedProperty as any).usable_area_ratio ?? undefined,
+    bathrooms: (selectedProperty as any).bathrooms ?? undefined,
+    total_floors: (selectedProperty as any).total_floors ?? undefined,
+    floor_level: (selectedProperty as any).floor_level ?? undefined,
+    available_from: (selectedProperty as any).available_from ?? undefined,
+    year_built: (selectedProperty as any).year_built ?? undefined,
+    heating_type: (selectedProperty as any).heating_type ?? undefined,
+    energy_source: (selectedProperty as any).energy_source ?? undefined,
+    energy_certificate: (selectedProperty as any).energy_certificate ?? undefined,
+    energy_efficiency_class: (selectedProperty as any).energy_efficiency_class ?? undefined,
+    condition: (selectedProperty as any).condition ?? undefined,
+    important_notes: (selectedProperty as any).important_notes ?? undefined,
+    // Extract AI analysis data from ai_detailed_evaluation JSONB
+    actual_monthly_rent: (selectedProperty as any).actual_monthly_rent ?? undefined,
+    yield_metrics: detailedEval?.yield_metrics ?? undefined,
+    rental_income: detailedEval?.rental_income ?? undefined,
+    cashflow_calculation: detailedEval?.cashflow_calculation ?? undefined,
+    evaluation: detailedEval?.evaluation ?? undefined,
+    // Days online
+    days_online: (selectedProperty as any).days_online ?? undefined,
+  } : null;
 
   return (
     <main className="min-h-screen bg-white">
@@ -230,14 +346,29 @@ export default function MyPropertiesPage() {
                   return (
                     <div
                       key={property.id}
-                      onClick={() => setSelectedIndex(index)}
-                      className={`group cursor-pointer bg-white border rounded-xl overflow-hidden transition-all ${
+                      className={`group relative bg-white border rounded-xl overflow-hidden transition-all h-32 ${
                         isSelected
                           ? 'border-primary shadow-md ring-2 ring-primary/20'
                           : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
                       }`}
                     >
-                      <div className="flex min-h-[120px]">
+                      {/* Remove Button (X) - Always visible */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteClick({
+                            id: property.id,
+                            title: property.title,
+                            price: property.price,
+                          });
+                        }}
+                        className="absolute top-2 right-2 z-20 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors shadow-md"
+                        title="Inserat löschen"
+                      >
+                        <X size={14} />
+                      </button>
+
+                      <div className="flex h-full cursor-pointer" onClick={() => setSelectedIndex(index)}>
                         {/* Thumbnail */}
                         <div className="relative w-28 flex-shrink-0 bg-gray-100">
                           {property.images && property.images.length > 0 ? (
@@ -251,8 +382,17 @@ export default function MyPropertiesPage() {
                               <Home size={32} className="text-gray-300" />
                             </div>
                           )}
-                          <div className={`absolute top-1 left-1 px-2 py-0.5 rounded-full text-xs font-medium ${statusBadge.bg} ${statusBadge.text}`}>
-                            {statusBadge.label}
+                          {/* Status Badge - same style as AI score badge */}
+                          <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-md bg-black/75 shadow-md">
+                            <div
+                              className="w-2 h-2 rounded-full"
+                              style={{
+                                backgroundColor: property.status === 'active' ? '#22C55E' : '#9CA3AF'
+                              }}
+                            />
+                            <span className="text-white text-xs font-semibold">
+                              {property.status === 'active' ? 'Online' : 'Offline'}
+                            </span>
                           </div>
                         </div>
 
@@ -288,7 +428,155 @@ export default function MyPropertiesPage() {
           <div className="lg:w-3/4 flex flex-col lg:flex-row" style={{ height: 'calc(100vh - 100px)' }}>
             {selectedProperty ? (
               <>
-                {/* Left - Image Slideshow */}
+                {/* Left - Property Details (Scrollable) */}
+                <div className="lg:w-1/2 flex flex-col lg:h-full">
+                  {/* Scrollable Content */}
+                  <div className="flex-1 overflow-y-auto p-4 lg:p-8">
+                    {/* PropertyPreview Component */}
+                    {propertyPreviewData && (
+                      <PropertyPreview
+                        data={propertyPreviewData}
+                        showAddress={true}
+                        className="!shadow-none !rounded-none !bg-transparent"
+                        showInvestmentScore={false}
+                        isOwner={true}
+                        hideProviderInfo={true}
+                        sellerAnalysisMarketAverage={(selectedProperty as any).seller_analysis?.market_position?.market_average_price_per_sqm}
+                      />
+                    )}
+
+                    {/* Property Statistics */}
+                    <div className="mt-6">
+                      <PropertyStatistics
+                        stats={{
+                          total_views: (selectedProperty as any).total_views || 0,
+                          unique_viewers: (selectedProperty as any).unique_viewers || 0,
+                          favorites_count: (selectedProperty as any).favorites_count || 0,
+                          views_last_7_days: (selectedProperty as any).views_last_7_days || 0,
+                          views_last_30_days: (selectedProperty as any).views_last_30_days || 0,
+                          feedback_count: (selectedProperty as any).feedback_count || 0,
+                          avg_rating: (selectedProperty as any).avg_rating || null,
+                          positive_feedback_count: (selectedProperty as any).positive_feedback_count || 0,
+                          neutral_feedback_count: (selectedProperty as any).neutral_feedback_count || 0,
+                          negative_feedback_count: (selectedProperty as any).negative_feedback_count || 0,
+                          // AI Response Statistics
+                          ai_total_questions: aiStats?.totalQuestions,
+                          ai_answered: aiStats?.aiAnswered,
+                          ai_answer_rate: aiStats?.aiAnswerRate,
+                          ai_forwarded_to_seller: aiStats?.forwardedToSeller,
+                          // Online Time
+                          days_online: (selectedProperty as any).days_online,
+                        }}
+                      />
+                    </div>
+
+                    {/* Seller Analysis */}
+                    <div className="mt-6">
+                      {(selectedProperty as any).seller_analysis ? (
+                        <SellerAnalysis
+                          analysis={(selectedProperty as any).seller_analysis as SellerAnalysisData}
+                          onGenerateAnalysis={() => handleGenerateSellerAnalysis(selectedProperty.id)}
+                          isGenerating={generateSellerAnalysisMutation.isLoading}
+                        />
+                      ) : (
+                        <SellerAnalysisEmpty
+                          onGenerate={() => handleGenerateSellerAnalysis(selectedProperty.id)}
+                          isGenerating={generateSellerAnalysisMutation.isLoading}
+                        />
+                      )}
+                    </div>
+
+                    {/* Anbieter Info */}
+                    <div className="mt-6 bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Anbieter</h3>
+                      <div className="flex items-center gap-4">
+                        {user?.user_metadata?.avatar_url ? (
+                          <img
+                            src={user.user_metadata.avatar_url}
+                            alt={`${user.user_metadata?.first_name || ''} ${user.user_metadata?.last_name || ''}`}
+                            className="w-16 h-16 rounded-full object-cover"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                            <span className="text-2xl font-bold text-gray-400">
+                              {user?.user_metadata?.first_name?.charAt(0)?.toUpperCase() || 'P'}
+                            </span>
+                          </div>
+                        )}
+                        <div>
+                          <h4 className="font-bold text-gray-900">
+                            {user?.user_metadata?.first_name || user?.user_metadata?.last_name
+                              ? `${user.user_metadata.first_name || ''} ${user.user_metadata.last_name || ''}`.trim()
+                              : 'Privater Anbieter'}
+                          </h4>
+                          {user?.user_metadata?.company ? (
+                            <p className="text-sm text-gray-600">{user.user_metadata.company}</p>
+                          ) : (
+                            <p className="text-sm text-gray-500">-</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CTA Buttons */}
+                  <div className="bg-white p-4 lg:p-8 pt-4 space-y-3">
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <button
+                        onClick={() => router.push(`/property/${selectedProperty.id}/edit`)}
+                        className="flex-1 bg-primary text-white font-semibold py-4 px-6 rounded-xl hover:opacity-90 transition-colors inline-flex items-center justify-center gap-2"
+                      >
+                        <Pencil size={20} />
+                        Bearbeiten
+                      </button>
+                      {selectedProperty.status === 'archived' ? (
+                        <button
+                          onClick={() => handleActivate(selectedProperty.id)}
+                          disabled={activateMutation.isLoading}
+                          className="flex-1 bg-green-500 text-white font-semibold py-4 px-6 rounded-xl hover:bg-green-600 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                          <Power size={20} />
+                          {activateMutation.isLoading ? 'Aktivieren...' : 'Aktivieren'}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleDeactivateClick({
+                            id: selectedProperty.id,
+                            title: selectedProperty.title,
+                            price: selectedProperty.price,
+                          })}
+                          disabled={deactivateMutation.isLoading}
+                          className="flex-1 bg-white border-2 border-gray-300 text-gray-900 font-semibold py-4 px-6 rounded-xl hover:border-gray-400 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                          <Power size={20} />
+                          {deactivateMutation.isLoading ? 'Deaktivieren...' : 'Deaktivieren'}
+                        </button>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleDeleteClick({
+                        id: selectedProperty.id,
+                        title: selectedProperty.title,
+                        price: selectedProperty.price,
+                      })}
+                      disabled={deleteMutation.isLoading}
+                      className="w-full bg-white border-2 border-red-300 text-red-600 font-semibold py-3 px-6 rounded-xl hover:bg-red-50 hover:border-red-400 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 6h18"></path>
+                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                      </svg>
+                      {deleteMutation.isLoading ? 'Lösche...' : 'Inserat löschen'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Right - Image Slideshow */}
                 <div className="lg:w-1/2 lg:sticky lg:top-0 lg:h-full p-4 lg:p-6">
                   <PropertyImageSlideshow
                     images={selectedProperty.images}
@@ -298,256 +586,6 @@ export default function MyPropertiesPage() {
                     showProgressBars={true}
                     slideshowId={`my-properties-${selectedProperty.id}`}
                   />
-                </div>
-
-                {/* Right - Property Details (Scrollable) */}
-                <div className="lg:w-1/2 lg:overflow-y-auto p-4 lg:p-8 flex flex-col lg:h-full">
-                  {/* Status Badge */}
-                  <div className="mb-4">
-                    {(() => {
-                      const badge = getStatusBadge(selectedProperty.status);
-                      return (
-                        <span className={`inline-flex px-3 py-1.5 rounded-full text-sm font-medium ${badge.bg} ${badge.text}`}>
-                          {badge.label}
-                        </span>
-                      );
-                    })()}
-                  </div>
-
-                  {/* Price */}
-                  <h1 className="font-bold text-gray-900 mb-2" style={{ fontSize: '33px' }}>
-                    {formatPrice(selectedProperty.price)}
-                  </h1>
-
-                  {/* Location */}
-                  <LocationDisplay
-                    location={selectedProperty.location}
-                    address={selectedProperty.address}
-                    showAddress={true}
-                    className="mb-4"
-                    style={{ fontSize: '18px' }}
-                  />
-
-                  {/* Title */}
-                  <h2 className="font-semibold text-gray-900 mb-6" style={{ fontSize: '22px' }}>
-                    {selectedProperty.title}
-                  </h2>
-
-                  {/* Details Grid */}
-                  <div className="grid grid-cols-3 gap-4 mb-6 pb-6 border-b border-gray-200">
-                    <div>
-                      <p className="text-sm text-gray-500">Zimmer</p>
-                      <p className="text-lg font-semibold text-gray-900">{selectedProperty.rooms}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Fläche</p>
-                      <p className="text-lg font-semibold text-gray-900">{selectedProperty.sqm} m²</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Preis/m²</p>
-                      <p className="text-lg font-semibold text-gray-900">
-                        {formatPrice(Math.round(selectedProperty.price / selectedProperty.sqm))}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Stats (Views & Favorites) */}
-                  <div className="grid grid-cols-2 gap-4 mb-6 pb-6 border-b border-gray-200">
-                    <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
-                      <Eye size={24} className="text-gray-500" />
-                      <div>
-                        <p className="text-sm text-gray-500">Aufrufe</p>
-                        <p className="text-xl font-bold text-gray-900">{selectedProperty.views || 0}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
-                      <Heart size={24} className="text-gray-500" />
-                      <div>
-                        <p className="text-sm text-gray-500">Favoriten</p>
-                        <p className="text-xl font-bold text-gray-900">{selectedProperty.favorites_count || 0}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Yield */}
-                  {selectedProperty.yield && (
-                    <div className="flex items-center gap-2 mb-6 pb-6 border-b border-gray-200">
-                      <ChartNoAxesCombined size={20} className="text-gray-700" />
-                      <span className="text-lg font-semibold text-gray-900">{selectedProperty.yield}% Rendite</span>
-                    </div>
-                  )}
-
-                  {/* Description */}
-                  {selectedProperty.description && (
-                    <div className="mb-6 pb-6 border-b border-gray-200">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Beschreibung</h3>
-                      <p className="text-gray-700 leading-relaxed" style={{ fontSize: '18px' }}>
-                        {selectedProperty.description}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Features */}
-                  {selectedProperty.features && selectedProperty.features.length > 0 && (
-                    <div className="mb-6 pb-6 border-b border-gray-200">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Ausstattung</h3>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedProperty.features.map((feature, idx) => (
-                          <span
-                            key={idx}
-                            className="px-4 py-2 bg-white border-2 border-gray-900 text-gray-900 rounded-full text-base font-medium"
-                          >
-                            {feature}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* KI-Bewertung */}
-                  {selectedProperty.ai_score && (
-                    <div className="mb-6 pb-6 border-b border-gray-200">
-                      <div className="bg-white border border-gray-200 rounded-2xl p-6">
-                        {/* Header */}
-                        <div className="flex items-center justify-between mb-6">
-                          <div className="flex items-center gap-2">
-                            <TrendingUp size={20} className="text-gray-700" />
-                            <h3 className="text-lg font-semibold text-gray-900">KI-Bewertung</h3>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-4 h-4 rounded-full"
-                              style={{ backgroundColor: getScoreColor(selectedProperty.ai_score) }}
-                            />
-                            <span className="text-2xl font-bold text-gray-900">{selectedProperty.ai_score}/100</span>
-                          </div>
-                        </div>
-
-                        {/* Score Categories */}
-                        <div className="space-y-4">
-                          {/* Lage */}
-                          <div className="flex items-center justify-end gap-4">
-                            <span className="text-gray-600 flex-1">Lage</span>
-                            <div className="w-40 h-2.5 bg-gray-200 rounded-full overflow-hidden">
-                              <div
-                                className="h-full rounded-full"
-                                style={{
-                                  width: `${Math.min(95, selectedProperty.ai_score + 3)}%`,
-                                  backgroundColor: '#22C55E'
-                                }}
-                              />
-                            </div>
-                            <span className="text-gray-700 font-medium w-8 text-right">{Math.min(95, selectedProperty.ai_score + 3)}</span>
-                          </div>
-
-                          {/* Rendite */}
-                          <div className="flex items-center justify-end gap-4">
-                            <span className="text-gray-600 flex-1">Rendite</span>
-                            <div className="w-40 h-2.5 bg-gray-200 rounded-full overflow-hidden">
-                              <div
-                                className="h-full rounded-full"
-                                style={{
-                                  width: `${Math.max(70, selectedProperty.ai_score - 7)}%`,
-                                  backgroundColor: '#22C55E'
-                                }}
-                              />
-                            </div>
-                            <span className="text-gray-700 font-medium w-8 text-right">{Math.max(70, selectedProperty.ai_score - 7)}</span>
-                          </div>
-
-                          {/* Wertsteigerung */}
-                          <div className="flex items-center justify-end gap-4">
-                            <span className="text-gray-600 flex-1">Wertsteigerung</span>
-                            <div className="w-40 h-2.5 bg-gray-200 rounded-full overflow-hidden">
-                              <div
-                                className="h-full rounded-full"
-                                style={{
-                                  width: `${Math.min(95, selectedProperty.ai_score + 3)}%`,
-                                  backgroundColor: '#22C55E'
-                                }}
-                              />
-                            </div>
-                            <span className="text-gray-700 font-medium w-8 text-right">{Math.min(95, selectedProperty.ai_score + 3)}</span>
-                          </div>
-
-                          {/* Steuervorteile */}
-                          <div className="flex items-center justify-end gap-4">
-                            <span className="text-gray-600 flex-1">Steuervorteile</span>
-                            <div className="w-40 h-2.5 bg-gray-200 rounded-full overflow-hidden">
-                              <div
-                                className="h-full rounded-full"
-                                style={{
-                                  width: `${Math.max(75, selectedProperty.ai_score - 2)}%`,
-                                  backgroundColor: '#22C55E'
-                                }}
-                              />
-                            </div>
-                            <span className="text-gray-700 font-medium w-8 text-right">{Math.max(75, selectedProperty.ai_score - 2)}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Highlights */}
-                  {selectedProperty.highlights && selectedProperty.highlights.length > 0 && (
-                    <div className="mb-6 pb-6 border-b border-gray-200">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Highlights</h3>
-                      <ul className="space-y-2">
-                        {selectedProperty.highlights.map((highlight, idx) => (
-                          <li key={idx} className="flex items-start gap-2">
-                            <span className="text-green-500">✓</span>
-                            <span className="text-gray-700" style={{ fontSize: '18px' }}>{highlight}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* Red Flags */}
-                  {selectedProperty.red_flags && selectedProperty.red_flags.length > 0 && (
-                    <div className="mb-6 pb-6 border-b border-gray-200">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Zu beachten</h3>
-                      <ul className="space-y-2">
-                        {selectedProperty.red_flags.map((flag, idx) => (
-                          <li key={idx} className="flex items-start gap-2 text-amber-600">
-                            <span>⚠️</span>
-                            <span style={{ fontSize: '18px' }}>{flag}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* CTA Buttons */}
-                  <div className="flex flex-col sm:flex-row gap-3 mt-auto bg-white pt-4 pb-4">
-                    <button
-                      onClick={() => router.push(`/property/${selectedProperty.id}/edit`)}
-                      className="flex-1 bg-primary text-white font-semibold py-4 px-6 rounded-xl hover:opacity-90 transition-colors inline-flex items-center justify-center gap-2"
-                    >
-                      <Pencil size={20} />
-                      Bearbeiten
-                    </button>
-                    {selectedProperty.status === 'archived' ? (
-                      <button
-                        onClick={() => handleActivate(selectedProperty.id)}
-                        disabled={activatingId === selectedProperty.id}
-                        className="flex-1 bg-green-500 text-white font-semibold py-4 px-6 rounded-xl hover:bg-green-600 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50"
-                      >
-                        <Power size={20} />
-                        {activatingId === selectedProperty.id ? 'Aktivieren...' : 'Aktivieren'}
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleDeactivate(selectedProperty.id)}
-                        disabled={deactivatingId === selectedProperty.id}
-                        className="flex-1 bg-white border-2 border-gray-300 text-gray-900 font-semibold py-4 px-6 rounded-xl hover:border-gray-400 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50"
-                      >
-                        <Power size={20} />
-                        {deactivatingId === selectedProperty.id ? 'Deaktivieren...' : 'Deaktivieren'}
-                      </button>
-                    )}
-                  </div>
                 </div>
               </>
             ) : (
@@ -569,6 +607,38 @@ export default function MyPropertiesPage() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Delete Property Modal */}
+      {propertyToDelete && (
+        <DeletePropertyModal
+          isOpen={deleteModalOpen}
+          onClose={() => {
+            setDeleteModalOpen(false);
+            setPropertyToDelete(null);
+          }}
+          onConfirm={handleDeleteConfirm}
+          isDeleting={deleteMutation.isLoading}
+          propertyTitle={propertyToDelete.title}
+          originalPrice={propertyToDelete.price}
+          mode="delete"
+        />
+      )}
+
+      {/* Deactivate Property Modal */}
+      {propertyToDeactivate && (
+        <DeletePropertyModal
+          isOpen={deactivateModalOpen}
+          onClose={() => {
+            setDeactivateModalOpen(false);
+            setPropertyToDeactivate(null);
+          }}
+          onConfirm={handleDeactivateConfirm}
+          isDeleting={deactivateMutation.isLoading}
+          propertyTitle={propertyToDeactivate.title}
+          originalPrice={propertyToDeactivate.price}
+          mode="deactivate"
+        />
       )}
     </main>
   );

@@ -2,36 +2,139 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { getPropertyWithOwner, PropertyWithOwner, hasPropertyConsent, grantPropertyConsent, deactivateProperty, getUserFavorites, upsertConsent, hasFullConsent, trackInteraction, updateUserPreferences, getPropertyEvaluation, PropertyAIEvaluation } from '@immoflow/api';
-import { formatPrice } from '@immoflow/utils';
-import { ChatModal } from '@immoflow/ui';
-import { Pencil, Power } from 'lucide-react';
+import { AIInvestmentEvaluation, PropertyFeedbackModal } from '@immoflow/ui';
+import { Pencil, Power, Heart, X, MessageSquare } from 'lucide-react';
 import { useAuthContext } from '@/app/providers/AuthProvider';
 import { Header } from '@/app/components/Header';
 import { PropertyImageSlideshow } from '@/app/components/PropertyImageSlideshow';
 import { FavoriteButton } from '@/app/components/FavoriteButton';
 import { CommissionConsentDialog } from '@/app/components/CommissionConsentDialog';
 import { PropertyPreview, PropertyPreviewData } from '@/app/components/PropertyPreview';
+import { InvestmentScoreBadge } from '@/app/components/InvestmentScoreBadge';
+import { trpc } from '@/lib/trpc';
 
 export default function PropertyPage() {
+  // Performance tracking
+  const renderCountRef = useRef(0);
+  renderCountRef.current += 1;
+  const pageLoadStartTimeRef = useRef(performance.now());
+
+  if (renderCountRef.current === 1) {
+    console.log('📄 [PERF-DETAIL] PropertyPage: Initial render');
+  }
+
   const params = useParams();
   const router = useRouter();
   const { user } = useAuthContext();
-  const [property, setProperty] = useState<PropertyWithOwner | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [isChatModalOpen, setIsChatModalOpen] = useState(false);
   const [hasConsent, setHasConsent] = useState(false);
   const [consentLoading, setConsentLoading] = useState(false);
-  const [isDeactivating, setIsDeactivating] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(false);
   const [isConsentDialogOpen, setIsConsentDialogOpen] = useState(false);
   const [hasCommissionConsent, setHasCommissionConsent] = useState(false);
-  const [evaluation, setEvaluation] = useState<PropertyAIEvaluation | null>(null);
-  const [evaluationLoading, setEvaluationLoading] = useState(false);
+  const [contactLoading, setContactLoading] = useState(false);
+  const [showContactSuccess, setShowContactSuccess] = useState(false);
+  const [isEvaluating, setIsEvaluating] = useState(false);
+  const [isPropertyFeedbackModalOpen, setIsPropertyFeedbackModalOpen] = useState(false);
 
-  // Track time spent on page for recommendations
-  const pageLoadTime = useRef<number>(Date.now());
-  const hasTrackedView = useRef<boolean>(false);
+  // Fetch property with owner using tRPC
+  const { data: property, isLoading: loading } = trpc.properties.getByIdWithOwner.useQuery(
+    { id: params.id as string },
+    {
+      enabled: !!params.id,
+      onSuccess: () => {
+        const duration = performance.now() - pageLoadStartTimeRef.current;
+        console.log(`📄 [PERF-DETAIL] Property loaded in ${duration.toFixed(2)}ms`);
+      },
+      onError: () => {
+        router.push('/');
+      },
+    }
+  );
+
+  // Fetch favorite status
+  const { data: isFavoriteData } = trpc.favorites.isFavorite.useQuery(
+    { propertyId: params.id as string },
+    { enabled: !!user && !!params.id }
+  );
+  const isFavorite = isFavoriteData?.isFavorite ?? false;
+
+  // Fetch AI evaluation
+  const { data: aiEvaluation } = trpc.evaluations.getAIEvaluation.useQuery(
+    { propertyId: params.id as string },
+    { enabled: !!params.id }
+  );
+
+  // Get tRPC utils for cache invalidation
+  const utils = trpc.useContext();
+
+  // Mutations for favorites
+  const addFavoriteMutation = trpc.favorites.add.useMutation({
+    onSuccess: () => {
+      utils.favorites.isFavorite.invalidate();
+    },
+  });
+
+  const removeFavoriteMutation = trpc.favorites.remove.useMutation({
+    onSuccess: () => {
+      utils.favorites.isFavorite.invalidate();
+    },
+  });
+
+  // Mutations for dismissed properties
+  const dismissMutation = trpc.dismissed.dismiss.useMutation({
+    onSuccess: () => {
+      // Redirect to home page after dismissing
+      router.push('/');
+    },
+  });
+
+  // Submit feedback mutation
+  const submitFeedbackMutation = trpc.properties.submitFeedback.useMutation({
+    onSuccess: () => {
+      setIsPropertyFeedbackModalOpen(false);
+      alert('✅ Vielen Dank für Ihr Feedback! Der Verkäufer wird es erhalten.');
+    },
+    onError: (error) => {
+      console.error('Error submitting feedback:', error);
+      alert('❌ Fehler beim Absenden des Feedbacks. Bitte versuchen Sie es erneut.');
+    },
+  });
+
+  // Deactivate mutation
+  const deactivateMutation = trpc.properties.deactivate.useMutation({
+    onSuccess: () => {
+      router.push('/my-properties');
+    },
+    onError: (error) => {
+      console.error('Error deactivating property:', error);
+      alert('Fehler beim Deaktivieren des Inserats. Bitte versuchen Sie es erneut.');
+    },
+  });
+
+  // Evaluation mutation
+  const evaluateMutation = trpc.evaluations.generateInvestmentEvaluation.useMutation({
+    onSuccess: () => {
+      // Invalidate and refetch AI evaluation
+      utils.evaluations.getAIEvaluation.invalidate();
+      setIsEvaluating(false);
+    },
+    onError: (error) => {
+      console.error('Error evaluating property:', error);
+      alert('Fehler bei der KI-Analyse. Bitte versuchen Sie es erneut.');
+      setIsEvaluating(false);
+    },
+  });
+
+  // Get or create conversation mutation
+  const getOrCreateConversationMutation = trpc.messaging.getOrCreateConversation.useMutation({
+    onSuccess: (data) => {
+      // Navigate to conversation
+      router.push(`/messages/${data.conversationId}`);
+    },
+    onError: (error) => {
+      console.error('Error creating conversation:', error);
+      alert('Fehler beim Starten der Konversation. Bitte versuchen Sie es erneut.');
+    },
+  });
 
   // Check if current user is the owner of this property
   const isOwner = user && property && property.user_id === user.id;
@@ -44,132 +147,17 @@ export default function PropertyPage() {
     action();
   };
 
-  useEffect(() => {
-    async function loadProperty() {
-      try {
-        const id = params.id as string;
-        const data = await getPropertyWithOwner(id);
-        if (!data) {
-          router.push('/');
-          return;
-        }
-        setProperty(data);
-      } catch (error) {
-        console.error('Error loading property:', error);
-        router.push('/');
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadProperty();
-  }, [params.id, router]);
-
-  // Load user consent status for this specific property
-  useEffect(() => {
-    async function loadConsentStatus() {
-      if (!user || !property) {
-        setHasConsent(false);
-        setHasCommissionConsent(false);
-        return;
-      }
-      try {
-        // Check old property consent (for address visibility)
-        const propertyConsent = await hasPropertyConsent(user.id, property.id);
-        setHasConsent(propertyConsent);
-
-        // Check new commission consent (for address + commission agreement)
-        const fullConsent = await hasFullConsent(user.id, property.id);
-        setHasCommissionConsent(fullConsent);
-      } catch (error) {
-        console.error('Error loading consent status:', error);
-        setHasConsent(false);
-        setHasCommissionConsent(false);
-      }
-    }
-    loadConsentStatus();
-  }, [user, property]);
-
-  // Load favorite status
-  useEffect(() => {
-    async function loadFavoriteStatus() {
-      if (!user || !property) {
-        setIsFavorite(false);
-        return;
-      }
-      try {
-        const favorites = await getUserFavorites(user.id);
-        const isFav = favorites.some((f: any) => f.property_id === property.id);
-        setIsFavorite(isFav);
-      } catch (error) {
-        console.error('Error loading favorite status:', error);
-        setIsFavorite(false);
-      }
-    }
-    loadFavoriteStatus();
-  }, [user, property]);
-
-  // Load AI investment evaluation
-  useEffect(() => {
-    async function loadEvaluation() {
-      if (!property) {
-        setEvaluation(null);
-        return;
-      }
-      setEvaluationLoading(true);
-      try {
-        const evalData = await getPropertyEvaluation(property.id);
-        setEvaluation(evalData);
-      } catch (error) {
-        console.error('Error loading evaluation:', error);
-        setEvaluation(null);
-      } finally {
-        setEvaluationLoading(false);
-      }
-    }
-    loadEvaluation();
-  }, [property]);
-
-  // Track property view for recommendations algorithm
-  useEffect(() => {
-    if (!user || !property || isOwner || hasTrackedView.current) return;
-
-    async function trackView() {
-      try {
-        // Track the view interaction
-        await trackInteraction(user!.id, property!.id, 'view', {
-          source: 'property_detail',
-        });
-
-        hasTrackedView.current = true;
-
-        // Update user preferences in background (non-blocking)
-        updateUserPreferences(user!.id).catch((err) => {
-          console.error('Error updating user preferences:', err);
-        });
-      } catch (error) {
-        console.error('Error tracking view:', error);
-      }
-    }
-
-    trackView();
-
-    // Track dwell time when user leaves the page
-    return () => {
-      if (!hasTrackedView.current) return;
-
-      const dwellTimeSeconds = Math.round((Date.now() - pageLoadTime.current) / 1000);
-
-      // Only track meaningful dwell times (> 3 seconds)
-      if (dwellTimeSeconds > 3) {
-        // Use sendBeacon for reliable tracking on page unload
-        if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function' && user && property) {
-          // Note: In production, you'd send this to an endpoint
-          // For now, we'll just log it
-          console.log('Dwell time:', dwellTimeSeconds, 'seconds');
-        }
-      }
-    };
-  }, [user, property, isOwner]);
+  // Mutations for consent
+  const grantConsentMutation = trpc.consents.grantPropertyConsent.useMutation({
+    onSuccess: () => {
+      setHasConsent(true);
+      setConsentLoading(false);
+    },
+    onError: (error) => {
+      console.error('Error granting consent:', error);
+      setConsentLoading(false);
+    },
+  });
 
   // Grant consent for this specific property
   const handleGrantConsent = async () => {
@@ -182,13 +170,9 @@ export default function PropertyPage() {
 
     setConsentLoading(true);
     try {
-      await grantPropertyConsent(user.id, property.id);
-      setHasConsent(true);
+      await grantConsentMutation.mutateAsync({ propertyId: property.id });
     } catch (error) {
       console.error('Error granting consent:', error);
-      alert('Fehler beim Erteilen der Einwilligung. Bitte versuchen Sie es erneut.');
-    } finally {
-      setConsentLoading(false);
     }
   };
 
@@ -197,23 +181,12 @@ export default function PropertyPage() {
 
     setConsentLoading(true);
     try {
-      // Save commission consent
-      await upsertConsent({
-        user_id: user.id,
-        property_id: property.id,
-        commission_accepted: true,
-        data_sharing_accepted: true,
-      });
-
-      // Also save old property consent for backwards compatibility
-      await grantPropertyConsent(user.id, property.id);
-
+      await grantConsentMutation.mutateAsync({ propertyId: property.id });
       setHasCommissionConsent(true);
       setHasConsent(true);
       setIsConsentDialogOpen(false);
     } catch (error) {
-      console.error('Error granting commission consent:', error);
-      alert('Fehler beim Speichern der Einwilligung. Bitte versuchen Sie es erneut.');
+      console.error('Error granting consent:', error);
     } finally {
       setConsentLoading(false);
     }
@@ -231,6 +204,73 @@ export default function PropertyPage() {
     }
   };
 
+  const handleToggleFavorite = async () => {
+    if (!user) {
+      router.push(`/auth/login?redirectTo=/property/${params.id}`);
+      return;
+    }
+
+    // Toggle favorite using add/remove mutations
+    if (isFavorite) {
+      removeFavoriteMutation.mutate({ propertyId: params.id as string });
+    } else {
+      addFavoriteMutation.mutate({ propertyId: params.id as string });
+    }
+  };
+
+  const handleDismiss = async () => {
+    if (!user) {
+      router.push(`/auth/login?redirectTo=/property/${params.id}`);
+      return;
+    }
+
+    // Dismiss the property
+    dismissMutation.mutate({ propertyId: params.id as string });
+  };
+
+  const handleStartMessage = async () => {
+    if (!user) {
+      router.push(`/auth/login?redirectTo=/property/${params.id}`);
+      return;
+    }
+
+    // Start conversation
+    getOrCreateConversationMutation.mutate({ propertyId: params.id as string });
+  };
+
+  const handleFavoriteToggle = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (!user) {
+      router.push(`/auth/login?redirectTo=/property/${params.id}`);
+      return;
+    }
+
+    try {
+      if (isFavorite) {
+        await removeFavoriteMutation.mutateAsync({ propertyId: property.id });
+      } else {
+        await addFavoriteMutation.mutateAsync({ propertyId: property.id });
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+    }
+  };
+
+  const handleTriggerEvaluation = async () => {
+    // Guard: prevent double-clicking and concurrent evaluations
+    if (!property || isEvaluating) return;
+
+    setIsEvaluating(true);
+    try {
+      await evaluateMutation.mutateAsync({ propertyId: property.id });
+    } catch (error) {
+      console.error('Error triggering evaluation:', error);
+      // Reset state on error
+      setIsEvaluating(false);
+    }
+  };
+
   // Handle property deactivation
   const handleDeactivate = async () => {
     if (!property || !isOwner) return;
@@ -239,23 +279,19 @@ export default function PropertyPage() {
       return;
     }
 
-    setIsDeactivating(true);
-    try {
-      await deactivateProperty(property.id);
-      router.push('/my-properties');
-    } catch (error) {
-      console.error('Error deactivating property:', error);
-      alert('Fehler beim Deaktivieren des Inserats. Bitte versuchen Sie es erneut.');
-    } finally {
-      setIsDeactivating(false);
-    }
+    deactivateMutation.mutate({ id: property.id });
   };
 
-  const getScoreColor = (score: number) => {
-    if (score >= 85) return '#22C55E';
-    if (score >= 70) return '#F59E0B';
-    return '#EF4444';
-  };
+  // Track when page is fully loaded
+  const pageLoadLoggedRef = useRef(false);
+  useEffect(() => {
+    if (!loading && property && !pageLoadLoggedRef.current) {
+      const pageLoadTime = performance.now() - pageLoadStartTimeRef.current;
+      console.log(`📄 [PERF-DETAIL] Page fully loaded in ${pageLoadTime.toFixed(2)}ms (${(pageLoadTime / 1000).toFixed(2)}s)`);
+      console.log(`📄 [PERF-DETAIL] Total renders: ${renderCountRef.current}`);
+      pageLoadLoggedRef.current = true;
+    }
+  }, [loading, property]);
 
   if (loading) {
     return (
@@ -270,33 +306,68 @@ export default function PropertyPage() {
   }
 
   // Convert property data to PropertyPreview format
+  // Extract detailed evaluation data from JSONB field
+  const detailedEval = property.ai_detailed_evaluation as any;
+
   const propertyPreviewData: PropertyPreviewData = {
     images: property.images || [],
     price: property.price || 0,
-    commission_rate: property.commission_rate,
+    commission_rate: property.commission_rate ?? undefined,
     location: property.location || '',
-    address: property.address,
+    address: property.address ?? undefined,
     title: property.title || '',
-    type: property.property_type,
+    type: property.property_type ?? undefined,
     sqm: property.sqm || 0,
     rooms: property.rooms || 0,
     description: property.description || '',
-    features: property.features,
-    yield: property.yield,
-    highlights: property.highlights,
-    red_flags: property.red_flags,
-    ai_investment_score: property.ai_investment_score,
-    require_address_consent: property.require_address_consent,
-    evaluation: evaluation ? {
-      location_score: evaluation.location_score,
-      price_score: evaluation.price_score,
-      yield_score: evaluation.yield_score,
-      appreciation_score: evaluation.appreciation_score,
-      features_score: evaluation.features_score,
-      price_per_sqm: evaluation.price_per_sqm,
-      estimated_monthly_rent: evaluation.estimated_monthly_rent,
-      gross_yield_percentage: evaluation.gross_yield_percentage,
-    } : undefined,
+    features: property.features ?? undefined,
+    yield: property.yield ?? undefined,
+    highlights: property.highlights ?? undefined,
+    red_flags: property.red_flags ?? undefined,
+    ai_investment_score: property.ai_investment_score ?? property.ai_score ?? undefined,
+    require_address_consent: property.require_address_consent ?? undefined,
+    // New fields from database migration
+    monthly_fee: property.monthly_fee ?? undefined,
+    usable_area: property.usable_area ?? undefined,
+    usable_area_ratio: property.usable_area_ratio ?? undefined,
+    bathrooms: property.bathrooms ?? undefined,
+    total_floors: property.total_floors ?? undefined,
+    floor_level: property.floor_level ?? undefined,
+    available_from: property.available_from ?? undefined,
+    year_built: property.year_built ?? undefined,
+    heating_type: property.heating_type ?? undefined,
+    energy_source: property.energy_source ?? undefined,
+    energy_certificate: property.energy_certificate ?? undefined,
+    energy_efficiency_class: property.energy_efficiency_class ?? undefined,
+    condition: property.condition ?? undefined,
+    important_notes: property.important_notes ?? undefined,
+    days_online: (property as any).days_online ?? undefined,
+    // Extract AI analysis data from ai_detailed_evaluation JSONB
+    actual_monthly_rent: property.actual_monthly_rent ?? undefined,
+    yield_metrics: detailedEval?.yield_metrics ?? undefined,
+    rental_income: detailedEval?.rental_income ?? undefined,
+    cashflow_calculation: detailedEval?.cashflow_calculation ?? undefined,
+    // Merge evaluation data: prefer aiEvaluation from property_ai_evaluations table, fallback to JSONB
+    evaluation: aiEvaluation ? {
+      location_score: aiEvaluation.location_score,
+      price_score: aiEvaluation.price_score,
+      yield_score: aiEvaluation.yield_score,
+      appreciation_score: aiEvaluation.appreciation_score,
+      features_score: aiEvaluation.features_score,
+      price_per_sqm: aiEvaluation.price_per_sqm ?? detailedEval?.evaluation?.price_per_sqm,
+      market_average_price_per_sqm: aiEvaluation.market_average_price_per_sqm,
+      estimated_monthly_rent: aiEvaluation.estimated_monthly_rent,
+      gross_yield_percentage: aiEvaluation.gross_yield_percentage,
+      // AI Analysis texts - only from aiEvaluation
+      location_analysis: aiEvaluation.location_analysis,
+      market_analysis: aiEvaluation.market_analysis,
+      rent_analysis: aiEvaluation.rent_analysis,
+      financing_analysis: aiEvaluation.financing_analysis,
+      // Interest rates
+      interest_rate_90: aiEvaluation.interest_rate_90,
+      interest_rate_80: aiEvaluation.interest_rate_80,
+    } : detailedEval?.evaluation ?? undefined,
+    ai_recommendation: detailedEval?.ai_recommendation ?? undefined,
     owner: property.owner && !isOwner ? {
       first_name: property.owner.first_name,
       last_name: property.owner.last_name,
@@ -320,17 +391,97 @@ export default function PropertyPage() {
             showCounter={true}
             showProgressBars={true}
             overlay={
-              !isOwner && user && (
-                <FavoriteButton
-                  userId={user.id}
-                  propertyId={property.id}
-                  isFavorite={isFavorite}
-                  onToggle={setIsFavorite}
-                  size="lg"
-                  variant="overlay"
-                  className="absolute top-14 right-4 z-20"
-                />
-              )
+              <>
+                {/* AI-Score Badge - Top Right (Same as PropertyCard) */}
+                {(() => {
+                  const aiScore = property.ai_investment_score ?? property.ai_score;
+
+                  if (!aiScore) return null;
+
+                  // Get badge info based on score (same logic as PropertyCard)
+                  let badgeInfo: { label: string; color: string; dotColor: string };
+
+                  if (aiScore >= 75) {
+                    badgeInfo = {
+                      label: 'Top Deal',
+                      color: '#22C55E',
+                      dotColor: '#22C55E',
+                    };
+                  } else if (aiScore >= 50) {
+                    badgeInfo = {
+                      label: 'Prüfen',
+                      color: '#F59E0B',
+                      dotColor: '#F59E0B',
+                    };
+                  } else {
+                    badgeInfo = {
+                      label: 'Finger weg',
+                      color: '#EF4444',
+                      dotColor: '#EF4444',
+                    };
+                  }
+
+                  return (
+                    <div
+                      className="absolute top-14 right-6 z-20 flex items-center gap-2 px-2.5 py-1.5 rounded-xl"
+                      style={{
+                        backgroundColor: 'rgba(0, 0, 0, 0.75)',
+                        borderWidth: '1px',
+                        borderColor: badgeInfo.color,
+                      }}
+                    >
+                      <div
+                        className="w-3.5 h-3.5 rounded-full"
+                        style={{ backgroundColor: badgeInfo.dotColor }}
+                      />
+                      <div>
+                        <div
+                          className="text-[13px] font-bold leading-tight mb-0.5"
+                          style={{ color: badgeInfo.color }}
+                        >
+                          {badgeInfo.label}
+                        </div>
+                        <div className="text-[11px] font-medium text-white/70">
+                          {aiScore}/100
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Action Buttons - Bottom Right */}
+                {!isOwner && (
+                  <div className="absolute bottom-6 right-4 z-20 flex flex-row gap-3">
+                    <button
+                      onClick={() => router.push('/')}
+                      className="w-12 h-12 rounded-full flex items-center justify-center border hover:scale-105 transition-transform"
+                      style={{
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        borderColor: 'rgba(239, 68, 68, 0.6)'
+                      }}
+                    >
+                      <span className="text-2xl text-red-500">✕</span>
+                    </button>
+                    {user && (
+                      <button
+                        onClick={handleFavoriteToggle}
+                        className="w-12 h-12 rounded-full flex items-center justify-center border hover:scale-105 transition-transform"
+                        style={{
+                          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                          borderColor: 'rgba(16, 185, 129, 0.6)'
+                        }}
+                      >
+                        <Heart
+                          size={24}
+                          color="#10B981"
+                          fill={isFavorite ? '#10B981' : 'none'}
+                          strokeWidth={2}
+                        />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </>
             }
           />
         </div>
@@ -338,19 +489,27 @@ export default function PropertyPage() {
         {/* Right Column - Property Details (Scrollable) */}
         <div className="lg:w-1/2 flex flex-col lg:h-[calc(100vh-80px)]">
           {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto p-4 lg:p-8">
+          <div className="flex-1 overflow-y-auto py-4 lg:py-8">
             {/* Property Preview Component */}
             <PropertyPreview
               data={propertyPreviewData}
               showAddress={Boolean(!(property.require_address_consent ?? false) || hasCommissionConsent || isOwner)}
               onRequestAddress={handleShowAddress}
-              showInvestmentScore={!evaluationLoading}
+              showInvestmentScore={true}
+              isGeneratingEvaluation={isEvaluating}
               className="!shadow-none !rounded-none !bg-transparent"
               hasConsent={hasConsent}
               isOwner={Boolean(isOwner)}
               consentLoading={consentLoading}
               isUserLoggedIn={Boolean(user)}
               onGrantConsent={handleGrantConsent}
+              showConsentSection={false}
+              propertyId={property.id}
+              onTriggerEvaluation={handleTriggerEvaluation}
+              showEvaluationButton={true}
+              showCTAs={false}
+              onAddToFavorites={handleToggleFavorite}
+              isFavorite={isFavorite}
             />
           </div>
 
@@ -367,26 +526,75 @@ export default function PropertyPage() {
                 </button>
                 <button
                   onClick={handleDeactivate}
-                  disabled={isDeactivating}
-                  className="flex-1 bg-white border-2 border-gray-300 text-gray-700 font-semibold py-4 px-6 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                  disabled={deactivateMutation.isLoading}
+                  className="flex-1 bg-white border-2 border-gray-300 text-gray-700 font-semibold py-4 px-6 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Power size={20} />
-                  {isDeactivating ? 'Wird deaktiviert...' : 'Deaktivieren'}
+                  {deactivateMutation.isLoading ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                      Wird deaktiviert...
+                    </>
+                  ) : (
+                    <>
+                      <Power size={20} />
+                      Deaktivieren
+                    </>
+                  )}
                 </button>
               </>
             ) : (
               <>
                 <button
-                  onClick={() => handleProtectedAction(() => setIsChatModalOpen(true))}
-                  className="flex-1 bg-primary text-white font-semibold py-4 px-6 rounded-xl hover:opacity-90 transition-colors"
+                  onClick={handleToggleFavorite}
+                  className={`flex-1 font-semibold py-4 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 ${
+                    isFavorite
+                      ? 'bg-primary text-white hover:opacity-90'
+                      : 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
                 >
-                  {user ? 'AI-Assistent fragen' : 'Anmelden für AI-Assistent'}
+                  <Heart size={20} fill={isFavorite ? 'currentColor' : 'none'} />
+                  {isFavorite ? 'Favorit entfernen' : 'Als Favorit markieren'}
                 </button>
                 <button
-                  onClick={() => handleProtectedAction(() => alert('Makler wird kontaktiert...'))}
-                  className="flex-1 bg-white border-2 border-gray-300 text-gray-900 font-semibold py-4 px-6 rounded-xl hover:border-gray-400 transition-colors"
+                  onClick={handleStartMessage}
+                  disabled={getOrCreateConversationMutation.isLoading}
+                  className="flex-1 bg-green-600 text-white font-semibold py-4 px-6 rounded-xl hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {user ? 'Makler kontaktieren' : 'Anmelden zum Kontaktieren'}
+                  {getOrCreateConversationMutation.isLoading ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Wird gestartet...
+                    </>
+                  ) : (
+                    <>
+                      <MessageSquare size={20} />
+                      Nachricht senden
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={handleDismiss}
+                  disabled={dismissMutation.isLoading}
+                  className="flex-1 bg-white border-2 border-gray-300 text-gray-700 font-semibold py-4 px-6 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {dismissMutation.isLoading ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                      Wird verarbeitet...
+                    </>
+                  ) : (
+                    <>
+                      <X size={20} />
+                      Kein Interesse
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setIsPropertyFeedbackModalOpen(true)}
+                  className="flex-1 bg-white border-2 border-blue-300 text-blue-700 font-semibold py-4 px-6 rounded-xl hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
+                >
+                  <MessageSquare size={20} />
+                  Feedback geben
                 </button>
               </>
             )}
@@ -404,13 +612,31 @@ export default function PropertyPage() {
         propertyTitle={property.title}
       />
 
-      {/* Chat Modal */}
-      <ChatModal
-        isOpen={isChatModalOpen}
-        onClose={() => setIsChatModalOpen(false)}
-        propertyId={property.id}
+      {/* Property Feedback Modal */}
+      <PropertyFeedbackModal
+        isOpen={isPropertyFeedbackModalOpen}
+        onClose={() => setIsPropertyFeedbackModalOpen(false)}
+        onSubmit={async (feedbackData) => {
+          await submitFeedbackMutation.mutateAsync({
+            propertyId: property.id,
+            ...feedbackData,
+          });
+        }}
         propertyTitle={property.title}
       />
+
+      {/* Contact Success Toast */}
+      {showContactSuccess && (
+        <div className="fixed bottom-6 right-6 z-50 bg-green-500 text-white px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 animate-slide-up">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          <div>
+            <p className="font-semibold">Anfrage gesendet!</p>
+            <p className="text-sm text-green-100">Der Makler wird sich bei Ihnen melden.</p>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
