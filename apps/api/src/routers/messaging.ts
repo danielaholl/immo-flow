@@ -527,6 +527,74 @@ export const messagingRouter = router({
   }),
 
   /**
+   * Delete a conversation permanently
+   */
+  deleteConversation: protectedProcedure
+    .input(
+      z.object({
+        conversationId: z.string().uuid(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.user.id;
+
+      // Get user_profile.id
+      const userProfileResult = await db.query(
+        'SELECT id FROM user_profiles WHERE user_id = $1',
+        [userId]
+      );
+
+      if (userProfileResult.rows.length === 0) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'User profile not found',
+        });
+      }
+
+      const userProfileId = userProfileResult.rows[0].id;
+
+      // Verify user has access to this conversation
+      const conversationResult = await db.query(
+        `SELECT buyer_id, seller_id FROM conversations WHERE id = $1`,
+        [input.conversationId]
+      );
+
+      if (conversationResult.rows.length === 0) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Conversation not found',
+        });
+      }
+
+      const conversation = conversationResult.rows[0];
+      const isBuyer = conversation.buyer_id === userProfileId;
+      const isSeller = conversation.seller_id === userProfileId;
+
+      if (!isBuyer && !isSeller) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You do not have access to this conversation',
+        });
+      }
+
+      // Delete all messages first (if not using CASCADE)
+      await db.query('DELETE FROM messages WHERE conversation_id = $1', [
+        input.conversationId,
+      ]);
+
+      // Delete the conversation
+      await db.query('DELETE FROM conversations WHERE id = $1', [
+        input.conversationId,
+      ]);
+
+      console.log(`[Messaging] Deleted conversation: ${input.conversationId}`);
+
+      return {
+        success: true,
+      };
+    }),
+
+  /**
    * Get AI response statistics for seller
    */
   getAIResponseStats: protectedProcedure
