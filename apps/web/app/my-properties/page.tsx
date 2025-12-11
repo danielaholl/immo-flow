@@ -342,9 +342,25 @@ export default function MyPropertiesPage() {
           </div>
         </div>
       ) : (
-        <div className="flex flex-col lg:flex-row" style={{ height: 'calc(100vh - 100px)' }}>
+        <div className="flex flex-col lg:flex-row" style={{ minHeight: 'calc(100vh - 100px)' }}>
+          {/* Mobile Header - visible only on small screens */}
+          <div className="lg:hidden bg-white border-b border-gray-200 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">Meine Inserate</h1>
+                <p className="text-gray-500 text-sm">{properties.length} Immobilien</p>
+              </div>
+              <Link href="/create-listing">
+                <button className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors">
+                  <Plus size={16} />
+                  <span>Erstellen</span>
+                </button>
+              </Link>
+            </div>
+          </div>
+
           {/* Left Column - Properties List */}
-          <div className="lg:w-1/4 border-r border-gray-200 overflow-y-auto">
+          <div className="hidden lg:block lg:w-1/4 border-r border-gray-200 overflow-y-auto">
             <div className="p-4">
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -484,9 +500,9 @@ export default function MyPropertiesPage() {
             {selectedProperty ? (
               <>
                 {/* Left - Property Details (Scrollable) */}
-                <div className="lg:w-1/2 flex flex-col lg:h-full">
+                <div className="w-full lg:w-1/2 flex flex-col lg:h-full">
                   {/* Scrollable Content */}
-                  <div className="flex-1 overflow-y-auto p-4 lg:p-8">
+                  <div className="flex-1 overflow-y-auto p-4 lg:p-8 pb-24 lg:pb-8">
                     {/* PropertyPreview Component */}
                     {propertyPreviewData && (
                       <PropertyPreview
@@ -549,22 +565,22 @@ export default function MyPropertiesPage() {
                   </div>
 
                   {/* CTA Buttons */}
-                  <div className="bg-white p-4 lg:p-8 pt-4 space-y-3">
-                    <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="fixed lg:relative bottom-0 left-0 right-0 bg-white p-4 lg:p-8 pt-4 space-y-3 border-t lg:border-t-0 border-gray-200 z-10">
+                    <div className="flex flex-col gap-3">
                       <button
                         onClick={() => router.push(`/edit-listing/${selectedProperty.id}`)}
-                        className="flex-1 bg-primary text-white font-semibold py-4 px-6 rounded-xl hover:opacity-90 transition-colors inline-flex items-center justify-center gap-2"
+                        className="w-full bg-primary text-white font-semibold py-3 sm:py-4 px-4 sm:px-6 rounded-xl hover:opacity-90 transition-colors inline-flex items-center justify-center gap-2 text-sm sm:text-base"
                       >
-                        <Pencil size={20} />
+                        <Pencil size={18} className="sm:w-5 sm:h-5" />
                         Bearbeiten
                       </button>
                       {selectedProperty.status === 'archived' ? (
                         <button
                           onClick={() => handleActivate(selectedProperty.id)}
                           disabled={activateMutation.isLoading}
-                          className="flex-1 bg-green-500 text-white font-semibold py-4 px-6 rounded-xl hover:bg-green-600 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50"
+                          className="w-full bg-green-500 text-white font-semibold py-3 sm:py-4 px-4 sm:px-6 rounded-xl hover:bg-green-600 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50 text-sm sm:text-base"
                         >
-                          <Power size={20} />
+                          <Power size={18} className="sm:w-5 sm:h-5" />
                           {activateMutation.isLoading ? 'Aktivieren...' : 'Aktivieren'}
                         </button>
                       ) : (
@@ -575,9 +591,9 @@ export default function MyPropertiesPage() {
                             price: selectedProperty.price,
                           })}
                           disabled={deactivateMutation.isLoading}
-                          className="flex-1 bg-white border-2 border-gray-300 text-gray-900 font-semibold py-4 px-6 rounded-xl hover:border-gray-400 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50"
+                          className="w-full bg-white border-2 border-gray-300 text-gray-900 font-semibold py-3 sm:py-4 px-4 sm:px-6 rounded-xl hover:border-gray-400 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50 text-sm sm:text-base"
                         >
-                          <Power size={20} />
+                          <Power size={18} className="sm:w-5 sm:h-5" />
                           {deactivateMutation.isLoading ? 'Deaktivieren...' : 'Deaktivieren'}
                         </button>
                       )}
@@ -589,9 +605,9 @@ export default function MyPropertiesPage() {
                         price: selectedProperty.price,
                       })}
                       disabled={deleteMutation.isLoading}
-                      className="w-full bg-white border-2 border-red-300 text-red-600 font-semibold py-3 px-6 rounded-xl hover:bg-red-50 hover:border-red-400 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50"
+                      className="w-full bg-white border-2 border-red-300 text-red-600 font-semibold py-3 px-4 sm:px-6 rounded-xl hover:bg-red-50 hover:border-red-400 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50 text-sm sm:text-base"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="sm:w-5 sm:h-5">
                         <path d="M3 6h18"></path>
                         <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
                         <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
@@ -602,7 +618,7 @@ export default function MyPropertiesPage() {
                 </div>
 
                 {/* Right - Image Slideshow */}
-                <div className="lg:w-1/2 lg:sticky lg:top-0 lg:h-full p-4 lg:p-6">
+                <div className="hidden lg:block lg:w-1/2 lg:sticky lg:top-0 lg:h-full p-4 lg:p-6">
                   <PropertyImageSlideshow
                     images={selectedProperty.images}
                     title={selectedProperty.title}

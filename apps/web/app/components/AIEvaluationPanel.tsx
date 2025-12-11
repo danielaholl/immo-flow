@@ -111,12 +111,12 @@ export function AIEvaluationPanel({
   // Compact box style (like KI-Marktwertanalyse) - show when no evaluation exists
   if (!hasEvaluation && !isLoading) {
     return (
-      <div className={`bg-gradient-to-r ${mode === 'seller' ? 'from-emerald-50 to-teal-50 border-emerald-200' : 'from-purple-50 to-indigo-50 border-purple-200'} rounded-2xl border p-6 ${className}`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Sparkles size={20} className={mode === 'seller' ? 'text-emerald-600' : 'text-purple-600'} />
+      <div className={`bg-gradient-to-r ${mode === 'seller' ? 'from-emerald-50 to-teal-50 border-emerald-200' : 'from-purple-50 to-indigo-50 border-purple-200'} rounded-2xl border p-4 sm:p-6 ${className}`}>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-3">
+            <Sparkles size={20} className={`flex-shrink-0 ${mode === 'seller' ? 'text-emerald-600' : 'text-purple-600'} mt-0.5 sm:mt-0`} />
             <div>
-              <h4 className="text-lg font-semibold text-gray-900">
+              <h4 className="text-base sm:text-lg font-semibold text-gray-900">
                 {mode === 'seller' ? 'KI-Verkäuferbewertung' : 'KI-Käuferbewertung'}
               </h4>
               <p className="text-gray-600 text-sm">
@@ -128,10 +128,10 @@ export function AIEvaluationPanel({
           </div>
           <button
             onClick={handleStartEvaluation}
-            className={`ml-4 flex-shrink-0 px-6 py-3 ${mode === 'seller' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700' : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700'} text-white rounded-xl font-medium transition-all flex items-center gap-2 shadow-lg`}
+            className={`w-full sm:w-auto sm:ml-4 sm:flex-shrink-0 px-4 sm:px-6 py-3 ${mode === 'seller' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700' : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700'} text-white rounded-xl font-medium transition-all flex items-center justify-center gap-2 shadow-lg`}
           >
             <Sparkles size={18} />
-            <span>KI-Bewertung starten</span>
+            <span className="whitespace-nowrap">KI-Bewertung starten</span>
           </button>
         </div>
       </div>
@@ -141,15 +141,15 @@ export function AIEvaluationPanel({
   // Loading state - compact inline style
   if (isLoading) {
     return (
-      <div className={`bg-gradient-to-r ${mode === 'seller' ? 'from-emerald-50 to-teal-50 border-emerald-200' : 'from-purple-50 to-indigo-50 border-purple-200'} rounded-2xl border p-6 ${className}`}>
-        <div className="flex items-center gap-4">
+      <div className={`bg-gradient-to-r ${mode === 'seller' ? 'from-emerald-50 to-teal-50 border-emerald-200' : 'from-purple-50 to-indigo-50 border-purple-200'} rounded-2xl border p-4 sm:p-6 ${className}`}>
+        <div className="flex items-center gap-3 sm:gap-4">
           <div className="relative flex-shrink-0">
             <div className={`w-10 h-10 border-4 ${mode === 'seller' ? 'border-emerald-200' : 'border-purple-200'} rounded-full`}></div>
             <div className={`w-10 h-10 border-4 ${mode === 'seller' ? 'border-emerald-600' : 'border-purple-600'} border-t-transparent rounded-full animate-spin absolute top-0 left-0`}></div>
           </div>
           <div>
-            <p className="font-semibold text-gray-900">KI-Analyse läuft...</p>
-            <p className="text-sm text-gray-600">
+            <p className="font-semibold text-gray-900 text-sm sm:text-base">KI-Analyse läuft...</p>
+            <p className="text-xs sm:text-sm text-gray-600">
               {mode === 'seller' ? 'Verkäuferbewertung wird erstellt' : 'Immobilie wird bewertet'}
             </p>
           </div>
@@ -172,15 +172,15 @@ export function AIEvaluationPanel({
             setIsExpanded(!isExpanded);
           }
         }}
-        className="w-full p-5 flex items-center justify-between hover:bg-gray-50 transition-colors cursor-pointer"
+        className="w-full p-4 sm:p-5 flex items-center justify-between hover:bg-gray-50 transition-colors cursor-pointer"
       >
-        <div className="flex items-center gap-2">
-          <Sparkles size={18} className={mode === 'seller' ? 'text-emerald-600' : 'text-purple-600'} />
-          <h3 className="font-semibold text-gray-900">
+        <div className="flex items-center gap-2 min-w-0">
+          <Sparkles size={18} className={`flex-shrink-0 ${mode === 'seller' ? 'text-emerald-600' : 'text-purple-600'}`} />
+          <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">
             {mode === 'seller' ? 'KI-Verkäuferbewertung' : 'KI-Käuferbewertung'}
           </h3>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
           {/* Refresh button - only shown when expanded */}
           {isExpanded && (
             <button
@@ -188,22 +188,22 @@ export function AIEvaluationPanel({
                 e.stopPropagation();
                 handleRefreshEvaluation();
               }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm ${mode === 'seller' ? 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50' : 'text-purple-600 hover:text-purple-700 hover:bg-purple-50'} rounded-lg transition-colors`}
+              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 text-xs sm:text-sm ${mode === 'seller' ? 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50' : 'text-purple-600 hover:text-purple-700 hover:bg-purple-50'} rounded-lg transition-colors`}
             >
-              <RefreshCw size={14} />
-              <span>Neue Bewertung</span>
+              <RefreshCw size={14} className="flex-shrink-0" />
+              <span className="hidden sm:inline whitespace-nowrap">Neue Bewertung</span>
             </button>
           )}
           <ChevronDown
             size={20}
-            className={`text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+            className={`flex-shrink-0 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
           />
         </div>
       </div>
 
       {/* Collapsible Content */}
       {isExpanded && (
-        <div className="px-5 pb-5 border-t border-gray-100">
+        <div className="px-4 sm:px-5 pb-4 sm:pb-5 border-t border-gray-100">
           <div className="pt-4">
             {/* Results - Seller Mode */}
             {mode === 'seller' && sellerEvaluation && (
