@@ -25,6 +25,7 @@ export default function FavoritesPage() {
   const [consentLoading, setConsentLoading] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [isPropertyFeedbackModalOpen, setIsPropertyFeedbackModalOpen] = useState(false);
+  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
   const hasCheckedAuth = useRef(false);
 
   // Performance tracking
@@ -47,6 +48,13 @@ export default function FavoritesPage() {
   // Mobile master-detail navigation
   const { selectedItem: selectedFavorite, selectedPropertyId, selectItem, goBack } =
     useMasterDetailNavigation(favorites, '/favorites');
+
+  // Track last selected ID for visual indication on mobile
+  useEffect(() => {
+    if (selectedPropertyId) {
+      setLastSelectedId(selectedPropertyId);
+    }
+  }, [selectedPropertyId]);
 
   // Get utils for cache invalidation
   const utils = trpc.useContext();
@@ -353,7 +361,9 @@ export default function FavoritesPage() {
                   const property = favorite.property;
                   if (!property) return null;
 
-                  const isSelected = property.id === selectedPropertyId;
+                  // Show selection: current selected OR last selected (for mobile when back to list)
+                  const isSelected = property.id === selectedPropertyId ||
+                                   (!selectedPropertyId && property.id === lastSelectedId);
 
                   return (
                     <div
