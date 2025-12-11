@@ -2,15 +2,16 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { Heart } from 'lucide-react';
 import { AIInvestmentEvaluation, PropertyFeedbackModal } from '@immoflow/ui';
-import { Pencil, Power, Heart, X, MessageSquare } from 'lucide-react';
 import { useAuthContext } from '@/app/providers/AuthProvider';
 import { Header } from '@/app/components/Header';
 import { PropertyImageSlideshow } from '@/app/components/PropertyImageSlideshow';
 import { FavoriteButton } from '@/app/components/FavoriteButton';
 import { CommissionConsentDialog } from '@/app/components/CommissionConsentDialog';
 import { PropertyPreview, PropertyPreviewData } from '@/app/components/PropertyPreview';
-import { InvestmentScoreBadge } from '@/app/components/InvestmentScoreBadge';
+import { PropertyActionButtons } from '@/app/components/PropertyActionButtons';
+import { InvestmentScoreBadge } from '@immoflow/ui';
 import { trpc } from '@/lib/trpc';
 
 export default function PropertyPage() {
@@ -34,6 +35,7 @@ export default function PropertyPage() {
   const [showContactSuccess, setShowContactSuccess] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [isPropertyFeedbackModalOpen, setIsPropertyFeedbackModalOpen] = useState(false);
+  const [buyerEvaluation, setBuyerEvaluation] = useState<any>(null);
 
   // Fetch property with owner using tRPC
   const { data: property, isLoading: loading } = trpc.properties.getByIdWithOwner.useQuery(
@@ -120,6 +122,23 @@ export default function PropertyPage() {
     onError: (error) => {
       console.error('Error evaluating property:', error);
       alert('Fehler bei der KI-Analyse. Bitte versuchen Sie es erneut.');
+      setIsEvaluating(false);
+    },
+  });
+
+  // KI Evaluation mutation (for buyer views)
+  const generateKIEvaluationMutation = trpc.properties.generateKIEvaluation.useMutation({
+    onSuccess: (data) => {
+      // Update buyer evaluation state
+      setBuyerEvaluation((prev: any) => ({
+        ...prev,
+        [data.viewType === 'buyer_selfuse' ? 'buyer_selfuse' : 'buyer_investor']: data,
+      }));
+      setIsEvaluating(false);
+    },
+    onError: (error) => {
+      console.error('Error generating KI evaluation:', error);
+      alert('Fehler bei der KI-Bewertung. Bitte versuchen Sie es erneut.');
       setIsEvaluating(false);
     },
   });
@@ -257,13 +276,22 @@ export default function PropertyPage() {
     }
   };
 
-  const handleTriggerEvaluation = async () => {
+  const handleTriggerEvaluation = async (viewType?: 'seller' | 'buyer_selfuse' | 'buyer_investor') => {
     // Guard: prevent double-clicking and concurrent evaluations
     if (!property || isEvaluating) return;
 
     setIsEvaluating(true);
     try {
-      await evaluateMutation.mutateAsync({ propertyId: property.id });
+      // If viewType is provided and is a buyer view, use the new KI evaluation mutation
+      if (viewType && (viewType === 'buyer_selfuse' || viewType === 'buyer_investor')) {
+        await generateKIEvaluationMutation.mutateAsync({
+          propertyId: property.id,
+          viewType: viewType,
+        });
+      } else {
+        // Legacy behavior: use investment evaluation for undefined viewType
+        await evaluateMutation.mutateAsync({ propertyId: property.id });
+      }
     } catch (error) {
       console.error('Error triggering evaluation:', error);
       // Reset state on error
@@ -368,6 +396,14 @@ export default function PropertyPage() {
       interest_rate_80: aiEvaluation.interest_rate_80,
     } : detailedEval?.evaluation ?? undefined,
     ai_recommendation: detailedEval?.ai_recommendation ?? undefined,
+    // AI Rating fields
+    ai_rating_explanation: (property as any).ai_rating_explanation ?? undefined,
+    strengths: (property as any).strengths ?? undefined,
+    weaknesses: (property as any).weaknesses ?? undefined,
+    opportunities: (property as any).opportunities ?? undefined,
+    risks: (property as any).risks ?? undefined,
+    // Buyer evaluation (from state, fetched on-demand)
+    buyer_evaluation: buyerEvaluation ?? (property as any).buyer_evaluation ?? undefined,
     owner: property.owner && !isOwner ? {
       first_name: property.owner.first_name,
       last_name: property.owner.last_name,
@@ -382,7 +418,51 @@ export default function PropertyPage() {
 
       {/* Two Column Layout - Full Height */}
       <div className="flex flex-col lg:flex-row" style={{ height: 'calc(100vh - 80px)' }}>
-        {/* Left Column - Property Card with Slideshow */}
+        {/* Left Column - Property Details (Scrollable) */}
+        <div className="lg:w-1/2 flex flex-col lg:h-[calc(100vh-80px)]">
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto px-4 py-4 lg:px-8 lg:py-8">
+            {/* Property Preview Component */}
+            <PropertyPreview
+              data={propertyPreviewData}
+              showAddress={Boolean(!(property.require_address_consent ?? false) || hasCommissionConsent || isOwner)}
+              onRequestAddress={handleShowAddress}
+              showInvestmentScore={true}
+              isGeneratingEvaluation={isEvaluating}
+              className="!shadow-none !rounded-none !bg-transparent"
+              hasConsent={hasConsent}
+              isOwner={Boolean(isOwner)}
+              consentLoading={consentLoading}
+              isUserLoggedIn={Boolean(user)}
+              onGrantConsent={handleGrantConsent}
+              showConsentSection={false}
+              propertyId={property.id}
+              evaluationViewType="buyer"
+              onTriggerEvaluation={handleTriggerEvaluation}
+              showEvaluationButton={true}
+              showCTAs={false}
+              onAddToFavorites={handleToggleFavorite}
+              isFavorite={isFavorite}
+            />
+          </div>
+
+          {/* CTA Buttons */}
+          <PropertyActionButtons
+            isOwner={Boolean(isOwner)}
+            isFavorite={isFavorite}
+            onToggleFavorite={handleToggleFavorite}
+            onDismiss={handleDismiss}
+            onStartMessage={handleStartMessage}
+            onOpenFeedback={() => setIsPropertyFeedbackModalOpen(true)}
+            onEdit={() => router.push(`/property/${property.id}/edit`)}
+            onDeactivate={handleDeactivate}
+            isDismissLoading={dismissMutation.isLoading}
+            isMessageLoading={getOrCreateConversationMutation.isLoading}
+            isDeactivateLoading={deactivateMutation.isLoading}
+          />
+        </div>
+
+        {/* Right Column - Property Card with Slideshow */}
         <div className="lg:w-1/2 lg:sticky lg:top-20 lg:h-[calc(100vh-80px)] p-4 lg:p-6">
           <PropertyImageSlideshow
             images={property.images}
@@ -484,121 +564,6 @@ export default function PropertyPage() {
               </>
             }
           />
-        </div>
-
-        {/* Right Column - Property Details (Scrollable) */}
-        <div className="lg:w-1/2 flex flex-col lg:h-[calc(100vh-80px)]">
-          {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto py-4 lg:py-8">
-            {/* Property Preview Component */}
-            <PropertyPreview
-              data={propertyPreviewData}
-              showAddress={Boolean(!(property.require_address_consent ?? false) || hasCommissionConsent || isOwner)}
-              onRequestAddress={handleShowAddress}
-              showInvestmentScore={true}
-              isGeneratingEvaluation={isEvaluating}
-              className="!shadow-none !rounded-none !bg-transparent"
-              hasConsent={hasConsent}
-              isOwner={Boolean(isOwner)}
-              consentLoading={consentLoading}
-              isUserLoggedIn={Boolean(user)}
-              onGrantConsent={handleGrantConsent}
-              showConsentSection={false}
-              propertyId={property.id}
-              onTriggerEvaluation={handleTriggerEvaluation}
-              showEvaluationButton={true}
-              showCTAs={false}
-              onAddToFavorites={handleToggleFavorite}
-              isFavorite={isFavorite}
-            />
-          </div>
-
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3 bg-white p-4 lg:p-8 pt-4">
-            {isOwner ? (
-              <>
-                <button
-                  onClick={() => router.push(`/property/${property.id}/edit`)}
-                  className="flex-1 bg-primary text-white font-semibold py-4 px-6 rounded-xl hover:opacity-90 transition-colors flex items-center justify-center gap-2"
-                >
-                  <Pencil size={20} />
-                  Bearbeiten
-                </button>
-                <button
-                  onClick={handleDeactivate}
-                  disabled={deactivateMutation.isLoading}
-                  className="flex-1 bg-white border-2 border-gray-300 text-gray-700 font-semibold py-4 px-6 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {deactivateMutation.isLoading ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                      Wird deaktiviert...
-                    </>
-                  ) : (
-                    <>
-                      <Power size={20} />
-                      Deaktivieren
-                    </>
-                  )}
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={handleToggleFavorite}
-                  className={`flex-1 font-semibold py-4 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 ${
-                    isFavorite
-                      ? 'bg-primary text-white hover:opacity-90'
-                      : 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <Heart size={20} fill={isFavorite ? 'currentColor' : 'none'} />
-                  {isFavorite ? 'Favorit entfernen' : 'Als Favorit markieren'}
-                </button>
-                <button
-                  onClick={handleStartMessage}
-                  disabled={getOrCreateConversationMutation.isLoading}
-                  className="flex-1 bg-green-600 text-white font-semibold py-4 px-6 rounded-xl hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {getOrCreateConversationMutation.isLoading ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Wird gestartet...
-                    </>
-                  ) : (
-                    <>
-                      <MessageSquare size={20} />
-                      Nachricht senden
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={handleDismiss}
-                  disabled={dismissMutation.isLoading}
-                  className="flex-1 bg-white border-2 border-gray-300 text-gray-700 font-semibold py-4 px-6 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {dismissMutation.isLoading ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                      Wird verarbeitet...
-                    </>
-                  ) : (
-                    <>
-                      <X size={20} />
-                      Kein Interesse
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={() => setIsPropertyFeedbackModalOpen(true)}
-                  className="flex-1 bg-white border-2 border-blue-300 text-blue-700 font-semibold py-4 px-6 rounded-xl hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
-                >
-                  <MessageSquare size={20} />
-                  Feedback geben
-                </button>
-              </>
-            )}
-          </div>
         </div>
       </div>
 
