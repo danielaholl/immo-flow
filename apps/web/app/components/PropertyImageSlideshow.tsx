@@ -182,7 +182,7 @@ export function PropertyImageSlideshow({
   }[rounded];
 
   return (
-    <div ref={containerRef} className={`relative overflow-hidden bg-gray-900 ${roundedClass} ${aspectRatioClass} ${className}`}>
+    <div ref={containerRef} className={`relative overflow-hidden ${roundedClass} ${aspectRatioClass} ${className}`}>
       {/* Progress Bars Area - Top 40px for clicking on progress bars */}
       {showProgressBars && hasMultipleImages && (
         <div
@@ -249,13 +249,6 @@ export function PropertyImageSlideshow({
       <div className="contents" onClick={(e) => e.stopPropagation()}>
         {overlay}
       </div>
-
-      {/* Image Counter */}
-      {showCounter && hasMultipleImages && (
-        <div className="absolute bottom-6 right-4 bg-black/60 text-white text-sm px-3 py-1 rounded-full z-10 pointer-events-none">
-          {currentImageIndex + 1} / {images.length}
-        </div>
-      )}
     </div>
   );
 }

@@ -666,7 +666,8 @@ export async function evaluatePropertyInvestment(
          score_calculated_at = NOW(),
          ai_detailed_evaluation = $4,
          highlights = $5,
-         red_flags = $6
+         red_flags = $6,
+         buyer_evaluation = $8
      WHERE id = $7`,
     [
       overallScore,
@@ -731,6 +732,24 @@ export async function evaluatePropertyInvestment(
       highlights,
       red_flags,
       propertyId,
+      // buyer_evaluation for AIEvaluationPanel
+      JSON.stringify({
+        buyer_investor: {
+          viewType: 'buyer_investor',
+          investmentScore: overallScore,
+          grossYield: grossYieldPercentage,
+          netYield: netYieldPercentage,
+          monthlyBudget: monthlyCashflow,
+          rentMultiplier: annualRent > 0 ? property.price / annualRent : 0,
+          microLocation: locationAnalysis.reasoning.substring(0, 100),
+          microLocationTrend: appreciationAnalysis.market_trend,
+          riskLevel: overallScore >= 70 ? 'niedrig' : overallScore >= 50 ? 'mittel' : 'hoch',
+          riskFactors: red_flags.slice(0, 3),
+          summary: `Investmentbewertung: ${overallScore}/100 mit ${grossYieldPercentage.toFixed(1)}% Bruttorendite.`,
+          strengths: highlights.slice(0, 5),
+          weaknesses: red_flags.slice(0, 5),
+        },
+      }),
     ]
   );
 

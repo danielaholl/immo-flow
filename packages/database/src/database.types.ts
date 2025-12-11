@@ -128,101 +128,152 @@ export type Database = {
       properties: {
         Row: {
           address: string | null
-          agent_id: string | null
+          ai_analysis: Json | null
+          ai_detailed_evaluation: Json | null
           ai_investment_score: number | null
+          ai_rating: string | null
+          ai_rating_explanation: string | null
           ai_score: number | null
           available_from: string | null
+          bathrooms: number | null
           commission_rate: number | null
+          condition: string | null
           created_at: string | null
           description: string | null
-          energy_class: string | null
-          favorites_count: number | null
+          energy_certificate: string | null
+          energy_efficiency_class: string | null
+          energy_source: string | null
+          expose_text: string | null
+          external_source: string | null
+          external_url: string | null
           features: string[] | null
+          floor_level: string | null
+          heating_type: string | null
           highlights: string[] | null
           id: string
           images: string[] | null
+          important_notes: string | null
+          is_community_shared: boolean | null
+          is_external: boolean | null
           location: string
-          monthly_rent: number | null
+          monthly_fee: number | null
+          postal_code: string | null
           price: number
+          property_type: string | null
           red_flags: string[] | null
           require_address_consent: boolean | null
           rooms: number
-          score_breakdown: Json | null
-          score_calculated_at: string | null
-          score_color: string | null
-          seller_id: string | null
+          seller_analysis: Json | null
           sqm: number
           status: string | null
+          street_address: string | null
           title: string
+          total_floors: number | null
           updated_at: string | null
+          usable_area: number | null
+          usable_area_ratio: string | null
           user_id: string | null
-          views: number | null
+          year_built: number | null
           yield: number | null
         }
         Insert: {
           address?: string | null
-          agent_id?: string | null
+          ai_analysis?: Json | null
+          ai_detailed_evaluation?: Json | null
           ai_investment_score?: number | null
+          ai_rating?: string | null
+          ai_rating_explanation?: string | null
           ai_score?: number | null
           available_from?: string | null
+          bathrooms?: number | null
           commission_rate?: number | null
+          condition?: string | null
           created_at?: string | null
           description?: string | null
-          energy_class?: string | null
-          favorites_count?: number | null
+          energy_certificate?: string | null
+          energy_efficiency_class?: string | null
+          energy_source?: string | null
+          expose_text?: string | null
+          external_source?: string | null
+          external_url?: string | null
           features?: string[] | null
+          floor_level?: string | null
+          heating_type?: string | null
           highlights?: string[] | null
           id?: string
           images?: string[] | null
+          important_notes?: string | null
+          is_community_shared?: boolean | null
+          is_external?: boolean | null
           location: string
-          monthly_rent?: number | null
+          monthly_fee?: number | null
+          postal_code?: string | null
           price: number
+          property_type?: string | null
           red_flags?: string[] | null
           require_address_consent?: boolean | null
           rooms: number
-          score_breakdown?: Json | null
-          score_calculated_at?: string | null
-          score_color?: string | null
-          seller_id?: string | null
+          seller_analysis?: Json | null
           sqm: number
           status?: string | null
+          street_address?: string | null
           title: string
+          total_floors?: number | null
           updated_at?: string | null
+          usable_area?: number | null
+          usable_area_ratio?: string | null
           user_id?: string | null
-          views?: number | null
+          year_built?: number | null
           yield?: number | null
         }
         Update: {
           address?: string | null
-          agent_id?: string | null
+          ai_analysis?: Json | null
+          ai_detailed_evaluation?: Json | null
           ai_investment_score?: number | null
+          ai_rating?: string | null
+          ai_rating_explanation?: string | null
           ai_score?: number | null
           available_from?: string | null
+          bathrooms?: number | null
           commission_rate?: number | null
+          condition?: string | null
           created_at?: string | null
           description?: string | null
-          energy_class?: string | null
-          favorites_count?: number | null
+          energy_certificate?: string | null
+          energy_efficiency_class?: string | null
+          energy_source?: string | null
+          expose_text?: string | null
+          external_source?: string | null
+          external_url?: string | null
           features?: string[] | null
+          floor_level?: string | null
+          heating_type?: string | null
           highlights?: string[] | null
           id?: string
           images?: string[] | null
+          important_notes?: string | null
+          is_community_shared?: boolean | null
+          is_external?: boolean | null
           location?: string
-          monthly_rent?: number | null
+          monthly_fee?: number | null
+          postal_code?: string | null
           price?: number
+          property_type?: string | null
           red_flags?: string[] | null
           require_address_consent?: boolean | null
           rooms?: number
-          score_breakdown?: Json | null
-          score_calculated_at?: string | null
-          score_color?: string | null
-          seller_id?: string | null
+          seller_analysis?: Json | null
           sqm?: number
           status?: string | null
+          street_address?: string | null
           title?: string
+          total_floors?: number | null
           updated_at?: string | null
+          usable_area?: number | null
+          usable_area_ratio?: string | null
           user_id?: string | null
-          views?: number | null
+          year_built?: number | null
           yield?: number | null
         }
         Relationships: []
@@ -240,10 +291,15 @@ export type Database = {
           features_score: number
           gross_yield_percentage: number | null
           id: string
+          interest_rate_80: number | null
+          interest_rate_90: number | null
           location_analysis: string | null
           location_score: number
           market_analysis: string | null
+          market_average_price_per_sqm: number | null
           overall_score: number
+          rent_analysis: string | null
+          financing_analysis: string | null
           price_per_sqm: number | null
           price_score: number
           property_id: string
@@ -261,10 +317,15 @@ export type Database = {
           features_score: number
           gross_yield_percentage?: number | null
           id?: string
+          interest_rate_80?: number | null
+          interest_rate_90?: number | null
           location_analysis?: string | null
           location_score: number
           market_analysis?: string | null
+          market_average_price_per_sqm?: number | null
           overall_score: number
+          rent_analysis?: string | null
+          financing_analysis?: string | null
           price_per_sqm?: number | null
           price_score: number
           property_id: string
@@ -282,10 +343,15 @@ export type Database = {
           features_score?: number
           gross_yield_percentage?: number | null
           id?: string
+          interest_rate_80?: number | null
+          interest_rate_90?: number | null
           location_analysis?: string | null
           location_score?: number
           market_analysis?: string | null
+          market_average_price_per_sqm?: number | null
           overall_score?: number
+          rent_analysis?: string | null
+          financing_analysis?: string | null
           price_per_sqm?: number | null
           price_score?: number
           property_id?: string

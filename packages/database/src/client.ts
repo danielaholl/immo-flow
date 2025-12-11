@@ -1,56 +1,108 @@
 /**
- * Supabase client initialization
- * Works in both web (Next.js) and mobile (Expo) environments
+ * PostgreSQL Database Client
+ * Centralized database connection for the entire monorepo
+ * Replaces Supabase client with direct PostgreSQL connection
  */
-import { createClient } from '@supabase/supabase-js';
-import type { Database } from './database.types';
+import pg from 'pg';
+const { Pool } = pg;
+import type { Database } from './database.types.js';
 
-// Environment variables - works for both Next.js and Expo
-const supabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL ||
-  process.env.EXPO_PUBLIC_SUPABASE_URL ||
-  '';
+// Note: Configuration is provided from environment variables
+// For API server, validateEnv() must be called before importing this module
+// For other packages, ensure env vars are set before pool initialization
 
-const supabaseAnonKey =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
-  '';
+// Database connection pool
+const pool = new Pool({
+  host: process.env.DB_HOST || process.env.POSTGRES_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || process.env.POSTGRES_PORT || '5432'),
+  database: process.env.DB_NAME || process.env.POSTGRES_DB || 'immoflow',
+  user: process.env.DB_USER || process.env.POSTGRES_USER || 'postgres',
+  password: process.env.DB_PASSWORD || process.env.POSTGRES_PASSWORD || 'postgres',
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
+});
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn(
-    '⚠️ Missing Supabase environment variables. Please check your .env file.\n' +
-    'Required: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY (for web)\n' +
-    'or EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY (for mobile)'
-  );
+// Connection event handlers
+pool.on('connect', () => {
+  console.log('✅ Database pool connected');
+});
+
+pool.on('error', (err) => {
+  console.error('❌ Unexpected database pool error:', err);
+});
+
+// Helper function to execute queries
+export async function query<T = any>(text: string, params?: any[]): Promise<T[]> {
+  const start = Date.now();
+  const result = await pool.query(text, params);
+  const duration = Date.now() - start;
+
+  // Log slow queries in development
+  if (process.env.NODE_ENV === 'development' && duration > 100) {
+    console.warn(`[SLOW QUERY] ${duration}ms: ${text.substring(0, 80)}...`);
+  }
+
+  return result.rows;
 }
 
-// Custom storage adapter that defers window check to runtime
-// This is needed because the module is loaded during SSR where window is undefined
-const customStorage = {
-  getItem: (key: string): string | null => {
-    if (typeof window === 'undefined') return null;
-    return window.localStorage.getItem(key);
-  },
-  setItem: (key: string, value: string): void => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(key, value);
-  },
-  removeItem: (key: string): void => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.removeItem(key);
-  },
-};
+// Helper for single row queries
+export async function queryOne<T = any>(text: string, params?: any[]): Promise<T | null> {
+  const rows = await query<T>(text, params);
+  return rows[0] || null;
+}
 
-// Create Supabase client with persistent storage
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    storage: customStorage,
-    storageKey: 'immoflow-auth-token',
-  },
-});
+/**
+ * Execute queries with RLS context (sets current user ID for row-level security)
+ * Usage: await queryWithUser(userId, 'SELECT * FROM properties WHERE id = $1', [propertyId])
+ */
+export async function queryWithUser<T = any>(
+  userId: string,
+  text: string,
+  params?: any[]
+): Promise<T[]> {
+  const client = await pool.connect();
+  try {
+    // Set session variable for RLS policies
+    await client.query(`SET LOCAL app.current_user_id = $1`, [userId]);
+
+    // Execute the actual query
+    const result = await client.query(text, params);
+    return result.rows;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Execute single-row query with RLS context
+ */
+export async function queryOneWithUser<T = any>(
+  userId: string,
+  text: string,
+  params?: any[]
+): Promise<T | null> {
+  const rows = await queryWithUser<T>(userId, text, params);
+  return rows[0] || null;
+}
+
+// Export pool for advanced usage
+export { pool };
+
+/**
+ * Test database connection
+ * Returns true if connection is successful, false otherwise
+ */
+export async function testConnection(): Promise<boolean> {
+  try {
+    const result = await pool.query('SELECT NOW() as now');
+    console.log('✅ Database connection successful:', result.rows[0].now);
+    return true;
+  } catch (error) {
+    console.error('❌ Database connection failed:', error);
+    return false;
+  }
+}
 
 // Export types for convenience
 export type { Database };
@@ -68,10 +120,8 @@ export type Updates<T extends keyof Database['public']['Tables']> =
 export type Property = Tables<'properties'>;
 export type Booking = Tables<'bookings'>;
 export type Favorite = Tables<'favorites'>;
+export type UserProfile = Tables<'user_profiles'>;
 
 export type PropertyInsert = Inserts<'properties'>;
 export type BookingInsert = Inserts<'bookings'>;
 export type FavoriteInsert = Inserts<'favorites'>;
-
-// Re-export Supabase auth types
-export type { User, Session } from '@supabase/supabase-js';

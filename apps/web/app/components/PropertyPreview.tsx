@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { MapPin, ChartNoAxesCombined, Bath, Sparkles, DoorClosed, Square, Layers, Euro, Calendar, Building2, Clock, Flame, Zap, ChevronDown, MessageCircle } from 'lucide-react';
-import { AIInvestmentEvaluation } from '@immoflow/ui';
-import { InvestmentScoreBadge } from './InvestmentScoreBadge';
+import { MapPin, ChartNoAxesCombined, Bath, Sparkles, DoorClosed, Square, Layers, Euro, Calendar, Building2, Clock, Flame, Zap, ChevronDown, MessageCircle, Star, Eye, Heart } from 'lucide-react';
+import { AIEvaluationPanel } from './AIEvaluationPanel';
+// AIInvestmentEvaluation und InvestmentScoreBadge auskommentiert - nur stichpunktartige Bewertung
+// import { AIInvestmentEvaluation, InvestmentScoreBadge } from '@immoflow/ui';
 
 export interface PropertyPreviewData {
   images: string[];
@@ -11,10 +12,12 @@ export interface PropertyPreviewData {
   commission_rate?: number;
   location: string;
   address?: string;
+  postal_code?: string;
   title: string;
   type?: string;
   sqm: number;
   rooms: number;
+  plot_size?: number; // Grundstückfläche (for houses)
   description: string;
   features?: string[];
   yield?: number;
@@ -38,6 +41,12 @@ export interface PropertyPreviewData {
   condition?: string;
   important_notes?: string;
   days_online?: number;
+  // Aggregated feedback stats
+  total_views?: number;
+  favorites_count?: number;
+  rating_count?: number;
+  avg_rating?: number;
+  avg_suggested_price?: number;
   yield_metrics?: {
     brutto_rendite?: number;
     netto_rendite?: number;
@@ -83,6 +92,58 @@ export interface PropertyPreviewData {
     summary: string;
     recommended_price?: number;
   };
+  // AI Rating fields (legacy)
+  ai_rating_explanation?: string;
+  strengths?: string[];
+  weaknesses?: string[];
+  opportunities?: string[];
+  risks?: string[];
+  // New evaluation types
+  seller_evaluation?: {
+    viewType: 'seller';
+    marketValueMin: number;
+    marketValueMax: number;
+    recommendedPrice: number;
+    comparableSales: number;
+    marketingDurationMin: number;
+    marketingDurationMax: number;
+    priceAssessment: string;
+    summary: string;
+    sellingPoints: string[];
+    improvementSuggestions: string[];
+  };
+  buyer_evaluation?: {
+    buyer_selfuse?: {
+      viewType: 'buyer_selfuse';
+      livingScore: number;
+      locationQuality: string;
+      locationDescription: string;
+      shoppingFacilities: string;
+      shoppingDistance: string;
+      buyVsRentYears: number;
+      buyVsRentAssessment: string;
+      noiseLevel: string;
+      noiseDescription: string;
+      summary: string;
+      pros: string[];
+      cons: string[];
+    };
+    buyer_investor?: {
+      viewType: 'buyer_investor';
+      investmentScore: number;
+      grossYield: number;
+      netYield: number;
+      monthlyBudget: number;
+      rentMultiplier: number;
+      microLocation: string;
+      microLocationTrend: string;
+      riskLevel: string;
+      riskFactors: string[];
+      summary: string;
+      strengths: string[];
+      weaknesses: string[];
+    };
+  };
   owner?: {
     first_name?: string;
     last_name?: string;
@@ -105,8 +166,10 @@ export interface PropertyPreviewProps {
   onGrantConsent?: () => void;
   showConsentSection?: boolean;
   propertyId?: string;
-  onTriggerEvaluation?: () => void;
+  onTriggerEvaluation?: (viewType?: 'seller' | 'buyer_selfuse' | 'buyer_investor') => void;
   showEvaluationButton?: boolean;
+  // Evaluation view type - determines which KI evaluation to show
+  evaluationViewType?: 'seller' | 'buyer';  // 'seller' for create-listing, 'buyer' for property detail
   // Investment Analysis Button
   showInvestmentAnalysisButton?: boolean;
   onTriggerInvestmentAnalysis?: () => void;
@@ -209,6 +272,7 @@ export function PropertyPreview({
   propertyId,
   onTriggerEvaluation,
   showEvaluationButton = false,
+  evaluationViewType = 'seller',
   showInvestmentAnalysisButton = false,
   onTriggerInvestmentAnalysis,
   isGeneratingInvestmentAnalysis = false,
@@ -224,14 +288,15 @@ export function PropertyPreview({
   const [isRentalIncomeExpanded, setIsRentalIncomeExpanded] = useState(false);
   // State for cashflow accordion
   const [isCashflowExpanded, setIsCashflowExpanded] = useState(false);
-  // State for weitere details accordion
+  // State for weitere details accordion - expanded by default when data exists
   const [isWeitereDetailsExpanded, setIsWeitereDetailsExpanded] = useState(false);
   // State for description accordion
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   // State for AI evaluation accordion
   const [isAIEvaluationExpanded, setIsAIEvaluationExpanded] = useState(false);
   // State for highlights and red flags accordion
-  const [isHighlightsExpanded, setIsHighlightsExpanded] = useState(true);
+  const [isHighlightsExpanded, setIsHighlightsExpanded] = useState(false);
+  // buyerTabSelected state entfernt - beide Scores werden jetzt untereinander angezeigt
 
   const formatPrice = (price: number) => {
     if (!price || price === 0) return '€ 0';
@@ -252,22 +317,10 @@ export function PropertyPreview({
         return 'Wohnung';
       case 'house':
         return 'Haus';
-      case 'villa':
-        return 'Villa';
-      case 'commercial':
-        return 'Gewerbe';
       case 'land':
         return 'Grundstück';
-      case 'office':
-        return 'Büro';
-      case 'retail':
-        return 'Einzelhandel';
-      case 'industrial':
-        return 'Industrie';
-      case 'parking':
-        return 'Stellplatz';
-      case 'multi_family':
-        return 'Mehrfamilienhaus';
+      case 'commercial':
+        return 'Gewerbe';
       default:
         return 'Immobilie';
     }
@@ -275,6 +328,12 @@ export function PropertyPreview({
 
   // Generate dynamic property title from data
   const getPropertyTitle = (): string => {
+    // If user/AI provided a title, use it (unless it's the default placeholder)
+    if (data.title && data.title !== 'Deine Immobilie') {
+      return data.title;
+    }
+
+    // Otherwise, generate dynamic title from property data
     const typeLabel = getPropertyTypeLabel(data.type);
     const location = data.location.replace(/\s+/g, '-');
     const rooms = data.rooms;
@@ -314,16 +373,31 @@ export function PropertyPreview({
   const conditionLabel = condition ? CONDITION_LABELS[condition] : null;
   const conditionColors = condition ? CONDITION_COLORS[condition] : null;
 
-  // Format floor/total floors
-  const floorDisplay = data.floor_level && data.total_floors
-    ? `${data.floor_level} / ${data.total_floors}`
-    : data.floor_level || '-';
+  // Format floor/total floors (different for apartments vs houses)
+  const floorDisplay = (() => {
+    // For houses: only show total floors (e.g., "2-geschossig")
+    if (data.type === 'house' && data.total_floors) {
+      return `${data.total_floors}-geschossig`;
+    }
+    // For apartments: show floor_level / total_floors (e.g., "3 / 5")
+    if (data.type === 'apartment') {
+      if (data.floor_level && data.total_floors) {
+        return `${data.floor_level} / ${data.total_floors}`;
+      }
+      return data.floor_level || '-';
+    }
+    // For other types (land, commercial)
+    return '-';
+  })();
+
+  // Label for floor display
+  const floorLabel = data.type === 'house' ? 'Anzahl Geschoße' : 'Geschoss';
 
   return (
-    <div className={`bg-white rounded-2xl ${className} relative ${className.includes('!bg-transparent') ? '' : 'px-4 md:px-6'}`}>
+    <div className={`${className} relative`}>
       {/* Sticky Badges - Top Right */}
-      {(statusBadge || data.days_online !== undefined) ? (
-        <div className="sticky top-4 z-10 flex justify-end gap-2 mb-4">
+      {(statusBadge || data.days_online !== undefined || data.total_views !== undefined || data.favorites_count !== undefined || data.avg_rating !== undefined) ? (
+        <div className="sticky top-4 z-10 flex flex-wrap justify-end gap-2 mb-4">
           {/* Days Online Badge */}
           {data.days_online !== undefined && (
             <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
@@ -333,6 +407,39 @@ export function PropertyPreview({
                data.days_online < 7 ? `Seit ${data.days_online} Tagen online` :
                data.days_online < 30 ? `Seit ${Math.floor(data.days_online / 7)} ${Math.floor(data.days_online / 7) === 1 ? 'Woche' : 'Wochen'} online` :
                `Seit ${Math.floor(data.days_online / 30)} ${Math.floor(data.days_online / 30) === 1 ? 'Monat' : 'Monaten'} online`}
+            </span>
+          )}
+
+          {/* Views Badge */}
+          {data.total_views !== undefined && data.total_views > 0 && (
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-gray-100 text-gray-700">
+              <Eye size={16} />
+              {data.total_views}
+            </span>
+          )}
+
+          {/* Favorites Badge */}
+          {data.favorites_count !== undefined && data.favorites_count > 0 && (
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-pink-100 text-pink-700">
+              <Heart size={16} />
+              {data.favorites_count}
+            </span>
+          )}
+
+          {/* Rating Badge */}
+          {data.avg_rating !== undefined && data.rating_count !== undefined && data.rating_count > 0 && (
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+              <Star size={16} fill="currentColor" />
+              {Number(data.avg_rating).toFixed(1)}
+              <span className="text-yellow-600">({data.rating_count})</span>
+            </span>
+          )}
+
+          {/* Average Suggested Price Badge */}
+          {data.avg_suggested_price !== undefined && data.avg_suggested_price > 0 && (
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-green-100 text-green-800">
+              <Euro size={16} />
+              Ø {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(data.avg_suggested_price)}
             </span>
           )}
 
@@ -347,18 +454,30 @@ export function PropertyPreview({
 
       {/* Property Details */}
       <div>
-        {/* Property Title (Rooms + Type + Location) */}
-        <h2 className="font-semibold text-gray-900 mb-4" style={{ fontSize: '22px' }}>
-          {getPropertyTitle()}
-        </h2>
+        {/* Property Title and Type Badge */}
+        <div className="mb-4">
+          <div className="flex items-center gap-3 mb-2">
+            {/* Property Type Badge */}
+            <span className="inline-flex px-3 py-1 rounded-full text-sm font-medium bg-primary/10 text-primary border border-primary/20">
+              {getPropertyTypeLabel(data.type)}
+            </span>
+          </div>
+          <h2 className="font-semibold text-gray-900" style={{ fontSize: '22px' }}>
+            {getPropertyTitle()}
+          </h2>
+        </div>
 
-        {/* Location */}
+        {/* Location - Full Address */}
         <div className="mb-6">
           {(() => {
-            // Build full address for Google Maps
-            const fullAddress = shouldShowAddress && data.address
-              ? `${data.address}, ${data.location}`
-              : data.location;
+            // Build full address for display and Google Maps
+            const addressParts = [];
+            if (data.postal_code) addressParts.push(data.postal_code);
+            if (data.location) addressParts.push(data.location);
+            if (data.address) addressParts.push(data.address);
+
+            const fullAddressDisplay = addressParts.join(' • ');
+            const fullAddress = addressParts.join(', ');
             const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`;
 
             return (
@@ -370,8 +489,7 @@ export function PropertyPreview({
               >
                 <MapPin size={18} />
                 <span style={{ fontSize: '18px' }}>
-                  {data.location || '-'}
-                  {shouldShowAddress && data.address && ` • ${data.address}`}
+                  {fullAddressDisplay || '-'}
                 </span>
               </a>
             );
@@ -380,8 +498,8 @@ export function PropertyPreview({
 
         {/* Price Card */}
         <div className="mb-6 p-6 bg-white rounded-2xl border border-gray-200 shadow-sm">
-          {/* Price and Price per sqm - Side by Side */}
-          <div className="flex justify-between items-start mb-4">
+          {/* Price and Price per sqm - Responsive Layout */}
+          <div className="flex flex-wrap justify-between items-start gap-4 mb-4">
             {/* Left: Kaufpreis */}
             <div>
               <p className="text-sm text-gray-500 mb-2">Kaufpreis</p>
@@ -564,6 +682,19 @@ export function PropertyPreview({
                     </div>
                   )}
 
+                  {/* Plot Size (Grundstückfläche) - Only for houses */}
+                  {data.type === 'house' && data.plot_size && data.plot_size > 0 && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
+                        <Layers size={20} className="text-green-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Grundstückfläche</p>
+                        <p className="text-base font-semibold text-gray-900">{data.plot_size} m²</p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Rooms */}
                   {data.rooms && data.rooms > 0 && (
                     <div className="flex items-center gap-3">
@@ -666,7 +797,7 @@ export function PropertyPreview({
                         <Building2 size={20} className="text-purple-600" />
                       </div>
                       <div>
-                        <p className="text-sm text-gray-500">Geschoss</p>
+                        <p className="text-sm text-gray-500">{floorLabel}</p>
                         <p className="text-base font-semibold text-gray-900">{floorDisplay}</p>
                       </div>
                     </div>
@@ -831,374 +962,34 @@ export function PropertyPreview({
           </div>
         )}
 
-        {/* Mieteinnahmen and Cashflow sections moved inside AI-Invest-Score accordion */}
-
-        {/* KI-Investment-Bewertung Section removed - only detailed AI Investment-Bewertung shown now */}
-
-        {/* AI Evaluation Button - Show if evaluation hasn't been run yet or user wants to re-run */}
-        {showEvaluationButton && onTriggerEvaluation && (
-          <div className="mb-6">
-            {isGeneratingEvaluation ? (
-              <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-6 border-2 border-indigo-200">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center">
-                    <Sparkles className="w-5 h-5 text-white animate-pulse" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">KI-Analyse läuft...</h3>
-                    <p className="text-sm text-gray-600">Die Immobilie wird analysiert</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  <span className="text-sm text-indigo-700 ml-2">
-                    Analysiere Lage, Preis, Rendite und Wertsteigerungspotential...
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <button
-                onClick={onTriggerEvaluation}
-                disabled={isGeneratingEvaluation}
-                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-3 group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg"
-              >
-                <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform" />
-                <span>KI-Investment-Analyse starten</span>
-                <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </button>
-            )}
-          </div>
+        {/* BUYER VIEW: KI-Bewertung mit wiederverwendbarer Komponente */}
+        {/* Buyer mode requires propertyId because we're viewing an existing property */}
+        {evaluationViewType === 'buyer' && onTriggerEvaluation && propertyId && (
+          <AIEvaluationPanel
+            mode="buyer"
+            propertyId={propertyId}
+            buyerEvaluation={data.buyer_evaluation}
+            isLoading={isGeneratingEvaluation}
+            onTriggerEvaluation={onTriggerEvaluation}
+            className="mb-6"
+          />
         )}
 
-        {/* AI Investment Evaluation - Accordion */}
-        {showInvestmentScore && (data.ai_investment_score || data.evaluation) && !isGeneratingEvaluation && (
-          <div className="mb-6 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <>
-              {/* Compact Header - Score and Rendite */}
-              <button
-                  onClick={() => setIsAIEvaluationExpanded(!isAIEvaluationExpanded)}
-                  className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center gap-6">
-                    {/* Score Badge */}
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                        data.ai_investment_score >= 70 ? 'bg-green-50' :
-                        data.ai_investment_score >= 40 ? 'bg-yellow-50' : 'bg-red-50'
-                      }`}>
-                        <Sparkles size={20} className={
-                          data.ai_investment_score >= 70 ? 'text-green-600' :
-                          data.ai_investment_score >= 40 ? 'text-yellow-600' : 'text-red-600'
-                        } />
-                      </div>
-                      <div className="text-left">
-                        <h3 className="text-base font-semibold text-gray-900">AI-Invest-Score</h3>
-                        <InvestmentScoreBadge score={data.ai_investment_score} variant="compact" />
-                      </div>
-                    </div>
-
-                    {/* Rendite */}
-                    {data.yield_metrics?.brutto_rendite && (
-                      <div className="flex items-center gap-3 pl-6 border-l border-gray-200">
-                        <div className="text-left">
-                          <p className="text-sm text-gray-500">Brutto-Rendite</p>
-                          <p className="text-2xl font-bold text-gray-900">
-                            {data.yield_metrics.brutto_rendite.toFixed(2)}%
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Faktor */}
-                    {data.yield_metrics?.faktor && (
-                      <div className="flex items-center gap-3 pl-6 border-l border-gray-200">
-                        <div className="text-left">
-                          <p className="text-sm text-gray-500">Faktor</p>
-                          <p className="text-2xl font-bold text-gray-900">
-                            {data.yield_metrics.faktor.toFixed(1)}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <ChevronDown
-                    className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isAIEvaluationExpanded ? 'rotate-180' : ''}`}
-                  />
-                </button>
-
-                {/* Expanded Details - Full AIInvestmentEvaluation Component */}
-                {isAIEvaluationExpanded && (
-                  <div className="border-t border-gray-200">
-                    {/* Highlights and Red Flags - Accordion */}
-                    {(data.highlights && data.highlights.length > 0 || data.red_flags && data.red_flags.length > 0) && (
-                      <div className="border-b border-gray-200">
-                        {/* Accordion Header */}
-                        <button
-                          onClick={() => setIsHighlightsExpanded(!isHighlightsExpanded)}
-                          className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="text-left">
-                              <h3 className="text-base font-semibold text-gray-900">Highlights & Zu beachten</h3>
-                              <p className="text-sm text-gray-500">
-                                {data.highlights?.length || 0} Highlights, {data.red_flags?.length || 0} Warnsignale
-                              </p>
-                            </div>
-                          </div>
-                          <ChevronDown
-                            className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isHighlightsExpanded ? 'rotate-180' : ''}`}
-                          />
-                        </button>
-
-                        {/* Accordion Content */}
-                        {isHighlightsExpanded && (
-                          <div className="p-6 bg-white">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                              {/* Highlights */}
-                              {data.highlights && data.highlights.length > 0 && (
-                                <div>
-                                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Highlights</h3>
-                                  <ul className="space-y-2">
-                                    {data.highlights.map((highlight, idx) => (
-                                      <li key={idx} className="flex items-start gap-2">
-                                        <span className="text-green-500">✓</span>
-                                        <span className="text-gray-700" style={{ fontSize: '18px' }}>{highlight}</span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-
-                              {/* Red Flags */}
-                              {data.red_flags && data.red_flags.length > 0 && (
-                                <div>
-                                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Zu beachten</h3>
-                                  <ul className="space-y-2">
-                                    {data.red_flags.map((flag, idx) => (
-                                      <li key={idx} className="flex items-start gap-2 text-amber-600">
-                                        <span>⚠️</span>
-                                        <span style={{ fontSize: '18px' }}>{flag}</span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Mieteinnahmen Accordion */}
-                    {(data.rental_income || data.actual_monthly_rent) && (() => {
-                      const mainMonthlyRent = data.rental_income?.monthly_rent || data.actual_monthly_rent || 0;
-
-                      return (
-                        <div className="border-b border-gray-200">
-                          <button
-                            onClick={() => setIsRentalIncomeExpanded(!isRentalIncomeExpanded)}
-                            className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
-                                <Euro size={20} className="text-green-600" />
-                              </div>
-                              <div className="text-left">
-                                <h3 className="text-base font-semibold text-gray-900">Mögliche Mieteinnahmen / Monat</h3>
-                                <p className="text-2xl font-bold text-green-600">
-                                  {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(mainMonthlyRent)}
-                                </p>
-                              </div>
-                            </div>
-                            <ChevronDown
-                              className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isRentalIncomeExpanded ? 'rotate-180' : ''}`}
-                            />
-                          </button>
-
-                          {isRentalIncomeExpanded && (
-                            <div className="px-6 pb-6 space-y-4 bg-white pt-4">
-                              {data.actual_monthly_rent && (
-                                <div className="flex justify-between items-center">
-                                  <span className="text-gray-600">Kaltmiete (Ist)</span>
-                                  <div className="flex items-center gap-4">
-                                    <span className="text-lg font-semibold text-gray-900">
-                                      {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(data.actual_monthly_rent)}/Monat
-                                    </span>
-                                    <span className="text-lg font-semibold text-gray-500">
-                                      {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(data.actual_monthly_rent / data.sqm)}/m²
-                                    </span>
-                                  </div>
-                                </div>
-                              )}
-
-                              {data.rental_income?.monthly_rent && (
-                                <div className={`flex justify-between items-center ${data.actual_monthly_rent ? 'pt-4 border-t border-gray-200' : ''}`}>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-gray-600">Marktmiete (AI-geschätzt 2025)</span>
-                                    <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-semibold rounded">KI</span>
-                                  </div>
-                                  <div className="flex items-center gap-4">
-                                    <span className="text-lg font-semibold text-gray-900">
-                                      {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(data.rental_income.monthly_rent)}/Monat
-                                    </span>
-                                    {data.rental_income.rent_per_sqm && (
-                                      <span className="text-lg font-semibold text-gray-900">
-                                        {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(data.rental_income.rent_per_sqm)}/m²
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-
-                              {data.rental_income?.annual_rent && (
-                                <div className="flex justify-between items-center pt-4 border-t border-gray-200">
-                                  <span className="text-gray-600">Jahreskaltmiete (AI-Prognose)</span>
-                                  <span className="text-lg font-semibold text-gray-900">
-                                    {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(data.rental_income.annual_rent)}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-
-                    {/* Cashflow Accordion */}
-                    {(data.cashflow_calculation || data.actual_monthly_rent) && (() => {
-                      const rentalIncome = data.cashflow_calculation?.rental_income || data.actual_monthly_rent || 0;
-                      const hausgeld = data.cashflow_calculation?.non_transferable_fee || data.monthly_fee || 0;
-                      const maintenance = data.cashflow_calculation?.maintenance_reserve || data.sqm * 1;
-                      const loanPayment = data.cashflow_calculation?.loan_payment;
-                      const loanDetails = data.cashflow_calculation?.loan_details;
-                      const monthlyCashflow = data.cashflow_calculation?.monthly_cashflow !== undefined
-                        ? data.cashflow_calculation.monthly_cashflow
-                        : (loanPayment !== undefined ? rentalIncome - hausgeld - maintenance - loanPayment : undefined);
-
-                      return (
-                        <div className="border-b border-gray-200">
-                          <button
-                            onClick={() => setIsCashflowExpanded(!isCashflowExpanded)}
-                            className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className={`w-10 h-10 ${monthlyCashflow !== undefined && monthlyCashflow >= 0 ? 'bg-green-50' : 'bg-red-50'} rounded-lg flex items-center justify-center`}>
-                                <ChartNoAxesCombined size={20} className={monthlyCashflow !== undefined && monthlyCashflow >= 0 ? 'text-green-600' : 'text-red-600'} />
-                              </div>
-                              <div className="text-left">
-                                <h3 className="text-base font-semibold text-gray-900">Monatlicher Cashflow</h3>
-                                {monthlyCashflow !== undefined && (
-                                  <p className={`text-2xl font-bold ${monthlyCashflow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                    {(monthlyCashflow >= 0 ? '+' : '') + new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(monthlyCashflow)}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            <ChevronDown
-                              className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isCashflowExpanded ? 'rotate-180' : ''}`}
-                            />
-                          </button>
-
-                          {isCashflowExpanded && (
-                            <div className="px-6 pb-6 space-y-4 bg-white pt-4">
-                              {rentalIncome > 0 && (
-                                <div className="flex justify-between items-center">
-                                  <span className="text-gray-600">Mieteinnahmen</span>
-                                  <span className="text-lg font-semibold text-[#00A699]">
-                                    +{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(rentalIncome)}
-                                  </span>
-                                </div>
-                              )}
-
-                              {hausgeld > 0 && (
-                                <div className="flex justify-between items-center">
-                                  <span className="text-gray-600">Hausgeld (nicht umlegbar)</span>
-                                  <span className="text-lg font-semibold text-red-600">
-                                    -{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(hausgeld)}
-                                  </span>
-                                </div>
-                              )}
-
-                              {maintenance > 0 && (
-                                <div className="flex justify-between items-center">
-                                  <span className="text-gray-600">Instandhaltungsrücklage</span>
-                                  <span className="text-lg font-semibold text-red-600">
-                                    -{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(maintenance)}
-                                  </span>
-                                </div>
-                              )}
-
-                              {loanPayment !== undefined && loanPayment > 0 && (
-                                <div className="flex justify-between items-center">
-                                  <span className="text-gray-600">
-                                    Kreditrate{loanDetails ? ` ${loanDetails}` : ''}
-                                  </span>
-                                  <span className="text-lg font-semibold text-red-600">
-                                    -{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(loanPayment)}
-                                  </span>
-                                </div>
-                              )}
-
-                              {monthlyCashflow !== undefined && (
-                                <div className="flex justify-between items-center pt-4 border-t border-gray-200">
-                                  <span className="text-gray-900 font-bold">Monatlicher Cashflow</span>
-                                  <span className={`text-xl font-bold ${monthlyCashflow >= 0 ? 'text-[#00A699]' : 'text-red-600'}`}>
-                                    {(monthlyCashflow >= 0 ? '+' : '') + new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(monthlyCashflow)}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-
-                    <AIInvestmentEvaluation
-                      evaluation={{
-                        overall_score: data.ai_investment_score || 0,
-                        color_rating: data.ai_investment_score >= 70 ? 'green' : data.ai_investment_score >= 40 ? 'yellow' : 'red',
-                        location_score: data.evaluation?.location_score || 0,
-                        price_score: data.evaluation?.price_score || 0,
-                        yield_score: data.evaluation?.yield_score || 0,
-                        appreciation_score: data.evaluation?.appreciation_score || 0,
-                        features_score: data.evaluation?.features_score || 0,
-                        price_per_sqm: data.evaluation?.price_per_sqm,
-                        market_average_price_per_sqm: data.evaluation?.market_average_price_per_sqm,
-                        estimated_monthly_rent: data.evaluation?.estimated_monthly_rent,
-                        gross_yield_percentage: data.evaluation?.gross_yield_percentage,
-                        rent_per_sqm: data.evaluation?.estimated_monthly_rent ? data.evaluation.estimated_monthly_rent / data.sqm : undefined,
-                        interest_rate_90: data.evaluation?.interest_rate_90 ?? 3.9,
-                        interest_rate_80: data.evaluation?.interest_rate_80,
-                        // AI Analysis texts
-                        location_analysis: data.evaluation?.location_analysis,
-                        market_analysis: data.evaluation?.market_analysis,
-                        rent_analysis: data.evaluation?.rent_analysis,
-                        financing_analysis: data.evaluation?.financing_analysis,
-                        // Yield metrics (Rendite-Kennzahlen)
-                        brutto_rendite: data.yield_metrics?.brutto_rendite,
-                        netto_rendite: data.yield_metrics?.netto_rendite,
-                        ek_rendite: data.yield_metrics?.ek_rendite,
-                        faktor: data.yield_metrics?.faktor,
-                      }}
-                      sqm={data.sqm}
-                      variant="full"
-                      showAnalysisText={true}
-                      showMetrics={true}
-                      showHeader={false}
-                    />
-                  </div>
-                )}
-            </>
-          </div>
+        {/* SELLER VIEW: KI-Bewertung mit wiederverwendbarer Komponente */}
+        {/* Seller mode requires propertyId - only show after property is saved */}
+        {evaluationViewType === 'seller' && onTriggerEvaluation && propertyId && (
+          <AIEvaluationPanel
+            mode="seller"
+            propertyId={propertyId}
+            sellerEvaluation={data.seller_evaluation}
+            isLoading={isGeneratingEvaluation}
+            onTriggerEvaluation={onTriggerEvaluation}
+            className="mb-6"
+          />
         )}
 
-        {/* Anbieter Info */}
-        {!hideProviderInfo && (
+        {/* Anbieter Info - Only show when owner data exists */}
+        {!hideProviderInfo && data.owner && (
           <div className="mb-6 bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Anbieter</h3>
             <div className="flex items-center justify-between gap-4">

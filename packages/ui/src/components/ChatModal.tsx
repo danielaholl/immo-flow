@@ -1,9 +1,14 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { sendChatMessage, type ChatMessage } from '@immoflow/api';
 import { X, Send, Sparkles, Home } from 'lucide-react';
-import type { Message } from './ChatAssistant';
+
+export interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
 
 export interface ChatModalProps {
   isOpen: boolean;
@@ -22,6 +27,13 @@ export function ChatModal({ isOpen, onClose, propertyId, propertyTitle }: ChatMo
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // TODO: Implement with tRPC instead of direct API import
+  const sendChatMessage = async (message: string): Promise<string> => {
+    // Placeholder - should use tRPC aiChat router
+    console.warn('sendChatMessage not implemented - use tRPC');
+    return 'Chat feature coming soon! Please use tRPC aiChat.sendMessage instead.';
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -60,22 +72,14 @@ export function ChatModal({ isOpen, onClose, propertyId, propertyTitle }: ChatMo
     setIsLoading(true);
 
     try {
-      const conversationHistory: ChatMessage[] = messages.map((msg) => ({
-        role: msg.role,
-        content: msg.content,
-      }));
-
-      const response = await sendChatMessage({
-        message: userInput,
-        propertyId,
-        conversationHistory,
-      });
+      // Call the placeholder AI API
+      const responseText = await sendChatMessage(userInput);
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: response.message,
-        timestamp: new Date(response.timestamp),
+        content: responseText,
+        timestamp: new Date(),
       };
 
       setMessages((prev) => [...prev, assistantMessage]);

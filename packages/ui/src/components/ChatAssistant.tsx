@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { sendChatMessage, type ChatMessage } from '@immoflow/api';
 import { Search, Home, User } from 'lucide-react';
 
 export interface Message {
@@ -42,6 +41,13 @@ export function ChatAssistant({ onSearch, className = '', propertyId }: ChatAssi
     }
   }, [input]);
 
+  // TODO: Implement with tRPC instead of direct API import
+  const sendChatMessage = async (message: string): Promise<string> => {
+    // Placeholder - should use tRPC aiChat router
+    console.warn('sendChatMessage not implemented - use tRPC');
+    return 'Chat feature coming soon! Please use tRPC aiChat.sendMessage instead.';
+  };
+
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
@@ -58,24 +64,14 @@ export function ChatAssistant({ onSearch, className = '', propertyId }: ChatAssi
     setIsLoading(true);
 
     try {
-      // Build conversation history for context
-      const conversationHistory: ChatMessage[] = messages.map((msg) => ({
-        role: msg.role,
-        content: msg.content,
-      }));
-
-      // Call the real AI API
-      const response = await sendChatMessage({
-        message: userInput,
-        propertyId,
-        conversationHistory,
-      });
+      // Call the placeholder AI API
+      const responseText = await sendChatMessage(userInput);
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: response.message,
-        timestamp: new Date(response.timestamp),
+        content: responseText,
+        timestamp: new Date(),
       };
 
       setMessages((prev) => [...prev, assistantMessage]);

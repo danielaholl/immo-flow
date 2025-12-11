@@ -1,0 +1,3074 @@
+
+> @immoflow/api-server@1.0.0 dev /Users/my_macbook/Documents/workspace/immo-flow/apps/api
+> tsx watch src/index.ts
+
+📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ⚙️  override existing env vars with { override: true }
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T08:02:36.488Z
+✅ Socket.io server initialized
+🚀 API Server running on http://localhost:4000
+📡 tRPC endpoint: http://localhost:4000/trpc
+🔌 Socket.io ready for WebSocket connections
+💚 Health check: http://localhost:4000/health
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[Socket.io] User authenticated: seller@test.de
+[Socket.io] User connected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User seller@test.de joined room: user:e1111111-1111-1111-1111-111111111111
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+✅ Database pool connected
+✅ Database pool connected
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRES9:44:52 AM [tsx] change in ./src/services/property-qa-service.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: 👥 sync secrets across teammates & machines: https://dotenvx.com/ops
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T08:44:56.485Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    a9:44:57 AM [tsx] Process didn't exit in 5s. Force killing...
+9:46:27 AM [tsx] change in ./src/services/property-investment-evaluator.ts Process hasn't exited. Killing process...
+9:46:58 AM [tsx] change in ./src/services/property-investment-evaluator.ts Process hasn't exited. Killing process...
+9:47:22 AM [tsx] change in ./src/services/property-investment-evaluator.ts Process hasn't exited. Killing process...
+9:50:28 AM [tsx] change in ./src/services/property-investment-evaluator.ts Process hasn't exited. Killing process...
+9:50:41 AM [tsx] change in ./src/services/property-investment-evaluator.ts Process hasn't exited. Killing process...
+9:50:53 AM [tsx] change in ./src/services/property-investment-evaluator.ts Process hasn't exited. Killing process...
+9:51:09 AM [tsx] change in ./src/services/property-investment-evaluator.ts Process hasn't exited. Killing process...
+9:51:21 AM [tsx] change in ./src/services/property-investment-evaluator.ts Process hasn't exited. Killing process...
+9:51:34 AM [tsx] change in ./src/services/property-investment-evaluator.ts Process hasn't exited. Killing process...
+9:51:45 AM [tsx] change in ./src/services/property-investment-evaluator.ts Process hasn't exited. Killing process...
+9:51:59 AM [tsx] change in ./src/services/property-investment-evaluator.ts Process hasn't exited. Killing process...
+9:53:59 AM [tsx] change in ./src/services/property-qa-service.ts Process hasn't exited. Killing process...
+9:54:09 AM [tsx] change in ./src/services/property-qa-service.ts Process hasn't exited. Killing process...
+9:54:21 AM [tsx] change in ./src/services/property-qa-service.ts Process hasn't exited. Killing process...
+9:55:03 AM [tsx] change in ./../../packages/database/src/client.ts Process hasn't exited. Killing process...
+9:56:12 AM [tsx] change in ./src/services/property-investment-evaluator.ts Process hasn't exited. Killing process...
+9:56:28 AM [tsx] change in ./src/services/property-investment-evaluator.ts Process hasn't exited. Killing process...
+9:56:38 AM [tsx] change in ./src/services/property-investment-evaluator.ts Process hasn't exited. Killing process...
+10:34:55 AM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+10:35:09 AM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+10:35:24 AM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+10:49:33 AM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+10:49:49 AM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+10:54:34 AM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+10:54:46 AM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+10:56:05 AM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+11:09:04 AM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+11:09:19 AM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+11:34:41 AM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+11:34:59 AM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+11:35:23 AM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+12:22:24 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+12:22:40 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+12:26:32 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+12:26:50 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+12:33:27 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+12:34:29 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+12:34:51 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+12:35:10 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+12:36:46 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+12:37:09 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+12:41:31 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+12:42:26 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+12:42:43 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+12:45:19 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+12:52:00 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+12:52:35 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+12:52:55 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+12:53:09 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+1:05:57 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+1:09:58 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+1:17:31 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+1:27:37 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+1:27:59 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+1:42:02 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+1:42:18 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+1:47:25 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+1:55:26 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+2:00:57 PM [tsx] Previous process hasn't exited yet. Force killing...
+2:01:02 PM [tsx] Process didn't exit in 5s. Force killing...
+2:07:10 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+2:07:32 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+5:31:03 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+5:31:23 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+5:31:39 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+5:31:59 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+8:55:20 AM [tsx] Previous process hasn't exited yet. Force killing...
+8:55:25 AM [tsx] Process didn't exit in 5s. Force killing...
+9:03:06 AM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+9:09:27 AM [tsx] Previous process hasn't exited yet. Force killing...
+9:09:32 AM [tsx] Process didn't exit in 5s. Force killing...
+10:44:06 AM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+10:44:40 AM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+10:50:26 AM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+10:53:24 AM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+2:12:13 PM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+2:42:42 PM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+8:07:17 AM [tsx] change in ./src/socket.ts Process hasn't exited. Killing process...
+8:07:29 AM [tsx] change in ./src/socket.ts Process hasn't exited. Killing process...
+8:07:42 AM [tsx] change in ./src/socket.ts Process hasn't exited. Killing process...
+8:07:55 AM [tsx] change in ./src/middleware/auth.ts Process hasn't exited. Killing process...
+8:08:08 AM [tsx] change in ./src/middleware/auth.ts Process hasn't exited. Killing process...
+8:08:29 AM [tsx] change in ./src/socket.ts Process hasn't exited. Killing process...
+8:08:45 AM [tsx] change in ./src/socket.ts Process hasn't exited. Killing process...
+8:09:02 AM [tsx] change in ./src/socket.ts Process hasn't exited. Killing process...
+8:09:18 AM [tsx] change in ./src/socket.ts Process hasn't exited. Killing process...
+8:19:10 AM [tsx] change in ./src/services/property-investment-evaluator.ts Process hasn't exited. Killing process...
+8:19:15 AM [tsx] change in ./src/services/property-investment-evaluator.ts Process hasn't exited. Killing process...
+8:19:21 AM [tsx] change in ./src/services/property-investment-evaluator.ts Process hasn't exited. Killing process...
+8:19:26 AM [tsx] change in ./src/services/property-investment-evaluator.ts Process hasn't exited. Killing process...
+8:19:48 AM [tsx] change in ./src/services/property-qa-service.ts Process hasn't exited. Killing process...
+8:19:54 AM [tsx] change in ./src/services/property-qa-service.ts Process hasn't exited. Killing process...
+8:19:59 AM [tsx] change in ./src/services/property-qa-service.ts Process hasn't exited. Killing process...
+8:23:29 AM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+8:23:43 AM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+8:24:05 AM [tsx] change in ./src/services/property-qa-service.ts Process hasn't exited. Killing process...
+8:24:48 AM [tsx] change in ./src/utils/sentry.ts Process hasn't exited. Killing process...
+8:25:03 AM [tsx] change in ./src/utils/sentry.ts Process hasn't exited. Killing process...
+8:25:16 AM [tsx] change in ./src/utils/sentry.ts Process hasn't exited. Killing process...
+8:25:28 AM [tsx] change in ./src/utils/sentry.ts Process hasn't exited. Killing process...
+8:25:42 AM [tsx] change in ./src/utils/sentry.ts Process hasn't exited. Killing process...
+8:29:37 AM [tsx] change in ./src/services/property-investment-evaluator.ts Process hasn't exited. Killing process...
+8:39:23 AM [tsx] change in ./src/routers/messaging.ts Process hasn't exited. Killing process...
+8:39:39 AM [tsx] change in ./src/routers/messaging.ts Process hasn't exited. Killing process...
+8:39:55 AM [tsx] change in ./src/routers/messaging.ts Process hasn't exited. Killing process...
+8:41:04 AM [tsx] change in ./src/middleware/rateLimit.ts Process hasn't exited. Killing process...
+8:41:25 AM [tsx] change in ./src/middleware/rateLimit.ts Process hasn't exited. Killing process...
+8:47:11 AM [tsx] Previous process hasn't exited yet. Force killing...
+8:47:16 AM [tsx] Process didn't exit in 5s. Force killing...
+8:52:39 AM [tsx] change in ./src/middleware/rateLimit.ts Process hasn't exited. Killing process...
+8:52:54 AM [tsx] change in ./src/middleware/rateLimit.ts Process hasn't exited. Killing process...
+8:53:11 AM [tsx] change in ./src/socket.ts Process hasn't exited. Killing process...
+8:55:23 AM [tsx] change in ./../../node_modules/.pnpm/pg@8.16.3/node_modules/pg/lib/index.js Process hasn't exited. Killing process...
+8:55:24 AM [tsx] unlink in ./../../node_modules/.pnpm/import-in-the-middle@1.15.0/node_modules/import-in-the-middle/index.js Process hasn't exited. Killing process...
+8:55:24 AM [tsx] change in ./../../node_modules/.pnpm/@opentelemetry+instrumentation-fastify@0.44.1_@opentelemetry+api@1.9.0/node_modules/@opentelemetry/instrumentation-fastify/build/src/index.js Process hasn't exited. Killing process...
+8:55:24 AM [tsx] change in ./../../node_modules/.pnpm/@opentelemetry+instrumentation-mysql2@0.45.0_@opentelemetry+api@1.9.0/node_modules/@opentelemetry/instrumentation-mysql2/build/src/index.js Process hasn't exited. Killing process...
+8:55:24 AM [tsx] change in ./../../node_modules/.pnpm/@opentelemetry+instrumentation-pg@0.50.0_@opentelemetry+api@1.9.0/node_modules/@opentelemetry/instrumentation-pg/build/src/index.js Process hasn't exited. Killing process...
+8:55:25 AM [tsx] change in ./../../node_modules/.pnpm/bcrypt@5.1.1/node_modules/bcrypt/bcrypt.js Process hasn't exited. Killing process...
+8:55:25 AM [tsx] unlink in ./../../node_modules/.pnpm/@opentelemetry+core@1.30.1_@opentelemetry+api@1.9.0/node_modules/@opentelemetry/core/build/src/index.js Process hasn't exited. Killing process...
+8:55:25 AM [tsx] change in ./../../node_modules/.pnpm/@opentelemetry+sdk-trace-base@1.30.1_@opentelemetry+api@1.9.0/node_modules/@opentelemetry/sdk-trace-base/build/src/index.js Process hasn't exited. Killing process...
+8:55:26 AM [tsx] unlink in ./../../node_modules/.pnpm/@trpc+server@10.45.2/node_modules/@trpc/server/dist/nodeHTTPRequestHandler-97af83bc.mjs Process hasn't exited. Killing process...
+8:55:26 AM [tsx] change in ./../../node_modules/.pnpm/express-rate-limit@8.2.1_express@4.22.1/node_modules/express-rate-limit/dist/index.mjs Process hasn't exited. Killing process...
+8:55:26 AM [tsx] change in ./../../node_modules/.pnpm/multer@2.0.2/node_modules/multer/index.js Process hasn't exited. Killing process...
+8:55:26 AM [tsx] change in ./../../node_modules/.pnpm/socket.io@4.8.1/node_modules/socket.io/wrapper.mjs Process hasn't exited. Killing process...
+8:55:27 AM [tsx] unlink in ./../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/index.js Process hasn't exited. Killing process...
+8:55:27 AM [tsx] unlink in ./../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.js Process hasn't exited. Killing process...
+8:55:29 AM [tsx] unlink in ./../../node_modules/.pnpm/openai@6.9.1_zod@3.25.76/node_modules/openai/_vendor/partial-json-parser/parser.mjs Process hasn't exited. Killing process...
+8:55:30 AM [tsx] unlink in ./../../node_modules/.pnpm/openai@6.9.1_zod@3.25.76/node_modules/openai/resources/batches.mjs Process hasn't exited. Killing process...
+8:55:30 AM [tsx] unlink in ./../../node_modules/.pnpm/openai@6.9.1_zod@3.25.76/node_modules/openai/resources/evals/evals.mjs Process hasn't exited. Killing process...
+8:55:30 AM [tsx] unlink in ./../../node_modules/.pnpm/openai@6.9.1_zod@3.25.76/node_modules/openai/resources/webhooks.mjs Process hasn't exited. Killing process...
+8:55:31 AM [tsx] change in ./../../node_modules/.pnpm/openai@6.9.1_zod@3.25.76/node_modules/openai/version.mjs Process hasn't exited. Killing process...
+8:59:19 AM [tsx] Previous process hasn't exited yet. Force killing...
+8:59:24 AM [tsx] Process didn't exit in 5s. Force killing...
+9:01:47 AM [tsx] Previous process hasn't exited yet. Force killing...
+9:01:52 AM [tsx] Process didn't exit in 5s. Force killing...
+9:03:14 AM [tsx] change in ./src/utils/sentry.ts Process hasn't exited. Killing process...
+9:03:53 AM [tsx] change in ./src/utils/sentry.ts Process hasn't exited. Killing process...
+9:04:19 AM [tsx] Previous process hasn't exited yet. Force killing...
+9:04:24 AM [tsx] Process didn't exit in 5s. Force killing...
+9:06:38 AM [tsx] Previous process hasn't exited yet. Force killing...
+9:06:43 AM [tsx] Process didn't exit in 5s. Force killing...
+9:07:59 AM [tsx] change in ./src/services/property-qa-service.ts Process hasn't exited. Killing process...
+9:08:03 AM [tsx] change in ./src/trpc.ts Process hasn't exited. Killing process...
+9:09:41 AM [tsx] change in ./../../node_modules/.pnpm/pg@8.16.3/node_modules/pg/lib/index.js Process hasn't exited. Killing process...
+9:09:41 AM [tsx] unlink in ./../../node_modules/.pnpm/bcrypt@5.1.1/node_modules/bcrypt/bcrypt.js Process hasn't exited. Killing process...
+9:09:42 AM [tsx] change in ./../../node_modules/.pnpm/express@4.22.1/node_modules/express/index.js Process hasn't exited. Killing process...
+9:09:42 AM [tsx] change in ./../../node_modules/.pnpm/express-rate-limit@8.2.1_express@4.22.1/node_modules/express-rate-limit/dist/index.mjs Process hasn't exited. Killing process...
+9:09:42 AM [tsx] change in ./../../node_modules/.pnpm/jsonwebtoken@9.0.2/node_modules/jsonwebtoken/index.js Process hasn't exited. Killing process...
+9:09:43 AM [tsx] change in ./../../node_modules/.pnpm/socket.io@4.8.1/node_modules/socket.io/wrapper.mjs Process hasn't exited. Killing process...
+9:09:43 AM [tsx] change in ./../../node_modules/.pnpm/uuid@13.0.0/node_modules/uuid/dist-node/version.js Process hasn't exited. Killing process...
+9:09:47 AM [tsx] change in ./../../node_modules/.pnpm/openai@6.9.1_zod@3.25.76/node_modules/openai/version.mjs Process hasn't exited. Killing process...
+9:09:53 AM [tsx] change in ./../../node_modules/.pnpm/@opentelemetry+semantic-conventions@1.38.0/node_modules/@opentelemetry/semantic-conventions/build/src/index.js Process hasn't exited. Killing process...
+9:09:54 AM [tsx] change in ./../../node_modules/.pnpm/isomorphic-dompurify@2.34.0_postcss@8.5.6/node_modules/isomorphic-dompurify/index.js Process hasn't exited. Killing process...
+9:14:23 AM [tsx] change in ./src/services/property-qa-service.ts Process hasn't exited. Killing process...
+9:14:37 AM [tsx] change in ./src/services/property-qa-service.ts Process hasn't exited. Killing process...
+9:14:49 AM [tsx] change in ./src/services/property-qa-service.ts Process hasn't exited. Killing process...
+9:15:02 AM [tsx] change in ./src/services/property-qa-service.ts Process hasn't exited. Killing process...
+9:27:18 AM [tsx] change in ./src/services/property-qa-service.ts Process hasn't exited. Killing process...
+9:38:22 AM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+9:38:54 AM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+9:44:53 AM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+9:49:21 AM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+9:53:28 AM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+10:30:07 AM [tsx] change in ./src/services/property-investment-evaluator.ts Process hasn't exited. Killing process...
+10:30:27 AM [tsx] change in ./src/services/property-investment-evaluator.ts Process hasn't exited. Killing process...
+10:34:12 AM [tsx] change in ./src/routers/favorites.ts Process hasn't exited. Killing process...
+11:25:06 AM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+11:34:23 AM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+1:21:33 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+1:22:01 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+1:29:18 PM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+2:09:33 PM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+3:30:08 PM [tsx] change in ./../../packages/database/src/client.ts Process hasn't exited. Killing process...
+...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T08:54:23.917Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+9:55:03 AM [tsx] change in ./../../packages/database/src/client.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: 📡 add observability to secrets: https://dotenvx.com/ops
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T08:55:06.515Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+9:56:12 AM [tsx] change in ./src/services/property-investment-evaluator.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: 📡 add observability to secrets: https://dotenvx.com/ops
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T08:56:14.836Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+9:56:28 AM [tsx] change in ./src/services/property-investment-evaluator.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T08:56:31.079Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+9:56:38 AM [tsx] change in ./src/services/property-investment-evaluator.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: 📡 add observability to secrets: https://dotenvx.com/ops
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T08:56:41.287Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+10:34:55 AM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T09:34:59.656Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+10:35:09 AM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T09:35:12.554Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+10:35:24 AM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: 🔄 add secrets lifecycle management: https://dotenvx.com/ops
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T09:35:27.701Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+10:49:33 AM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T09:49:36.935Z
+✅ Socket.io server initialized
+🚀 API Server running on http://localhost:4000
+📡 tRPC endpoint: http://localhost:4000/trpc
+🔌 Socket.io ready for WebSocket connections
+💚 Health check: http://localhost:4000/health
+[Socket.io] User authenticated: seller@test.de
+[Socket.io] User connected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User seller@test.de joined room: user:e1111111-1111-1111-1111-111111111111
+10:49:49 AM [tsx] change in ./src/routers/ai-chat.ts Restarting...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ⚙️  suppress all logs with { quiet: true }
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T09:49:52.431Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+10:54:34 AM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ⚙️  suppress all logs with { quiet: true }
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T09:54:38.641Z
+✅ Socket.io server initialized
+🚀 API Server running on http://localhost:4000
+📡 tRPC endpoint: http://localhost:4000/trpc
+🔌 Socket.io ready for WebSocket connections
+💚 Health check: http://localhost:4000/health
+[Socket.io] User authenticated: seller@test.de
+[Socket.io] User connected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User seller@test.de joined room: user:e1111111-1111-1111-1111-111111111111
+10:54:46 AM [tsx] change in ./src/routers/ai-chat.ts Restarting...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T09:54:49.798Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+10:56:05 AM [tsx] change in ./src/routers/properties.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: 🗂️ backup and recover secrets: https://dotenvx.com/ops
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T09:56:07.849Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+11:09:04 AM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T10:09:08.441Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+11:09:19 AM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: 📡 add observability to secrets: https://dotenvx.com/ops
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T10:09:21.702Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+11:34:41 AM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ⚙️  suppress all logs with { quiet: true }
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T10:34:45.245Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+11:34:59 AM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ✅ audit secrets and track compliance: https://dotenvx.com/ops
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T10:35:02.312Z
+✅ Socket.io server initialized
+🚀 API Server running on http://localhost:4000
+📡 tRPC endpoint: http://localhost:4000/trpc
+🔌 Socket.io ready for WebSocket connections
+💚 Health check: http://localhost:4000/health
+[Socket.io] User authenticated: seller@test.de
+[Socket.io] User connected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User seller@test.de joined room: user:e1111111-1111-1111-1111-111111111111
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+11:35:23 AM [tsx] change in ./src/routers/ai-chat.ts Restarting...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T10:35:25.610Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+12:22:24 PM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: 📡 add observability to secrets: https://dotenvx.com/ops
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T11:22:28.076Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+12:22:40 PM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T11:22:42.844Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+12:26:32 PM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ✅ audit secrets and track compliance: https://dotenvx.com/ops
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T11:26:36.462Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+12:26:50 PM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T11:26:53.091Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+12:33:27 PM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ✅ audit secrets and track compliance: https://dotenvx.com/ops
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T11:33:31.239Z
+✅ Socket.io server initialized
+🚀 API Server running on http://localhost:4000
+📡 tRPC endpoint: http://localhost:4000/trpc
+🔌 Socket.io ready for WebSocket connections
+💚 Health check: http://localhost:4000/health
+[Socket.io] User authenticated: seller@test.de
+[Socket.io] User connected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User seller@test.de joined room: user:e1111111-1111-1111-1111-111111111111
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+12:34:29 PM [tsx] change in ./src/routers/ai-chat.ts Restarting...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T11:34:33.399Z
+✅ Socket.io server initialized
+🚀 API Server running on http://localhost:4000
+📡 tRPC endpoint: http://localhost:4000/trpc
+🔌 Socket.io ready for WebSocket connections
+💚 Health check: http://localhost:4000/health
+[Socket.io] User authenticated: seller@test.de
+[Socket.io] User connected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User seller@test.de joined room: user:e1111111-1111-1111-1111-111111111111
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+12:34:51 PM [tsx] change in ./src/routers/ai-chat.ts Restarting...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T11:34:54.039Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+12:35:10 PM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ⚙️  suppress all logs with { quiet: true }
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T11:35:13.723Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+12:36:46 PM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ✅ audit secrets and track compliance: https://dotenvx.com/ops
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T11:36:50.417Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+12:37:09 PM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: 📡 add observability to secrets: https://dotenvx.com/ops
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T11:37:13.089Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+12:41:31 PM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ⚙️  enable debug logging with { debug: true }
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T11:41:34.665Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+12:42:26 PM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T11:42:30.396Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+12:42:43 PM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T11:42:45.964Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+12:45:19 PM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T11:45:23.208Z
+✅ Socket.io server initialized
+🚀 API Server running on http://localhost:4000
+📡 tRPC endpoint: http://localhost:4000/trpc
+🔌 Socket.io ready for WebSocket connections
+💚 Health check: http://localhost:4000/health
+[Socket.io] User authenticated: seller@test.de
+[Socket.io] User connected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User seller@test.de joined room: user:e1111111-1111-1111-1111-111111111111
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[Socket.io] User disconnected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User authenticated: seller@test.de
+[Socket.io] User connected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User seller@test.de joined room: user:e1111111-1111-1111-1111-111111111111
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[Socket.io] User disconnected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User authenticated: seller@test.de
+[Socket.io] User connected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User seller@test.de joined room: user:e1111111-1111-1111-1111-111111111111
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+🔑 Initializing OpenAI client with key: sk-proj-pc...
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[Socket.io] User disconnected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User authenticated: seller@test.de
+[Socket.io] User connected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User seller@test.de joined room: user:e1111111-1111-1111-1111-111111111111
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+12:52:00 PM [tsx] change in ./src/routers/ai-chat.ts Restarting...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: 📡 add observability to secrets: https://dotenvx.com/ops
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T11:52:04.202Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+12:52:35 PM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T11:52:39.101Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+12:52:55 PM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T11:52:58.503Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+12:53:09 PM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: 📡 add observability to secrets: https://dotenvx.com/ops
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T11:53:12.029Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+1:05:57 PM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T12:06:01.066Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+1:09:58 PM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: 🗂️ backup and recover secrets: https://dotenvx.com/ops
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T12:10:02.131Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+1:17:31 PM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T12:17:35.355Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+1:27:37 PM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T12:27:40.964Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+1:27:59 PM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ⚙️  suppress all logs with { quiet: true }
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T12:28:02.007Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+1:42:02 PM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T12:42:06.709Z
+✅ Socket.io server initialized
+🚀 API Server running on http://localhost:4000
+📡 tRPC endpoint: http://localhost:4000/trpc
+🔌 Socket.io ready for WebSocket connections
+💚 Health check: http://localhost:4000/health
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[Socket.io] User authenticated: seller@test.de
+[Socket.io] User connected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User seller@test.de joined room: user:e1111111-1111-1111-1111-111111111111
+1:42:18 PM [tsx] change in ./src/routers/ai-chat.ts Restarting...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T12:42:21.406Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+1:47:25 PM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T12:47:28.734Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+1:55:26 PM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: 🗂️ backup and recover secrets: https://dotenvx.com/ops
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T12:55:30.269Z
+✅ Socket.io server initialized
+🚀 API Server running on http://localhost:4000
+📡 tRPC endpoint: http://localhost:4000/trpc
+🔌 Socket.io ready for WebSocket connections
+💚 Health check: http://localhost:4000/health
+[Socket.io] User authenticated: seller@test.de
+[Socket.io] User connected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User seller@test.de joined room: user:e1111111-1111-1111-1111-111111111111
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[Socket.io] User disconnected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User authenticated: seller@test.de
+[Socket.io] User connected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User seller@test.de joined room: user:e1111111-1111-1111-1111-111111111111
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+🔑 Initializing OpenAI client with key: sk-proj-pc...
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[AI Response] Raw response length: 733
+[AI Response] First 200 chars: {
+  "extractedData": {
+    "property_type": "house",
+    "location": "München",
+    "price": 2500000,
+    "sqm": 330,
+    "rooms": 7,
+    "condition": "maintained",
+    "street_address": "Klarbachplat
+[AI Response] Parsed extractedData: {
+  "property_type": "house",
+  "location": "München",
+  "price": 2500000,
+  "sqm": 330,
+  "rooms": 7,
+  "condition": "maintained",
+  "street_address": "Klarbachplatz 3",
+  "postal_code": "812245",
+  "plot_size": 800
+}
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[AI Response] Raw response length: 374
+[AI Response] First 200 chars: {
+  "extractedData": {
+    "year_built": 2011
+  },
+  "response": "Ok, ich habe das Baujahr 2011 hinzugefügt.",
+  "missingFields": [
+    "bathrooms",
+    "total_floors",
+    "heating_type",
+    "energy
+[AI Response] Parsed extractedData: {
+  "year_built": 2011
+}
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[AI Response] Raw response length: 374
+[AI Response] First 200 chars: {
+  "extractedData": {
+    "year_built": 2011
+  },
+  "response": "Ok, ich habe das Baujahr 2011 hinzugefügt.",
+  "missingFields": [
+    "bathrooms",
+    "heating_type",
+    "energy_efficiency_class",
+
+[AI Response] Parsed extractedData: {
+  "year_built": 2011
+}
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[AI Response] Raw response length: 347
+[AI Response] First 200 chars: {
+  "extractedData": {
+    "total_floors": 3
+  },
+  "response": "Ok, ich habe 3 Geschoße hinzugefügt.",
+  "missingFields": [
+    "bathrooms",
+    "heating_type",
+    "energy_efficiency_class",
+    "fe
+[AI Response] Parsed extractedData: {
+  "total_floors": 3
+}
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[AI Response] Raw response length: 347
+[AI Response] First 200 chars: {
+  "extractedData": {
+    "total_floors": 3
+  },
+  "response": "Ok, ich habe 3 Geschoße hinzugefügt.",
+  "missingFields": [
+    "bathrooms",
+    "heating_type",
+    "energy_efficiency_class",
+    "fe
+[AI Response] Parsed extractedData: {
+  "total_floors": 3
+}
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[AI Response] Raw response length: 351
+[AI Response] First 200 chars: {
+  "extractedData": {
+    "bathrooms": 7
+  },
+  "response": "Ok, ich habe 7 Badezimmer hinzugefügt.",
+  "missingFields": [
+    "heating_type",
+    "energy_efficiency_class",
+    "features",
+    "avai
+[AI Response] Parsed extractedData: {
+  "bathrooms": 7
+}
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[AI Response] Raw response length: 440
+[AI Response] First 200 chars: {
+  "extractedData": {
+    "heating_type": "heat_pump"
+  },
+  "response": "Ok, ich habe Wärmepumpe als Heizungstyp hinzugefügt. Welche Energieeffizienzklasse hat die Immobilie?",
+  "missingFields": [
+
+[AI Response] Parsed extractedData: {
+  "heating_type": "heat_pump"
+}
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[AI Response] Raw response length: 338
+[AI Response] First 200 chars: {
+  "extractedData": {
+    "energy_efficiency_class": "E"
+  },
+  "response": "Ok, ich habe die Energieeffizienzklasse E hinzugefügt.",
+  "missingFields": [
+    "floor_level",
+    "features",
+    "avai
+[AI Response] Parsed extractedData: {
+  "energy_efficiency_class": "E"
+}
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[AI Response] Raw response length: 373
+[AI Response] First 200 chars: {
+  "extractedData": {
+    "energy_efficiency_class": "E"
+  },
+  "response": "Ok, ich habe die Energieeffizienzklasse E hinzugefügt.",
+  "missingFields": [
+    "street_address",
+    "features",
+    "a
+[AI Response] Parsed extractedData: {
+  "energy_efficiency_class": "E"
+}
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[AI Response] Raw response length: 387
+[AI Response] First 200 chars: {
+  "extractedData": {
+    "title": "Tolles Haus in Obermenzing"
+  },
+  "response": "Ok, ich habe den Titel optimiert: \"Exklusives Familienhaus in München-Obermenzing\". Passt der Titel so? Oder soll
+[AI Response] Parsed extractedData: {
+  "title": "Tolles Haus in Obermenzing"
+}
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[AI Response] Raw response length: 742
+[AI Response] First 200 chars: {
+  "extractedData": {
+    "property_type": "house",
+    "location": "München",
+    "postal_code": "812245",
+    "price": 2500000,
+    "sqm": 330,
+    "rooms": 7,
+    "plot_size": 800,
+    "bathrooms"
+[AI Response] Parsed extractedData: {
+  "property_type": "house",
+  "location": "München",
+  "postal_code": "812245",
+  "price": 2500000,
+  "sqm": 330,
+  "rooms": 7,
+  "plot_size": 800,
+  "bathrooms": 7,
+  "condition": "maintained",
+  "total_floors": 3,
+  "year_built": 2011,
+  "heating_type": "heat_pump",
+  "energy_efficiency_class": "E",
+  "title": "Exklusives Familienhaus in München-Obermenzing"
+}
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+Error in AI extraction: RateLimitError: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.
+    at APIError.generate (/Users/my_macbook/Documents/workspace/immo-flow/node_modules/.pnpm/openai@6.9.1_zod@3.25.76/node_modules/openai/src/core/error.ts:96:14)
+    at OpenAI.makeStatusError (/Users/my_macbook/Documents/workspace/immo-flow/node_modules/.pnpm/openai@6.9.1_zod@3.25.76/node_modules/openai/src/client.ts:478:28)
+    at OpenAI.makeRequest (/Users/my_macbook/Documents/workspace/immo-flow/node_modules/.pnpm/openai@6.9.1_zod@3.25.76/node_modules/openai/src/client.ts:728:24)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async <anonymous> (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/routers/ai-chat.ts:379:28)
+    at async resolveMiddleware (file:///Users/my_macbook/Documents/workspace/immo-flow/node_modules/.pnpm/@trpc+server@10.45.2/node_modules/@trpc/server/dist/index.mjs:421:30)
+    at async callRecursive (file:///Users/my_macbook/Documents/workspace/immo-flow/node_modules/.pnpm/@trpc+server@10.45.2/node_modules/@trpc/server/dist/index.mjs:451:32)
+    at async callRecursive (file:///Users/my_macbook/Documents/workspace/immo-flow/node_modules/.pnpm/@trpc+server@10.45.2/node_modules/@trpc/server/dist/index.mjs:451:32)
+    at async callRecursive (file:///Users/my_macbook/Documents/workspace/immo-flow/node_modules/.pnpm/@trpc+server@10.45.2/node_modules/@trpc/server/dist/index.mjs:451:32)
+    at async resolve (file:///Users/my_macbook/Documents/workspace/immo-flow/node_modules/.pnpm/@trpc+server@10.45.2/node_modules/@trpc/server/dist/index.mjs:481:24) {
+  status: 429,
+  headers: Headers {
+    date: 'Tue, 09 Dec 2025 12:59:38 GMT',
+    'content-type': 'application/json; charset=utf-8',
+    'content-length': '337',
+    connection: 'keep-alive',
+    vary: 'Origin',
+    'x-request-id': 'req_74483a6d2f954395a8c6f1a571781488',
+    'x-envoy-upstream-service-time': '287',
+    'x-openai-proxy-wasm': 'v0.1',
+    'cf-cache-status': 'DYNAMIC',
+    'set-cookie': '__cf_bm=gSTQcGEv7pjPbnE2KOJ7o7mHGgn3eqzY.QtNNcOhPsg-1765285178-1.0.1.1-_.Xly4lxeEaqv2kFuVwtkHW1HNS3.Wk43w60PtaoFFlOjvkUr_QLsGl70WgjHRmPohHzHWnfiZkzs6gPUaKiNzbhyUziE74PyPvt49OxQt8; path=/; expires=Tue, 09-Dec-25 13:29:38 GMT; domain=.api.openai.com; HttpOnly; Secure; SameSite=None, _cfuvid=YJSKteHnn004FEyGtMHoztuHbj.GV3iap8HQYtWXKLo-1765285178578-0.0.1.1-604800000; path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None',
+    'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+    'x-content-type-options': 'nosniff',
+    server: 'cloudflare',
+    'cf-ray': '9ab4ae4b9a7b927b-MUC',
+    'alt-svc': 'h3=":443"; ma=86400'
+  },
+  requestID: 'req_74483a6d2f954395a8c6f1a571781488',
+  error: {
+    message: 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.',
+    type: 'insufficient_quota',
+    param: null,
+    code: 'insufficient_quota'
+  },
+  code: 'insufficient_quota',
+  param: null,
+  type: 'insufficient_quota'
+}
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+2:01:02 PM [tsx] Process didn't exit in 5s. Force killing...
+2:07:10 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+2:07:32 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+5:31:03 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+5:31:23 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+5:31:39 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+5:31:59 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+8:55:20 AM [tsx] Previous process hasn't exited yet. Force killing...
+8:55:25 AM [tsx] Process didn't exit in 5s. Force killing...
+9:03:06 AM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+9:09:27 AM [tsx] Previous process hasn't exited yet. Force killing...
+9:09:32 AM [tsx] Process didn't exit in 5s. Force killing...
+10:44:06 AM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+10:44:40 AM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+10:50:26 AM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+10:53:24 AM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+2:12:13 PM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+2:42:42 PM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+8:07:17 AM [tsx] change in ./src/socket.ts Process hasn't exited. Killing process...
+8:07:29 AM [tsx] change in ./src/socket.ts Process hasn't exited. Killing process...
+8:07:42 AM [tsx] change in ./src/socket.ts Process hasn't exited. Killing process...
+8:07:55 AM [tsx] change in ./src/middleware/auth.ts Process hasn't exited. Killing process...
+8:08:08 AM [tsx] change in ./src/middleware/auth.ts Process hasn't exited. Killing process...
+8:08:29 AM [tsx] change in ./src/socket.ts Process hasn't exited. Killing process...
+8:08:45 AM [tsx] change in ./src/socket.ts Process hasn't exited. Killing process...
+8:09:02 AM [tsx] change in ./src/socket.ts Process hasn't exited. Killing process...
+8:09:18 AM [tsx] change in ./src/socket.ts Process hasn't exited. Killing process...
+8:19:10 AM [tsx] change in ./src/services/property-investment-evaluator.ts Process hasn't exited. Killing process...
+8:19:15 AM [tsx] change in ./src/services/property-investment-evaluator.ts Process hasn't exited. Killing process...
+8:19:21 AM [tsx] change in ./src/services/property-investment-evaluator.ts Process hasn't exited. Killing process...
+8:19:26 AM [tsx] change in ./src/services/property-investment-evaluator.ts Process hasn't exited. Killing process...
+8:19:48 AM [tsx] change in ./src/services/property-qa-service.ts Process hasn't exited. Killing process...
+8:19:54 AM [tsx] change in ./src/services/property-qa-service.ts Process hasn't exited. Killing process...
+8:19:59 AM [tsx] change in ./src/services/property-qa-service.ts Process hasn't exited. Killing process...
+8:23:29 AM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+8:23:43 AM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+8:24:05 AM [tsx] change in ./src/services/property-qa-service.ts Process hasn't exited. Killing process...
+8:24:48 AM [tsx] change in ./src/utils/sentry.ts Process hasn't exited. Killing process...
+8:25:03 AM [tsx] change in ./src/utils/sentry.ts Process hasn't exited. Killing process...
+8:25:16 AM [tsx] change in ./src/utils/sentry.ts Process hasn't exited. Killing process...
+8:25:28 AM [tsx] change in ./src/utils/sentry.ts Process hasn't exited. Killing process...
+8:25:42 AM [tsx] change in ./src/utils/sentry.ts Process hasn't exited. Killing process...
+8:29:37 AM [tsx] change in ./src/services/property-investment-evaluator.ts Process hasn't exited. Killing process...
+8:39:23 AM [tsx] change in ./src/routers/messaging.ts Process hasn't exited. Killing process...
+8:39:39 AM [tsx] change in ./src/routers/messaging.ts Process hasn't exited. Killing process...
+8:39:55 AM [tsx] change in ./src/routers/messaging.ts Process hasn't exited. Killing process...
+8:41:04 AM [tsx] change in ./src/middleware/rateLimit.ts Process hasn't exited. Killing process...
+8:41:25 AM [tsx] change in ./src/middleware/rateLimit.ts Process hasn't exited. Killing process...
+8:41:55 AM [tsx] change in ./src/utils/errors.ts Process hasn't exited. Killing process...
+8:42:08 AM [tsx] change in ./src/utils/errors.ts Process hasn't exited. Killing process...
+8:42:22 AM [tsx] change in ./src/utils/errors.ts Process hasn't exited. Killing process...
+8:42:36 AM [tsx] change in ./src/utils/errors.ts Process hasn't exited. Killing process...
+8:42:50 AM [tsx] change in ./src/utils/errors.ts Process hasn't exited. Killing process...
+8:43:04 AM [tsx] change in ./src/utils/errors.ts Process hasn't exited. Killing process...
+8:43:18 AM [tsx] change in ./src/utils/errors.ts Process hasn't exited. Killing process...
+8:47:11 AM [tsx] Previous process hasn't exited yet. Force killing...
+8:47:16 AM [tsx] Process didn't exit in 5s. Force killing...
+8:52:39 AM [tsx] change in ./src/middleware/rateLimit.ts Process hasn't exited. Killing process...
+8:52:54 AM [tsx] change in ./src/middleware/rateLimit.ts Process hasn't exited. Killing process...
+8:53:11 AM [tsx] change in ./src/socket.ts Process hasn't exited. Killing process...
+8:55:22 AM [tsx] change in ./../../node_modules/.pnpm/iconv-lite@0.4.24/node_modules/iconv-lite/encodings/utf7.js Process hasn't exited. Killing process...
+8:55:24 AM [tsx] change in ./../../node_modules/.pnpm/pg@8.16.3/node_modules/pg/lib/index.js Process hasn't exited. Killing process...
+8:55:24 AM [tsx] unlink in ./../../node_modules/.pnpm/import-in-the-middle@1.15.0/node_modules/import-in-the-middle/index.js Process hasn't exited. Killing process...
+8:55:24 AM [tsx] change in ./../../node_modules/.pnpm/@opentelemetry+instrumentation-fastify@0.44.1_@opentelemetry+api@1.9.0/node_modules/@opentelemetry/instrumentation-fastify/build/src/index.js Process hasn't exited. Killing process...
+8:55:25 AM [tsx] unlink in ./../../node_modules/.pnpm/@opentelemetry+core@1.30.1_@opentelemetry+api@1.9.0/node_modules/@opentelemetry/core/build/src/index.js Process hasn't exited. Killing process...
+8:55:25 AM [tsx] change in ./../../node_modules/.pnpm/@opentelemetry+sdk-trace-base@1.30.1_@opentelemetry+api@1.9.0/node_modules/@opentelemetry/sdk-trace-base/build/src/index.js Process hasn't exited. Killing process...
+8:55:26 AM [tsx] unlink in ./../../node_modules/.pnpm/@opentelemetry+api@1.9.0/node_modules/@opentelemetry/api/build/src/index.js Process hasn't exited. Killing process...
+8:55:26 AM [tsx] change in ./../../node_modules/.pnpm/isomorphic-dompurify@2.34.0_postcss@8.5.6/node_modules/isomorphic-dompurify/index.js Process hasn't exited. Killing process...
+8:55:26 AM [tsx] change in ./../../node_modules/.pnpm/multer@2.0.2/node_modules/multer/index.js Process hasn't exited. Killing process...
+8:55:26 AM [tsx] change in ./../../node_modules/.pnpm/socket.io@4.8.1/node_modules/socket.io/wrapper.mjs Process hasn't exited. Killing process...
+8:55:28 AM [tsx] change in ./../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.js Process hasn't exited. Killing process...
+8:55:35 AM [tsx] change in ./../../node_modules/.pnpm/openai@6.9.1_zod@3.25.76/node_modules/openai/version.mjs Process hasn't exited. Killing process...
+8:59:19 AM [tsx] Previous process hasn't exited yet. Force killing...
+8:59:24 AM [tsx] Process didn't exit in 5s. Force killing...
+9:01:47 AM [tsx] Previous process hasn't exited yet. Force killing...
+9:01:52 AM [tsx] Process didn't exit in 5s. Force killing...
+9:03:14 AM [tsx] change in ./src/utils/sentry.ts Process hasn't exited. Killing process...
+9:03:53 AM [tsx] change in ./src/utils/sentry.ts Process hasn't exited. Killing process...
+9:04:19 AM [tsx] Previous process hasn't exited yet. Force killing...
+9:04:24 AM [tsx] Process didn't exit in 5s. Force killing...
+9:06:38 AM [tsx] Previous process hasn't exited yet. Force killing...
+9:06:43 AM [tsx] Process didn't exit in 5s. Force killing...
+9:07:46 AM [tsx] change in ./src/utils/errors.ts Process hasn't exited. Killing process...
+9:07:59 AM [tsx] change in ./src/utils/errors.ts Process hasn't exited. Killing process...
+9:08:03 AM [tsx] change in ./src/middleware/rateLimit.ts Process hasn't exited. Killing process...
+9:09:40 AM [tsx] change in ./../../node_modules/.pnpm/iconv-lite@0.4.24/node_modules/iconv-lite/encodings/utf7.js Process hasn't exited. Killing process...
+9:09:41 AM [tsx] change in ./../../node_modules/.pnpm/pg@8.16.3/node_modules/pg/lib/index.js Process hasn't exited. Killing process...
+9:09:41 AM [tsx] unlink in ./../../node_modules/.pnpm/bcrypt@5.1.1/node_modules/bcrypt/bcrypt.js Process hasn't exited. Killing process...
+9:09:42 AM [tsx] change in ./../../node_modules/.pnpm/express@4.22.1/node_modules/express/index.js Process hasn't exited. Killing process...
+9:09:42 AM [tsx] change in ./../../node_modules/.pnpm/express-rate-limit@8.2.1_express@4.22.1/node_modules/express-rate-limit/dist/index.mjs Process hasn't exited. Killing process...
+9:09:42 AM [tsx] change in ./../../node_modules/.pnpm/multer@2.0.2/node_modules/multer/index.js Process hasn't exited. Killing process...
+9:09:43 AM [tsx] change in ./../../node_modules/.pnpm/socket.io@4.8.1/node_modules/socket.io/wrapper.mjs Process hasn't exited. Killing process...
+9:09:43 AM [tsx] change in ./../../node_modules/.pnpm/uuid@13.0.0/node_modules/uuid/dist-node/version.js Process hasn't exited. Killing process...
+9:09:44 AM [tsx] unlink in ./../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.js Process hasn't exited. Killing process...
+9:09:55 AM [tsx] change in ./../../node_modules/.pnpm/@opentelemetry+api@1.9.0/node_modules/@opentelemetry/api/build/src/index.js Process hasn't exited. Killing process...
+9:14:23 AM [tsx] change in ./src/services/property-qa-service.ts Process hasn't exited. Killing process...
+9:14:37 AM [tsx] change in ./src/services/property-qa-service.ts Process hasn't exited. Killing process...
+9:14:49 AM [tsx] change in ./src/services/property-qa-service.ts Process hasn't exited. Killing process...
+9:15:02 AM [tsx] change in ./src/services/property-qa-service.ts Process hasn't exited. Killing process...
+9:19:03 AM [tsx] change in ./src/utils/openai.ts Process hasn't exited. Killing process...
+9:27:18 AM [tsx] change in ./src/services/property-qa-service.ts Process hasn't exited. Killing process...
+9:38:22 AM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+9:38:54 AM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+9:44:53 AM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+9:49:21 AM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+9:53:28 AM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+10:30:07 AM [tsx] change in ./src/services/property-investment-evaluator.ts Process hasn't exited. Killing process...
+10:30:27 AM [tsx] change in ./src/services/property-investment-evaluator.ts Process hasn't exited. Killing process...
+10:34:12 AM [tsx] change in ./src/routers/favorites.ts Process hasn't exited. Killing process...
+11:25:06 AM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+11:34:23 AM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+1:21:34 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+1:22:01 PM [tsx] change in ./src/routers/ai-chat.ts Process hasn't exited. Killing process...
+1:29:18 PM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+2:09:33 PM [tsx] change in ./src/routers/properties.ts Process hasn't exited. Killing process...
+3:30:08 PM [tsx] change in ./src/services/property-qa-service.ts Process hasn't exited. Killing process...
+3:30:08 PM [tsx] change in ./../../packages/database/src/client.ts Process hasn't exited. Killing process...
+e
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+1:05:57 PM [tsx] change in ./src/routers/ai-chat.ts Restarting...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ⚙️  suppress all logs with { quiet: true }
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T12:06:01.065Z
+✅ Socket.io server initialized
+🚀 API Server running on http://localhost:4000
+📡 tRPC endpoint: http://localhost:4000/trpc
+🔌 Socket.io ready for WebSocket connections
+💚 Health check: http://localhost:4000/health
+[Socket.io] User authenticated: seller@test.de
+[Socket.io] User connected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User seller@test.de joined room: user:e1111111-1111-1111-1111-111111111111
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[Socket.io] User disconnected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User authenticated: seller@test.de
+[Socket.io] User connected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User seller@test.de joined room: user:e1111111-1111-1111-1111-111111111111
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+🔑 Initializing OpenAI client with key: sk-proj-pc...
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+1:09:58 PM [tsx] change in ./src/routers/ai-chat.ts Restarting...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: 🔄 add secrets lifecycle management: https://dotenvx.com/ops
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T12:10:02.131Z
+✅ Socket.io server initialized
+🚀 API Server running on http://localhost:4000
+📡 tRPC endpoint: http://localhost:4000/trpc
+🔌 Socket.io ready for WebSocket connections
+💚 Health check: http://localhost:4000/health
+[Socket.io] User authenticated: seller@test.de
+[Socket.io] User connected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User seller@test.de joined room: user:e1111111-1111-1111-1111-111111111111
+[Socket.io] User disconnected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User authenticated: seller@test.de
+[Socket.io] User connected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User seller@test.de joined room: user:e1111111-1111-1111-1111-111111111111
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+🔑 Initializing OpenAI client with key: sk-proj-pc...
+[Socket.io] User disconnected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User authenticated: seller@test.de
+[Socket.io] User connected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User seller@test.de joined room: user:e1111111-1111-1111-1111-111111111111
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+Evaluating property: house München
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+Generating highlights and red flags...
+Generated highlights: [
+  'Attraktiver Preis 54% unter Marktwert',
+  'Hohe Bruttorendite von 5.54%',
+  'Top-Lage mit exzellentem Lage-Score 90/100',
+  'Starkes Wertsteigerungspotential, Trend steigend'
+]
+Generated red flags: [
+  'Hoher Kaufpreis von 2.5 Mio. €',
+  'Begrenzte Ausstattung, nur Balkon und Stellplatz'
+]
+✅ Property evaluation completed: {
+  propertyId: '42476604-4a2d-4e46-b480-c2a978ef21aa',
+  overallScore: 68,
+  colorRating: 'yellow'
+}
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+1:17:31 PM [tsx] change in ./src/routers/ai-chat.ts Restarting...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ✅ audit secrets and track compliance: https://dotenvx.com/ops
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T12:17:35.355Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+1:27:37 PM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T12:27:40.964Z
+✅ Socket.io server initialized
+🚀 API Server running on http://localhost:4000
+📡 tRPC endpoint: http://localhost:4000/trpc
+🔌 Socket.io ready for WebSocket connections
+💚 Health check: http://localhost:4000/health
+[Socket.io] User authenticated: seller@test.de
+[Socket.io] User connected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User seller@test.de joined room: user:e1111111-1111-1111-1111-111111111111
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+1:27:59 PM [tsx] change in ./src/routers/ai-chat.ts Restarting...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ✅ audit secrets and track compliance: https://dotenvx.com/ops
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T12:28:02.007Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+1:42:02 PM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ⚙️  enable debug logging with { debug: true }
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T12:42:06.709Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+1:42:18 PM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: 🔄 add secrets lifecycle management: https://dotenvx.com/ops
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T12:42:21.404Z
+✅ Socket.io server initialized
+🚀 API Server running on http://localhost:4000
+📡 tRPC endpoint: http://localhost:4000/trpc
+🔌 Socket.io ready for WebSocket connections
+💚 Health check: http://localhost:4000/health
+[Socket.io] User authenticated: seller@test.de
+[Socket.io] User connected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User seller@test.de joined room: user:e1111111-1111-1111-1111-111111111111
+[Socket.io] User disconnected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User authenticated: seller@test.de
+[Socket.io] User connected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User seller@test.de joined room: user:e1111111-1111-1111-1111-111111111111
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+🔑 Initializing OpenAI client with key: sk-proj-pc...
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+1:47:25 PM [tsx] change in ./src/routers/ai-chat.ts Restarting...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: 🔄 add secrets lifecycle management: https://dotenvx.com/ops
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T12:47:28.734Z
+✅ Socket.io server initialized
+🚀 API Server running on http://localhost:4000
+📡 tRPC endpoint: http://localhost:4000/trpc
+🔌 Socket.io ready for WebSocket connections
+💚 Health check: http://localhost:4000/health
+[Socket.io] User authenticated: seller@test.de
+[Socket.io] User connected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User seller@test.de joined room: user:e1111111-1111-1111-1111-111111111111
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[Socket.io] User disconnected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User authenticated: seller@test.de
+[Socket.io] User connected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User seller@test.de joined room: user:e1111111-1111-1111-1111-111111111111
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+1:55:26 PM [tsx] change in ./src/routers/ai-chat.ts Restarting...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ⚙️  override existing env vars with { override: true }
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T12:55:30.269Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+ ELIFECYCLE  Command failed with exit code 15.
+horization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[Socket.io] User disconnected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User authenticated: seller@test.de
+[Socket.io] User connected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User seller@test.de joined room: user:e1111111-1111-1111-1111-111111111111
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[Socket.io] User disconnected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User authenticated: seller@test.de
+[Socket.io] User connected: seller@test.de (e1111111-1111-1111-1111-111111111111)
+[Socket.io] User seller@test.de joined room: user:e1111111-1111-1111-1111-111111111111
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+✅ Database pool connected
+✅ Database pool connected
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+🔑 Initializing OpenAI client with key: sk-proj-pc...
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+[API Server] Authorization header: PRESENT (Bearer eyJhbGciOiJIU...)
+[API Server] Token verified successfully for user: seller@test.de
+1:42:02 PM [tsx] change in ./src/routers/ai-chat.ts Restarting...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ⚙️  override existing env vars with { override: true }
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T12:42:06.709Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+1:42:18 PM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: ✅ audit secrets and track compliance: https://dotenvx.com/ops
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T12:42:21.404Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+1:47:25 PM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T12:47:28.734Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+1:55:26 PM [tsx] change in ./src/routers/ai-chat.ts Rerunning...
+c📁 Using Local File System Storage
+[dotenv@17.2.3] injecting env (0) from ../../.env -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
+🔍 Validating environment variables...
+✅ Environment variables validated successfully
+   - Environment: development
+   - Database: immoflow@localhost
+   - JWT Secret: ******************** (64 chars)
+   - OpenAI: sk-proj-pc...
+⚠️  Sentry DSN not configured - error tracking disabled
+✅ Database pool connected
+✅ Database connection successful: 2025-12-09T12:55:30.269Z
+✅ Socket.io server initialized
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at startServer (/Users/my_macbook/Documents/workspace/immo-flow/apps/api/src/index.ts:106:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v25.2.1
+ ELIFECYCLE  Command failed with exit code 15.

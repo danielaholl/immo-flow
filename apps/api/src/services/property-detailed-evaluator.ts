@@ -3,10 +3,20 @@
  * Uses OpenAI with master prompt for in-depth property evaluation
  */
 import OpenAI from 'openai';
+import { createLogger } from '../utils/logger.js';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const log = createLogger('property-detailed-evaluator');
+
+let openai: OpenAI | null = null;
+
+function getOpenAIClient(): OpenAI {
+  if (!openai) {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  return openai;
+}
 
 export type RatingColor = 'green' | 'orange' | 'red';
 
@@ -99,7 +109,8 @@ ${exposeText.substring(0, 8000)}
 
 Kaufpreis laut Exposé: ${propertyPrice.toLocaleString('de-DE')} €`;
 
-    const response = await openai.chat.completions.create({
+    const client = getOpenAIClient();
+    const response = await client.chat.completions.create({
       model: 'gpt-4o',
       messages: [
         {

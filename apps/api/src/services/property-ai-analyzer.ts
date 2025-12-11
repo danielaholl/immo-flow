@@ -4,10 +4,20 @@
  */
 import OpenAI from 'openai';
 import { ScrapedPropertyData } from './property-scraper.js';
+import { createLogger } from '../utils/logger.js';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const log = createLogger('property-ai-analyzer');
+
+let openai: OpenAI | null = null;
+
+function getOpenAIClient(): OpenAI {
+  if (!openai) {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  return openai;
+}
 
 export type AIRating = 'top_deal' | 'good' | 'average' | 'poor' | 'avoid';
 
@@ -83,7 +93,8 @@ BEWERTUNGSKRITERIEN:
 - poor: Überteuert oder mit erheblichen Mängeln
 - avoid: Finger weg! Gravierende Probleme oder stark überteuert`;
 
-    const response = await openai.chat.completions.create({
+    const client = getOpenAIClient();
+    const response = await client.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         {

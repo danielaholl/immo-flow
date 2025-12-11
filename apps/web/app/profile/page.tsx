@@ -4,9 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthContext } from '@/app/providers/AuthProvider';
 import { Header } from '../components/Header';
-import { FavoriteButton } from '../components/FavoriteButton';
-import { updateUserProfile, getPropertiesByUserId, getUserFavorites, getUserSearchHistory, deleteSearchHistory, getUserPreferences, type SearchHistory, type UserPreferencesParsed } from '@immoflow/api';
-import { Property, Favorite } from '@immoflow/database';
+import { updateUserProfile, getUserSearchHistory, deleteSearchHistory, getUserPreferences, type SearchHistory, type UserPreferencesParsed } from '@immoflow/api';
 import { User, Phone, Mail, MapPin, Building2, Shield, ChevronRight, Rows3, Edit3, LogOut, Home, Plus, Eye, Heart, Camera, Send, ImagePlus, Search, Clock, X, Sparkles, TrendingUp } from 'lucide-react';
 
 type MessageType = 'bot' | 'user';
@@ -182,14 +180,6 @@ export default function ProfilePage() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [uploadedAvatar, setUploadedAvatar] = useState<string>('');
 
-  // User properties state
-  const [userProperties, setUserProperties] = useState<Property[]>([]);
-  const [loadingProperties, setLoadingProperties] = useState(false);
-
-  // User favorites state
-  const [userFavorites, setUserFavorites] = useState<(Favorite & { properties: Property })[]>([]);
-  const [loadingFavorites, setLoadingFavorites] = useState(false);
-
   // User search history state
   const [searchHistory, setSearchHistory] = useState<SearchHistory[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -222,48 +212,6 @@ export default function ProfilePage() {
       }
     }
   }, [authLoading, profile]);
-
-  // Load user properties
-  useEffect(() => {
-    const loadUserProperties = async () => {
-      if (!user) return;
-
-      setLoadingProperties(true);
-      try {
-        const properties = await getPropertiesByUserId(user.id);
-        setUserProperties(properties);
-      } catch (error) {
-        console.error('Error loading user properties:', error);
-      } finally {
-        setLoadingProperties(false);
-      }
-    };
-
-    if (user && viewMode === 'overview') {
-      loadUserProperties();
-    }
-  }, [user, viewMode]);
-
-  // Load user favorites
-  useEffect(() => {
-    const loadUserFavorites = async () => {
-      if (!user) return;
-
-      setLoadingFavorites(true);
-      try {
-        const favorites = await getUserFavorites(user.id);
-        setUserFavorites(favorites as (Favorite & { properties: Property })[]);
-      } catch (error) {
-        console.error('Error loading user favorites:', error);
-      } finally {
-        setLoadingFavorites(false);
-      }
-    };
-
-    if (user && viewMode === 'overview') {
-      loadUserFavorites();
-    }
-  }, [user, viewMode]);
 
   // Load user search history
   useEffect(() => {
@@ -565,12 +513,6 @@ export default function ProfilePage() {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(price);
-  };
-
-  const getScoreColor = (score: number) => {
-    if (score >= 85) return '#22C55E';
-    if (score >= 70) return '#F59E0B';
-    return '#EF4444';
   };
 
   const progress = Math.round(((currentQuestionIndex) / (questions.length - 1)) * 100);
@@ -1007,235 +949,6 @@ export default function ProfilePage() {
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
-
-              {/* Trennlinie */}
-              <hr className="border-gray-200 mb-8" />
-
-              {/* Meine Inserate Section */}
-              <div className="mb-8">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="font-semibold text-gray-900 flex items-center gap-2" style={{ fontSize: '20px' }}>
-                    <Home size={20} className="text-gray-600" />
-                    Meine Inserate ({userProperties.length})
-                  </h2>
-                  <div className="flex items-center gap-2">
-                    {userProperties.length > 0 && (
-                      <button
-                        onClick={() => router.push('/my-properties')}
-                        className="px-3 py-1.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 hover:border-gray-400 font-medium flex items-center gap-1.5 transition-all text-sm"
-                      >
-                        <Rows3 size={16} />
-                        Vergleichen
-                      </button>
-                    )}
-                    <button
-                      onClick={() => router.push('/create-listing')}
-                      className="px-3 py-1.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 font-medium flex items-center gap-1.5 transition-all text-sm"
-                    >
-                      <Plus size={16} />
-                      Neu erstellen
-                    </button>
-                  </div>
-                </div>
-
-                {loadingProperties ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                  </div>
-                ) : userProperties.length === 0 ? (
-                  <div className="text-center py-10 bg-gray-50 rounded-xl">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <Home size={32} className="text-gray-300" />
-                    </div>
-                    <p className="text-gray-500 mb-4" style={{ fontSize: '16px' }}>Noch keine Inserate</p>
-                    <button
-                      onClick={() => router.push('/create-listing')}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium text-sm"
-                    >
-                      <Plus size={16} />
-                      Erstes Inserat erstellen
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex flex-wrap gap-3">
-                      {userProperties.map((property) => (
-                        <div
-                          key={property.id}
-                          onClick={() => router.push(`/property/${property.id}`)}
-                          className="group cursor-pointer bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-all w-[250px]"
-                        >
-                          <div className="relative aspect-square bg-gray-100">
-                            {property.images && property.images.length > 0 ? (
-                              <img
-                                src={property.images[0]}
-                                alt={property.title}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <Home size={24} className="text-gray-300" />
-                              </div>
-                            )}
-                            <div className={`absolute top-2 left-2 px-2 py-1 rounded-full text-xs font-medium ${
-                              property.status === 'active'
-                                ? 'bg-green-500 text-white'
-                                : property.status === 'pending'
-                                ? 'bg-yellow-500 text-white'
-                                : 'bg-gray-500 text-white'
-                            }`}>
-                              {property.status === 'active' ? 'Aktiv' : property.status === 'pending' ? 'Ausstehend' : property.status}
-                            </div>
-                            <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/60 px-2 py-1 rounded-full">
-                              <Eye size={12} className="text-white" />
-                              <span className="text-white text-xs font-medium">{property.views || 0}</span>
-                            </div>
-                          </div>
-                          <div className="p-3">
-                            <p className="text-primary font-bold text-lg mb-1">{formatPrice(property.price)}</p>
-                            <h3 className="font-semibold text-gray-900 text-sm truncate mb-2">{property.title}</h3>
-                            <div className="flex items-center gap-1 text-xs text-gray-500 mb-1">
-                              <MapPin size={12} className="flex-shrink-0" />
-                              <span className="truncate">{property.location}</span>
-                            </div>
-                            <div className="flex items-center gap-3 text-xs text-gray-600">
-                              <span>{property.sqm} m²</span>
-                              <span>•</span>
-                              <span>{property.rooms} Zi.</span>
-                              {property.sqm > 0 && (
-                                <>
-                                  <span>•</span>
-                                  <span>{formatPrice(Math.round(property.price / property.sqm))}/m²</span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* Trennlinie */}
-              <hr className="border-gray-200 mb-8" />
-
-              {/* Favoriten Section */}
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="font-semibold text-gray-900 flex items-center gap-2" style={{ fontSize: '20px' }}>
-                    <Heart size={20} className="text-primary" />
-                    Favoriten ({userFavorites.length})
-                  </h2>
-                  <div className="flex items-center gap-2">
-                    {userFavorites.length > 0 && (
-                      <button
-                        onClick={() => router.push('/favorites')}
-                        className="px-3 py-1.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 hover:border-gray-400 font-medium flex items-center gap-1.5 transition-all text-sm"
-                      >
-                        <Rows3 size={16} />
-                        Vergleichen
-                      </button>
-                    )}
-                    <button
-                      onClick={() => router.push('/')}
-                      className="px-3 py-1.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 font-medium flex items-center gap-1.5 transition-all text-sm"
-                    >
-                      Entdecken
-                    </button>
-                  </div>
-                </div>
-
-                {loadingFavorites ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                  </div>
-                ) : userFavorites.length === 0 ? (
-                  <div className="text-center py-10 bg-gray-50 rounded-xl">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <Heart size={32} className="text-gray-300" />
-                    </div>
-                    <p className="text-gray-500 mb-4" style={{ fontSize: '16px' }}>Noch keine Favoriten</p>
-                    <button
-                      onClick={() => router.push('/')}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium text-sm"
-                    >
-                      Immobilien entdecken
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex flex-wrap gap-3">
-                      {userFavorites.map((favorite) => {
-                        const property = favorite.properties;
-                        if (!property) return null;
-                        return (
-                          <div
-                            key={favorite.id}
-                            onClick={() => router.push(`/property/${property.id}`)}
-                            className="group cursor-pointer bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-all w-[250px]"
-                          >
-                            <div className="relative aspect-square bg-gray-100">
-                              {property.images && property.images.length > 0 ? (
-                                <img
-                                  src={property.images[0]}
-                                  alt={property.title}
-                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <Home size={24} className="text-gray-300" />
-                                </div>
-                              )}
-                              <FavoriteButton
-                                userId={user.id}
-                                propertyId={property.id}
-                                isFavorite={true}
-                                onToggle={(newState) => {
-                                  if (!newState) {
-                                    setUserFavorites(prev => prev.filter(f => f.property_id !== property.id));
-                                  }
-                                }}
-                                size="sm"
-                                variant="story"
-                                className="absolute top-1.5 right-1.5"
-                              />
-                              {property.ai_score && (
-                                <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 bg-black/60 px-2 py-1 rounded-full">
-                                  <div
-                                    className="w-2 h-2 rounded-full"
-                                    style={{ backgroundColor: getScoreColor(property.ai_score) }}
-                                  />
-                                  <span className="text-white text-xs font-medium">{property.ai_score}/100</span>
-                                </div>
-                              )}
-                            </div>
-                            <div className="p-3">
-                              <p className="text-primary font-bold text-lg mb-1">{formatPrice(property.price)}</p>
-                              <h3 className="font-semibold text-gray-900 text-sm truncate mb-2">{property.title}</h3>
-                              <div className="flex items-center gap-1 text-xs text-gray-500 mb-1">
-                                <MapPin size={12} className="flex-shrink-0" />
-                                <span className="truncate">{property.location}</span>
-                              </div>
-                              <div className="flex items-center gap-3 text-xs text-gray-600">
-                                <span>{property.sqm} m²</span>
-                                <span>•</span>
-                                <span>{property.rooms} Zi.</span>
-                                {property.sqm > 0 && (
-                                  <>
-                                    <span>•</span>
-                                    <span>{formatPrice(Math.round(property.price / property.sqm))}/m²</span>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </>
                 )}
               </div>
             </div>
