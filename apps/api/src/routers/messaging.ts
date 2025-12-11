@@ -406,80 +406,49 @@ export const messagingRouter = router({
             input.content
           );
 
-          // Insert AI response
-          const aiMessageResult = await db.query(
-            `INSERT INTO messages (
-              conversation_id,
-              sender_type,
-              content,
-              is_ai_generated,
-              ai_confidence,
-              forwarded_to_seller
-            ) VALUES ($1, 'ai', $2, true, $3, $4)
-            RETURNING id, created_at`,
-            [
-              input.conversationId,
-              qaResponse.answer,
-              qaResponse.confidence,
-              qaResponse.shouldForwardToSeller,
-            ]
-          );
-
-          const aiMessage = {
-            id: aiMessageResult.rows[0].id,
-            senderType: 'ai',
-            content: qaResponse.answer,
-            isAiGenerated: true,
-            aiConfidence: qaResponse.confidence,
-            createdAt: aiMessageResult.rows[0].created_at,
-          };
-
-          // Emit AI message
-          emitNewMessage(input.conversationId, aiMessage);
-
-          // If should forward to seller, send system message
-          if (qaResponse.shouldForwardToSeller) {
-            const systemMessageResult = await db.query(
-              `INSERT INTO messages (conversation_id, sender_type, content)
-               VALUES ($1, 'system', $2)
-               RETURNING id, created_at`,
+          // Only send AI response if confidence is high enough
+          // If shouldForwardToSeller is true (low confidence), skip AI response
+          if (!qaResponse.shouldForwardToSeller) {
+            // Insert AI response
+            const aiMessageResult = await db.query(
+              `INSERT INTO messages (
+                conversation_id,
+                sender_type,
+                content,
+                is_ai_generated,
+                ai_confidence,
+                forwarded_to_seller
+              ) VALUES ($1, 'ai', $2, true, $3, $4)
+              RETURNING id, created_at`,
               [
                 input.conversationId,
-                '📨 Ihre Frage wurde an den Verkäufer weitergeleitet. Sie erhalten eine Antwort, sobald der Verkäufer antwortet.',
+                qaResponse.answer,
+                qaResponse.confidence,
+                false, // Not forwarded since AI answered with confidence
               ]
             );
 
-            const systemMessage = {
-              id: systemMessageResult.rows[0].id,
-              senderType: 'system',
-              content: systemMessageResult.rows[0].content,
-              createdAt: systemMessageResult.rows[0].created_at,
+            const aiMessage = {
+              id: aiMessageResult.rows[0].id,
+              senderType: 'ai',
+              content: qaResponse.answer,
+              isAiGenerated: true,
+              aiConfidence: qaResponse.confidence,
+              createdAt: aiMessageResult.rows[0].created_at,
             };
 
-            emitNewMessage(input.conversationId, systemMessage);
-
+            // Emit AI message
+            emitNewMessage(input.conversationId, aiMessage);
+          } else {
+            // Low confidence - don't send AI response, let seller read the message directly
+            // No system notification needed - question goes directly to seller
             // TODO: Send email notification to seller
-            console.log(`[Messaging] Question forwarded to seller: ${recipientProfileId}`);
+            console.log(`[Messaging] Question forwarded to seller (low AI confidence): ${recipientProfileId}`);
           }
         } catch (error) {
           console.error('[Messaging] AI Q&A failed:', error);
-          // Send fallback message
-          const fallbackResult = await db.query(
-            `INSERT INTO messages (conversation_id, sender_type, content)
-             VALUES ($1, 'ai', $2)
-             RETURNING id, created_at`,
-            [
-              input.conversationId,
-              'Ich leite Ihre Frage an den Verkäufer weiter.',
-            ]
-          );
-
-          emitNewMessage(input.conversationId, {
-            id: fallbackResult.rows[0].id,
-            senderType: 'ai',
-            content: fallbackResult.rows[0].content,
-            createdAt: fallbackResult.rows[0].created_at,
-          });
+          // On error, forward to seller without AI response or notification
+          console.log(`[Messaging] Question forwarded to seller (AI error): ${recipientProfileId}`);
         }
       } else {
         // Seller message - just notify buyer

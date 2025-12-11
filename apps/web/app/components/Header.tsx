@@ -58,8 +58,7 @@ export function Header() {
               <HouseHeart className="text-primary" size={24} strokeWidth={2} className="lg:w-7 lg:h-7" />
               <h1 className="cursor-pointer text-xl lg:text-2xl flex items-center">
                 <span className="font-bold text-black">Nest</span>
-                <span className="font-bold italic text-primary" style={{ fontFamily: 'Georgia, serif' }}>ela</span>
-                <Heart className="text-primary ml-0.5" size={14} fill="currentColor" strokeWidth={0} className="lg:w-4 lg:h-4" />
+                <span className="font-bold text-primary">Flow</span>
               </h1>
             </Link>
 
@@ -223,6 +222,17 @@ export function Header() {
               <span className="text-xs font-medium">Favoriten</span>
             </Link>
 
+            {/* Inserate */}
+            <Link
+              href="/my-properties"
+              className={`flex flex-col items-center justify-center gap-1 transition-colors ${
+                pathname === '/my-properties' ? 'text-primary' : 'text-gray-600'
+              }`}
+            >
+              <Home size={24} strokeWidth={pathname === '/my-properties' ? 2.5 : 2} />
+              <span className="text-xs font-medium">Inserate</span>
+            </Link>
+
             {/* Nachrichten */}
             <Link
               href="/messages"
@@ -237,17 +247,6 @@ export function Header() {
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
-            </Link>
-
-            {/* Inserate */}
-            <Link
-              href="/my-properties"
-              className={`flex flex-col items-center justify-center gap-1 transition-colors ${
-                pathname === '/my-properties' ? 'text-primary' : 'text-gray-600'
-              }`}
-            >
-              <Home size={24} strokeWidth={pathname === '/my-properties' ? 2.5 : 2} />
-              <span className="text-xs font-medium">Inserate</span>
             </Link>
 
             {/* Profil */}

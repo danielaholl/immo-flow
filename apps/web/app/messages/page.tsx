@@ -195,12 +195,6 @@ export default function MessagesPage() {
     return null;
   }
 
-  const isBuyer = selectedConversation?.role === 'buyer';
-  const otherPerson = selectedConversation?.otherParticipant;
-  const displayName = otherPerson?.company ||
-                     `${otherPerson?.firstName || ''} ${otherPerson?.lastName || ''}`.trim() ||
-                     'Unbekannt';
-
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header />
@@ -229,7 +223,7 @@ export default function MessagesPage() {
         /* Main Content - 2 Column Layout */
         <div className="flex overflow-hidden" style={{ height: 'calc(100vh - 80px)' }}>
           {/* Left Column - Conversations List */}
-          <div className="lg:w-1/4 bg-white border-r border-gray-200 flex flex-col overflow-hidden">
+          <div className={`${selectedConversationId ? 'hidden' : 'block'} lg:block w-full lg:w-1/4 bg-white border-r border-gray-200 flex flex-col overflow-hidden`}>
             {/* Header */}
             <div className="p-4 flex-shrink-0">
               <h1 className="text-2xl font-bold text-gray-900 mb-1">Nachrichten</h1>
@@ -319,23 +313,40 @@ export default function MessagesPage() {
           </div>
 
           {/* Right Column - Conversation View */}
-          <div className="lg:w-3/4 flex flex-col bg-gray-50 overflow-hidden">
+          <div className={`${selectedConversationId ? 'block' : 'hidden'} lg:block w-full lg:w-3/4 flex flex-col bg-gray-50 overflow-hidden`}>
             {selectedConversationId && selectedConversation ? (
-              <>
-                {/* Conversation Header */}
-                <div className="bg-white border-b border-gray-200 p-4 flex-shrink-0">
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1">
-                      <h2 className="font-semibold text-lg text-gray-900 line-clamp-1">
-                        {selectedConversation.propertyTitle}
-                      </h2>
-                      <p className="text-sm text-gray-600">
-                        {isBuyer ? 'Verkäufer' : 'Interessent'}: {displayName}
-                      </p>
-                    </div>
+              (() => {
+                const isBuyer = selectedConversation.role === 'buyer';
+                const otherPerson = selectedConversation.otherParticipant;
+                const displayName = otherPerson?.company ||
+                                   `${otherPerson?.firstName || ''} ${otherPerson?.lastName || ''}`.trim() ||
+                                   'Unbekannt';
+
+                return (
+                  <>
+                    {/* Conversation Header */}
+                    <div className="bg-white border-b border-gray-200 p-4 flex-shrink-0">
+                      <div className="flex items-center gap-4">
+                        {/* Back Button - Mobile only */}
+                        <button
+                          onClick={() => setSelectedConversationId(null)}
+                          className="lg:hidden p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors"
+                          aria-label="Zurück zur Liste"
+                        >
+                          <ArrowLeft size={24} className="text-gray-900" />
+                        </button>
+
+                        <div className="flex-1 min-w-0">
+                          <h2 className="font-semibold text-lg text-gray-900 line-clamp-1">
+                            {selectedConversation.propertyTitle}
+                          </h2>
+                          <p className="text-sm text-gray-600">
+                            {isBuyer ? 'Verkäufer' : 'Interessent'}: {displayName}
+                          </p>
+                        </div>
                     <Link
                       href={`/property/${selectedConversation.propertyId}`}
-                      className="text-primary hover:underline text-sm font-medium"
+                      className="text-primary hover:underline text-sm font-medium flex-shrink-0"
                     >
                       Zum Inserat →
                     </Link>
@@ -421,7 +432,7 @@ export default function MessagesPage() {
                 </div>
 
                 {/* Input */}
-                <div className="bg-white border-t border-gray-200 p-4 flex-shrink-0">
+                <div className="bg-white border-t border-gray-200 p-4 pb-24 lg:pb-4 flex-shrink-0">
                   <div className="max-w-4xl mx-auto flex gap-3">
                     <textarea
                       ref={messageInputRef}
@@ -460,7 +471,9 @@ export default function MessagesPage() {
                     </button>
                   </div>
                 </div>
-              </>
+                  </>
+                );
+              })()
             ) : (
               // No conversation selected - empty state
               <div className="flex-1 flex items-center justify-center px-6">
