@@ -1,0 +1,4 @@
+ ERR_PNPM_NO_SCRIPT  Missing script: dev:web
+
+But script matched with dev:web is present in the root of the workspace,
+so you may run "pnpm -w run dev:web"

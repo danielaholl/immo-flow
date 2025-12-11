@@ -10,7 +10,8 @@ import { PropertyImageSlideshow } from '../components/PropertyImageSlideshow';
 import { FavoriteButton } from '../components/FavoriteButton';
 import { PropertyPreview, PropertyPreviewData } from '../components/PropertyPreview';
 import { PropertyActionButtons } from '../components/PropertyActionButtons';
-import { InvestmentScoreBadge, PropertyFeedbackModal } from '@immoflow/ui';
+import { InvestmentScoreBadge } from '@immoflow/ui';
+// import { PropertyFeedbackModal } from '@immoflow/ui'; // Component doesn't exist
 import { MapPin, Home, Heart, X, Plus } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 
@@ -473,7 +474,7 @@ export default function FavoritesPage() {
       )}
 
       {/* Property Feedback Modal */}
-      {selectedProperty && (
+      {/* {selectedProperty && (
         <PropertyFeedbackModal
           isOpen={isPropertyFeedbackModalOpen}
           onClose={() => setIsPropertyFeedbackModalOpen(false)}
@@ -485,7 +486,8 @@ export default function FavoritesPage() {
           }}
           propertyTitle={selectedProperty.title}
         />
-      )}
+      )} */}
+      {/* TODO: PropertyFeedbackModal component doesn't exist - need to create or remove this feature */}
     </main>
   );
 }

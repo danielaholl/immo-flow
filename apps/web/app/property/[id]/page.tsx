@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Heart } from 'lucide-react';
-import { AIInvestmentEvaluation, PropertyFeedbackModal } from '@immoflow/ui';
+// import { AIInvestmentEvaluation, PropertyFeedbackModal } from '@immoflow/ui'; // Components don't exist
 import { useAuthContext } from '@/app/providers/AuthProvider';
 import { Header } from '@/app/components/Header';
 import { PropertyImageSlideshow } from '@/app/components/PropertyImageSlideshow';
@@ -578,7 +578,7 @@ export default function PropertyPage() {
       />
 
       {/* Property Feedback Modal */}
-      <PropertyFeedbackModal
+      {/* <PropertyFeedbackModal
         isOpen={isPropertyFeedbackModalOpen}
         onClose={() => setIsPropertyFeedbackModalOpen(false)}
         onSubmit={async (feedbackData) => {
@@ -588,7 +588,8 @@ export default function PropertyPage() {
           });
         }}
         propertyTitle={property.title}
-      />
+      /> */}
+      {/* TODO: PropertyFeedbackModal component doesn't exist - need to create or remove this feature */}
 
       {/* Contact Success Toast */}
       {showContactSuccess && (
