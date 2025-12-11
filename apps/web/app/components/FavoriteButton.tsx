@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Heart } from 'lucide-react';
-import { addFavorite, removeFavorite, trackInteraction, updateUserPreferences } from '@immoflow/api';
+import { trpc } from '@/lib/trpc';
 
 interface FavoriteButtonProps {
   userId: string;
@@ -26,6 +26,24 @@ export function FavoriteButton({
   const [isFavorite, setIsFavorite] = useState(initialIsFavorite);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Get utils for cache invalidation
+  const utils = trpc.useContext();
+
+  // Mutations
+  const addFavoriteMutation = trpc.favorites.add.useMutation({
+    onSuccess: () => {
+      utils.favorites.getAll.invalidate();
+      utils.favorites.isFavorite.invalidate();
+    },
+  });
+
+  const removeFavoriteMutation = trpc.favorites.remove.useMutation({
+    onSuccess: () => {
+      utils.favorites.getAll.invalidate();
+      utils.favorites.isFavorite.invalidate();
+    },
+  });
+
   const handleToggle = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -35,28 +53,13 @@ export function FavoriteButton({
     setIsLoading(true);
     try {
       if (isFavorite) {
-        await removeFavorite(userId, propertyId);
+        await removeFavoriteMutation.mutateAsync({ propertyId });
         setIsFavorite(false);
         onToggle?.(false);
-
-        // Track unfavorite interaction
-        trackInteraction(userId, propertyId, 'unfavorite', {
-          source: variant,
-        }).catch((err) => console.error('Error tracking unfavorite:', err));
       } else {
-        await addFavorite({ user_id: userId, property_id: propertyId });
+        await addFavoriteMutation.mutateAsync({ propertyId });
         setIsFavorite(true);
         onToggle?.(true);
-
-        // Track favorite interaction
-        trackInteraction(userId, propertyId, 'favorite', {
-          source: variant,
-        }).catch((err) => console.error('Error tracking favorite:', err));
-
-        // Update user preferences in background (non-blocking)
-        updateUserPreferences(userId).catch((err) => {
-          console.error('Error updating user preferences:', err);
-        });
       }
     } catch (error) {
       console.error('Error toggling favorite:', error);

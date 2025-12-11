@@ -4,10 +4,20 @@
  */
 
 import OpenAI from 'openai';
+import { createLogger } from '../utils/logger.js';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const log = createLogger('screenshot-analyzer');
+
+let openai: OpenAI | null = null;
+
+function getOpenAIClient(): OpenAI {
+  if (!openai) {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  return openai;
+}
 
 export interface ScreenshotAnalysisResult {
   extractedText: string;
@@ -30,7 +40,8 @@ export async function analyzeScreenshot(
   imageBase64: string
 ): Promise<ScreenshotAnalysisResult> {
   try {
-    const response = await openai.chat.completions.create({
+    const client = getOpenAIClient();
+    const response = await client.chat.completions.create({
       model: 'gpt-4o', // Unterstützt Vision
       messages: [
         {
@@ -133,10 +144,11 @@ export async function analyzeMultipleScreenshots(
 export async function extractPropertyDataFromScreenshots(
   combinedText: string
 ): Promise<any> {
-  console.log('Extrahiere strukturierte Daten aus Screenshot-Text...');
+  log.info('Extracting structured data from screenshot text');
 
   try {
-    const response = await openai.chat.completions.create({
+    const client = getOpenAIClient();
+    const response = await client.chat.completions.create({
       model: 'gpt-4o',
       messages: [
         {

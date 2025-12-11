@@ -5,13 +5,22 @@
 import { createRequire } from 'module';
 import OpenAI from 'openai';
 import { extractImagesFromPdf } from './pdf-image-extractor.js';
+import { createLogger } from '../utils/logger.js';
 
+const log = createLogger('pdf-parser');
 const require = createRequire(import.meta.url);
 const { PDFParse } = require('pdf-parse');
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+let openai: OpenAI | null = null;
+
+function getOpenAIClient(): OpenAI {
+  if (!openai) {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  return openai;
+}
 
 export interface ScrapedPropertyData {
   title: string;
@@ -122,7 +131,8 @@ WICHTIG:
 - Räume können Dezimalzahlen sein (z.B. 2.5 für 2,5 Zimmer)`;
 
   try {
-    const response = await openai.chat.completions.create({
+    const client = getOpenAIClient();
+    const response = await client.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         {

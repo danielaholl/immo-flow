@@ -33,6 +33,7 @@ export const favoritesRouter = router({
           'created_at', p.created_at,
           'property_type', p.property_type,
           'ai_detailed_evaluation', p.ai_detailed_evaluation,
+          'buyer_evaluation', p.buyer_evaluation,
           'monthly_fee', p.monthly_fee,
           'usable_area', p.usable_area,
           'usable_area_ratio', p.usable_area_ratio,

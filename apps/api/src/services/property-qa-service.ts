@@ -4,10 +4,21 @@
  */
 import OpenAI from 'openai';
 import { db } from '../db.js';
+import { createLogger } from '../utils/logger.js';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const log = createLogger('property-qa-service');
+
+// Lazy initialization of OpenAI client
+let openai: OpenAI | null = null;
+
+function getOpenAIClient(): OpenAI {
+  if (!openai) {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  return openai;
+}
 
 export interface PropertyQAResponse {
   answer: string;
@@ -97,7 +108,8 @@ Frage: "Wann wurde das Bad renoviert?"
 
 WICHTIG: Bei Confidence < 0.5 wird die Frage an den Verkäufer weitergeleitet!`;
 
-    const response = await openai.chat.completions.create({
+    const client = getOpenAIClient();
+    const response = await client.chat.completions.create({
       model: 'gpt-4o',
       messages: [
         {
@@ -122,13 +134,15 @@ WICHTIG: Bei Confidence < 0.5 wird die Frage an den Verkäufer weitergeleitet!`;
       relatedFields: result.relatedFields || [],
     };
 
-    console.log(`[PropertyQA] Question: "${question}"`);
-    console.log(`[PropertyQA] Confidence: ${qaResponse.confidence}`);
-    console.log(`[PropertyQA] Forward to seller: ${qaResponse.shouldForwardToSeller}`);
+    log.info('Question answered', {
+      question,
+      confidence: qaResponse.confidence,
+      forwardToSeller: qaResponse.shouldForwardToSeller,
+    });
 
     return qaResponse;
   } catch (error) {
-    console.error('[PropertyQA] Error:', error);
+    log.error('Failed to answer question', { error });
     return {
       answer: 'Entschuldigung, es ist ein technischer Fehler aufgetreten. Ich leite Ihre Frage an den Verkäufer weiter.',
       confidence: 0,

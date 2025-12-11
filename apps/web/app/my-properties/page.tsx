@@ -8,13 +8,59 @@ import type { Property } from '@immoflow/database';
 import { Header } from '../components/Header';
 import { PropertyImageSlideshow } from '../components/PropertyImageSlideshow';
 import { PropertyPreview, PropertyPreviewData } from '../components/PropertyPreview';
-import { SellerAnalysis, SellerAnalysisEmpty, type SellerAnalysisData } from '../components/SellerAnalysis';
+import { AIEvaluationPanel, type SellerEvaluation } from '../components/AIEvaluationPanel';
 import { DeletePropertyModal } from '../components/DeletePropertyModal';
-import { PropertyStatistics, type PropertyStatisticsData } from '../components/PropertyStatistics';
 import { MapPin, Home, Plus, Eye, Pencil, Power, Heart, X } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 
 type StatusFilter = 'all' | 'active' | 'archived' | 'pending' | 'sold';
+
+// Helper function to convert seller_analysis data to SellerEvaluation format
+function convertSellerAnalysisToEvaluation(sellerAnalysis: any): SellerEvaluation | undefined {
+  if (!sellerAnalysis) return undefined;
+
+  // Extract market position data
+  const marketPosition = sellerAnalysis.market_position;
+  const pricePerSqm = marketPosition?.market_average_price_per_sqm || 0;
+
+  // Calculate estimated market value based on market average
+  // This is a rough estimate - the actual property sqm would be needed for accuracy
+  const marketValueMin = pricePerSqm * 0.9;
+  const marketValueMax = pricePerSqm * 1.1;
+
+  // Use AI-generated selling points (highlights of the property)
+  const sellingPoints: string[] = sellerAnalysis.selling_points || [];
+
+  // Summarize improvements to top 3, shortened
+  const shortenSuggestion = (text: string): string => {
+    // Take first sentence or truncate at 80 chars
+    const firstSentence = text.split(/[.!?]/)[0];
+    if (firstSentence.length <= 80) return firstSentence;
+    return firstSentence.substring(0, 77) + '...';
+  };
+
+  const improvements = (sellerAnalysis.improvements || [])
+    .slice(0, 3)
+    .map(shortenSuggestion);
+
+  return {
+    viewType: 'seller',
+    marketValueMin: Math.round(marketValueMin * 100), // Placeholder - would need sqm
+    marketValueMax: Math.round(marketValueMax * 100), // Placeholder - would need sqm
+    recommendedPrice: Math.round(pricePerSqm * 100), // Placeholder
+    comparableSales: 5, // Placeholder
+    marketingDurationMin: 4,
+    marketingDurationMax: 8,
+    priceAssessment: marketPosition?.price_comparison === 'above_market'
+      ? 'Über Marktwert'
+      : marketPosition?.price_comparison === 'below_market'
+        ? 'Unter Marktwert'
+        : 'Marktgerecht',
+    summary: marketPosition?.recommendation || 'Keine Zusammenfassung verfügbar',
+    sellingPoints: sellingPoints.length > 0 ? sellingPoints : [],
+    improvementSuggestions: improvements,
+  };
+}
 
 export default function MyPropertiesPage() {
   const { user, loading: authLoading } = useAuthContext();
@@ -46,12 +92,8 @@ export default function MyPropertiesPage() {
     },
   });
 
-  // Fetch AI response statistics for selected property
+  // Get selected property
   const selectedProperty = properties.length > 0 ? properties[selectedIndex] : null;
-  const { data: aiStats } = trpc.messaging.getAIResponseStats.useQuery(
-    { propertyId: selectedProperty?.id },
-    { enabled: !!user && !!selectedProperty }
-  );
 
   // Get utils for cache invalidation
   const utils = trpc.useContext();
@@ -259,8 +301,20 @@ export default function MyPropertiesPage() {
     rental_income: detailedEval?.rental_income ?? undefined,
     cashflow_calculation: detailedEval?.cashflow_calculation ?? undefined,
     evaluation: detailedEval?.evaluation ?? undefined,
+    // AI Rating fields
+    ai_rating_explanation: (selectedProperty as any).ai_rating_explanation ?? undefined,
+    strengths: (selectedProperty as any).strengths ?? undefined,
+    weaknesses: (selectedProperty as any).weaknesses ?? undefined,
+    opportunities: (selectedProperty as any).opportunities ?? undefined,
+    risks: (selectedProperty as any).risks ?? undefined,
     // Days online
     days_online: (selectedProperty as any).days_online ?? undefined,
+    // Aggregated feedback stats (only for seller view)
+    total_views: (selectedProperty as any).total_views ?? undefined,
+    favorites_count: (selectedProperty as any).favorites_count ?? undefined,
+    rating_count: (selectedProperty as any).rating_count ?? undefined,
+    avg_rating: (selectedProperty as any).avg_rating ?? undefined,
+    avg_suggested_price: (selectedProperty as any).avg_suggested_price ?? undefined,
   } : null;
 
   return (
@@ -298,8 +352,9 @@ export default function MyPropertiesPage() {
                   <p className="text-gray-500 text-sm">{properties.length} Immobilien</p>
                 </div>
                 <Link href="/create-listing">
-                  <button className="p-2 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity">
-                    <Plus size={20} />
+                  <button className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors">
+                    <Plus size={16} />
+                    <span>Erstellen</span>
                   </button>
                 </Link>
               </div>
@@ -445,45 +500,15 @@ export default function MyPropertiesPage() {
                       />
                     )}
 
-                    {/* Property Statistics */}
+                    {/* KI-Verkäuferbewertung */}
                     <div className="mt-6">
-                      <PropertyStatistics
-                        stats={{
-                          total_views: (selectedProperty as any).total_views || 0,
-                          unique_viewers: (selectedProperty as any).unique_viewers || 0,
-                          favorites_count: (selectedProperty as any).favorites_count || 0,
-                          views_last_7_days: (selectedProperty as any).views_last_7_days || 0,
-                          views_last_30_days: (selectedProperty as any).views_last_30_days || 0,
-                          feedback_count: (selectedProperty as any).feedback_count || 0,
-                          avg_rating: (selectedProperty as any).avg_rating || null,
-                          positive_feedback_count: (selectedProperty as any).positive_feedback_count || 0,
-                          neutral_feedback_count: (selectedProperty as any).neutral_feedback_count || 0,
-                          negative_feedback_count: (selectedProperty as any).negative_feedback_count || 0,
-                          // AI Response Statistics
-                          ai_total_questions: aiStats?.totalQuestions,
-                          ai_answered: aiStats?.aiAnswered,
-                          ai_answer_rate: aiStats?.aiAnswerRate,
-                          ai_forwarded_to_seller: aiStats?.forwardedToSeller,
-                          // Online Time
-                          days_online: (selectedProperty as any).days_online,
-                        }}
+                      <AIEvaluationPanel
+                        mode="seller"
+                        propertyId={selectedProperty.id}
+                        sellerEvaluation={convertSellerAnalysisToEvaluation((selectedProperty as any).seller_analysis)}
+                        isLoading={generateSellerAnalysisMutation.isLoading}
+                        onTriggerEvaluation={() => handleGenerateSellerAnalysis(selectedProperty.id)}
                       />
-                    </div>
-
-                    {/* Seller Analysis */}
-                    <div className="mt-6">
-                      {(selectedProperty as any).seller_analysis ? (
-                        <SellerAnalysis
-                          analysis={(selectedProperty as any).seller_analysis as SellerAnalysisData}
-                          onGenerateAnalysis={() => handleGenerateSellerAnalysis(selectedProperty.id)}
-                          isGenerating={generateSellerAnalysisMutation.isLoading}
-                        />
-                      ) : (
-                        <SellerAnalysisEmpty
-                          onGenerate={() => handleGenerateSellerAnalysis(selectedProperty.id)}
-                          isGenerating={generateSellerAnalysisMutation.isLoading}
-                        />
-                      )}
                     </div>
 
                     {/* Anbieter Info */}
@@ -527,7 +552,7 @@ export default function MyPropertiesPage() {
                   <div className="bg-white p-4 lg:p-8 pt-4 space-y-3">
                     <div className="flex flex-col sm:flex-row gap-3">
                       <button
-                        onClick={() => router.push(`/property/${selectedProperty.id}/edit`)}
+                        onClick={() => router.push(`/edit-listing/${selectedProperty.id}`)}
                         className="flex-1 bg-primary text-white font-semibold py-4 px-6 rounded-xl hover:opacity-90 transition-colors inline-flex items-center justify-center gap-2"
                       >
                         <Pencil size={20} />

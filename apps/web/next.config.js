@@ -9,7 +9,12 @@ const nextConfig = {
     'react-native',
     'react-native-web',
   ],
-  webpack: (config) => {
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '50mb',
+    },
+  },
+  webpack: (config, { isServer }) => {
     config.resolve.alias = {
       ...(config.resolve.alias || {}),
       'react-native$': 'react-native-web',
@@ -21,10 +26,38 @@ const nextConfig = {
       '.web.tsx',
       ...config.resolve.extensions,
     ];
+
+    // Exclude server-side modules from client bundle
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        crypto: false,
+        path: false,
+        os: false,
+        stream: false,
+        http: false,
+        https: false,
+        zlib: false,
+        dns: false,
+        child_process: false,
+      };
+    }
+
     return config;
   },
   images: {
-    domains: ['via.placeholder.com'], // Add your image domains here
+    domains: ['via.placeholder.com', 'localhost'], // Add your image domains here
+  },
+  async rewrites() {
+    return [
+      {
+        source: '/uploads/:path*',
+        destination: 'http://localhost:4000/uploads/:path*',
+      },
+    ];
   },
 };
 

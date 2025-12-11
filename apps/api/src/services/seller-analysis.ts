@@ -4,6 +4,9 @@
  */
 
 import OpenAI from 'openai';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('seller-analysis');
 
 export interface SellerAnalysis {
   listing_quality_score: number; // 0-100
@@ -24,6 +27,7 @@ export interface SellerAnalysis {
     market_average_price_per_sqm: number; // Geschätzter Marktdurchschnitt in €/m²
     recommendation: string; // Detaillierte Preisempfehlung
   };
+  selling_points: string[]; // Top 3-5 Verkaufsargumente - Highlights der Immobilie
   improvements: string[]; // Top 3 Quick Wins - kurze, priorisierte Handlungsempfehlungen
   generated_at: string;
 }
@@ -52,9 +56,16 @@ interface PropertyData {
   features: string[] | null;
 }
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+let openai: OpenAI | null = null;
+
+function getOpenAIClient(): OpenAI {
+  if (!openai) {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  return openai;
+}
 
 export async function generateSellerAnalysis(property: PropertyData): Promise<SellerAnalysis> {
   const prompt = `Du bist ein erfahrener Immobilienmakler mit 20+ Jahren Erfahrung. Analysiere dieses Immobilieninserat aus Verkäufer-Perspektive und gib konkrete Verbesserungsvorschläge.
@@ -102,14 +113,25 @@ Erstelle eine Verkäufer-Analyse im folgenden JSON-Format:
     "market_average_price_per_sqm": <geschätzter Marktdurchschnitt in €/m² als ganze Zahl>,
     "recommendation": "<Detaillierte Preisempfehlung basierend auf Marktposition>"
   },
+  "selling_points": [
+    <Liste von 3-5 KURZEN Verkaufsargumenten (max. 50 Zeichen) - die Highlights der Immobilie>
+  ],
   "improvements": [
     <Liste von maximal 3 KURZEN Quick Wins (1 Satz pro Vorschlag) - die wichtigsten Sofortmaßnahmen>
   ]
 }
 
-WICHTIG - UNTERSCHIED ZWISCHEN DEN VORSCHLÄGEN:
+WICHTIG - UNTERSCHIED ZWISCHEN DEN FELDERN:
 1. **suggestions in completeness/photo_quality**: DETAILLIERTE, spezifische Vorschläge (2-3 Sätze)
-2. **improvements**: KURZE Quick Wins (1 Satz) - die Top 3 Prioritäten zum Sofort-Umsetzen
+2. **selling_points**: KURZE Verkaufsargumente (max. 50 Zeichen) - die Highlights der Immobilie
+3. **improvements**: KURZE Quick Wins (1 Satz) - die Top 3 Prioritäten zum Sofort-Umsetzen
+
+SELLING_POINTS (Verkaufsargumente - 3-5 Highlights):
+- Identifiziere die STÄRKEN und HIGHLIGHTS der Immobilie
+- Maximal 50 Zeichen pro Punkt
+- Beispiele: "Ruhige Lage im Grünen", "Neubau 2020", "Großer Balkon mit Südausrichtung", "Niedrige Nebenkosten", "Fußbodenheizung", "Garage inklusive"
+- Fokussiere auf: Lage, Zustand, Ausstattung, Energieeffizienz, Preis-Leistung
+- Wenn wenig Infos vorhanden, generiere trotzdem 2-3 allgemeine Highlights basierend auf Zimmeranzahl, Fläche, Lage
 
 IMPROVEMENTS (Top 3 Quick Wins):
 - Sei konstruktiv und ermutigend
@@ -141,7 +163,8 @@ PREISEMPFEHLUNGEN:
 Antworte NUR mit dem JSON-Objekt, ohne zusätzlichen Text.`;
 
   try {
-    const completion = await openai.chat.completions.create({
+    const client = getOpenAIClient();
+    const completion = await client.chat.completions.create({
       model: 'gpt-4o',
       max_tokens: 2048,
       temperature: 0.7,

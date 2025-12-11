@@ -121,6 +121,11 @@ export const propertiesRouter = router({
         `SELECT
           p.*,
           EXTRACT(DAY FROM (CURRENT_TIMESTAMP - p.created_at))::integer as days_online,
+          COALESCE(ps.total_views, 0) as total_views,
+          COALESCE(ps.favorites_count, 0) as favorites_count,
+          COALESCE(ps.rating_count, 0) as rating_count,
+          ps.avg_rating,
+          ps.avg_suggested_price,
           json_build_object(
             'id', up.id,
             'user_id', up.user_id,
@@ -133,6 +138,7 @@ export const propertiesRouter = router({
           ) as owner
         FROM properties p
         LEFT JOIN user_profiles up ON p.user_id = up.user_id
+        LEFT JOIN property_statistics ps ON p.id = ps.property_id
         WHERE p.id = $1`,
         [input.id]
       );
@@ -154,10 +160,12 @@ export const propertiesRouter = router({
           COALESCE(ps.total_views, 0) as total_views,
           COALESCE(ps.unique_viewers, 0) as unique_viewers,
           COALESCE(ps.favorites_count, 0) as favorites_count,
+          COALESCE(ps.rating_count, 0) as rating_count,
           COALESCE(ps.views_last_7_days, 0) as views_last_7_days,
           COALESCE(ps.views_last_30_days, 0) as views_last_30_days,
           COALESCE(ps.feedback_count, 0) as feedback_count,
           ps.avg_rating,
+          ps.avg_suggested_price,
           ps.positive_feedback_count,
           ps.neutral_feedback_count,
           ps.negative_feedback_count,
@@ -782,6 +790,40 @@ export const propertiesRouter = router({
       };
     }),
 
+  // Classify and Analyze Images (screenshots vs photos)
+  classifyAndAnalyzeImages: protectedProcedure
+    .input(
+      z.object({
+        images: z.array(z.string().min(100).max(20000000)).min(1).max(20), // Base64 images
+      })
+    )
+    .mutation(async ({ input }) => {
+      const { analyzeMultipleScreenshots, extractPropertyDataFromScreenshots } = await import('../services/screenshot-analyzer.js');
+      const { analyzeProperty } = await import('../services/property-ai-analyzer.js');
+
+      console.log(`🖼️  Klassifiziere und analysiere ${input.images.length} Bilder...`);
+
+      // For now, treat all images as photos (skip classification)
+      // In the future, we can add AI-based classification here
+      const photoImages = input.images.map(img => {
+        // Ensure proper data URL format
+        if (!img.startsWith('data:')) {
+          return `data:image/jpeg;base64,${img}`;
+        }
+        return img;
+      });
+
+      console.log(`✅ ${photoImages.length} Bilder als Fotos klassifiziert`);
+
+      return {
+        screenshotCount: 0,
+        photoCount: photoImages.length,
+        photoImages,
+        extractedData: null,
+        propertyData: null,
+      };
+    }),
+
   // Generate seller analysis for a property
   generateSellerAnalysis: protectedProcedure
     .input(z.object({ propertyId: z.string().uuid() }))
@@ -991,5 +1033,39 @@ export const propertiesRouter = router({
       );
 
       return stats;
+    }),
+
+  // Generate KI Evaluation for a property
+  generateKIEvaluation: publicProcedure
+    .input(z.object({
+      propertyId: z.string().uuid(),
+      viewType: z.enum(['buyer_selfuse', 'buyer_investor', 'seller']).optional(),
+    }))
+    .mutation(async ({ input }) => {
+      // Get property
+      const property = await queryOne(
+        'SELECT * FROM properties WHERE id = $1',
+        [input.propertyId]
+      );
+
+      if (!property) {
+        throw new Error('Immobilie nicht gefunden');
+      }
+
+      // Route to correct evaluator based on viewType
+      if (input.viewType === 'seller') {
+        // Seller evaluation
+        const { evaluatePropertyForSeller } = await import('../services/property-seller-evaluator.js');
+        const evaluation = await evaluatePropertyForSeller(input.propertyId);
+        return {
+          viewType: 'seller',
+          ...evaluation,
+        };
+      } else {
+        // Buyer evaluation (investor or selfuse)
+        const { evaluatePropertyInvestment } = await import('../services/property-investment-evaluator.js');
+        const evaluation = await evaluatePropertyInvestment(input.propertyId);
+        return evaluation;
+      }
     }),
 });

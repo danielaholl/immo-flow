@@ -32,7 +32,7 @@ const PropertyDataSchema = z.object({
   sqm: z.number().optional(),
   rooms: z.number().optional(),
   bathrooms: z.number().optional(),
-  condition: z.enum(['new', 'renovated', 'good', 'needs_renovation']).optional(),
+  condition: z.enum(['new', 'first_occupancy', 'renovated', 'maintained', 'needs_renovation']).optional(),
   features: z.array(z.string()).optional(),
   description: z.string().optional(),
   floor_level: z.string().optional(),
@@ -85,7 +85,7 @@ Erforderliche Felder (Priorität 1):
 - price: Preis in Euro (Zahl)
 - sqm: Wohnfläche in qm (Zahl)
 - rooms: Anzahl Zimmer (Zahl)
-- condition: 'new' | 'renovated' | 'good' | 'needs_renovation'
+- condition: 'new' | 'first_occupancy' | 'renovated' | 'maintained' | 'needs_renovation'
 
 Alle weiteren Felder (Priorität 2 - systematisch erfragen):
 - bathrooms: Anzahl Badezimmer

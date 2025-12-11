@@ -1,153 +1,122 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { getProperties, addFavorite, removeFavorite, getUserFavorites, getUserPropertyConsents, searchPropertiesWithAI, saveSearchHistory, getPersonalizedFeed, type AISearchCriteria } from '@immoflow/api';
-import { PropertyCard, ChatModal, SearchBar } from '@immoflow/ui';
+import { PropertyCard, SearchBar } from '@immoflow/ui';
 import type { Property } from '@immoflow/database';
 import { Header } from './components/Header';
 import { useAuthContext } from './providers/AuthProvider';
+import { trpc } from '@/lib/trpc';
 
 /**
  * Home Page - Property Listing with WhatsApp-style Slideshow
  */
 export default function HomePage() {
-  const { user, profile } = useAuthContext();
+  // Performance tracking - count renders but don't spam console
+  const renderCountRef = useRef(0);
+  renderCountRef.current += 1;
+
+  // Only log first render and then summary at end
+  const pageLoadStartTimeRef = useRef(performance.now());
+
+  if (renderCountRef.current === 1) {
+    console.log('🏠 [PERF] HomePage: Initial render');
+  }
+
+  const { user, profile, loading: authLoading } = useAuthContext();
   const searchParams = useSearchParams();
   const hasGlobalConsent = profile?.global_address_consent ?? false;
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isChatModalOpen, setIsChatModalOpen] = useState(false);
-  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+
   const [consentedPropertyIds, setConsentedPropertyIds] = useState<Set<string>>(new Set());
   const [activeCardIndex, setActiveCardIndex] = useState(0);
   const [isSlideshowPaused] = useState(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [searchCriteria, setSearchCriteria] = useState<AISearchCriteria | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [showDismissed, setShowDismissed] = useState(false);
 
-  // Define loadProperties with useCallback
-  const loadProperties = useCallback(async () => {
-    try {
-      setLoading(true);
-
-      // Use personalized feed if user is logged in
-      if (user) {
-        try {
-          const personalizedResults = await getPersonalizedFeed(user.id, {
-            limit: 50,
-            excludeViewed: false, // Show all for now, can be toggled later
-            diversityFactor: 0.3, // Balance between relevance and diversity
-          });
-
-          // Extract properties from scored results
-          const personalizedProperties = personalizedResults.map(result => result.property);
-          setProperties(personalizedProperties);
-          setSearchQuery('');
-          setSearchCriteria(null);
-          return;
-        } catch (error) {
-          console.error('Error loading personalized feed:', error);
-          // Fallback to regular properties on error
-        }
-      }
-
-      // Fallback: Load all properties for non-logged-in users or on error
-      const data = await getProperties({ limit: 50 });
-      setProperties(data);
-      setSearchQuery('');
-      setSearchCriteria(null);
-    } catch (error) {
-      console.error('Error loading properties:', error);
-    } finally {
-      setLoading(false);
+  // Fetch properties with tRPC
+  const { data: properties = [], isLoading: loading, refetch: refetchProperties } = trpc.properties.getAll.useQuery(
+    { limit: 20, status: 'active' },
+    {
+      refetchOnWindowFocus: false,
+      onSuccess: (data) => {
+        const duration = performance.now() - pageLoadStartTimeRef.current;
+        console.log(`📦 [PERF] Loaded ${data.length} properties in ${duration.toFixed(2)}ms`);
+      },
     }
-  }, [user]);
+  );
 
-  // Define handleSearch before useEffect
-  const handleSearch = useCallback(async (query: string) => {
-    if (!query.trim()) {
-      loadProperties();
-      return;
-    }
+  // Fetch favorites if user is logged in (wait for auth to finish loading)
+  const { data: favoritesData = [] } = trpc.favorites.getAll.useQuery(undefined, {
+    enabled: !authLoading && !!user,
+    refetchOnWindowFocus: false,
+  });
 
-    try {
-      setIsSearching(true);
-      setLoading(true);
-      const result = await searchPropertiesWithAI(query);
-      setProperties(result.properties);
-      setSearchQuery(result.query);
-      setSearchCriteria(result.criteria);
+  // Fetch dismissed properties if user is logged in (wait for auth to finish loading)
+  const { data: dismissedData = [] } = trpc.dismissed.getAll.useQuery(undefined, {
+    enabled: !authLoading && !!user,
+    refetchOnWindowFocus: false,
+  });
 
-      // Save search to history if user is logged in
-      if (user) {
-        try {
-          await saveSearchHistory({
-            user_id: user.id,
-            query: result.query,
-            criteria: result.criteria,
-            results_count: result.count,
-          });
-        } catch (error) {
-          console.error('Error saving search history:', error);
-          // Don't throw - saving history is not critical
-        }
-      }
-    } catch (error) {
-      console.error('Error searching properties:', error);
-      // Fallback to loading all properties
-      loadProperties();
-    } finally {
-      setIsSearching(false);
-      setLoading(false);
-    }
-  }, [user, loadProperties]);
+  // Extract favorite IDs from favorites data
+  const favoriteIds = new Set(favoritesData.map((f: any) => f.property?.id).filter(Boolean));
 
-  // useEffect to handle URL search parameter
+  // Extract dismissed property IDs
+  const dismissedIds = new Set(dismissedData.map((d: any) => d.property_id).filter(Boolean));
+
+  // Get tRPC utils for cache invalidation
+  const utils = trpc.useContext();
+
+  // Mutations for favorites
+  const addFavoriteMutation = trpc.favorites.add.useMutation({
+    onSuccess: () => {
+      // Refetch favorites to update the list
+      utils.favorites.getAll.invalidate();
+    },
+  });
+
+  const removeFavoriteMutation = trpc.favorites.remove.useMutation({
+    onSuccess: () => {
+      // Refetch favorites to update the list
+      utils.favorites.getAll.invalidate();
+    },
+  });
+
+  // Mutation for dismissing properties
+  const dismissMutation = trpc.dismissed.dismiss.useMutation({
+    onSuccess: () => {
+      // Invalidate dismissed query to update the list
+      utils.dismissed.getAll.invalidate();
+    },
+  });
+
+  // Mutation for un-dismissing properties
+  const undismissMutation = trpc.dismissed.undismiss.useMutation({
+    onSuccess: () => {
+      // Invalidate dismissed query to update the list
+      utils.dismissed.getAll.invalidate();
+    },
+  });
+
+  // Track when page is fully loaded
+  const pageLoadLoggedRef = useRef(false);
   useEffect(() => {
-    const searchFromUrl = searchParams.get('search');
-    if (searchFromUrl) {
-      handleSearch(searchFromUrl);
-    } else {
-      loadProperties();
+    if (!loading && properties.length > 0 && !pageLoadLoggedRef.current) {
+      const pageLoadTime = performance.now() - pageLoadStartTimeRef.current;
+      console.log(`✅ [PERF] Page fully loaded in ${pageLoadTime.toFixed(2)}ms (${(pageLoadTime / 1000).toFixed(2)}s)`);
+      console.log(`📊 [PERF] Summary: ${properties.length} properties, ${favoriteIds.size} favorites`);
+      console.log(`🔄 [PERF] Total renders: ${renderCountRef.current}`);
+      pageLoadLoggedRef.current = true;
     }
-  }, [searchParams, handleSearch]);
-
-  const loadFavorites = useCallback(async () => {
-    if (!user) return;
-    try {
-      const favorites = await getUserFavorites(user.id);
-      const ids = new Set(favorites.map((f: any) => f.property_id));
-      setFavoriteIds(ids);
-    } catch (error) {
-      console.error('Error loading favorites:', error);
-    }
-  }, [user]);
-
-  const loadConsents = useCallback(async () => {
-    if (!user) return;
-    try {
-      const consentIds = await getUserPropertyConsents(user.id);
-      setConsentedPropertyIds(new Set(consentIds));
-    } catch (error) {
-      console.error('Error loading consents:', error);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (user) {
-      loadFavorites();
-      loadConsents();
-    }
-  }, [user, loadFavorites, loadConsents]);
+  }, [loading, properties.length, favoriteIds.size]);
 
   // Helper to check if address should be shown for a property
-  const shouldShowAddress = (propertyId: string) => {
+  const shouldShowAddress = useCallback((propertyId: string) => {
     return hasGlobalConsent || consentedPropertyIds.has(propertyId);
-  };
+  }, [hasGlobalConsent, consentedPropertyIds]);
 
-  async function handleFavoriteToggle(propertyId: string) {
+  const handleFavoriteToggle = useCallback(async (propertyId: string) => {
     if (!user) {
       // Redirect to login if not authenticated
       window.location.href = '/auth/login?redirectTo=/';
@@ -158,44 +127,81 @@ export default function HomePage() {
       const isFavorited = favoriteIds.has(propertyId);
 
       if (isFavorited) {
-        await removeFavorite(user.id, propertyId);
-        setFavoriteIds(prev => {
-          const next = new Set(prev);
-          next.delete(propertyId);
-          return next;
-        });
+        await removeFavoriteMutation.mutateAsync({ propertyId });
       } else {
-        await addFavorite({ user_id: user.id, property_id: propertyId });
-        setFavoriteIds(prev => new Set(prev).add(propertyId));
+        await addFavoriteMutation.mutateAsync({ propertyId });
       }
     } catch (error) {
       console.error('Error toggling favorite:', error);
     }
-  }
+  }, [user, favoriteIds, addFavoriteMutation, removeFavoriteMutation]);
+
+  const handleDismiss = useCallback(async (propertyId: string) => {
+    if (!user) {
+      // Redirect to login if not authenticated
+      window.location.href = '/auth/login?redirectTo=/';
+      return;
+    }
+
+    try {
+      await dismissMutation.mutateAsync({ propertyId });
+    } catch (error) {
+      console.error('Error dismissing property:', error);
+    }
+  }, [user, dismissMutation]);
+
+  const handleUndismiss = useCallback(async (propertyId: string) => {
+    if (!user) {
+      return;
+    }
+
+    try {
+      await undismissMutation.mutateAsync({ propertyId });
+    } catch (error) {
+      console.error('Error un-dismissing property:', error);
+    }
+  }, [user, undismissMutation]);
 
   // Handle slideshow completion - move to next card
-  const handleSlideshowComplete = useCallback((cardIndex: number) => {
-    if (cardIndex < properties.length - 1) {
+  const handleSlideshowComplete = useCallback((cardIndex: number, totalProperties: number) => {
+    if (cardIndex < totalProperties - 1) {
       setActiveCardIndex(cardIndex + 1);
     } else {
       // Loop back to first card
       setActiveCardIndex(0);
     }
-  }, [properties.length]);
+  }, []);
+
+  // Handle search
+  const handleSearch = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      refetchProperties();
+      setSearchQuery('');
+      return;
+    }
+
+    // TODO: Implement AI search on backend
+    console.log('AI search not yet implemented:', query);
+    setSearchQuery(query);
+    setIsSearching(false);
+  }, [refetchProperties]);
+
+  // Filter out dismissed properties from the feed
+  const filteredProperties = properties.filter(property => !dismissedIds.has(property.id));
 
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-screen bg-background pb-20 lg:pb-0">
       {/* Header */}
       <Header />
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-b from-gray-50 to-white py-16">
+      <section className="bg-gradient-to-b from-gray-50 to-white py-8 sm:py-12 lg:py-16">
         <div className="w-full max-w-5xl mx-auto px-4 text-center">
-          <h2 className="text-5xl font-bold text-gray-900 mb-4">
-            Finde deine Traumimmobilie
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 sm:mb-4">
+            Weniger suchen. Besser investieren.
           </h2>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">
-            Für alle, die mehr als vier Wände suchen.
+          <p className="text-lg sm:text-xl lg:text-2xl text-gray-600 max-w-2xl mx-auto mb-6 sm:mb-8">
+            Dein unfairer Vorteil am Immobilienmarkt.
           </p>
 
           {/* Search Bar */}
@@ -204,46 +210,22 @@ export default function HomePage() {
       </section>
 
       {/* Properties Grid */}
-      <section className="container mx-auto px-4 py-12">
-        <div className="flex justify-between items-center mb-8">
+      <section className="container mx-auto px-4 py-8 sm:py-12 mb-16 lg:mb-0">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-4">
           <div>
-            <h3 className="text-3xl font-bold text-text-primary mb-2">
-              {searchQuery ? 'Suchergebnisse' : user ? 'Für dich empfohlen' : 'Alle Immobilien'}
+            <h3 className="text-2xl sm:text-3xl font-bold text-text-primary mb-2">
+              {searchQuery ? 'Suchergebnisse' : 'Dein persönlicher Feed'}
             </h3>
-            {!searchQuery && user && (
-              <p className="text-sm text-gray-600 mb-2">
-                Basierend auf deinen Vorlieben und Interaktionen
-              </p>
-            )}
-            {searchQuery && searchCriteria && (
+            {searchQuery && (
               <div className="flex flex-wrap gap-2 items-center">
                 <p className="text-sm text-gray-600">
                   Suche nach: <span className="font-medium">{searchQuery}</span>
                 </p>
-                {searchCriteria.location && (
-                  <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                    📍 {searchCriteria.location}
-                  </span>
-                )}
-                {searchCriteria.rooms && (
-                  <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
-                    🏠 {searchCriteria.rooms} Zimmer
-                  </span>
-                )}
-                {searchCriteria.maxPrice && (
-                  <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                    💰 bis {searchCriteria.maxPrice.toLocaleString('de-DE')}€
-                  </span>
-                )}
-                {searchCriteria.features && searchCriteria.features.length > 0 && (
-                  searchCriteria.features.map((feature, index) => (
-                    <span key={index} className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
-                      ✨ {feature}
-                    </span>
-                  ))
-                )}
                 <button
-                  onClick={loadProperties}
+                  onClick={() => {
+                    refetchProperties();
+                    setSearchQuery('');
+                  }}
                   className="ml-2 text-xs text-gray-500 hover:text-gray-700 underline"
                 >
                   Zurücksetzen
@@ -253,7 +235,7 @@ export default function HomePage() {
           </div>
           {searchQuery && (
             <p className="text-sm text-gray-500">
-              {properties.length} Ergebnis{properties.length !== 1 ? 'se' : ''}
+              {filteredProperties.length} Ergebnis{filteredProperties.length !== 1 ? 'se' : ''}
             </p>
           )}
         </div>
@@ -265,7 +247,7 @@ export default function HomePage() {
               {isSearching ? 'Suche nach passenden Immobilien...' : 'Lade Immobilien...'}
             </p>
           </div>
-        ) : properties.length === 0 ? (
+        ) : filteredProperties.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-text-secondary mb-2">Keine Immobilien gefunden</p>
             <p className="text-text-secondary text-sm mb-4">
@@ -276,7 +258,10 @@ export default function HomePage() {
             </p>
             {searchQuery && (
               <button
-                onClick={loadProperties}
+                onClick={() => {
+                  refetchProperties();
+                  setSearchQuery('');
+                }}
                 className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
               >
                 Alle Immobilien anzeigen
@@ -284,8 +269,8 @@ export default function HomePage() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {properties.map((property, index) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+            {filteredProperties.map((property, index) => (
               <div key={property.id} style={{ position: 'relative' }}>
                 <PropertyCard
                   property={{
@@ -297,7 +282,10 @@ export default function HomePage() {
                     sqm: property.sqm,
                     rooms: property.rooms,
                     images: (property.images as string[]) || [],
+                    propertyType: property.property_type as any,
                     aiScore: property.ai_score || undefined,
+                    ai_investment_score: property.ai_investment_score || undefined,
+                    score_color: property.score_color as 'green' | 'yellow' | 'red' | undefined,
                     yield: property.yield || undefined,
                     features: (property.features as string[]) || [],
                     energyClass: property.energy_class || undefined,
@@ -309,16 +297,106 @@ export default function HomePage() {
                     e?.stopPropagation?.();
                     handleFavoriteToggle(property.id);
                   } : undefined}
+                  onDismiss={user && property.seller_id !== user.id ? (e) => {
+                    e?.preventDefault?.();
+                    e?.stopPropagation?.();
+                    handleDismiss(property.id);
+                  } : undefined}
                   onPress={() => {
                     window.location.href = `/property/${property.id}`;
                   }}
                   isActive={index === activeCardIndex && !isSlideshowPaused}
-                  onSlideshowComplete={() => handleSlideshowComplete(index)}
+                  onSlideshowComplete={() => handleSlideshowComplete(index, filteredProperties.length)}
                   slideshowDuration={3000}
                   showAddress={shouldShowAddress(property.id)}
                 />
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Dismissed Properties Section */}
+        {user && dismissedData.length > 0 && (
+          <div className="mt-12 pt-8 border-t border-gray-200">
+            <button
+              onClick={() => setShowDismissed(!showDismissed)}
+              className="flex items-center justify-between w-full text-left mb-4 hover:opacity-80 transition-opacity"
+            >
+              <div>
+                <h3 className="text-2xl font-bold text-text-primary">
+                  Nicht interessiert
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  {dismissedData.length} Immobilie{dismissedData.length !== 1 ? 'n' : ''} ausgeblendet
+                </p>
+              </div>
+              <svg
+                className={`w-6 h-6 text-gray-500 transition-transform ${showDismissed ? 'rotate-180' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </button>
+
+            {showDismissed && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+                {dismissedData.map((dismissed: any) => {
+                  const property = dismissed.property;
+                  if (!property) return null;
+
+                  return (
+                    <div key={property.id} style={{ position: 'relative', opacity: 0.7 }}>
+                      <PropertyCard
+                        property={{
+                          id: property.id,
+                          title: property.title,
+                          location: property.location,
+                          address: property.address || undefined,
+                          price: property.price,
+                          sqm: property.sqm,
+                          rooms: property.rooms,
+                          images: (property.images as string[]) || [],
+                          propertyType: property.property_type as any,
+                          aiScore: property.ai_score || undefined,
+                          ai_investment_score: property.ai_investment_score || undefined,
+                          score_color: property.score_color as 'green' | 'yellow' | 'red' | undefined,
+                          yield: property.yield || undefined,
+                          features: (property.features as string[]) || [],
+                          energyClass: property.energy_class || undefined,
+                        }}
+                        isOwner={false}
+                        isFavorite={false}
+                        onPress={() => {
+                          window.location.href = `/property/${property.id}`;
+                        }}
+                        isActive={false}
+                        slideshowDuration={3000}
+                        showAddress={shouldShowAddress(property.id)}
+                      />
+                      {/* Undismiss Button Overlay */}
+                      <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-xl pointer-events-none">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleUndismiss(property.id);
+                          }}
+                          className="px-6 py-3 bg-white text-gray-900 rounded-lg hover:bg-gray-100 transition-colors font-medium pointer-events-auto shadow-lg"
+                        >
+                          Wieder anzeigen
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </section>
@@ -374,33 +452,6 @@ export default function HomePage() {
           </div>
         </div>
       </footer>
-
-      {/* Floating Chat Button */}
-      <button
-        onClick={() => setIsChatModalOpen(true)}
-        className="fixed bottom-6 right-6 w-16 h-16 bg-primary hover:bg-primary/90 text-white rounded-full shadow-2xl hover:shadow-3xl transition-all duration-300 flex items-center justify-center z-40 hover:scale-110 active:scale-95"
-        aria-label="KI-Assistent öffnen"
-      >
-        <svg
-          className="w-7 h-7"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2}
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-          />
-        </svg>
-      </button>
-
-      {/* Chat Modal */}
-      <ChatModal
-        isOpen={isChatModalOpen}
-        onClose={() => setIsChatModalOpen(false)}
-      />
     </main>
   );
 }
