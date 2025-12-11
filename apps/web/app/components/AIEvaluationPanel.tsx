@@ -112,12 +112,12 @@ export function AIEvaluationPanel({
   if (!hasEvaluation && !isLoading) {
     return (
       <div className={`bg-gradient-to-r ${mode === 'seller' ? 'from-emerald-50 to-teal-50 border-emerald-200' : 'from-purple-50 to-indigo-50 border-purple-200'} rounded-2xl border p-4 sm:p-6 ${className}`}>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-start sm:items-center gap-3">
-            <Sparkles size={20} className={`flex-shrink-0 ${mode === 'seller' ? 'text-emerald-600' : 'text-purple-600'} mt-0.5 sm:mt-0`} />
-            <div>
+        <div className="flex flex-col gap-4">
+          <div className="flex items-start gap-3 flex-1">
+            <Sparkles size={20} className={`flex-shrink-0 ${mode === 'seller' ? 'text-emerald-600' : 'text-purple-600'} mt-0.5`} />
+            <div className="flex-1 min-w-0">
               <h4 className="text-base sm:text-lg font-semibold text-gray-900">
-                {mode === 'seller' ? 'KI-Verkäuferbewertung' : 'KI-Käuferbewertung'}
+                AI-Score
               </h4>
               <p className="text-gray-600 text-sm">
                 {mode === 'seller'
@@ -128,10 +128,10 @@ export function AIEvaluationPanel({
           </div>
           <button
             onClick={handleStartEvaluation}
-            className={`w-full sm:w-auto sm:ml-4 sm:flex-shrink-0 px-4 sm:px-6 py-3 ${mode === 'seller' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700' : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700'} text-white rounded-xl font-medium transition-all flex items-center justify-center gap-2 shadow-lg`}
+            className={`w-full px-4 sm:px-6 py-3 ${mode === 'seller' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700' : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700'} text-white rounded-xl font-medium transition-all flex items-center justify-center gap-2 shadow-lg`}
           >
             <Sparkles size={18} />
-            <span className="whitespace-nowrap">KI-Bewertung starten</span>
+            <span className="whitespace-nowrap">AI-Score starten</span>
           </button>
         </div>
       </div>
@@ -150,7 +150,7 @@ export function AIEvaluationPanel({
           <div>
             <p className="font-semibold text-gray-900 text-sm sm:text-base">KI-Analyse läuft...</p>
             <p className="text-xs sm:text-sm text-gray-600">
-              {mode === 'seller' ? 'Verkäuferbewertung wird erstellt' : 'Immobilie wird bewertet'}
+              Bewertung wird erstellt
             </p>
           </div>
         </div>
@@ -177,7 +177,7 @@ export function AIEvaluationPanel({
         <div className="flex items-center gap-2 min-w-0">
           <Sparkles size={18} className={`flex-shrink-0 ${mode === 'seller' ? 'text-emerald-600' : 'text-purple-600'}`} />
           <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">
-            {mode === 'seller' ? 'KI-Verkäuferbewertung' : 'KI-Käuferbewertung'}
+            AI-Score
           </h3>
         </div>
         <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">

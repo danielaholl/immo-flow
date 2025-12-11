@@ -470,18 +470,18 @@ export default function PropertyPage() {
           {/* CTA Buttons */}
           <div className="mb-20 lg:mb-0">
             <PropertyActionButtons
-              isOwner={Boolean(isOwner)}
-              isFavorite={isFavorite}
-              onToggleFavorite={handleToggleFavorite}
-              onDismiss={handleDismiss}
-              onStartMessage={handleStartMessage}
-              onOpenFeedback={() => setIsPropertyFeedbackModalOpen(true)}
-              onEdit={() => router.push(`/property/${property.id}/edit`)}
-              onDeactivate={handleDeactivate}
-              isDismissLoading={dismissMutation.isLoading}
-              isMessageLoading={getOrCreateConversationMutation.isLoading}
-              isDeactivateLoading={deactivateMutation.isLoading}
-            />
+            isOwner={Boolean(isOwner)}
+            isFavorite={isFavorite}
+            onToggleFavorite={handleToggleFavorite}
+            onDismiss={handleDismiss}
+            onStartMessage={handleStartMessage}
+            onOpenFeedback={() => setIsPropertyFeedbackModalOpen(true)}
+            onEdit={() => router.push(`/property/${property.id}/edit`)}
+            onDeactivate={handleDeactivate}
+            isDismissLoading={dismissMutation.isLoading}
+            isMessageLoading={getOrCreateConversationMutation.isLoading}
+            isDeactivateLoading={deactivateMutation.isLoading}
+          />
           </div>
         </div>
 

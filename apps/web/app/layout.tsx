@@ -5,7 +5,7 @@ import { SlideshowManagerProvider } from './components/SlideshowManagerContext';
 import { TRPCProvider } from './providers/TRPCProvider';
 
 export const metadata: Metadata = {
-  title: 'Nestela - Smart investieren. Gemeinsam.',
+  title: 'NestFlow - Smart investieren. Gemeinsam.',
   description:
     'Smart investieren. Gemeinsam. Entdecke Immobilien, erhalte AI-Analysen und finde dein perfektes Investment.',
   keywords: ['Immobilien', 'Investment', 'Deutschland', 'Wohnung kaufen', 'Haus kaufen'],

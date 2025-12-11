@@ -37,7 +37,7 @@ export default function LoginPage() {
       <div className="max-w-md w-full bg-white rounded-2xl shadow-lg p-8">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Willkommen zurück</h1>
-          <p className="text-gray-600">Melden Sie sich in Ihrem Nestela-Konto an</p>
+          <p className="text-gray-600">Melden Sie sich in Ihrem NestFlow-Konto an</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

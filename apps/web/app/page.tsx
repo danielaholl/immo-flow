@@ -406,7 +406,7 @@ export default function HomePage() {
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div>
-              <h4 className="text-lg font-bold mb-4">Nestela</h4>
+              <h4 className="text-lg font-bold mb-4">NestFlow</h4>
               <p className="text-sm opacity-80">
                 Die moderne Plattform für Immobilien-Investment in Deutschland
               </p>
@@ -448,7 +448,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="mt-8 pt-8 border-t border-white/20 text-center text-sm opacity-80">
-            © {new Date().getFullYear()} Nestela. Alle Rechte vorbehalten.
+            © {new Date().getFullYear()} NestFlow. Alle Rechte vorbehalten.
           </div>
         </div>
       </footer>

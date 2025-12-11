@@ -332,7 +332,7 @@ export default function FavoritesPage() {
             </div>
           </div>
 
-          <div className="flex flex-col lg:flex-row" style={{ height: 'calc(100vh - 100px)' }}>
+          <div className="flex flex-col lg:flex-row overflow-hidden" style={{ height: 'calc(100vh - 100px)' }}>
             {/* Left Column - Favorites List */}
             <div className={`${selectedPropertyId ? 'hidden' : 'block'} lg:block lg:w-1/4 border-r border-gray-200 overflow-y-auto`}>
               <div className="p-4">
@@ -428,7 +428,7 @@ export default function FavoritesPage() {
           </div>
 
           {/* Right Column - Property Details (same as detail page) */}
-          <div className={`${selectedPropertyId ? 'block' : 'hidden'} lg:block lg:w-3/4 flex flex-col`} style={{ height: 'calc(100vh - 100px)' }}>
+          <div className={`${selectedPropertyId ? 'block' : 'hidden'} lg:block lg:w-3/4 flex flex-col lg:h-[calc(100vh-100px)]`}>
             {selectedProperty ? (
               <>
                 {/* Mobile Detail Header - Only shown on mobile when detail is open */}
@@ -442,7 +442,7 @@ export default function FavoritesPage() {
 
                 <div className="flex flex-col-reverse lg:flex-row flex-1">
                   {/* Left - Property Details (Scrollable) */}
-                  <div className="w-full lg:w-1/2 flex flex-col lg:h-full">
+                  <div className="w-full lg:w-1/2 flex flex-col lg:h-[calc(100vh-100px)]">
                   {/* Scrollable Content */}
                   <div className="flex-1 overflow-y-auto p-4 lg:p-8 pb-48 lg:pb-8">
                     {propertyPreviewData && (
@@ -466,7 +466,7 @@ export default function FavoritesPage() {
                   </div>
 
                   {/* Bottom Bar */}
-                  <div className="w-full mb-20 lg:mb-0">
+                  <div className="bg-white border-t border-gray-100 mb-20 lg:mb-0">
                     <PropertyActionButtons
                       isOwner={false}
                       isFavorite={true}

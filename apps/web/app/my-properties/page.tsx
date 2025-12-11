@@ -265,6 +265,7 @@ export default function MyPropertiesPage() {
   // Convert property data to PropertyPreview format
   // Extract detailed evaluation data from JSONB field
   const detailedEval = selectedProperty ? (selectedProperty as any).ai_detailed_evaluation : null;
+  const sellerEval = selectedProperty ? convertSellerAnalysisToEvaluation((selectedProperty as any).seller_analysis) : undefined;
 
   const propertyPreviewData: PropertyPreviewData | null = selectedProperty ? {
     images: selectedProperty.images || [],
@@ -317,6 +318,8 @@ export default function MyPropertiesPage() {
     rating_count: (selectedProperty as any).rating_count ?? undefined,
     avg_rating: (selectedProperty as any).avg_rating ?? undefined,
     avg_suggested_price: (selectedProperty as any).avg_suggested_price ?? undefined,
+    // Seller evaluation from seller_analysis JSONB field
+    seller_evaluation: sellerEval,
   } : null;
 
   return (
@@ -344,7 +347,7 @@ export default function MyPropertiesPage() {
           </div>
         </div>
       ) : (
-        <div className="flex flex-col lg:flex-row" style={{ height: 'calc(100vh - 100px)' }}>
+        <div className="flex flex-col lg:flex-row overflow-hidden" style={{ height: 'calc(100vh - 100px)' }}>
           {/* Mobile Header - visible only on small screens when no detail is shown */}
           <div className={`${selectedPropertyId ? 'hidden' : 'block'} lg:hidden bg-white border-b border-gray-200 p-4`}>
             <div className="flex items-center justify-between mb-2">
@@ -499,7 +502,7 @@ export default function MyPropertiesPage() {
           </div>
 
           {/* Right Column - Property Details (same as detail page) */}
-          <div className={`${selectedPropertyId ? 'block' : 'hidden'} lg:block lg:w-3/4 flex flex-col`} style={{ height: 'calc(100vh - 100px)' }}>
+          <div className={`${selectedPropertyId ? 'block' : 'hidden'} lg:block lg:w-3/4 flex flex-col lg:h-[calc(100vh-100px)]`}>
             {selectedProperty ? (
               <>
                 {/* Mobile Detail Header - Only shown on mobile when detail is open */}
@@ -513,7 +516,7 @@ export default function MyPropertiesPage() {
 
                 <div className="flex flex-col-reverse lg:flex-row flex-1">
                   {/* Left - Property Details (Scrollable) */}
-                  <div className="w-full lg:w-1/2 flex flex-col lg:h-full">
+                  <div className="w-full lg:w-1/2 flex flex-col lg:h-[calc(100vh-100px)]">
                   {/* Scrollable Content */}
                   <div className="flex-1 overflow-y-auto p-4 lg:p-8 pb-48 lg:pb-8">
                     {/* PropertyPreview Component */}
@@ -526,19 +529,12 @@ export default function MyPropertiesPage() {
                         isOwner={true}
                         hideProviderInfo={true}
                         sellerAnalysisMarketAverage={(selectedProperty as any).seller_analysis?.market_position?.market_average_price_per_sqm}
+                        evaluationViewType="seller"
+                        onTriggerEvaluation={(viewType) => handleGenerateSellerAnalysis(selectedProperty.id)}
+                        propertyId={selectedProperty.id}
+                        isGeneratingEvaluation={generateSellerAnalysisMutation.isLoading}
                       />
                     )}
-
-                    {/* KI-Verkäuferbewertung */}
-                    <div className="mt-6">
-                      <AIEvaluationPanel
-                        mode="seller"
-                        propertyId={selectedProperty.id}
-                        sellerEvaluation={convertSellerAnalysisToEvaluation((selectedProperty as any).seller_analysis)}
-                        isLoading={generateSellerAnalysisMutation.isLoading}
-                        onTriggerEvaluation={() => handleGenerateSellerAnalysis(selectedProperty.id)}
-                      />
-                    </div>
 
                     {/* Anbieter Info */}
                     <div className="mt-6 bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
@@ -578,7 +574,7 @@ export default function MyPropertiesPage() {
                   </div>
 
                   {/* CTA Buttons */}
-                  <div className="bg-white p-4 lg:p-8 pt-4 space-y-3 mb-20 lg:mb-0">
+                  <div className="bg-white p-4 lg:p-8 pt-4 space-y-3 border-t border-gray-100 mb-20 lg:mb-0">
                     <div className="flex flex-col gap-3">
                       <button
                         onClick={() => router.push(`/edit-listing/${selectedProperty.id}`)}

@@ -118,7 +118,7 @@ export default function SuggestionPage() {
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50" style={{ height: '100px' }}>
         <div className="container mx-auto px-4 h-full flex items-center justify-between">
           <a href="/" className="font-bold text-gray-900" style={{ fontSize: '29px' }}>
-            ← Nestela
+            ← NestFlow
           </a>
           <span className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-1 rounded-full text-sm font-medium">
             KI-Vorschlag

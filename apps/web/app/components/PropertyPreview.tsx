@@ -611,6 +611,32 @@ export function PropertyPreview({
           })()}
         </div>
 
+        {/* BUYER VIEW: KI-Bewertung mit wiederverwendbarer Komponente */}
+        {/* Buyer mode requires propertyId because we're viewing an existing property */}
+        {evaluationViewType === 'buyer' && onTriggerEvaluation && propertyId && (
+          <AIEvaluationPanel
+            mode="buyer"
+            propertyId={propertyId}
+            buyerEvaluation={data.buyer_evaluation}
+            isLoading={isGeneratingEvaluation}
+            onTriggerEvaluation={onTriggerEvaluation}
+            className="mb-6"
+          />
+        )}
+
+        {/* SELLER VIEW: KI-Bewertung mit wiederverwendbarer Komponente */}
+        {/* Seller mode requires propertyId - only show after property is saved */}
+        {evaluationViewType === 'seller' && onTriggerEvaluation && propertyId && (
+          <AIEvaluationPanel
+            mode="seller"
+            propertyId={propertyId}
+            sellerEvaluation={data.seller_evaluation}
+            isLoading={isGeneratingEvaluation}
+            onTriggerEvaluation={onTriggerEvaluation}
+            className="mb-6"
+          />
+        )}
+
         {/* Weitere Details Section - Compact Accordion */}
         {(data.sqm || data.rooms || energyEfficiencyClass || data.available_from || data.year_built || data.bathrooms || data.monthly_fee || data.floor_level || data.total_floors || data.heating_type || data.energy_source || data.energy_certificate || data.usable_area || condition) && (
           <div className="mb-6 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
@@ -960,32 +986,6 @@ export function PropertyPreview({
               </button>
             )}
           </div>
-        )}
-
-        {/* BUYER VIEW: KI-Bewertung mit wiederverwendbarer Komponente */}
-        {/* Buyer mode requires propertyId because we're viewing an existing property */}
-        {evaluationViewType === 'buyer' && onTriggerEvaluation && propertyId && (
-          <AIEvaluationPanel
-            mode="buyer"
-            propertyId={propertyId}
-            buyerEvaluation={data.buyer_evaluation}
-            isLoading={isGeneratingEvaluation}
-            onTriggerEvaluation={onTriggerEvaluation}
-            className="mb-6"
-          />
-        )}
-
-        {/* SELLER VIEW: KI-Bewertung mit wiederverwendbarer Komponente */}
-        {/* Seller mode requires propertyId - only show after property is saved */}
-        {evaluationViewType === 'seller' && onTriggerEvaluation && propertyId && (
-          <AIEvaluationPanel
-            mode="seller"
-            propertyId={propertyId}
-            sellerEvaluation={data.seller_evaluation}
-            isLoading={isGeneratingEvaluation}
-            onTriggerEvaluation={onTriggerEvaluation}
-            className="mb-6"
-          />
         )}
 
         {/* Anbieter Info - Only show when owner data exists */}
