@@ -11,6 +11,8 @@ import { FavoriteButton } from '@/app/components/FavoriteButton';
 import { CommissionConsentDialog } from '@/app/components/CommissionConsentDialog';
 import { PropertyPreview, PropertyPreviewData } from '@/app/components/PropertyPreview';
 import { PropertyActionButtons } from '@/app/components/PropertyActionButtons';
+import { MobileDetailHeader } from '@/app/components/MobileDetailHeader';
+import { ArrowLeft } from 'lucide-react';
 import { InvestmentScoreBadge } from '@immoflow/ui';
 import { trpc } from '@/lib/trpc';
 
@@ -416,12 +418,31 @@ export default function PropertyPage() {
     <main className="min-h-screen bg-white">
       <Header />
 
+      {/* Mobile Detail Header - Only shown on mobile */}
+      <div className="lg:hidden">
+        <MobileDetailHeader
+          title="Zurück"
+          subtitle=""
+          onBack={() => router.back()}
+        />
+      </div>
+
       {/* Two Column Layout - Full Height */}
-      <div className="flex flex-col lg:flex-row" style={{ height: 'calc(100vh - 80px)' }}>
+      <div className="flex flex-col-reverse lg:flex-row" style={{ minHeight: 'calc(100vh - 80px)' }}>
         {/* Left Column - Property Details (Scrollable) */}
-        <div className="lg:w-1/2 flex flex-col lg:h-[calc(100vh-80px)]">
+        <div className="w-full lg:w-1/2 flex flex-col lg:h-[calc(100vh-80px)]">
           {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto px-4 py-4 lg:px-8 lg:py-8">
+          <div className="flex-1 overflow-y-auto px-4 py-4 lg:px-8 lg:py-8 pb-48 lg:pb-8">
+            {/* Back Button - Only shown on desktop */}
+            <button
+              onClick={() => router.back()}
+              className="hidden lg:flex items-center gap-2 p-2 mb-4 hover:bg-gray-100 rounded-lg transition-colors"
+              aria-label="Zurück"
+            >
+              <ArrowLeft size={24} className="text-gray-900" />
+              <span className="text-gray-900 font-medium">Zurück</span>
+            </button>
+
             {/* Property Preview Component */}
             <PropertyPreview
               data={propertyPreviewData}
@@ -447,23 +468,25 @@ export default function PropertyPage() {
           </div>
 
           {/* CTA Buttons */}
-          <PropertyActionButtons
-            isOwner={Boolean(isOwner)}
-            isFavorite={isFavorite}
-            onToggleFavorite={handleToggleFavorite}
-            onDismiss={handleDismiss}
-            onStartMessage={handleStartMessage}
-            onOpenFeedback={() => setIsPropertyFeedbackModalOpen(true)}
-            onEdit={() => router.push(`/property/${property.id}/edit`)}
-            onDeactivate={handleDeactivate}
-            isDismissLoading={dismissMutation.isLoading}
-            isMessageLoading={getOrCreateConversationMutation.isLoading}
-            isDeactivateLoading={deactivateMutation.isLoading}
-          />
+          <div className="mb-20 lg:mb-0">
+            <PropertyActionButtons
+              isOwner={Boolean(isOwner)}
+              isFavorite={isFavorite}
+              onToggleFavorite={handleToggleFavorite}
+              onDismiss={handleDismiss}
+              onStartMessage={handleStartMessage}
+              onOpenFeedback={() => setIsPropertyFeedbackModalOpen(true)}
+              onEdit={() => router.push(`/property/${property.id}/edit`)}
+              onDeactivate={handleDeactivate}
+              isDismissLoading={dismissMutation.isLoading}
+              isMessageLoading={getOrCreateConversationMutation.isLoading}
+              isDeactivateLoading={deactivateMutation.isLoading}
+            />
+          </div>
         </div>
 
         {/* Right Column - Property Card with Slideshow */}
-        <div className="lg:w-1/2 lg:sticky lg:top-20 lg:h-[calc(100vh-80px)] p-4 lg:p-6">
+        <div className="w-full lg:w-1/2 lg:sticky lg:top-20 h-[50vh] lg:h-[calc(100vh-80px)] p-4 lg:p-6">
           <PropertyImageSlideshow
             images={property.images}
             title={property.title}

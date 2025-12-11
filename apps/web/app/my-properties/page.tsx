@@ -12,6 +12,8 @@ import { AIEvaluationPanel, type SellerEvaluation } from '../components/AIEvalua
 import { DeletePropertyModal } from '../components/DeletePropertyModal';
 import { MapPin, Home, Plus, Eye, Pencil, Power, Heart, X } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
+import { useMasterDetailNavigation } from '@/app/hooks/useMasterDetailNavigation';
+import { MobileDetailHeader } from '../components/MobileDetailHeader';
 
 type StatusFilter = 'all' | 'active' | 'archived' | 'pending' | 'sold';
 
@@ -66,7 +68,6 @@ export default function MyPropertiesPage() {
   const { user, loading: authLoading } = useAuthContext();
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [selectedIndex, setSelectedIndex] = useState(0);
 
   // Delete modal state
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -91,9 +92,6 @@ export default function MyPropertiesPage() {
       console.log(`📄 [PERF-MY-PROPS] Properties loaded in ${duration.toFixed(2)}ms`);
     },
   });
-
-  // Get selected property
-  const selectedProperty = properties.length > 0 ? properties[selectedIndex] : null;
 
   // Get utils for cache invalidation
   const utils = trpc.useContext();
@@ -140,8 +138,8 @@ export default function MyPropertiesPage() {
   const deleteMutation = trpc.properties.delete.useMutation({
     onSuccess: () => {
       utils.properties.getByUserId.invalidate();
-      // Reset to first property if current one is deleted
-      setSelectedIndex(0);
+      // Return to list view on mobile
+      goBack();
       // Close modal
       setDeleteModalOpen(false);
       setPropertyToDelete(null);
@@ -224,6 +222,10 @@ export default function MyPropertiesPage() {
     }
     return 0;
   });
+
+  // Mobile master-detail navigation
+  const { selectedItem: selectedProperty, selectedPropertyId, selectItem, goBack } =
+    useMasterDetailNavigation(sortedProperties, '/my-properties');
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('de-DE', {
@@ -342,9 +344,9 @@ export default function MyPropertiesPage() {
           </div>
         </div>
       ) : (
-        <div className="flex flex-col lg:flex-row" style={{ minHeight: 'calc(100vh - 100px)' }}>
-          {/* Mobile Header - visible only on small screens */}
-          <div className="lg:hidden bg-white border-b border-gray-200 p-4">
+        <div className="flex flex-col lg:flex-row" style={{ height: 'calc(100vh - 100px)' }}>
+          {/* Mobile Header - visible only on small screens when no detail is shown */}
+          <div className={`${selectedPropertyId ? 'hidden' : 'block'} lg:hidden bg-white border-b border-gray-200 p-4`}>
             <div className="flex items-center justify-between mb-2">
               <div>
                 <h1 className="text-xl font-bold text-gray-900">Meine Inserate</h1>
@@ -360,9 +362,10 @@ export default function MyPropertiesPage() {
           </div>
 
           {/* Left Column - Properties List */}
-          <div className="hidden lg:block lg:w-1/4 border-r border-gray-200 overflow-y-auto">
+          <div className={`${selectedPropertyId ? 'hidden' : 'block'} lg:block lg:w-1/4 border-r border-gray-200 overflow-y-auto`}>
             <div className="p-4">
-              <div className="flex items-center justify-between mb-4">
+              {/* Desktop Header - Hidden on mobile */}
+              <div className="hidden lg:flex items-center justify-between mb-4">
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">Meine Inserate</h1>
                   <p className="text-gray-500 text-sm">{properties.length} Immobilien</p>
@@ -378,7 +381,7 @@ export default function MyPropertiesPage() {
               {/* Status Filter */}
               <div className="flex flex-wrap gap-2 mb-4">
                 <button
-                  onClick={() => { setStatusFilter('all'); setSelectedIndex(0); }}
+                  onClick={() => setStatusFilter('all')}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     statusFilter === 'all'
                       ? 'bg-gray-900 text-white'
@@ -388,7 +391,7 @@ export default function MyPropertiesPage() {
                   Alle ({properties.length})
                 </button>
                 <button
-                  onClick={() => { setStatusFilter('active'); setSelectedIndex(0); }}
+                  onClick={() => setStatusFilter('active')}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     statusFilter === 'active'
                       ? 'bg-gray-900 text-white'
@@ -398,7 +401,7 @@ export default function MyPropertiesPage() {
                   Aktiv ({properties.filter(p => p.status === 'active').length})
                 </button>
                 <button
-                  onClick={() => { setStatusFilter('archived'); setSelectedIndex(0); }}
+                  onClick={() => setStatusFilter('archived')}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     statusFilter === 'archived'
                       ? 'bg-gray-900 text-white'
@@ -411,7 +414,7 @@ export default function MyPropertiesPage() {
 
               <div className="space-y-3">
                 {sortedProperties.map((property, index) => {
-                  const isSelected = index === selectedIndex;
+                  const isSelected = property.id === selectedPropertyId;
                   const statusBadge = getStatusBadge(property.status || 'pending');
 
                   return (
@@ -439,7 +442,7 @@ export default function MyPropertiesPage() {
                         <X size={14} />
                       </button>
 
-                      <div className="flex h-full cursor-pointer" onClick={() => setSelectedIndex(index)}>
+                      <div className="flex h-full cursor-pointer" onClick={() => selectItem(property.id)}>
                         {/* Thumbnail */}
                         <div className="relative w-28 flex-shrink-0 bg-gray-100">
                           {property.images && property.images.length > 0 ? (
@@ -496,13 +499,23 @@ export default function MyPropertiesPage() {
           </div>
 
           {/* Right Column - Property Details (same as detail page) */}
-          <div className="lg:w-3/4 flex flex-col lg:flex-row" style={{ height: 'calc(100vh - 100px)' }}>
+          <div className={`${selectedPropertyId ? 'block' : 'hidden'} lg:block lg:w-3/4 flex flex-col`} style={{ height: 'calc(100vh - 100px)' }}>
             {selectedProperty ? (
               <>
-                {/* Left - Property Details (Scrollable) */}
-                <div className="w-full lg:w-1/2 flex flex-col lg:h-full">
+                {/* Mobile Detail Header - Only shown on mobile when detail is open */}
+                {selectedPropertyId && (
+                  <MobileDetailHeader
+                    title="Zurück"
+                    subtitle=""
+                    onBack={goBack}
+                  />
+                )}
+
+                <div className="flex flex-col-reverse lg:flex-row flex-1">
+                  {/* Left - Property Details (Scrollable) */}
+                  <div className="w-full lg:w-1/2 flex flex-col lg:h-full">
                   {/* Scrollable Content */}
-                  <div className="flex-1 overflow-y-auto p-4 lg:p-8 pb-24 lg:pb-8">
+                  <div className="flex-1 overflow-y-auto p-4 lg:p-8 pb-48 lg:pb-8">
                     {/* PropertyPreview Component */}
                     {propertyPreviewData && (
                       <PropertyPreview
@@ -565,7 +578,7 @@ export default function MyPropertiesPage() {
                   </div>
 
                   {/* CTA Buttons */}
-                  <div className="fixed lg:relative bottom-0 left-0 right-0 bg-white p-4 lg:p-8 pt-4 space-y-3 border-t lg:border-t-0 border-gray-200 z-10">
+                  <div className="bg-white p-4 lg:p-8 pt-4 space-y-3 mb-20 lg:mb-0">
                     <div className="flex flex-col gap-3">
                       <button
                         onClick={() => router.push(`/edit-listing/${selectedProperty.id}`)}
@@ -617,16 +630,17 @@ export default function MyPropertiesPage() {
                   </div>
                 </div>
 
-                {/* Right - Image Slideshow */}
-                <div className="hidden lg:block lg:w-1/2 lg:sticky lg:top-0 lg:h-full p-4 lg:p-6">
-                  <PropertyImageSlideshow
-                    images={selectedProperty.images}
-                    title={selectedProperty.title}
-                    className="h-full shadow-xl"
-                    showCounter={true}
-                    showProgressBars={true}
-                    slideshowId={`my-properties-${selectedProperty.id}`}
-                  />
+                  {/* Right - Image Slideshow */}
+                  <div className="w-full lg:w-1/2 lg:sticky lg:top-0 h-[60vh] lg:h-[calc(100vh-100px)] p-4 lg:p-6">
+                    <PropertyImageSlideshow
+                      images={selectedProperty.images}
+                      title={selectedProperty.title}
+                      className="h-full shadow-xl"
+                      showCounter={true}
+                      showProgressBars={true}
+                      slideshowId={`my-properties-${selectedProperty.id}`}
+                    />
+                  </div>
                 </div>
               </>
             ) : (

@@ -181,8 +181,13 @@ export function PropertyImageSlideshow({
     full: 'rounded-full',
   }[rounded];
 
+  // Ensure h-full is applied when aspectRatio is auto
+  const containerClasses = aspectRatio === 'auto'
+    ? `relative overflow-hidden ${roundedClass} h-full ${className}`.replace('h-full h-full', 'h-full')
+    : `relative overflow-hidden ${roundedClass} ${aspectRatioClass} ${className}`;
+
   return (
-    <div ref={containerRef} className={`relative overflow-hidden ${roundedClass} ${aspectRatioClass} ${className}`}>
+    <div ref={containerRef} className={containerClasses}>
       {/* Progress Bars Area - Top 40px for clicking on progress bars */}
       {showProgressBars && hasMultipleImages && (
         <div

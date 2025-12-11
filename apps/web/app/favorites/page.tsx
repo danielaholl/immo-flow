@@ -14,13 +14,14 @@ import { InvestmentScoreBadge } from '@immoflow/ui';
 // import { PropertyFeedbackModal } from '@immoflow/ui'; // Component doesn't exist
 import { MapPin, Home, Heart, X, Plus } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
+import { useMasterDetailNavigation } from '@/app/hooks/useMasterDetailNavigation';
+import { MobileDetailHeader } from '../components/MobileDetailHeader';
 
 export default function FavoritesPage() {
   const { user, profile, loading: authLoading } = useAuthContext();
   const hasGlobalConsent = profile?.global_address_consent ?? false;
   const router = useRouter();
   const [consentedPropertyIds, setConsentedPropertyIds] = useState<Set<string>>(new Set());
-  const [selectedIndex, setSelectedIndex] = useState(0);
   const [consentLoading, setConsentLoading] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [isPropertyFeedbackModalOpen, setIsPropertyFeedbackModalOpen] = useState(false);
@@ -42,6 +43,10 @@ export default function FavoritesPage() {
       console.log(`📄 [PERF-FAV] Favorites loaded in ${duration.toFixed(2)}ms`);
     },
   });
+
+  // Mobile master-detail navigation
+  const { selectedItem: selectedFavorite, selectedPropertyId, selectItem, goBack } =
+    useMasterDetailNavigation(favorites, '/favorites');
 
   // Get utils for cache invalidation
   const utils = trpc.useContext();
@@ -139,10 +144,7 @@ export default function FavoritesPage() {
 
     try {
       await removeFavoriteMutation.mutateAsync({ propertyId });
-      // Adjust selected index if needed
-      if (selectedIndex >= favorites.length - 1 && favorites.length > 1) {
-        setSelectedIndex(favorites.length - 2);
-      }
+      // Hook will automatically select first item after refresh
     } catch (error) {
       console.error('Error removing favorite:', error);
     }
@@ -219,7 +221,6 @@ export default function FavoritesPage() {
     );
   }
 
-  const selectedFavorite = favorites[selectedIndex];
   const selectedProperty = selectedFavorite?.property;
 
   // Convert property data to PropertyPreview format
@@ -314,27 +315,45 @@ export default function FavoritesPage() {
           </div>
         </div>
       ) : (
-        <div className="flex flex-col lg:flex-row" style={{ height: 'calc(100vh - 100px)' }}>
-          {/* Left Column - Favorites List */}
-          <div className="lg:w-1/4 border-r border-gray-200 overflow-y-auto">
-            <div className="p-4">
-              <div className="flex items-center justify-between mb-1">
-                <h1 className="text-2xl font-bold text-gray-900">Meine Favoriten</h1>
-                <Link href="/import-listing">
-                  <button className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors">
-                    <Plus size={16} />
-                    <span>Importieren</span>
-                  </button>
-                </Link>
+        <>
+          {/* Mobile Header - Only visible on small screens when no detail is shown */}
+          <div className={`${selectedPropertyId ? 'hidden' : 'block'} lg:hidden bg-white border-b border-gray-200 p-4`}>
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">Meine Favoriten</h1>
+                <p className="text-gray-500 text-sm">{favorites.length} gespeicherte Immobilien</p>
               </div>
-              <p className="text-gray-500 text-sm mb-4">{favorites.length} gespeicherte Immobilien</p>
+              <Link href="/import-listing">
+                <button className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors">
+                  <Plus size={16} />
+                  <span>Importieren</span>
+                </button>
+              </Link>
+            </div>
+          </div>
+
+          <div className="flex flex-col lg:flex-row" style={{ height: 'calc(100vh - 100px)' }}>
+            {/* Left Column - Favorites List */}
+            <div className={`${selectedPropertyId ? 'hidden' : 'block'} lg:block lg:w-1/4 border-r border-gray-200 overflow-y-auto`}>
+              <div className="p-4">
+                {/* Desktop Header - Hidden on mobile */}
+                <div className="hidden lg:flex items-center justify-between mb-1">
+                  <h1 className="text-2xl font-bold text-gray-900">Meine Favoriten</h1>
+                  <Link href="/import-listing">
+                    <button className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors">
+                      <Plus size={16} />
+                      <span>Importieren</span>
+                    </button>
+                  </Link>
+                </div>
+                <p className="hidden lg:block text-gray-500 text-sm mb-4">{favorites.length} gespeicherte Immobilien</p>
 
               <div className="space-y-3">
                 {favorites.map((favorite, index) => {
                   const property = favorite.property;
                   if (!property) return null;
 
-                  const isSelected = index === selectedIndex;
+                  const isSelected = property.id === selectedPropertyId;
 
                   return (
                     <div
@@ -357,7 +376,7 @@ export default function FavoritesPage() {
                         <X size={14} />
                       </button>
 
-                      <div className="flex h-full cursor-pointer" onClick={() => setSelectedIndex(index)}>
+                      <div className="flex h-full cursor-pointer" onClick={() => selectItem(property.id)}>
                         {/* Thumbnail - Full height */}
                         <div className="relative w-28 flex-shrink-0 bg-gray-100">
                           {property.images && property.images.length > 0 ? (
@@ -409,13 +428,23 @@ export default function FavoritesPage() {
           </div>
 
           {/* Right Column - Property Details (same as detail page) */}
-          <div className="lg:w-3/4 flex flex-col lg:flex-row relative" style={{ height: 'calc(100vh - 100px)' }}>
+          <div className={`${selectedPropertyId ? 'block' : 'hidden'} lg:block lg:w-3/4 flex flex-col`} style={{ height: 'calc(100vh - 100px)' }}>
             {selectedProperty ? (
               <>
-                {/* Left - Property Details (Scrollable) */}
-                <div className="lg:w-1/2 flex flex-col lg:h-full">
+                {/* Mobile Detail Header - Only shown on mobile when detail is open */}
+                {selectedPropertyId && (
+                  <MobileDetailHeader
+                    title="Zurück"
+                    subtitle=""
+                    onBack={goBack}
+                  />
+                )}
+
+                <div className="flex flex-col-reverse lg:flex-row flex-1">
+                  {/* Left - Property Details (Scrollable) */}
+                  <div className="w-full lg:w-1/2 flex flex-col lg:h-full">
                   {/* Scrollable Content */}
-                  <div className="flex-1 overflow-y-auto p-4 lg:p-8 pb-48">
+                  <div className="flex-1 overflow-y-auto p-4 lg:p-8 pb-48 lg:pb-8">
                     {propertyPreviewData && (
                       <PropertyPreview
                         data={propertyPreviewData}
@@ -436,8 +465,8 @@ export default function FavoritesPage() {
                     )}
                   </div>
 
-                  {/* Bottom Bar (positioned over left details section only) */}
-                  <div className="absolute bottom-0 left-0 lg:w-1/2 w-full z-40">
+                  {/* Bottom Bar */}
+                  <div className="w-full mb-20 lg:mb-0">
                     <PropertyActionButtons
                       isOwner={false}
                       isFavorite={true}
@@ -452,16 +481,17 @@ export default function FavoritesPage() {
                   </div>
                 </div>
 
-                {/* Right - Image Slideshow */}
-                <div className="lg:w-1/2 lg:sticky lg:top-0 lg:h-full p-4 lg:p-6">
-                  <PropertyImageSlideshow
-                    images={selectedProperty.images}
-                    title={selectedProperty.title}
-                    className="h-full shadow-xl"
-                    showCounter={true}
-                    showProgressBars={true}
-                    slideshowId={`favorites-${selectedProperty.id}`}
-                  />
+                  {/* Right - Image Slideshow */}
+                  <div className="w-full lg:w-1/2 lg:sticky lg:top-0 h-[60vh] lg:h-[calc(100vh-100px)] p-4 lg:p-6">
+                    <PropertyImageSlideshow
+                      images={selectedProperty.images}
+                      title={selectedProperty.title}
+                      className="h-full shadow-xl"
+                      showCounter={true}
+                      showProgressBars={true}
+                      slideshowId={`favorites-${selectedProperty.id}`}
+                    />
+                  </div>
                 </div>
               </>
             ) : (
@@ -471,6 +501,7 @@ export default function FavoritesPage() {
             )}
           </div>
         </div>
+        </>
       )}
 
       {/* Property Feedback Modal */}
