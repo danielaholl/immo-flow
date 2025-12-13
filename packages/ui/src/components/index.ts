@@ -2,13 +2,17 @@
  * UI Components exports
  */
 
-export * from './Button';
-export * from './PropertyCard';
-export * from './Input';
-export * from './Avatar';
-export * from './Badge';
-export * from './ChatAssistant';
-export * from './ChatModal';
-export * from './SearchBar';
-export * from './PropertyImagePlaceholder';
-export { InvestmentScoreBadge } from './InvestmentScoreBadge'; // Keep badge for simple score displays
+// Shared Components (RN + Web)
+export * from './shared/Button';
+export * from './shared/Input';
+export * from './shared/Avatar';
+export * from './shared/Badge';
+export * from './shared/SearchBar';
+export * from './shared/PropertyCard'; // Platform-aware export (web/native)
+
+// Web-only Components
+export { ChatAssistant, type ChatAssistantProps, type Message as ChatMessage } from './web/ChatAssistant';
+export { ChatModal, type ChatModalProps } from './web/ChatModal';
+export { PropertyScoreBadge } from './web/PropertyScoreBadge';
+export { InvestmentScoreBadge } from './web/InvestmentScoreBadge';
+export * from './web/PropertyImagePlaceholder';

@@ -25,53 +25,52 @@ export const propertiesRouter = router({
         .optional()
     )
     .query(async ({ input }) => {
-      const params = input || {};
       const conditions: string[] = [];
       const values: any[] = [];
       let paramCount = 1;
 
       // Build WHERE conditions
       conditions.push(`status = $${paramCount}`);
-      values.push(params.status || 'active');
+      values.push(input?.status || 'active');
       paramCount++;
 
       // Only show external properties if they are shared with community
       conditions.push(`(is_external = false OR is_external IS NULL OR is_community_shared = true)`);
       paramCount; // No param needed for this condition
 
-      if (params.location) {
+      if (input?.location) {
         conditions.push(`location ILIKE $${paramCount}`);
-        values.push(`%${params.location}%`);
+        values.push(`%${input.location}%`);
         paramCount++;
       }
 
-      if (params.minPrice !== undefined) {
+      if (input?.minPrice !== undefined) {
         conditions.push(`price >= $${paramCount}`);
-        values.push(params.minPrice);
+        values.push(input.minPrice);
         paramCount++;
       }
 
-      if (params.maxPrice !== undefined) {
+      if (input?.maxPrice !== undefined) {
         conditions.push(`price <= $${paramCount}`);
-        values.push(params.maxPrice);
+        values.push(input.maxPrice);
         paramCount++;
       }
 
-      if (params.minSqm !== undefined) {
+      if (input?.minSqm !== undefined) {
         conditions.push(`sqm >= $${paramCount}`);
-        values.push(params.minSqm);
+        values.push(input.minSqm);
         paramCount++;
       }
 
-      if (params.maxSqm !== undefined) {
+      if (input?.maxSqm !== undefined) {
         conditions.push(`sqm <= $${paramCount}`);
-        values.push(params.maxSqm);
+        values.push(input.maxSqm);
         paramCount++;
       }
 
-      if (params.rooms !== undefined) {
+      if (input?.rooms !== undefined) {
         conditions.push(`rooms = $${paramCount}`);
-        values.push(params.rooms);
+        values.push(input.rooms);
         paramCount++;
       }
 
@@ -87,7 +86,7 @@ export const propertiesRouter = router({
         LIMIT $${paramCount} OFFSET $${paramCount + 1}
       `;
 
-      values.push(params.limit, params.offset);
+      values.push(input?.limit ?? 20, input?.offset ?? 0);
 
       const properties = await query(sql, values);
       return properties;
@@ -285,27 +284,27 @@ export const propertiesRouter = router({
         features: z.array(z.string().trim().max(100)).max(100).optional(),
         highlights: z.array(z.string().trim().max(100)).max(100).optional(),
         red_flags: z.array(z.string().trim().max(100)).max(100).optional(),
-        status: z.enum(['active', 'pending', 'archived', 'sold']).optional(),
-        commission_rate: z.number().nonnegative().max(100).optional(),
-        require_address_consent: z.boolean().optional(),
-        // New fields added
-        property_type: z.enum(['apartment', 'house', 'villa', 'commercial', 'land', 'office', 'retail', 'industrial', 'parking', 'multi_family']).optional(),
-        postal_code: z.string().trim().max(10).optional(),
-        street_address: z.string().trim().max(500).optional(),
-        year_built: z.number().int().min(1800).max(new Date().getFullYear() + 5).optional(),
-        floor_level: z.string().trim().max(20).optional(),
-        total_floors: z.number().int().positive().max(200).optional(),
-        bathrooms: z.number().int().nonnegative().max(50).optional(),
-        usable_area: z.number().int().nonnegative().max(100000).optional(),
-        usable_area_ratio: z.string().trim().max(20).optional(),
-        monthly_fee: z.number().int().nonnegative().max(100000).optional(),
-        condition: z.enum(['new', 'first_occupancy', 'renovated', 'maintained', 'needs_renovation']).optional(),
-        heating_type: z.enum(['central', 'floor', 'gas', 'oil', 'district', 'electric', 'solar', 'heat_pump', 'other']).optional(),
-        energy_source: z.enum(['gas', 'oil', 'electricity', 'district_heating', 'solar', 'geothermal', 'biomass', 'other']).optional(),
-        energy_certificate: z.enum(['demand', 'consumption', 'none']).optional(),
-        energy_efficiency_class: z.enum(['A+', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']).optional(),
-        available_from: z.string().trim().max(50).optional(),
-        important_notes: z.string().trim().max(2000).optional(),
+        status: z.enum(['active', 'pending', 'archived', 'sold']).nullish(),
+        commission_rate: z.number().nonnegative().max(100).nullish(),
+        require_address_consent: z.boolean().nullish(),
+        // New fields added - using nullish() to accept both null and undefined
+        property_type: z.enum(['apartment', 'house', 'villa', 'commercial', 'land', 'office', 'retail', 'industrial', 'parking', 'multi_family']).nullish(),
+        postal_code: z.string().trim().max(10).nullish(),
+        street_address: z.string().trim().max(500).nullish(),
+        year_built: z.number().int().min(1800).max(new Date().getFullYear() + 5).nullish(),
+        floor_level: z.string().trim().max(20).nullish(),
+        total_floors: z.number().int().positive().max(200).nullish(),
+        bathrooms: z.number().int().nonnegative().max(50).nullish(),
+        usable_area: z.number().int().nonnegative().max(100000).nullish(),
+        usable_area_ratio: z.string().trim().max(20).nullish(),
+        monthly_fee: z.number().int().nonnegative().max(100000).nullish(),
+        condition: z.enum(['new', 'first_occupancy', 'renovated', 'maintained', 'needs_renovation']).nullish(),
+        heating_type: z.enum(['central', 'floor', 'gas', 'oil', 'district', 'electric', 'solar', 'heat_pump', 'other']).nullish(),
+        energy_source: z.enum(['gas', 'oil', 'electricity', 'district_heating', 'solar', 'geothermal', 'biomass', 'other']).nullish(),
+        energy_certificate: z.enum(['demand', 'consumption', 'none']).nullish(),
+        energy_efficiency_class: z.enum(['A+', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']).nullish(),
+        available_from: z.string().trim().max(50).nullish(),
+        important_notes: z.string().trim().max(2000).nullish(),
       })
     )
     .mutation(async ({ input, ctx }) => {

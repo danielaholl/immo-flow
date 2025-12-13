@@ -81,69 +81,55 @@ export function PropertyActionButtons({
     );
   }
 
-  // Buyer Mode: 4 Buttons in 2 Reihen
+  // Buyer Mode: 3 Buttons in einer Reihe (responsiv)
   return (
     <div className={`bg-white p-4 lg:p-8 pt-4 border-t border-gray-100 ${className}`}>
-      <div className="space-y-3">
-        {/* Erste Reihe: Favorit + Kein Interesse */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <button
-            onClick={onToggleFavorite}
-            className={`flex-1 font-semibold py-4 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 ${
-              isFavorite
-                ? 'bg-primary text-white hover:opacity-90'
-                : 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            <Heart size={20} fill={isFavorite ? 'currentColor' : 'none'} />
-            {finalFavoriteLabel}
-          </button>
-          <button
-            onClick={onDismiss}
-            disabled={isDismissLoading}
-            className="flex-1 bg-white border-2 border-gray-300 text-gray-700 font-semibold py-4 px-6 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isDismissLoading ? (
-              <>
-                <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                Wird verarbeitet...
-              </>
-            ) : (
-              <>
-                <X size={20} />
-                Kein Interesse
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* Zweite Reihe: Nachricht senden + Anonym bewerten */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <button
-            onClick={onStartMessage}
-            disabled={isMessageLoading}
-            className="flex-1 bg-green-600 text-white font-semibold py-4 px-6 rounded-xl hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isMessageLoading ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Wird gestartet...
-              </>
-            ) : (
-              <>
-                <MessageSquare size={20} />
-                Nachricht senden
-              </>
-            )}
-          </button>
-          <button
-            onClick={onOpenFeedback}
-            className="flex-1 bg-white border-2 border-blue-300 text-blue-700 font-semibold py-4 px-6 rounded-xl hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
-          >
-            <MessageSquare size={20} />
-            Anonym bewerten
-          </button>
-        </div>
+      <div className="flex flex-col sm:flex-row gap-3">
+        <button
+          onClick={onToggleFavorite}
+          className={`flex-1 font-semibold py-4 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 ${
+            isFavorite
+              ? 'bg-primary text-white hover:opacity-90'
+              : 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50'
+          }`}
+        >
+          <Heart size={20} fill={isFavorite ? 'currentColor' : 'none'} />
+          {finalFavoriteLabel}
+        </button>
+        <button
+          onClick={onDismiss}
+          disabled={isDismissLoading}
+          className="flex-1 bg-white border-2 border-gray-300 text-gray-700 font-semibold py-4 px-6 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isDismissLoading ? (
+            <>
+              <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+              Wird verarbeitet...
+            </>
+          ) : (
+            <>
+              <X size={20} />
+              Kein Interesse
+            </>
+          )}
+        </button>
+        <button
+          onClick={onStartMessage}
+          disabled={isMessageLoading}
+          className="flex-1 bg-green-600 text-white font-semibold py-4 px-6 rounded-xl hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isMessageLoading ? (
+            <>
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              Wird gestartet...
+            </>
+          ) : (
+            <>
+              <MessageSquare size={20} />
+              Nachricht senden
+            </>
+          )}
+        </button>
       </div>
     </div>
   );

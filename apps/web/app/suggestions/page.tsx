@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthContext } from '@/app/providers/AuthProvider';
-import { getProperties, getUserFavorites, addFavorite, removeFavorite, getUserPropertyConsents } from '@immoflow/api';
+import { trpc } from '@/app/providers/TRPCProvider';
 import { PropertyCard } from '@immoflow/ui';
 import type { Property } from '@immoflow/database';
 import { Header } from '../components/Header';
@@ -13,11 +13,57 @@ export default function SuggestionsPage() {
   const { user, profile, loading: authLoading } = useAuthContext();
   const hasGlobalConsent = profile?.global_address_consent ?? false;
   const router = useRouter();
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
-  const [consentedPropertyIds, setConsentedPropertyIds] = useState<Set<string>>(new Set());
   const hasCheckedAuth = useRef(false);
+
+  // Fetch properties using tRPC
+  const { data: propertiesData, isLoading: propertiesLoading } = trpc.properties.getAll.useQuery(
+    { limit: 6 },
+    { enabled: !!user }
+  );
+
+  // Fetch favorites using tRPC
+  const { data: favoritesData } = trpc.favorites.getAll.useQuery(
+    undefined,
+    { enabled: !!user }
+  );
+
+  // Fetch consents using tRPC
+  const { data: consentsData } = trpc.consents.getUserPropertyConsents.useQuery(
+    undefined,
+    { enabled: !!user }
+  );
+
+  // Mutations for favorites
+  const utils = trpc.useContext();
+  const addFavoriteMutation = trpc.favorites.add.useMutation({
+    onSuccess: () => {
+      utils.favorites.getAll.invalidate();
+    },
+  });
+  const removeFavoriteMutation = trpc.favorites.remove.useMutation({
+    onSuccess: () => {
+      utils.favorites.getAll.invalidate();
+    },
+  });
+
+  // Process data
+  const properties = useMemo(() => {
+    if (!propertiesData) return [];
+    // Sort by AI score descending
+    return [...propertiesData].sort((a: any, b: any) => (b.ai_score || 0) - (a.ai_score || 0));
+  }, [propertiesData]);
+
+  const favoriteIds = useMemo(() => {
+    if (!favoritesData) return new Set<string>();
+    return new Set(favoritesData.map((f: any) => f.property_id));
+  }, [favoritesData]);
+
+  const consentedPropertyIds = useMemo(() => {
+    if (!consentsData) return new Set<string>();
+    return new Set(consentsData.map((c: any) => c.property_id));
+  }, [consentsData]);
+
+  const loading = propertiesLoading;
 
   // Helper to check if address should be shown for a property
   const shouldShowAddress = (propertyId: string) => {
@@ -42,51 +88,6 @@ export default function SuggestionsPage() {
     return () => clearTimeout(timeout);
   }, [authLoading, user, router]);
 
-  // Load AI suggestions (using top-scored properties as demo)
-  useEffect(() => {
-    if (user) {
-      loadSuggestions();
-      loadFavorites();
-      loadConsents();
-    }
-  }, [user]);
-
-  async function loadConsents() {
-    if (!user) return;
-    try {
-      const consentIds = await getUserPropertyConsents(user.id);
-      setConsentedPropertyIds(new Set(consentIds));
-    } catch (error) {
-      console.error('Error loading consents:', error);
-    }
-  }
-
-  async function loadSuggestions() {
-    try {
-      setLoading(true);
-      // Get properties sorted by AI score (simulating AI suggestions)
-      const data = await getProperties({ limit: 6 });
-      // Sort by AI score descending
-      const sorted = data.sort((a, b) => (b.ai_score || 0) - (a.ai_score || 0));
-      setProperties(sorted);
-    } catch (error) {
-      console.error('Error loading suggestions:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function loadFavorites() {
-    if (!user) return;
-    try {
-      const favorites = await getUserFavorites(user.id);
-      const ids = new Set(favorites.map((f: any) => f.property_id));
-      setFavoriteIds(ids);
-    } catch (error) {
-      console.error('Error loading favorites:', error);
-    }
-  }
-
   async function handleFavoriteToggle(propertyId: string) {
     if (!user) return;
 
@@ -94,15 +95,9 @@ export default function SuggestionsPage() {
       const isFavorited = favoriteIds.has(propertyId);
 
       if (isFavorited) {
-        await removeFavorite(user.id, propertyId);
-        setFavoriteIds(prev => {
-          const next = new Set(prev);
-          next.delete(propertyId);
-          return next;
-        });
+        await removeFavoriteMutation.mutateAsync({ propertyId });
       } else {
-        await addFavorite({ user_id: user.id, property_id: propertyId });
-        setFavoriteIds(prev => new Set(prev).add(propertyId));
+        await addFavoriteMutation.mutateAsync({ propertyId });
       }
     } catch (error) {
       console.error('Error toggling favorite:', error);
@@ -216,7 +211,7 @@ export default function SuggestionsPage() {
                       energyClass: property.energy_class || undefined,
                     }}
                     isFavorite={favoriteIds.has(property.id)}
-                    onFavorite={(e) => {
+                    onFavorite={(e: React.MouseEvent) => {
                       e?.preventDefault?.();
                       e?.stopPropagation?.();
                       handleFavoriteToggle(property.id);

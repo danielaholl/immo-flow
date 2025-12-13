@@ -1,12 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   reactStrictMode: true,
   transpilePackages: [
     '@immoflow/ui',
     '@immoflow/database',
     '@immoflow/api',
     '@immoflow/utils',
-    'react-native',
     'react-native-web',
   ],
   experimental: {
@@ -15,9 +15,11 @@ const nextConfig = {
     },
   },
   webpack: (config, { isServer }) => {
+    // Properly merge aliases
     config.resolve.alias = {
-      ...(config.resolve.alias || {}),
+      ...config.resolve.alias,
       'react-native$': 'react-native-web',
+      'react-native': 'react-native-web',
     };
     config.resolve.extensions = [
       '.web.js',

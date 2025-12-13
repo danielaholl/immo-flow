@@ -2,16 +2,16 @@
  * Kleinanzeigen.de Scraper
  * Playwright-based scraper for Kleinanzeigen
  */
-import { chromium } from './logger.js'playwright';
-import * as cheerio from './logger.js'cheerio';
-import type { ScrapedPropertyData } from './logger.js'@immoflow/types';
-import { createLogger } from './logger.js'@immoflow/utils';
+import { chromium } from 'playwright';
+import * as cheerio from 'cheerio';
+import type { ScrapedPropertyData } from '../property-scraper.js';
+import { createLogger } from '@immoflow/utils';
 import {
   parsePrice,
   parseNumber,
   getBrowserConfig,
   validatePropertyData,
-} from './logger.js'../../utils/scraper-helpers.js';
+} from '../../utils/scraper-helpers.js';
 
 const log = createLogger('kleinanzeigen-scraper');
 

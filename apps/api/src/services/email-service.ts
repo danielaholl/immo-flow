@@ -3,7 +3,7 @@
  * Handles sending emails for notifications
  */
 
-import { createLogger } from './logger.js'@immoflow/utils';
+import { createLogger } from '@immoflow/utils';
 
 const log = createLogger('email-service');
 

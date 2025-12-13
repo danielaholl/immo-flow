@@ -3,7 +3,7 @@
  * Custom error classes with error codes for consistent error handling
  */
 
-import { createLogger } from './logger.js'./logger.js';
+import { createLogger } from './logger.js';
 
 const log = createLogger('error-handling');
 

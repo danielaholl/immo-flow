@@ -2,11 +2,11 @@
  * Auth Router Tests
  * Tests for authentication functionality
  */
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from './logger.js'vitest';
-import { pool } from './logger.js'../../db.js';
-import { createCaller } from './logger.js'../helpers.js';
-import jwt from './logger.js'jsonwebtoken';
-import { getEnv } from './logger.js'../../config/env.js';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { pool } from '../../db.js';
+import { createCaller } from '../helpers.js';
+import jwt from 'jsonwebtoken';
+import { getEnv } from '../../config/env.js';
 
 const env = getEnv();
 

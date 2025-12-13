@@ -117,6 +117,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
 
     // Convert property data to ListingData format - ensure numbers are numbers
     const propertyData: ListingData = {
+      id: propertyToEdit.id, // Important: include ID for AIEvaluationPanel to show in edit mode
       property_type: (propertyToEdit as any).property_type,
       title: propertyToEdit.title,
       location: propertyToEdit.location,
@@ -143,6 +144,8 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
       energy_efficiency_class: (propertyToEdit as any).energy_efficiency_class ?? undefined,
       commission: (propertyToEdit as any).commission_rate ? (typeof (propertyToEdit as any).commission_rate === 'string' ? parseFloat((propertyToEdit as any).commission_rate) : (propertyToEdit as any).commission_rate) : undefined,
       additional_costs: (propertyToEdit as any).monthly_fee ? (typeof (propertyToEdit as any).monthly_fee === 'string' ? parseFloat((propertyToEdit as any).monthly_fee) : (propertyToEdit as any).monthly_fee) : undefined,
+      // Load seller evaluation if exists (for AIEvaluationPanel in edit mode)
+      seller_evaluation: (propertyToEdit as any).seller_evaluation ?? undefined,
     };
 
     setListingData(propertyData);
@@ -202,10 +205,12 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
       });
 
       // Update listing data and convert German enums to English
-      // Also explicitly clear AI rating fields since we're doing data extraction only
+      // In edit mode: MERGE changes with existing data (keep all existing fields)
+      // In create mode: Replace with new data
       const newData = convertToEnglishEnums(result.extractedData);
-      setListingData({
-        ...newData,
+      setListingData(prev => ({
+        ...prev, // Keep all existing data (important for edit mode!)
+        ...newData, // Merge in the changes
         // Explicitly clear AI rating fields after data extraction
         ai_rating_explanation: undefined,
         strengths: undefined,
@@ -213,7 +218,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
         opportunities: undefined,
         risks: undefined,
         ai_score: undefined,
-      });
+      }));
 
       // Add both user message and assistant response to conversation history
       updateConversationHistory([
@@ -341,7 +346,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
       addBotMessage('Starte KI-Marktwertanalyse...');
 
       const evaluation = await generateKIEvaluationMutation.mutateAsync({
-        propertyId,
+        propertyId: propertyId!,
         viewType: 'seller',
       });
       console.log('[KI Evaluation] Seller evaluation completed:', evaluation);
@@ -349,7 +354,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
       // Update listing data with seller evaluation results
       setListingData((prev) => ({
         ...prev,
-        seller_evaluation: evaluation,
+        seller_evaluation: evaluation as any,
       }));
 
       addBotMessage('Perfekt! Die Marktwertanalyse ist abgeschlossen. Schau dir die Ergebnisse in der Vorschau an!');
@@ -379,10 +384,10 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
       });
 
       if (isEditMode && propertyId) {
-        // Update existing property
+        // Update existing property - spread propertyData directly (not in a 'data' wrapper)
         await updatePropertyMutation.mutateAsync({
           id: propertyId,
-          data: propertyData,
+          ...propertyData,
         });
 
         // Success
@@ -458,7 +463,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
       // Update listing data with extracted data only (no KI Bewertung)
       setListingData(prev => ({
         ...prev,
-        ...result.propertyData,
+        ...(result.propertyData as any),
       }));
 
       // Update conversation
@@ -705,7 +710,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
         // Also explicitly clear AI rating fields since we're doing data extraction only
         setListingData(prev => ({
           ...prev,
-          ...result.propertyData,
+          ...(result.propertyData as any),
           // Explicitly clear AI rating fields after PDF analysis
           ai_rating_explanation: undefined,
           strengths: undefined,
@@ -822,7 +827,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
         // because KI evaluation should only happen on-demand after data extraction
         setListingData(prev => ({
           ...prev,
-          ...result.propertyData,
+          ...(result.propertyData as any),
           // Explicitly clear AI rating fields - they will be generated on-demand
           ai_score: undefined,
           ai_rating_explanation: undefined,
@@ -898,23 +903,24 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
         // If we extracted property data from screenshots, update the listing
         if (result.extractedData && result.propertyData) {
           console.log('[Upload] Updating listing data with extracted data');
+          const extractedData = result.propertyData as any;
 
           setListingData(prev => ({
             ...prev,
-            title: result.propertyData.title || prev.title,
-            description: result.propertyData.description || prev.description,
-            price: result.propertyData.price || prev.price,
-            location: result.propertyData.location || prev.location,
-            address: result.propertyData.address || prev.address,
-            postal_code: result.propertyData.postalCode || prev.postal_code,
-            sqm: result.propertyData.sqm || prev.sqm,
-            rooms: result.propertyData.rooms || prev.rooms,
-            bathrooms: result.propertyData.bathrooms || prev.bathrooms,
-            year_built: result.propertyData.yearBuilt || prev.year_built,
-            floor_level: result.propertyData.floor || prev.floor_level,
-            heating_type: result.propertyData.heatingType || prev.heating_type,
-            energy_efficiency_class: result.propertyData.energyClass || prev.energy_efficiency_class,
-            features: result.propertyData.features || prev.features,
+            title: extractedData.title || prev.title,
+            description: extractedData.description || prev.description,
+            price: extractedData.price || prev.price,
+            location: extractedData.location || prev.location,
+            address: extractedData.address || prev.address,
+            postal_code: extractedData.postalCode || prev.postal_code,
+            sqm: extractedData.sqm || prev.sqm,
+            rooms: extractedData.rooms || prev.rooms,
+            bathrooms: extractedData.bathrooms || prev.bathrooms,
+            year_built: extractedData.yearBuilt || prev.year_built,
+            floor_level: extractedData.floor || prev.floor_level,
+            heating_type: extractedData.heatingType || prev.heating_type,
+            energy_efficiency_class: extractedData.energyClass || prev.energy_efficiency_class,
+            features: extractedData.features || prev.features,
           }));
 
           // Mark as complete

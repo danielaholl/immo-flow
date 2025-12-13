@@ -4,7 +4,8 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthContext } from '@/app/providers/AuthProvider';
 import { Header } from '../components/Header';
-import { updateUserProfile, getUserSearchHistory, deleteSearchHistory, getUserPreferences, type SearchHistory, type UserPreferencesParsed } from '@immoflow/api';
+import { trpc } from '@/lib/trpc';
+import type { SearchHistory, UserPreferencesParsed } from './types';
 import { User, Phone, Mail, MapPin, Building2, Shield, ChevronRight, Rows3, Edit3, LogOut, Home, Plus, Eye, Heart, Camera, Send, ImagePlus, Search, Clock, X, Sparkles, TrendingUp } from 'lucide-react';
 
 type MessageType = 'bot' | 'user';
@@ -182,11 +183,15 @@ export default function ProfilePage() {
 
   // User search history state
   const [searchHistory, setSearchHistory] = useState<SearchHistory[]>([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
 
   // User preferences (recommendation profile) state
   const [userPreferences, setUserPreferences] = useState<UserPreferencesParsed | null>(null);
-  const [loadingPreferences, setLoadingPreferences] = useState(false);
+
+  // Inline editing state
+  const [isInlineEditing, setIsInlineEditing] = useState(false);
+  const [editedProfile, setEditedProfile] = useState<Partial<ProfileData>>({});
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string>('');
 
   // Refs
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -194,6 +199,7 @@ export default function ProfilePage() {
   const textInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -213,47 +219,30 @@ export default function ProfilePage() {
     }
   }, [authLoading, profile]);
 
-  // Load user search history
+  // Load user search history with tRPC
+  const { data: searchHistoryData, isLoading: loadingHistory } = trpc.searchHistory.getAll.useQuery(
+    { limit: 10 },
+    { enabled: !!user && viewMode === 'overview' }
+  );
+
+  // Load user preferences with tRPC
+  const { data: userPreferencesData, isLoading: loadingPreferences } = trpc.userPreferences.get.useQuery(
+    undefined,
+    { enabled: !!user && viewMode === 'overview' }
+  );
+
+  // Update local state when data changes
   useEffect(() => {
-    const loadSearchHistory = async () => {
-      if (!user) return;
-
-      setLoadingHistory(true);
-      try {
-        const history = await getUserSearchHistory(user.id, 10);
-        setSearchHistory(history);
-      } catch (error) {
-        console.error('Error loading search history:', error);
-      } finally {
-        setLoadingHistory(false);
-      }
-    };
-
-    if (user && viewMode === 'overview') {
-      loadSearchHistory();
+    if (searchHistoryData) {
+      setSearchHistory(searchHistoryData as any);
     }
-  }, [user, viewMode]);
+  }, [searchHistoryData]);
 
-  // Load user preferences (recommendation profile)
   useEffect(() => {
-    const loadUserPreferences = async () => {
-      if (!user) return;
-
-      setLoadingPreferences(true);
-      try {
-        const preferences = await getUserPreferences(user.id);
-        setUserPreferences(preferences);
-      } catch (error) {
-        console.error('Error loading user preferences:', error);
-      } finally {
-        setLoadingPreferences(false);
-      }
-    };
-
-    if (user && viewMode === 'overview') {
-      loadUserPreferences();
+    if (userPreferencesData) {
+      setUserPreferences(userPreferencesData as any);
     }
-  }, [user, viewMode]);
+  }, [userPreferencesData]);
 
   // Load existing profile data
   useEffect(() => {
@@ -403,39 +392,107 @@ export default function ProfilePage() {
       return;
     }
 
-    console.log('Starting profile save...', profileData);
-    setIsSubmitting(true);
-    setSaveSuccess(false);
+    // For chat view (new profiles)
+    if (viewMode === 'edit') {
+      console.log('Starting profile save...', profileData);
+      setIsSubmitting(true);
+      setSaveSuccess(false);
 
+      try {
+        let avatarUrl = profileData.avatar_url;
+
+        // Upload avatar if changed
+        if (uploadedAvatar && uploadedAvatar.startsWith('data:')) {
+          // Convert base64 to blob for upload
+          const response = await fetch(uploadedAvatar);
+          const blob = await response.blob();
+          const file = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
+
+          const formData = new FormData();
+          formData.append('avatar', file);
+
+          const token = localStorage.getItem('auth_token');
+          const uploadResponse = await fetch('http://localhost:4000/upload/avatar', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+            body: formData,
+          });
+
+          if (uploadResponse.ok) {
+            const data = await uploadResponse.json();
+            avatarUrl = data.data.thumbnail;
+          }
+        }
+
+        await updateProfileMutation.mutateAsync({
+          firstName: profileData.first_name,
+          lastName: profileData.last_name,
+          phone: profileData.phone,
+          address: profileData.address,
+          company: profileData.company,
+          bio: profileData.bio,
+          avatarUrl: avatarUrl,
+        });
+
+        setSaveSuccess(true);
+
+        setTimeout(() => {
+          setViewMode('overview');
+          setSaveSuccess(false);
+        }, 1500);
+      } catch (error) {
+        console.error('Error updating profile:', error);
+        alert(`Fehler beim Speichern des Profils: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    // For inline editing (existing profiles)
     try {
-      const updateData = {
-        first_name: profileData.first_name || '',
-        last_name: profileData.last_name || '',
-        phone: profileData.phone || '',
-        address: profileData.address || '',
-        company: profileData.company || '',
-        bio: profileData.bio || '',
-        avatar_url: profileData.avatar_url || '',
-      };
-      console.log('Updating profile with:', updateData);
+      let avatarUrl = profile?.avatar_url || undefined;
 
-      await updateUserProfile(user.id, updateData);
-      console.log('Profile updated successfully');
+      // Upload avatar if changed
+      if (avatarFile) {
+        const formData = new FormData();
+        formData.append('avatar', avatarFile);
 
-      await refreshProfile();
-      console.log('Profile refreshed');
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch('http://localhost:4000/upload/avatar', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          body: formData,
+        });
 
-      setSaveSuccess(true);
+        if (!response.ok) {
+          throw new Error('Avatar upload failed');
+        }
 
-      setTimeout(() => {
-        setViewMode('overview');
-        setSaveSuccess(false);
-      }, 1500);
+        const data = await response.json();
+        avatarUrl = data.data.thumbnail; // Use thumbnail URL
+      }
+
+      // Prepare update data - only include defined values
+      const updateData: any = {};
+      if (editedProfile.first_name !== undefined) updateData.firstName = editedProfile.first_name;
+      if (editedProfile.last_name !== undefined) updateData.lastName = editedProfile.last_name;
+      if (editedProfile.phone !== undefined) updateData.phone = editedProfile.phone;
+      if (editedProfile.address !== undefined) updateData.address = editedProfile.address;
+      if (editedProfile.company !== undefined) updateData.company = editedProfile.company;
+      if (editedProfile.bio !== undefined) updateData.bio = editedProfile.bio;
+      if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
+
+      // Update profile with tRPC
+      await updateProfileMutation.mutateAsync(updateData);
+
     } catch (error) {
-      console.error('Error updating profile:', error);
-      alert(`Fehler beim Speichern des Profils: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
-    } finally {
-      setIsSubmitting(false);
+      console.error('Error saving profile:', error);
+      alert(`Fehler beim Speichern: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
     }
   };
 
@@ -462,14 +519,39 @@ export default function ProfilePage() {
     setTimeout(() => addBotMessage(0, editQuestions), 100);
   };
 
+  // Get tRPC utils for cache invalidation
+  const utils = trpc.useUtils();
+
+  // Delete search mutation
+  const deleteSearchMutation = trpc.searchHistory.delete.useMutation({
+    onSuccess: () => {
+      // Refetch search history after deletion
+      utils.searchHistory.getAll.invalidate();
+    },
+  });
+
   const handleDeleteSearch = async (id: string) => {
     try {
-      await deleteSearchHistory(id);
+      await deleteSearchMutation.mutateAsync({ id });
       setSearchHistory(prev => prev.filter(search => search.id !== id));
     } catch (error) {
       console.error('Error deleting search:', error);
     }
   };
+
+  // Profile update mutation
+  const updateProfileMutation = trpc.auth.updateProfile.useMutation({
+    onSuccess: async () => {
+      await refreshProfile();
+      setIsInlineEditing(false);
+      setEditedProfile({});
+      setAvatarFile(null);
+      setAvatarPreview('');
+    },
+    onError: (error) => {
+      alert(`Fehler beim Speichern: ${error.message}`);
+    },
+  });
 
   const handleRepeatSearch = (query: string) => {
     // Navigate to homepage with search query
@@ -539,135 +621,208 @@ export default function ProfilePage() {
   // ============================================
   if (viewMode === 'overview') {
     return (
-      <main className="min-h-screen bg-white">
+      <main className="min-h-screen bg-gray-50">
         <Header />
 
-        <div className="flex flex-col lg:flex-row gap-8 py-8">
+        <div className="flex flex-col lg:flex-row gap-6 py-8 max-w-7xl mx-auto">
 
             {/* Left Column - Profile Settings */}
             <div className="lg:w-[400px] lg:flex-shrink-0 px-4 lg:pl-8 lg:pr-0">
               {/* Profile Card */}
-              <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden mb-6">
-                {/* Cover Gradient */}
-                <div className="relative bg-gradient-to-br from-primary to-pink-600 h-24">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-4">
+                {/* Cover - Simple gradient like Airbnb */}
+                <div className="relative bg-gradient-to-r from-gray-50 to-gray-100 h-20">
                 </div>
 
                 {/* Avatar & Name */}
                 <div className="relative px-6 pb-6">
-                  <div className="-mt-12 mb-4">
-                    <div className="w-24 h-24 rounded-full bg-white p-1 shadow-lg">
-                      {profile?.avatar_url ? (
-                        <img
-                          src={profile.avatar_url}
-                          alt="Profilbild"
-                          className="w-full h-full rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                          <span className="text-3xl font-bold text-gray-400">
-                            {profile?.first_name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
-                          </span>
-                        </div>
+                  <div className="-mt-10 mb-4">
+                    <input
+                      ref={avatarInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+
+                        if (!file.type.startsWith('image/')) {
+                          alert('Bitte wählen Sie ein Bild aus');
+                          return;
+                        }
+                        if (file.size > 5 * 1024 * 1024) {
+                          alert('Bild ist zu groß (max 5MB)');
+                          return;
+                        }
+
+                        setAvatarFile(file);
+                        const reader = new FileReader();
+                        reader.onload = (e) => setAvatarPreview(e.target?.result as string);
+                        reader.readAsDataURL(file);
+                      }}
+                      className="hidden"
+                    />
+
+                    <div className="relative inline-block">
+                      <div className="w-20 h-20 rounded-full bg-white p-0.5 shadow-md ring-4 ring-white">
+                        {avatarPreview || profile?.avatar_url ? (
+                          <img
+                            src={avatarPreview || profile?.avatar_url || undefined}
+                            alt="Profilbild"
+                            className="w-full h-full rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full rounded-full bg-gray-100 flex items-center justify-center">
+                            <span className="text-2xl font-semibold text-gray-500">
+                              {profile?.first_name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      {isInlineEditing && (
+                        <button
+                          onClick={() => avatarInputRef.current?.click()}
+                          className="absolute bottom-0 right-0 w-7 h-7 bg-gray-900 text-white rounded-full shadow-md flex items-center justify-center hover:bg-gray-700 transition-colors"
+                          title="Profilbild ändern"
+                        >
+                          <Camera size={14} />
+                        </button>
                       )}
                     </div>
                   </div>
 
-                  <h1 className="font-bold text-gray-900" style={{ fontSize: '26px' }}>
-                    {profile?.first_name} {profile?.last_name}
-                  </h1>
-                  {profile?.company && (
-                    <p className="text-gray-500" style={{ fontSize: '16px' }}>{profile.company}</p>
-                  )}
+                  {isInlineEditing ? (
+                    <div className="space-y-3">
+                      <input
+                        type="text"
+                        placeholder="Vorname"
+                        value={editedProfile.first_name ?? ''}
+                        onChange={(e) => setEditedProfile(p => ({...p, first_name: e.target.value}))}
+                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-gray-900 focus:outline-none font-semibold text-gray-900 text-xl transition-colors"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Nachname"
+                        value={editedProfile.last_name ?? ''}
+                        onChange={(e) => setEditedProfile(p => ({...p, last_name: e.target.value}))}
+                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-gray-900 focus:outline-none font-semibold text-gray-900 text-xl transition-colors"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Firma (optional)"
+                        value={editedProfile.company ?? ''}
+                        onChange={(e) => setEditedProfile(p => ({...p, company: e.target.value}))}
+                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-gray-900 focus:outline-none text-gray-700 transition-colors"
+                      />
+                      <textarea
+                        value={editedProfile.bio ?? ''}
+                        onChange={(e) => setEditedProfile(p => ({...p, bio: e.target.value}))}
+                        placeholder="Bio (optional)"
+                        rows={3}
+                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-gray-900 focus:outline-none resize-none text-gray-700 transition-colors"
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <h1 className="font-semibold text-gray-900 text-2xl">
+                        {profile?.first_name} {profile?.last_name}
+                      </h1>
+                      {profile?.company && (
+                        <p className="text-gray-600 mt-1">{profile.company}</p>
+                      )}
 
-                  {profile?.bio && (
-                    <p className="text-gray-700 mt-4 leading-relaxed" style={{ fontSize: '16px' }}>
-                      {profile.bio}
-                    </p>
+                      {profile?.bio && (
+                        <p className="text-gray-600 mt-4 leading-relaxed">
+                          {profile.bio}
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
 
               {/* Contact Info */}
-              <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-6">
-                <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2" style={{ fontSize: '20px' }}>
-                  <Phone size={20} className="text-primary" />
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-4">
+                <h2 className="font-semibold text-gray-900 mb-4 text-lg">
                   Kontaktdaten
                 </h2>
 
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-                      <Mail size={18} className="text-gray-500" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">E-Mail</p>
-                      <p className="font-medium text-gray-900" style={{ fontSize: '16px' }}>{user?.email}</p>
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3 py-2">
+                    <Mail size={20} className="text-gray-400 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-gray-500 mb-0.5">E-Mail</p>
+                      <p className="text-gray-900 truncate">{user?.email}</p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-                      <Phone size={18} className="text-gray-500" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Telefon</p>
-                      <p className="font-medium text-gray-900" style={{ fontSize: '16px' }}>
-                        {profile?.phone || <span className="text-gray-400">Nicht angegeben</span>}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-                      <MapPin size={18} className="text-gray-500" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Adresse</p>
-                      <p className="font-medium text-gray-900" style={{ fontSize: '16px' }}>
-                        {profile?.address || <span className="text-gray-400">Nicht angegeben</span>}
-                      </p>
+                  <div className="flex items-start gap-3 py-2">
+                    <Phone size={20} className="text-gray-400 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-gray-500 mb-0.5">Telefon</p>
+                      {isInlineEditing ? (
+                        <input
+                          type="tel"
+                          value={editedProfile.phone ?? ''}
+                          onChange={(e) => setEditedProfile(p => ({...p, phone: e.target.value}))}
+                          placeholder="+49 123 456789"
+                          className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-gray-900 focus:outline-none text-gray-900 transition-colors"
+                        />
+                      ) : (
+                        <p className="text-gray-900">
+                          {profile?.phone || <span className="text-gray-400">Nicht angegeben</span>}
+                        </p>
+                      )}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-                      <Building2 size={18} className="text-gray-500" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Firma</p>
-                      <p className="font-medium text-gray-900" style={{ fontSize: '16px' }}>
-                        {profile?.company || <span className="text-gray-400">Nicht angegeben</span>}
-                      </p>
+                  <div className="flex items-start gap-3 py-2">
+                    <MapPin size={20} className="text-gray-400 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-gray-500 mb-0.5">Adresse</p>
+                      {isInlineEditing ? (
+                        <input
+                          type="text"
+                          value={editedProfile.address ?? ''}
+                          onChange={(e) => setEditedProfile(p => ({...p, address: e.target.value}))}
+                          placeholder="z.B. Musterstraße 1, 12345 Berlin"
+                          className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-gray-900 focus:outline-none text-gray-900 transition-colors"
+                        />
+                      ) : (
+                        <p className="text-gray-900">
+                          {profile?.address || <span className="text-gray-400">Nicht angegeben</span>}
+                        </p>
+                      )}
                     </div>
                   </div>
+
+                  {!isInlineEditing && (
+                    <div className="flex items-start gap-3 py-2">
+                      <Building2 size={20} className="text-gray-400 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-500 mb-0.5">Firma</p>
+                        <p className="text-gray-900">
+                          {profile?.company || <span className="text-gray-400">Nicht angegeben</span>}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Account Settings */}
-              <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-6">
-                <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2" style={{ fontSize: '20px' }}>
-                  <User size={20} className="text-gray-600" />
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-4">
+                <h2 className="font-semibold text-gray-900 mb-4 text-lg">
                   Account
                 </h2>
 
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                    <div className="flex items-center gap-3">
-                      <Mail size={18} className="text-gray-500" />
-                      <div>
-                        <span className="text-gray-500 text-sm">E-Mail</span>
-                        <p className="text-gray-700" style={{ fontSize: '16px' }}>{user?.email}</p>
-                      </div>
-                    </div>
-                  </div>
-
+                <div className="space-y-2">
                   <button
                     onClick={() => alert('Passwort ändern wird implementiert')}
-                    className="w-full flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                    className="w-full flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors text-left"
                   >
                     <div className="flex items-center gap-3">
-                      <Shield size={18} className="text-gray-500" />
-                      <span className="text-gray-700" style={{ fontSize: '16px' }}>Passwort ändern</span>
+                      <Shield size={18} className="text-gray-400" />
+                      <span className="text-gray-900">Passwort ändern</span>
                     </div>
                     <ChevronRight size={18} className="text-gray-400" />
                   </button>
@@ -676,32 +831,63 @@ export default function ProfilePage() {
 
               {/* Action Buttons */}
               <div className="flex gap-3">
-                <button
-                  onClick={handleStartEdit}
-                  className="flex-1 py-3 bg-gray-900 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2 hover:bg-gray-800"
-                  style={{ fontSize: '16px' }}
-                >
-                  <Edit3 size={18} />
-                  Bearbeiten
-                </button>
-                <button
-                  onClick={handleSignOut}
-                  className="flex-1 py-3 text-red-500 font-medium hover:bg-red-50 rounded-xl transition-colors flex items-center justify-center gap-2 border border-gray-200"
-                  style={{ fontSize: '16px' }}
-                >
-                  <LogOut size={18} />
-                  Abmelden
-                </button>
+                {isInlineEditing ? (
+                  <>
+                    <button
+                      onClick={() => {
+                        setIsInlineEditing(false);
+                        setEditedProfile({});
+                        setAvatarFile(null);
+                        setAvatarPreview('');
+                      }}
+                      className="flex-1 py-3 text-gray-900 font-medium hover:bg-gray-100 rounded-lg transition-colors border border-gray-300"
+                    >
+                      Abbrechen
+                    </button>
+                    <button
+                      onClick={handleSaveProfile}
+                      disabled={updateProfileMutation.isLoading}
+                      className="flex-1 py-3 bg-gray-900 text-white font-medium rounded-lg transition-colors hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {updateProfileMutation.isLoading ? 'Speichern...' : 'Speichern'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => {
+                        setIsInlineEditing(true);
+                        setEditedProfile({
+                          first_name: profile?.first_name || '',
+                          last_name: profile?.last_name || '',
+                          phone: profile?.phone || '',
+                          address: profile?.address || '',
+                          company: profile?.company || '',
+                          bio: profile?.bio || '',
+                        });
+                      }}
+                      className="flex-1 py-3 bg-gray-900 text-white font-medium rounded-lg transition-colors hover:bg-gray-800 flex items-center justify-center gap-2"
+                    >
+                      <Edit3 size={16} />
+                      Bearbeiten
+                    </button>
+                    <button
+                      onClick={handleSignOut}
+                      className="px-4 py-3 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition-colors border border-gray-300"
+                    >
+                      Abmelden
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
             {/* Right Column - Properties & Favorites */}
             <div className="flex-1 px-4 lg:pr-8 lg:pl-0">
               {/* Empfehlungsprofil Section */}
-              <div className="mb-8">
+              <div className="mb-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="font-semibold text-gray-900 flex items-center gap-2" style={{ fontSize: '20px' }}>
-                    <TrendingUp size={20} className="text-primary" />
+                  <h2 className="font-semibold text-gray-900 text-xl">
                     Dein Empfehlungsprofil
                   </h2>
                   {userPreferences && userPreferences.interaction_count > 0 && (
@@ -712,33 +898,33 @@ export default function ProfilePage() {
                 </div>
 
                 {loadingPreferences ? (
-                  <div className="flex items-center justify-center py-12 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl border border-blue-200">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  <div className="flex items-center justify-center py-12 bg-white rounded-xl border border-gray-200 shadow-sm">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
                   </div>
                 ) : !userPreferences || userPreferences.interaction_count === 0 ? (
-                  <div className="text-center py-10 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl border border-blue-200">
-                    <div className="w-16 h-16 bg-gradient-to-br from-primary to-purple-500 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <TrendingUp size={32} className="text-white" />
+                  <div className="text-center py-10 bg-white rounded-xl border border-gray-200 shadow-sm">
+                    <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <TrendingUp size={24} className="text-gray-600" />
                     </div>
-                    <p className="text-gray-700 mb-2 font-medium" style={{ fontSize: '16px' }}>
+                    <p className="text-gray-900 mb-2 font-medium">
                       Baue dein persönliches Empfehlungsprofil auf
                     </p>
-                    <p className="text-gray-600 text-sm mb-4">
+                    <p className="text-gray-600 text-sm mb-4 max-w-md mx-auto">
                       Schaue dir Properties an und favorisiere sie - unser Algorithmus lernt deine Vorlieben!
                     </p>
                     <button
                       onClick={() => router.push('/')}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-purple-500 text-white rounded-lg hover:from-pink-600 hover:to-purple-600 transition-all font-medium text-sm shadow-lg hover:shadow-xl"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium text-sm"
                     >
                       Properties entdecken
                     </button>
                   </div>
                 ) : (
-                  <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl border border-blue-200 p-6">
+                  <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
                     {/* Summary Header */}
-                    <div className="mb-6 pb-6 border-b border-blue-200">
-                      <p className="text-gray-700 leading-relaxed">
-                        Basierend auf deinen <span className="font-semibold text-primary">{userPreferences.interaction_count} Interaktionen</span> haben wir deine Präferenzen analysiert:
+                    <div className="mb-6 pb-6 border-b border-gray-200">
+                      <p className="text-gray-600 leading-relaxed">
+                        Basierend auf deinen <span className="font-semibold text-gray-900">{userPreferences.interaction_count} Interaktionen</span> haben wir deine Präferenzen analysiert:
                       </p>
                     </div>
 
@@ -859,27 +1045,27 @@ export default function ProfilePage() {
               <hr className="border-gray-200 mb-8" />
 
               {/* Suchhistorie Section */}
-              <div className="mb-8">
+              <div className="mb-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="font-semibold text-gray-900 flex items-center gap-2" style={{ fontSize: '20px' }}>
-                    <Clock size={20} className="text-gray-600" />
+                  <h2 className="font-semibold text-gray-900 text-xl">
                     Letzte Suchen ({searchHistory.length})
                   </h2>
                 </div>
 
                 {loadingHistory ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  <div className="flex items-center justify-center py-12 bg-white rounded-xl border border-gray-200 shadow-sm">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
                   </div>
                 ) : searchHistory.length === 0 ? (
-                  <div className="text-center py-10 bg-gray-50 rounded-xl">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <Search size={32} className="text-gray-300" />
+                  <div className="text-center py-10 bg-white rounded-xl border border-gray-200 shadow-sm">
+                    <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <Search size={24} className="text-gray-400" />
                     </div>
-                    <p className="text-gray-500 mb-4" style={{ fontSize: '16px' }}>Noch keine Suchen</p>
+                    <p className="text-gray-900 mb-2 font-medium">Noch keine Suchen</p>
+                    <p className="text-gray-600 text-sm mb-4">Starte deine erste Immobiliensuche</p>
                     <button
                       onClick={() => router.push('/')}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium text-sm"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium text-sm"
                     >
                       <Search size={16} />
                       Immobilien suchen
@@ -890,7 +1076,7 @@ export default function ProfilePage() {
                     {searchHistory.map((search) => (
                       <div
                         key={search.id}
-                        className="group bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all"
+                        className="group bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm hover:border-gray-300 transition-all"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1 min-w-0">

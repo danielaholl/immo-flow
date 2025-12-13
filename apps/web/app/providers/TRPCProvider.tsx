@@ -5,6 +5,9 @@ import { httpBatchLink } from '@trpc/client';
 import { useState } from 'react';
 import { trpc } from '@/lib/trpc';
 
+// Re-export trpc for convenience - allows importing from either location
+export { trpc };
+
 export function TRPCProvider({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
@@ -17,8 +20,6 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
           }
           return failureCount < 1;
         },
-        // Suppress error logging for auth-related failures
-        throwOnError: false,
       },
     },
   }));

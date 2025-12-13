@@ -21,24 +21,24 @@ function getOpenAIClient() {
   return openai;
 }
 
-// Property data schema
+// Property data schema - using nullish() to accept both null and undefined
 const PropertyDataSchema = z.object({
-  property_type: z.enum(['apartment', 'house', 'villa', 'commercial']).optional(),
-  title: z.string().optional(),
-  location: z.string().optional(),
-  postal_code: z.string().optional(),
-  street_address: z.string().optional(),
-  price: z.number().optional(),
-  sqm: z.number().optional(),
-  rooms: z.number().optional(),
-  bathrooms: z.number().optional(),
-  condition: z.enum(['new', 'first_occupancy', 'renovated', 'maintained', 'needs_renovation']).optional(),
-  features: z.array(z.string()).optional(),
-  description: z.string().optional(),
-  floor_level: z.string().optional(),
-  year_built: z.number().optional(),
-  available_from: z.string().optional(),
-  important_notes: z.string().optional(),
+  property_type: z.enum(['apartment', 'house', 'villa', 'commercial']).nullish(),
+  title: z.string().nullish(),
+  location: z.string().nullish(),
+  postal_code: z.string().nullish(),
+  street_address: z.string().nullish(),
+  price: z.number().nullish(),
+  sqm: z.number().nullish(),
+  rooms: z.number().nullish(),
+  bathrooms: z.number().nullish(),
+  condition: z.enum(['new', 'first_occupancy', 'renovated', 'maintained', 'needs_renovation']).nullish(),
+  features: z.array(z.string()).nullish(),
+  description: z.string().nullish(),
+  floor_level: z.string().nullish(),
+  year_built: z.number().nullish(),
+  available_from: z.string().nullish(),
+  important_notes: z.string().nullish(),
 });
 
 export type ExtractedPropertyData = z.infer<typeof PropertyDataSchema>;
@@ -63,14 +63,62 @@ export const aiChatRouter = router({
           })
         ).default([]),
         currentData: PropertyDataSchema.default({}),
+        isEditMode: z.boolean().optional(),
       })
     )
     .mutation(async ({ input }) => {
-      const { message, conversationHistory, currentData } = input;
+      const { message, conversationHistory, currentData, isEditMode } = input;
 
       try {
-        // Build system prompt
-        const systemPrompt = `Du bist ein intelligenter Assistent, der Immobiliendaten aus Benutzernachrichten extrahiert.
+        // Build system prompt - different for edit mode vs create mode
+        const systemPrompt = isEditMode
+          ? `Du bist ein intelligenter Assistent, der beim BEARBEITEN einer bestehenden Immobilie hilft.
+
+WICHTIG: Dies ist der EDIT-MODUS. Die Immobilie existiert bereits mit folgenden Daten:
+${JSON.stringify(currentData, null, 2)}
+
+VERFÜGBARE FELDER (verwende diese exakten Feldnamen):
+- property_type: 'apartment' | 'house' | 'villa' | 'commercial'
+- title: Titel der Immobilie
+- location: Stadt/Bezirk
+- price: Kaufpreis in Euro (Zahl)
+- sqm: Wohnfläche in qm (Zahl)
+- rooms: Anzahl Zimmer (Zahl)
+- bathrooms: Anzahl Badezimmer (Zahl)
+- year_built: Baujahr (Zahl, z.B. 1974) - SEPARATES FELD, nicht Teil der Beschreibung!
+- floor_level: Etage (String, z.B. "2" oder "EG")
+- condition: 'new' | 'first_occupancy' | 'renovated' | 'maintained' | 'needs_renovation'
+- features: Array von Ausstattungen ["Balkon", "Garage", etc.]
+- description: Beschreibungstext
+- available_from: Verfügbar ab (Datum)
+
+Deine Aufgabe im Edit-Modus:
+1. Verstehe, welche Felder der User ändern möchte
+2. Extrahiere die Änderungen in die RICHTIGEN FELDER (z.B. "Baujahr 1974" → year_built: 1974, NICHT description ändern!)
+3. Bestätige die Änderungen freundlich
+4. Frage NICHT nach fehlenden Feldern
+
+Beispiele:
+- "Baujahr ist 1974" → { "year_built": 1974 }
+- "Ändere Preis auf 450.000 €" → { "price": 450000 }
+- "3. Stock" oder "3. OG" → { "floor_level": "3" }
+- "2 Badezimmer" → { "bathrooms": 2 }
+
+Antworte im JSON Format:
+{
+  "extractedData": { ... geänderte Felder mit korrekten Feldnamen ... },
+  "response": "Freundliche Bestätigung, z.B. 'Perfekt! Baujahr auf 1974 gesetzt. Möchtest du noch etwas ändern?'",
+  "missingFields": [],
+  "followUpQuestion": null,
+  "userSaidComplete": false
+}
+
+REGELN:
+- Verwende die EXAKTEN Feldnamen (year_built, floor_level, etc.)
+- Ändere NICHT die Beschreibung, wenn der User ein spezifisches Feld meint
+- Wenn User "fertig" oder "speichern" sagt → userSaidComplete: true`
+
+          : `Du bist ein intelligenter Assistent, der Immobiliendaten aus Benutzernachrichten extrahiert.
 
 Deine Aufgabe:
 1. Extrahiere strukturierte Daten aus der Nachricht des Benutzers
@@ -156,11 +204,17 @@ Aktuell vorhandene Daten: ${JSON.stringify(currentData)}`;
         // Parse JSON response - OpenAI returns UTF-8 encoded strings
         const aiResponse = JSON.parse(responseText);
 
+        console.log('[AI Chat] Mode:', isEditMode ? 'EDIT' : 'CREATE');
+        console.log('[AI Chat] AI extracted:', JSON.stringify(aiResponse.extractedData, null, 2));
+        console.log('[AI Chat] AI response:', aiResponse.response);
+
         // Merge extracted data with current data
         const mergedData = {
           ...currentData,
           ...aiResponse.extractedData,
         };
+
+        console.log('[AI Chat] Merged data:', JSON.stringify(mergedData, null, 2));
 
         // Determine required fields that are still missing
         const requiredFields = ['property_type', 'title', 'location', 'price', 'sqm', 'rooms', 'condition'];

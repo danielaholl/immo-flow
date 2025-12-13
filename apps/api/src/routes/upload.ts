@@ -3,12 +3,12 @@
  * Handles property image uploads with Multer
  */
 
-import express, { Request, Response } from 'express';
+import express, { Request, Response, Router } from 'express';
 import multer from 'multer';
 import { getStorageProvider } from '../storage/index.js';
 import { authenticateToken } from '../middleware/auth.js';
 
-const router = express.Router();
+const router: Router = express.Router();
 
 // Configure Multer for memory storage (we'll process with Sharp)
 const upload = multer({

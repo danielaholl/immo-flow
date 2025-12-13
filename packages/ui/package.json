@@ -5,12 +5,15 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./button": "./src/components/Button.tsx",
-    "./card": "./src/components/PropertyCard.tsx",
-    "./input": "./src/components/Input.tsx",
-    "./avatar": "./src/components/Avatar.tsx",
-    "./badge": "./src/components/Badge.tsx",
+    "./button": "./src/components/shared/Button.tsx",
+    "./card": "./src/components/shared/PropertyCard/index.ts",
+    "./input": "./src/components/shared/Input.tsx",
+    "./avatar": "./src/components/shared/Avatar.tsx",
+    "./badge": "./src/components/shared/Badge.tsx",
     "./theme": "./src/theme/index.ts"
+  },
+  "react-native": {
+    "./src/components/shared/PropertyCard/PropertyCard": "./src/components/shared/PropertyCard/PropertyCard.native.tsx"
   },
   "scripts": {
     "lint": "eslint .",
@@ -19,13 +22,14 @@
   "dependencies": {
     "@immoflow/api": "workspace:*",
     "lucide-react": "^0.555.0",
-    "react": "^18.2.0",
-    "react-native": "^0.73.0"
+    "react": "^18.2.0"
   },
   "devDependencies": {
     "@immoflow/typescript-config": "workspace:*",
     "@types/react": "^18.2.0",
+    "@types/react-native": "^0.73.0",
     "eslint": "^8.55.0",
+    "react-native": "npm:react-native-web@^0.19.13",
     "typescript": "^5.3.0"
   },
   "peerDependencies": {

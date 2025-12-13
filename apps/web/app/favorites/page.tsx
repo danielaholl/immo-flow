@@ -13,6 +13,7 @@ import { PropertyActionButtons } from '../components/PropertyActionButtons';
 import { InvestmentScoreBadge } from '@immoflow/ui';
 // import { PropertyFeedbackModal } from '@immoflow/ui'; // Component doesn't exist
 import { MapPin, Home, Heart, X, Plus } from 'lucide-react';
+import { PropertyListThumbnail } from '../components/PropertyListThumbnail';
 import { trpc } from '@/lib/trpc';
 import { useMasterDetailNavigation } from '@/app/hooks/useMasterDetailNavigation';
 import { MobileDetailHeader } from '../components/MobileDetailHeader';
@@ -366,71 +367,24 @@ export default function FavoritesPage() {
                                    (!selectedPropertyId && property.id === lastSelectedId);
 
                   return (
-                    <div
+                    <PropertyListThumbnail
                       key={favorite.id}
-                      className={`group relative bg-white border rounded-xl overflow-hidden transition-all h-32 ${
-                        isSelected
-                          ? 'border-primary shadow-md ring-2 ring-primary/20'
-                          : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
-                      }`}
-                    >
-                      {/* Remove Button (X) - Always visible */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveFavorite(property.id);
-                        }}
-                        className="absolute top-2 right-2 z-20 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors shadow-md"
-                        title="Favorit entfernen"
-                      >
-                        <X size={14} />
-                      </button>
-
-                      <div className="flex h-full cursor-pointer" onClick={() => selectItem(property.id)}>
-                        {/* Thumbnail - Full height */}
-                        <div className="relative w-28 flex-shrink-0 bg-gray-100">
-                          {property.images && property.images.length > 0 ? (
-                            <img
-                              src={property.images[0]}
-                              alt={property.title}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Home size={32} className="text-gray-300" />
-                            </div>
-                          )}
-                          {property.ai_score && property.ai_score > 0 && (
-                            <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-md bg-black/75 shadow-md">
-                              <div
-                                className="w-2 h-2 rounded-full"
-                                style={{
-                                  backgroundColor: property.ai_score >= 70 ? '#22C55E' : property.ai_score >= 40 ? '#F59E0B' : '#EF4444'
-                                }}
-                              />
-                              <span className="text-white text-xs font-semibold">{property.ai_score}</span>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Info */}
-                        <div className="flex-1 p-3 min-w-0">
-                          <p className="text-primary font-bold text-sm">{formatPrice(property.price)}</p>
-                          <h3 className="font-medium text-gray-900 text-sm truncate mt-0.5">{property.title}</h3>
-                          <p className="text-xs text-gray-500 mt-1 flex items-center gap-1 truncate">
-                            <MapPin size={10} className="flex-shrink-0" />
-                            <span className="truncate">{property.location}</span>
-                          </p>
-                          <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
-                            <span>{property.rooms} Zi.</span>
-                            <span>•</span>
-                            <span>{property.sqm} m²</span>
-                            <span>•</span>
-                            <span>{formatPrice(Math.round(property.price / property.sqm))}/m²</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                      id={property.id}
+                      title={property.title}
+                      isSelected={isSelected}
+                      onClick={() => selectItem(property.id)}
+                      image={property.images?.[0]}
+                      price={property.price}
+                      location={property.location}
+                      rooms={property.rooms}
+                      sqm={property.sqm}
+                      aiScore={property.ai_score || undefined}
+                      onDelete={(e) => {
+                        e.stopPropagation();
+                        handleRemoveFavorite(property.id);
+                      }}
+                      deleteTooltip="Favorit entfernen"
+                    />
                   );
                 })}
               </div>

@@ -12,6 +12,9 @@ import { evaluationsRouter } from './routers/evaluations.js';
 import { aiChatRouter } from './routers/ai-chat.js';
 import { storageRouter } from './routers/storage.js';
 import { messagingRouter } from './routers/messaging.js';
+import { recommendationsRouter } from './routers/recommendations.js';
+import { searchHistoryRouter } from './routers/search-history.js';
+import { userPreferencesRouter } from './routers/user-preferences.js';
 
 export const appRouter = router({
   auth: authRouter,
@@ -23,6 +26,9 @@ export const appRouter = router({
   aiChat: aiChatRouter,
   storage: storageRouter,
   messaging: messagingRouter,
+  recommendations: recommendationsRouter,
+  searchHistory: searchHistoryRouter,
+  userPreferences: userPreferencesRouter,
 });
 
 // Export type definition of API

@@ -69,7 +69,7 @@ interface FinancingTerms {
   reasoning: string;
 }
 
-interface InvestmentEvaluationResult {
+export interface InvestmentEvaluationResult {
   overall_score: number;
   color_rating: 'green' | 'yellow' | 'red';
   location_score: number;

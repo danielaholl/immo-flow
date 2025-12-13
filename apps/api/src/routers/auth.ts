@@ -18,11 +18,8 @@ export const authRouter = router({
         email: z.string().email().toLowerCase().trim().max(255),
         password: z
           .string()
-          .min(8, 'Password must be at least 8 characters')
-          .max(128, 'Password too long')
-          .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-          .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-          .regex(/[0-9]/, 'Password must contain at least one number'),
+          .min(6, 'Password must be at least 6 characters')
+          .max(128, 'Password too long'),
         firstName: z.string().trim().min(1).max(100).optional(),
         lastName: z.string().trim().min(1).max(100).optional(),
       })
@@ -135,8 +132,10 @@ export const authRouter = router({
         firstName: z.string().trim().min(1).max(100).optional(),
         lastName: z.string().trim().min(1).max(100).optional(),
         phone: z.string().trim().regex(/^[\d\s\+\-\(\)]+$/, 'Invalid phone number format').min(7).max(20).optional(),
+        address: z.string().trim().max(500).optional(),
         company: z.string().trim().min(1).max(200).optional(),
         bio: z.string().trim().max(1000).optional(),
+        avatarUrl: z.string().trim().url().max(500).optional().nullable(),
         globalAddressConsent: z.boolean().optional(),
       })
     )
@@ -160,6 +159,11 @@ export const authRouter = router({
         values.push(input.phone);
         paramCount++;
       }
+      if (input.address !== undefined) {
+        updates.push(`address = $${paramCount}`);
+        values.push(input.address);
+        paramCount++;
+      }
       if (input.company !== undefined) {
         updates.push(`company = $${paramCount}`);
         values.push(input.company);
@@ -168,6 +172,11 @@ export const authRouter = router({
       if (input.bio !== undefined) {
         updates.push(`bio = $${paramCount}`);
         values.push(input.bio);
+        paramCount++;
+      }
+      if (input.avatarUrl !== undefined) {
+        updates.push(`avatar_url = $${paramCount}`);
+        values.push(input.avatarUrl);
         paramCount++;
       }
       if (input.globalAddressConsent !== undefined) {

@@ -38,7 +38,7 @@ export interface SellerEvaluation {
  */
 export async function evaluatePropertyForSeller(propertyId: string): Promise<SellerEvaluation> {
   try {
-    log('Starting seller evaluation for property:', propertyId);
+    log.info('Starting seller evaluation for property:', { propertyId });
 
     // Get property from database
     const property = await queryOne('SELECT * FROM properties WHERE id = $1', [propertyId]);
@@ -111,7 +111,7 @@ WICHTIG: Alle Zahlenwerte müssen echte Zahlen sein, keine Strings, keine null-W
 
     const evaluation = JSON.parse(content);
 
-    log('Seller evaluation completed:', evaluation);
+    log.info('Seller evaluation completed', { evaluation });
 
     // Validate and ensure all numeric fields are valid
     const validatedEvaluation: SellerEvaluation = {
@@ -139,7 +139,7 @@ WICHTIG: Alle Zahlenwerte müssen echte Zahlen sein, keine Strings, keine null-W
 
     return validatedEvaluation;
   } catch (error) {
-    log('Error in seller evaluation:', error);
+    log.error('Error in seller evaluation', { error });
     throw new Error('Fehler bei der Verkäufer-Bewertung');
   }
 }

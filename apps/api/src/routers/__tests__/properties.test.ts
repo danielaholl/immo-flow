@@ -2,9 +2,9 @@
  * Properties Router Tests
  * Tests for property CRUD operations
  */
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from './logger.js'vitest';
-import { pool } from './logger.js'../../db.js';
-import { createCaller, createAuthenticatedCaller } from './logger.js'../helpers.js';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { pool } from '../../db.js';
+import { createCaller, createAuthenticatedCaller } from '../helpers.js';
 
 describe('Properties Router', () => {
   let testUserId: string;

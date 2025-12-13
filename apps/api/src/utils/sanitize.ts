@@ -2,7 +2,7 @@
  * Input Sanitization Utilities
  * Protection against XSS and injection attacks
  */
-import DOMPurify from './logger.js'isomorphic-dompurify';
+import DOMPurify from 'isomorphic-dompurify';
 
 /**
  * Sanitizes HTML content to prevent XSS attacks

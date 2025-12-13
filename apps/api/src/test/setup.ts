@@ -2,9 +2,9 @@
  * Test Setup File
  * Runs before all tests
  */
-import { config } from './logger.js'dotenv';
-import { join, dirname } from './logger.js'path';
-import { fileURLToPath } from './logger.js'url';
+import { config } from 'dotenv';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

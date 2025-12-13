@@ -35,6 +35,7 @@ export interface ScrapedPropertyData {
   condition?: string;
   monthlyFee?: number;
   exposeText?: string; // Full PDF text for detailed AI analysis
+  externalSource?: string; // Optional for PDF uploads (required for URL scraping)
 }
 
 /**

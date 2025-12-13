@@ -1,15 +1,17 @@
 /**
  * @immoflow/api
  * API functions for ImmoFlow
+ * All functions now use PostgreSQL directly
  */
 
-export * from './properties';
-export * from './bookings';
-export * from './favorites';
-export * from './auth';
-export * from './chat';
-export * from './profile';
-export * from './consents';
+// Migrated to PostgreSQL
 export * from './search-history';
 export * from './recommendations';
-export * from './investment-scoring';
+
+// Note: All other API functions have been migrated to tRPC routers in /apps/api/src/routers/
+// - auth.ts → routers/auth.ts
+// - properties.ts → routers/properties.ts
+// - favorites.ts → routers/favorites.ts
+// - bookings → routers (integrated)
+// - consents → routers/consents.ts
+// - etc.

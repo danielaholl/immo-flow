@@ -34,7 +34,7 @@ export interface ScrapedPropertyData {
   monthlyFee?: number;
   images: string[];
   features: string[];
-  externalSource: string;
+  externalSource?: string; // Optional for PDF uploads
 }
 
 /**

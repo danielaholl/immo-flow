@@ -45,7 +45,7 @@ ADD COLUMN IF NOT EXISTS energy_certificate TEXT CHECK (energy_certificate IN ('
 
 -- User Association
 ALTER TABLE properties
-ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
+ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES public.users(id) ON DELETE CASCADE;
 
 -- Add indexes for new searchable fields
 CREATE INDEX IF NOT EXISTS properties_property_type_idx ON properties(property_type);

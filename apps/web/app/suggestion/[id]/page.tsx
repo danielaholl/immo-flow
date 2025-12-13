@@ -2,24 +2,22 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { getPropertyById, getUserFavorites, hasPropertyConsent } from '@immoflow/api';
 import { ChatModal } from '@immoflow/ui';
 import type { Property } from '@immoflow/database';
 import { useAuthContext } from '@/app/providers/AuthProvider';
 import { MapPin } from 'lucide-react';
 import { PropertyImageSlideshow } from '@/app/components/PropertyImageSlideshow';
 import { FavoriteButton } from '@/app/components/FavoriteButton';
+import { trpc } from '@/app/providers/TRPCProvider';
 
 export default function SuggestionPage() {
   const params = useParams();
   const router = useRouter();
   const { user, profile, loading: authLoading } = useAuthContext();
   const hasGlobalConsent = profile?.global_address_consent ?? false;
-  const [property, setProperty] = useState<Property | null>(null);
-  const [loading, setLoading] = useState(true);
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(false);
-  const [hasConsent, setHasConsent] = useState(false);
+
+  const propertyId = params.id as string;
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -28,56 +26,35 @@ export default function SuggestionPage() {
     }
   }, [authLoading, user, router, params.id]);
 
-  useEffect(() => {
-    async function loadProperty() {
-      if (!user) return;
+  // Fetch property using tRPC
+  const { data: property, isLoading: propertyLoading, error: propertyError } = trpc.properties.getById.useQuery(
+    { id: propertyId },
+    { enabled: !!user && !!propertyId }
+  );
 
-      try {
-        const id = params.id as string;
-        const data = await getPropertyById(id);
-        if (!data) {
-          router.push('/');
-          return;
-        }
-        setProperty(data);
-      } catch (error) {
-        console.error('Error loading property:', error);
-        router.push('/');
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadProperty();
-  }, [params.id, router, user]);
+  // Fetch favorite status using tRPC
+  const { data: favoriteData } = trpc.favorites.isFavorite.useQuery(
+    { propertyId },
+    { enabled: !!user && !!propertyId }
+  );
+  const isFavorite = favoriteData?.isFavorite ?? false;
 
-  // Load favorite status
-  useEffect(() => {
-    async function loadFavoriteStatus() {
-      if (!user || !property) return;
-      try {
-        const favorites = await getUserFavorites(user.id);
-        const isFav = favorites.some((f: any) => f.property_id === property.id);
-        setIsFavorite(isFav);
-      } catch (error) {
-        console.error('Error loading favorite status:', error);
-      }
-    }
-    loadFavoriteStatus();
-  }, [user, property]);
+  // Fetch consent status using tRPC
+  const { data: consentData } = trpc.consents.hasPropertyConsent.useQuery(
+    { propertyId },
+    { enabled: !!user && !!propertyId }
+  );
+  const hasConsent = consentData?.hasConsent ?? false;
 
-  // Load consent status for this property
+  // Handle property not found
   useEffect(() => {
-    async function loadConsentStatus() {
-      if (!user || !property) return;
-      try {
-        const consent = await hasPropertyConsent(user.id, property.id);
-        setHasConsent(consent);
-      } catch (error) {
-        console.error('Error loading consent status:', error);
-      }
+    if (propertyError) {
+      console.error('Error loading property:', propertyError);
+      router.push('/');
     }
-    loadConsentStatus();
-  }, [user, property]);
+  }, [propertyError, router]);
+
+  const loading = propertyLoading;
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('de-DE', {
@@ -156,7 +133,6 @@ export default function SuggestionPage() {
                       userId={user.id}
                       propertyId={property.id}
                       isFavorite={isFavorite}
-                      onToggle={setIsFavorite}
                       size="lg"
                       variant="overlay"
                       className="absolute top-14 right-4 z-20"
@@ -230,7 +206,7 @@ export default function SuggestionPage() {
               <div className="mt-8 pt-6 border-t border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Ausstattung</h3>
                 <div className="flex flex-wrap gap-2">
-                  {property.features.map((feature, idx) => (
+                  {property.features.map((feature: string, idx: number) => (
                     <span
                       key={idx}
                       className="px-4 py-2 bg-white border-2 border-gray-900 text-gray-900 rounded-full text-base font-medium"
@@ -247,7 +223,7 @@ export default function SuggestionPage() {
               <div className="mt-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Highlights</h3>
                 <ul className="space-y-2">
-                  {property.highlights.map((highlight, idx) => (
+                  {property.highlights.map((highlight: string, idx: number) => (
                     <li key={idx} className="flex items-start gap-2">
                       <span className="text-green-500">✓</span>
                       <span className="text-gray-700" style={{ fontSize: '18px' }}>{highlight}</span>
@@ -262,7 +238,7 @@ export default function SuggestionPage() {
               <div className="mt-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Zu beachten</h3>
                 <ul className="space-y-2">
-                  {property.red_flags.map((flag, idx) => (
+                  {property.red_flags.map((flag: string, idx: number) => (
                     <li key={idx} className="flex items-start gap-2 text-amber-600">
                       <span>⚠️</span>
                       <span style={{ fontSize: '18px' }}>{flag}</span>

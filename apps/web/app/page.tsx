@@ -8,6 +8,8 @@ import type { Property } from '@immoflow/database';
 import { Header } from './components/Header';
 import { useAuthContext } from './providers/AuthProvider';
 import { trpc } from '@/lib/trpc';
+import { useAuthGuard } from './hooks/useAuthGuard';
+import { LoginPromptModal } from './components/LoginPromptModal';
 
 /**
  * Home Page - Property Listing with WhatsApp-style Slideshow
@@ -35,17 +37,45 @@ export default function HomePage() {
   const [isSearching, setIsSearching] = useState(false);
   const [showDismissed, setShowDismissed] = useState(false);
 
-  // Fetch properties with tRPC
-  const { data: properties = [], isLoading: loading, refetch: refetchProperties } = trpc.properties.getAll.useQuery(
-    { limit: 20, status: 'active' },
+  // Initialize auth guard for protected actions
+  const {
+    guard,
+    showLoginModal,
+    setShowLoginModal,
+    pendingActionDescription,
+  } = useAuthGuard({
+    returnUrl: '/',
+  });
+
+  // Fetch properties with tRPC - Use personalized feed for logged-in users, trending for guests
+  const personalizedFeedQuery = trpc.recommendations.getPersonalizedFeed.useQuery(
+    { page: 1, limit: 20 },
     {
+      enabled: !authLoading && !!user,
       refetchOnWindowFocus: false,
       onSuccess: (data) => {
         const duration = performance.now() - pageLoadStartTimeRef.current;
-        console.log(`📦 [PERF] Loaded ${data.length} properties in ${duration.toFixed(2)}ms`);
+        console.log(`📦 [PERF-PERSONALIZED] Loaded ${data.properties.length} personalized properties in ${duration.toFixed(2)}ms`);
       },
     }
   );
+
+  const trendingFeedQuery = trpc.recommendations.getTrendingFeed.useQuery(
+    { limit: 20 },
+    {
+      enabled: !authLoading && !user,
+      refetchOnWindowFocus: false,
+      onSuccess: (data) => {
+        const duration = performance.now() - pageLoadStartTimeRef.current;
+        console.log(`📦 [PERF-TRENDING] Loaded ${data.properties.length} trending properties in ${duration.toFixed(2)}ms`);
+      },
+    }
+  );
+
+  // Use personalized feed if authenticated, otherwise trending
+  const properties = user ? (personalizedFeedQuery.data?.properties || []) : (trendingFeedQuery.data?.properties || []);
+  const loading = user ? personalizedFeedQuery.isLoading : trendingFeedQuery.isLoading;
+  const refetchProperties = user ? personalizedFeedQuery.refetch : trendingFeedQuery.refetch;
 
   // Fetch favorites if user is logged in (wait for auth to finish loading)
   const { data: favoritesData = [] } = trpc.favorites.getAll.useQuery(undefined, {
@@ -116,39 +146,39 @@ export default function HomePage() {
     return hasGlobalConsent || consentedPropertyIds.has(propertyId);
   }, [hasGlobalConsent, consentedPropertyIds]);
 
-  const handleFavoriteToggle = useCallback(async (propertyId: string) => {
-    if (!user) {
-      // Redirect to login if not authenticated
-      window.location.href = '/auth/login?redirectTo=/';
-      return;
-    }
+  // Create guarded favorite handler
+  const handleFavoriteToggle = useCallback((propertyId: string) => {
+    // Wrap the actual favorite logic with auth guard
+    const toggleFavorite = guard(async () => {
+      try {
+        const isFavorited = favoriteIds.has(propertyId);
 
-    try {
-      const isFavorited = favoriteIds.has(propertyId);
-
-      if (isFavorited) {
-        await removeFavoriteMutation.mutateAsync({ propertyId });
-      } else {
-        await addFavoriteMutation.mutateAsync({ propertyId });
+        if (isFavorited) {
+          await removeFavoriteMutation.mutateAsync({ propertyId });
+        } else {
+          await addFavoriteMutation.mutateAsync({ propertyId });
+        }
+      } catch (error) {
+        console.error('Error toggling favorite:', error);
       }
-    } catch (error) {
-      console.error('Error toggling favorite:', error);
-    }
-  }, [user, favoriteIds, addFavoriteMutation, removeFavoriteMutation]);
+    }, 'Diese Immobilie als Favorit markieren');
 
-  const handleDismiss = useCallback(async (propertyId: string) => {
-    if (!user) {
-      // Redirect to login if not authenticated
-      window.location.href = '/auth/login?redirectTo=/';
-      return;
-    }
+    toggleFavorite();
+  }, [guard, favoriteIds, addFavoriteMutation, removeFavoriteMutation]);
 
-    try {
-      await dismissMutation.mutateAsync({ propertyId });
-    } catch (error) {
-      console.error('Error dismissing property:', error);
-    }
-  }, [user, dismissMutation]);
+  // Create guarded dismiss handler
+  const handleDismiss = useCallback((propertyId: string) => {
+    // Wrap the actual dismiss logic with auth guard
+    const dismissProperty = guard(async () => {
+      try {
+        await dismissMutation.mutateAsync({ propertyId });
+      } catch (error) {
+        console.error('Error dismissing property:', error);
+      }
+    }, 'Diese Immobilie als "Kein Interesse" markieren');
+
+    dismissProperty();
+  }, [guard, dismissMutation]);
 
   const handleUndismiss = useCallback(async (propertyId: string) => {
     if (!user) {
@@ -192,7 +222,40 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-background pb-20 lg:pb-0">
       {/* Header */}
-      <Header />
+     <Header />
+
+      {/* Non-Auth User Banner */}
+      {!authLoading && !user && (
+        <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white">
+          <div className="container mx-auto px-4 py-8 sm:py-10">
+            <div className="max-w-4xl mx-auto text-center">
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4">
+                Entdecke deine Traum-Immobilie
+              </h2>
+              <p className="text-base sm:text-lg lg:text-xl mb-6 sm:mb-8 opacity-95">
+                Melde dich an für vollständige Details, KI-Analysen und direkten Kontakt zu Eigentümern
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center max-w-md mx-auto">
+                <Link
+                  href="/auth/signup"
+                  className="inline-flex items-center justify-center px-6 sm:px-8 py-3 sm:py-4 bg-white text-blue-600 font-semibold rounded-lg hover:bg-gray-100 transition-colors shadow-lg text-base sm:text-lg"
+                >
+                  Kostenloses Konto erstellen
+                </Link>
+                <Link
+                  href="/auth/login"
+                  className="inline-flex items-center justify-center px-6 sm:px-8 py-3 sm:py-4 border-2 border-white text-white font-semibold rounded-lg hover:bg-white/10 transition-colors text-base sm:text-lg"
+                >
+                  Anmelden
+                </Link>
+              </div>
+              <p className="text-xs sm:text-sm mt-4 sm:mt-6 opacity-80">
+                Kostenlose Registrierung • Keine Kreditkarte erforderlich • Jederzeit kündbar
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hero Section */}
       <section className="bg-gradient-to-b from-gray-50 to-white py-8 sm:py-12 lg:py-16">
@@ -270,7 +333,10 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-            {filteredProperties.map((property, index) => (
+            {filteredProperties.map((property, index) => {
+              // Show favorite button unless user explicitly owns this property
+              const shouldShowFavoriteButton = !(user && property.seller_id === user.id);
+              return (
               <div key={property.id} style={{ position: 'relative' }}>
                 <PropertyCard
                   property={{
@@ -292,12 +358,12 @@ export default function HomePage() {
                   }}
                   isOwner={user ? property.seller_id === user.id : false}
                   isFavorite={favoriteIds.has(property.id)}
-                  onFavorite={user && property.seller_id !== user.id ? (e) => {
+                  onFavorite={shouldShowFavoriteButton ? (e: React.MouseEvent) => {
                     e?.preventDefault?.();
                     e?.stopPropagation?.();
                     handleFavoriteToggle(property.id);
                   } : undefined}
-                  onDismiss={user && property.seller_id !== user.id ? (e) => {
+                  onDismiss={shouldShowFavoriteButton ? (e: React.MouseEvent) => {
                     e?.preventDefault?.();
                     e?.stopPropagation?.();
                     handleDismiss(property.id);
@@ -311,7 +377,8 @@ export default function HomePage() {
                   showAddress={shouldShowAddress(property.id)}
                 />
               </div>
-            ))}
+            );
+            })}
           </div>
         )}
 
@@ -452,6 +519,14 @@ export default function HomePage() {
           </div>
         </div>
       </footer>
+
+      {/* Login Prompt Modal - Progressive Disclosure */}
+      <LoginPromptModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        action={pendingActionDescription}
+        returnUrl="/"
+      />
     </main>
   );
 }

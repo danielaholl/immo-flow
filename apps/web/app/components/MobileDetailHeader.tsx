@@ -12,7 +12,7 @@ interface MobileDetailHeaderProps {
 
 export function MobileDetailHeader({ title, subtitle, onBack, showOnDesktop = false, showTitle = true }: MobileDetailHeaderProps) {
   return (
-    <div className={`${showOnDesktop ? '' : 'lg:hidden'} sticky top-16 z-40 bg-white border-b border-gray-200`}>
+    <div className={`${showOnDesktop ? '' : 'lg:hidden'} bg-white border-b border-gray-200`}>
       <div className="flex items-center gap-3 p-4">
         <button
           onClick={onBack}

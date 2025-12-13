@@ -49,3 +49,7 @@ supabase/.temp
 
 # Setup scripts with secrets (do not commit!)
 setup-openai.sh
+
+# Docker
+.env.prod
+.env.*.local

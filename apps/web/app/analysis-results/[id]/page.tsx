@@ -145,7 +145,7 @@ export default function AnalysisResultsPage() {
     try {
       await addToFavorites.mutateAsync({ propertyId });
       // Invalidate favorites query to refresh
-      utils.favorites.getUserFavorites.invalidate();
+      utils.favorites.getAll.invalidate();
       // Navigate to favorites page
       router.push('/favorites');
     } catch (error: any) {

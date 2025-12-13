@@ -2,10 +2,10 @@
  * Sellers tRPC Router
  * Handles seller-specific features like portfolio statistics
  */
-import { z } from './logger.js'zod';
-import { router, protectedProcedure } from './logger.js'../trpc.js';
-import { query } from './logger.js'../db.js';
-import { TRPCError } from './logger.js'@trpc/server';
+import { z } from 'zod';
+import { router, protectedProcedure } from '../trpc.js';
+import { query } from '../db.js';
+import { TRPCError } from '@trpc/server';
 
 export const sellersRouter = router({
   /**
@@ -15,7 +15,7 @@ export const sellersRouter = router({
   getPortfolioStats: protectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.user.id;
 
-    // Get user_profile.id from './logger.js'sers.id
+    // Get user_profile.id from users.id
     const userProfileResult = await query(
       'SELECT id FROM user_profiles WHERE user_id = $1',
       [userId]

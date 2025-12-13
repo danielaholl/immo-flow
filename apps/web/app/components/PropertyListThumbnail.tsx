@@ -1,0 +1,201 @@
+import { Home, MapPin, Eye, Heart, Clock, X } from 'lucide-react';
+
+export interface PropertyListThumbnailProps {
+  // Required
+  id: string;
+  title: string;
+  isSelected: boolean;
+  onClick: () => void;
+
+  // Optional property data
+  image?: string;
+  price?: number;
+  location?: string;
+  rooms?: number;
+  sqm?: number;
+
+  // Badge variants (only one should be used)
+  aiScore?: number;
+  statusOnline?: boolean;
+  unreadCount?: number;
+
+  // Stats (for my-properties)
+  viewCount?: number;
+  favoriteCount?: number;
+
+  // Additional info (for messages)
+  roleLabel?: string; // e.g., "Verkäufer" or "Interessent"
+  roleValue?: string; // e.g., name or company
+  lastMessageDate?: Date;
+
+  // Delete button
+  onDelete?: (e: React.MouseEvent) => void;
+  deleteTooltip?: string;
+}
+
+export function PropertyListThumbnail({
+  id,
+  title,
+  isSelected,
+  onClick,
+  image,
+  price,
+  location,
+  rooms,
+  sqm,
+  aiScore,
+  statusOnline,
+  unreadCount,
+  viewCount,
+  favoriteCount,
+  roleLabel,
+  roleValue,
+  lastMessageDate,
+  onDelete,
+  deleteTooltip = 'Löschen',
+}: PropertyListThumbnailProps) {
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('de-DE', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(price);
+  };
+
+  return (
+    <div
+      className={`group relative bg-white border rounded-xl overflow-hidden transition-all h-32 ${
+        isSelected
+          ? 'border-primary shadow-md ring-2 ring-primary/20'
+          : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+      }`}
+    >
+      {/* Delete Button (X) - Always visible if onDelete provided */}
+      {onDelete && (
+        <button
+          onClick={onDelete}
+          className="absolute top-2 right-2 z-20 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors shadow-md"
+          title={deleteTooltip}
+        >
+          <X size={14} />
+        </button>
+      )}
+
+      {/* Unread Badge - Below delete button */}
+      {unreadCount !== undefined && unreadCount > 0 && (
+        <div className="absolute top-10 right-2 z-20 bg-blue-500 text-white text-xs font-bold rounded-full px-2 py-1 shadow-md">
+          {unreadCount}
+        </div>
+      )}
+
+      <div className="flex h-full cursor-pointer" onClick={onClick}>
+        {/* Thumbnail - Full height */}
+        <div className="relative w-28 flex-shrink-0 bg-gray-100">
+          {image ? (
+            <img
+              src={image}
+              alt={title}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <Home size={32} className="text-gray-300" />
+            </div>
+          )}
+
+          {/* Badge - AI Score, Status, etc. */}
+          {aiScore !== undefined && aiScore > 0 && (
+            <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-md bg-black/75 shadow-md">
+              <div
+                className="w-2 h-2 rounded-full"
+                style={{
+                  backgroundColor: aiScore >= 70 ? '#22C55E' : aiScore >= 40 ? '#F59E0B' : '#EF4444'
+                }}
+              />
+              <span className="text-white text-xs font-semibold">{aiScore}</span>
+            </div>
+          )}
+
+          {statusOnline !== undefined && (
+            <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-md bg-black/75 shadow-md">
+              <div
+                className="w-2 h-2 rounded-full"
+                style={{
+                  backgroundColor: statusOnline ? '#22C55E' : '#9CA3AF'
+                }}
+              />
+              <span className="text-white text-xs font-semibold">
+                {statusOnline ? 'Online' : 'Offline'}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Info - Unified font sizes */}
+        <div className="flex-1 p-3 min-w-0 flex flex-col justify-center">
+          {/* Price */}
+          {price !== undefined && (
+            <p className="text-primary font-bold text-sm">{formatPrice(price)}</p>
+          )}
+
+          {/* Title */}
+          <h3 className="font-medium text-gray-900 text-sm truncate mt-0.5">{title}</h3>
+
+          {/* Location */}
+          {location && (
+            <p className="text-xs text-gray-500 mt-1 flex items-center gap-1 truncate">
+              <MapPin size={10} className="flex-shrink-0" />
+              <span className="truncate">{location}</span>
+            </p>
+          )}
+
+          {/* Role Info (for messages) */}
+          {roleLabel && roleValue && (
+            <div className="text-xs text-gray-600 mt-1">
+              <span className="font-medium">{roleLabel}:</span>{' '}
+              <span className="truncate">{roleValue}</span>
+            </div>
+          )}
+
+          {/* Bottom Row - Property Stats or Date */}
+          <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+            {/* Property details */}
+            {rooms !== undefined && sqm !== undefined && price !== undefined && (
+              <>
+                <span>{rooms} Zi.</span>
+                <span>•</span>
+                <span>{sqm} m²</span>
+                <span>•</span>
+                <span>{formatPrice(Math.round(price / sqm))}/m²</span>
+              </>
+            )}
+
+            {/* Stats (views & favorites) */}
+            {viewCount !== undefined && favoriteCount !== undefined && (
+              <>
+                <span className="flex items-center gap-1">
+                  <Eye size={12} />
+                  {viewCount}
+                </span>
+                <span>•</span>
+                <span className="flex items-center gap-1">
+                  <Heart size={12} />
+                  {favoriteCount}
+                </span>
+              </>
+            )}
+
+            {/* Last message date */}
+            {lastMessageDate && (
+              <span className="flex items-center gap-1">
+                <Clock size={10} className="flex-shrink-0" />
+                {lastMessageDate.toLocaleDateString('de-DE')}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

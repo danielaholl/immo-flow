@@ -2,9 +2,9 @@
  * Sentry Error Tracking
  * Centralized error monitoring and reporting
  */
-import * as Sentry from './logger.js'@sentry/node';
-import { getEnv } from './logger.js'../config/env.js';
-import { createLogger } from './logger.js'./logger.js';
+import * as Sentry from '@sentry/node';
+import { getEnv } from '../config/env.js';
+import { createLogger } from './logger.js';
 
 const log = createLogger('sentry');
 
@@ -146,20 +146,30 @@ export function captureMessage(
 /**
  * Express error handler middleware
  * Should be added AFTER all routes and other error handlers
+ * Note: In Sentry SDK v8+, use Sentry.setupExpressErrorHandler() instead
  */
-export const sentryErrorHandler = Sentry.Handlers.errorHandler();
+export const sentryErrorHandler = (err: Error, req: any, res: any, next: any) => {
+  Sentry.captureException(err);
+  next(err);
+};
 
 /**
  * Express request handler middleware
  * Should be added BEFORE all routes
+ * Note: In Sentry SDK v8+, auto-instrumentation handles this
  */
-export const sentryRequestHandler = Sentry.Handlers.requestHandler();
+export const sentryRequestHandler = (req: any, res: any, next: any) => {
+  next();
+};
 
 /**
  * Express tracing middleware
  * Should be added BEFORE all routes
+ * Note: In Sentry SDK v8+, auto-instrumentation handles this
  */
-export const sentryTracingHandler = Sentry.Handlers.tracingHandler();
+export const sentryTracingHandler = (req: any, res: any, next: any) => {
+  next();
+};
 
 // Export Sentry for direct usage if needed
 export { Sentry };

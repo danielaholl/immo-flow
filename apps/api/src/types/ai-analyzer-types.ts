@@ -2,7 +2,7 @@
  * AI Analyzer Types
  * Types for AI-powered property analysis and ratings
  */
-import type { ScrapedPropertyData } from './logger.js'@immoflow/types';
+import type { ScrapedPropertyData } from '../services/property-scraper.js';
 
 export type AIRating = 'top_deal' | 'good' | 'average' | 'poor' | 'avoid';
 export type EvaluationViewType = 'seller' | 'buyer_selfuse' | 'buyer_investor';

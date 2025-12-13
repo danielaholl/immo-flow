@@ -13,8 +13,11 @@ import { PropertyPreview, PropertyPreviewData } from '@/app/components/PropertyP
 import { PropertyActionButtons } from '@/app/components/PropertyActionButtons';
 import { MobileDetailHeader } from '@/app/components/MobileDetailHeader';
 import { ArrowLeft } from 'lucide-react';
-import { InvestmentScoreBadge } from '@immoflow/ui';
+import { InvestmentScoreBadge, PropertyScoreBadge } from '@immoflow/ui';
 import { trpc } from '@/lib/trpc';
+import { useAuthGuard } from '@/app/hooks/useAuthGuard';
+import { LoginPromptModal } from '@/app/components/LoginPromptModal';
+import { RestrictedContent } from '@/app/components/RestrictedContent';
 
 export default function PropertyPage() {
   // Performance tracking
@@ -39,20 +42,43 @@ export default function PropertyPage() {
   const [isPropertyFeedbackModalOpen, setIsPropertyFeedbackModalOpen] = useState(false);
   const [buyerEvaluation, setBuyerEvaluation] = useState<any>(null);
 
+  // Initialize auth guard for protected actions
+  const {
+    guard,
+    showLoginModal,
+    setShowLoginModal,
+  } = useAuthGuard({
+    returnUrl: `/property/${params.id}`,
+  });
+
   // Fetch property with owner using tRPC
-  const { data: property, isLoading: loading } = trpc.properties.getByIdWithOwner.useQuery(
+  // Uses getById which returns teaser for non-auth users, full details for authenticated users
+  const { data: property, isLoading: loading } = trpc.properties.getById.useQuery(
     { id: params.id as string },
     {
       enabled: !!params.id,
-      onSuccess: () => {
+      onSuccess: (data) => {
         const duration = performance.now() - pageLoadStartTimeRef.current;
         console.log(`📄 [PERF-DETAIL] Property loaded in ${duration.toFixed(2)}ms`);
+        console.log('📊 Property data includes buyer_evaluation:', !!data.buyer_evaluation);
+        console.log('📊 Property ai_investment_score:', data.ai_investment_score);
       },
       onError: () => {
         router.push('/');
       },
     }
   );
+
+  // Initialize buyer evaluation from property data when it's loaded or updated
+  useEffect(() => {
+    if (property?.buyer_evaluation) {
+      console.log('🔄 Setting buyer evaluation from property:', property.buyer_evaluation);
+      setBuyerEvaluation(property.buyer_evaluation);
+    }
+  }, [property?.buyer_evaluation]);
+
+  // Check if this is teaser mode (non-authenticated user)
+  const isTeaserMode = property?.requiresAuth ?? false;
 
   // Fetch favorite status
   const { data: isFavoriteData } = trpc.favorites.isFavorite.useQuery(
@@ -119,6 +145,8 @@ export default function PropertyPage() {
     onSuccess: () => {
       // Invalidate and refetch AI evaluation
       utils.evaluations.getAIEvaluation.invalidate();
+      // Invalidate and refetch property data to update the badge
+      utils.properties.getById.invalidate({ id: params.id as string });
       setIsEvaluating(false);
     },
     onError: (error) => {
@@ -131,11 +159,19 @@ export default function PropertyPage() {
   // KI Evaluation mutation (for buyer views)
   const generateKIEvaluationMutation = trpc.properties.generateKIEvaluation.useMutation({
     onSuccess: (data) => {
+      console.log('✅ KI Evaluation received:', data);
       // Update buyer evaluation state
-      setBuyerEvaluation((prev: any) => ({
-        ...prev,
-        [data.viewType === 'buyer_selfuse' ? 'buyer_selfuse' : 'buyer_investor']: data,
-      }));
+      const evalData = data as any;
+      const newEvaluation = {
+        ...buyerEvaluation,
+        [evalData.viewType === 'buyer_selfuse' ? 'buyer_selfuse' : 'buyer_investor']: data,
+      };
+      console.log('📊 Updated buyer evaluation:', newEvaluation);
+      setBuyerEvaluation(newEvaluation);
+
+      // Invalidate and refetch property data to update the badge
+      utils.properties.getById.invalidate({ id: params.id as string });
+
       setIsEvaluating(false);
     },
     onError: (error) => {
@@ -227,7 +263,7 @@ export default function PropertyPage() {
 
   const handleToggleFavorite = async () => {
     if (!user) {
-      router.push(`/auth/login?redirectTo=/property/${params.id}`);
+      setShowLoginModal(true);
       return;
     }
 
@@ -241,7 +277,7 @@ export default function PropertyPage() {
 
   const handleDismiss = async () => {
     if (!user) {
-      router.push(`/auth/login?redirectTo=/property/${params.id}`);
+      setShowLoginModal(true);
       return;
     }
 
@@ -251,7 +287,7 @@ export default function PropertyPage() {
 
   const handleStartMessage = async () => {
     if (!user) {
-      router.push(`/auth/login?redirectTo=/property/${params.id}`);
+      setShowLoginModal(true);
       return;
     }
 
@@ -263,7 +299,7 @@ export default function PropertyPage() {
     e.stopPropagation();
 
     if (!user) {
-      router.push(`/auth/login?redirectTo=/property/${params.id}`);
+      setShowLoginModal(true);
       return;
     }
 
@@ -281,6 +317,12 @@ export default function PropertyPage() {
   const handleTriggerEvaluation = async (viewType?: 'seller' | 'buyer_selfuse' | 'buyer_investor') => {
     // Guard: prevent double-clicking and concurrent evaluations
     if (!property || isEvaluating) return;
+
+    // Check if user is authenticated - require login for AI evaluation
+    if (!user) {
+      setShowLoginModal(true);
+      return;
+    }
 
     setIsEvaluating(true);
     try {
@@ -495,59 +537,14 @@ export default function PropertyPage() {
             showProgressBars={true}
             overlay={
               <>
-                {/* AI-Score Badge - Top Right (Same as PropertyCard) */}
+                {/* AI-Score Badge - Top Right (PropertyScoreBadge Component) */}
                 {(() => {
                   const aiScore = property.ai_investment_score ?? property.ai_score;
-
                   if (!aiScore) return null;
 
-                  // Get badge info based on score (same logic as PropertyCard)
-                  let badgeInfo: { label: string; color: string; dotColor: string };
-
-                  if (aiScore >= 75) {
-                    badgeInfo = {
-                      label: 'Top Deal',
-                      color: '#22C55E',
-                      dotColor: '#22C55E',
-                    };
-                  } else if (aiScore >= 50) {
-                    badgeInfo = {
-                      label: 'Prüfen',
-                      color: '#F59E0B',
-                      dotColor: '#F59E0B',
-                    };
-                  } else {
-                    badgeInfo = {
-                      label: 'Finger weg',
-                      color: '#EF4444',
-                      dotColor: '#EF4444',
-                    };
-                  }
-
                   return (
-                    <div
-                      className="absolute top-14 right-6 z-20 flex items-center gap-2 px-2.5 py-1.5 rounded-xl"
-                      style={{
-                        backgroundColor: 'rgba(0, 0, 0, 0.75)',
-                        borderWidth: '1px',
-                        borderColor: badgeInfo.color,
-                      }}
-                    >
-                      <div
-                        className="w-3.5 h-3.5 rounded-full"
-                        style={{ backgroundColor: badgeInfo.dotColor }}
-                      />
-                      <div>
-                        <div
-                          className="text-[13px] font-bold leading-tight mb-0.5"
-                          style={{ color: badgeInfo.color }}
-                        >
-                          {badgeInfo.label}
-                        </div>
-                        <div className="text-[11px] font-medium text-white/70">
-                          {aiScore}/100
-                        </div>
-                      </div>
+                    <div className="absolute top-14 right-6 z-20">
+                      <PropertyScoreBadge score={aiScore} variant="overlay" />
                     </div>
                   );
                 })()}
@@ -598,6 +595,13 @@ export default function PropertyPage() {
         commissionRate={property.commission_rate || undefined}
         propertyPrice={property.price}
         propertyTitle={property.title}
+      />
+
+      {/* Login Prompt Modal - Progressive Disclosure */}
+      <LoginPromptModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        returnUrl={`/property/${params.id}`}
       />
 
       {/* Property Feedback Modal */}

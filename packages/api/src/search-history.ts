@@ -1,10 +1,11 @@
 /**
  * Search History API functions
+ * Migrated to use PostgreSQL directly
  */
-import { supabase } from '@immoflow/database';
+import { query, queryOne, queryWithUser } from '@immoflow/database';
 import type { Database } from '@immoflow/database';
 
-// Use Supabase generated types
+// Use database generated types
 export type SearchHistory = Database['public']['Tables']['search_history']['Row'];
 
 export interface SearchHistoryInsert {
@@ -19,53 +20,49 @@ export interface SearchHistoryInsert {
  * If the same query exists, update last_searched_at and results_count
  */
 export async function saveSearchHistory(search: SearchHistoryInsert): Promise<SearchHistory | null> {
-  // First, check if this exact query already exists for this user
-  // Use maybeSingle() to avoid 406 errors when no record exists
-  const { data: existing } = await supabase
-    .from('search_history')
-    .select('*')
-    .eq('user_id', search.user_id)
-    .eq('query', search.query)
-    .maybeSingle();
+  try {
+    // First, check if this exact query already exists for this user
+    const existing = await queryOne<SearchHistory>(
+      'SELECT * FROM search_history WHERE user_id = $1 AND query = $2',
+      [search.user_id, search.query]
+    );
 
-  // maybeSingle() returns null when no record exists (not an error)
-  if (existing) {
-    // Update existing search with new timestamp and results count
-    const { data, error } = await supabase
-      .from('search_history')
-      .update({
-        last_searched_at: new Date().toISOString(),
-        results_count: search.results_count,
-        criteria: search.criteria as any,
-      })
-      .eq('id', existing.id)
-      .select()
-      .single();
+    if (existing) {
+      // Update existing search with new timestamp and results count
+      const updated = await queryOne<SearchHistory>(
+        `UPDATE search_history
+         SET last_searched_at = $1, results_count = $2, criteria = $3, updated_at = NOW()
+         WHERE id = $4
+         RETURNING *`,
+        [
+          new Date().toISOString(),
+          search.results_count ?? existing.results_count,
+          JSON.stringify(search.criteria ?? existing.criteria),
+          existing.id,
+        ]
+      );
 
-    if (error) {
-      console.error('Error updating search history:', error);
-      throw new Error(`Failed to update search history: ${error.message}`);
+      return updated;
+    } else {
+      // Create new search history entry
+      const inserted = await queryOne<SearchHistory>(
+        `INSERT INTO search_history (user_id, query, criteria, results_count, last_searched_at)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING *`,
+        [
+          search.user_id,
+          search.query,
+          JSON.stringify(search.criteria ?? {}),
+          search.results_count ?? 0,
+          new Date().toISOString(),
+        ]
+      );
+
+      return inserted;
     }
-
-    return data;
-  } else {
-    // Create new search history entry
-    const { data, error } = await supabase
-      .from('search_history')
-      .insert({
-        ...search,
-        criteria: search.criteria as any,
-        last_searched_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error saving search history:', error);
-      throw new Error(`Failed to save search history: ${error.message}`);
-    }
-
-    return data;
+  } catch (error) {
+    console.error('Error saving search history:', error);
+    throw new Error(`Failed to save search history: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -76,33 +73,31 @@ export async function getUserSearchHistory(
   userId: string,
   limit: number = 10
 ): Promise<SearchHistory[]> {
-  const { data, error } = await supabase
-    .from('search_history')
-    .select('*')
-    .eq('user_id', userId)
-    .order('last_searched_at', { ascending: false })
-    .limit(limit);
+  try {
+    const results = await query<SearchHistory>(
+      `SELECT * FROM search_history
+       WHERE user_id = $1
+       ORDER BY last_searched_at DESC
+       LIMIT $2`,
+      [userId, limit]
+    );
 
-  if (error) {
+    return results;
+  } catch (error) {
     console.error('Error fetching search history:', error);
-    throw new Error(`Failed to fetch search history: ${error.message}`);
+    throw new Error(`Failed to fetch search history: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
-
-  return data || [];
 }
 
 /**
  * Delete a search from history
  */
 export async function deleteSearchHistory(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('search_history')
-    .delete()
-    .eq('id', id);
-
-  if (error) {
+  try {
+    await query('DELETE FROM search_history WHERE id = $1', [id]);
+  } catch (error) {
     console.error('Error deleting search history:', error);
-    throw new Error(`Failed to delete search history: ${error.message}`);
+    throw new Error(`Failed to delete search history: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -110,14 +105,11 @@ export async function deleteSearchHistory(id: string): Promise<void> {
  * Clear all search history for a user
  */
 export async function clearUserSearchHistory(userId: string): Promise<void> {
-  const { error } = await supabase
-    .from('search_history')
-    .delete()
-    .eq('user_id', userId);
-
-  if (error) {
+  try {
+    await query('DELETE FROM search_history WHERE user_id = $1', [userId]);
+  } catch (error) {
     console.error('Error clearing search history:', error);
-    throw new Error(`Failed to clear search history: ${error.message}`);
+    throw new Error(`Failed to clear search history: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -132,21 +124,44 @@ export interface SearchProfile {
 
 /**
  * Generate a personalized search profile based on user's search history
+ * TODO: Migrate from Supabase Edge Function to local API endpoint
  */
 export async function generateSearchProfile(userId: string): Promise<SearchProfile> {
   try {
-    const { data, error } = await supabase.functions.invoke('generate-search-profile', {
-      body: { userId },
+    // TODO: Implement this using local API endpoint instead of Supabase Edge Function
+    // For now, return a basic profile based on search history
+    const searchHistory = await getUserSearchHistory(userId, 50);
+
+    // Extract locations and features from search history
+    const locations = new Set<string>();
+    const features = new Set<string>();
+    let totalResults = 0;
+
+    searchHistory.forEach((search) => {
+      if (search.criteria) {
+        const criteria = typeof search.criteria === 'string'
+          ? JSON.parse(search.criteria)
+          : search.criteria;
+
+        if (criteria.location) locations.add(criteria.location);
+        if (criteria.features) {
+          criteria.features.forEach((f: string) => features.add(f));
+        }
+      }
+      totalResults += search.results_count || 0;
     });
 
-    if (error) {
-      console.error('Error calling generate-search-profile function:', error);
-      throw new Error(error.message || 'Failed to generate search profile');
-    }
-
-    return data.profile as SearchProfile;
+    return {
+      summary: `Based on ${searchHistory.length} searches with ${totalResults} total results`,
+      preferredLocations: Array.from(locations),
+      preferredFeatures: Array.from(features),
+      recommendations: [
+        'Continue exploring properties in your preferred locations',
+        'Check out similar properties with your favorite features',
+      ],
+    };
   } catch (error) {
     console.error('Error in generateSearchProfile:', error);
-    throw error;
+    throw new Error(`Failed to generate search profile: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }

@@ -38,7 +38,8 @@ export async function extractImagesFromPdf(
         if (!xObjects) continue;
 
         // Extract images from XObjects
-        const xObjectKeys = xObjects.entries();
+        const xObjectDict = xObjects as any;
+        const xObjectKeys = xObjectDict.dict?.entries() || Object.entries(xObjectDict);
         for (const [key, xObject] of xObjectKeys) {
           if (images.length >= maxImages) break;
 

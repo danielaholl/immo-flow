@@ -15,6 +15,7 @@ interface UserProfile {
   first_name: string | null;
   last_name: string | null;
   phone: string | null;
+  address: string | null;
   company: string | null;
   avatar_url: string | null;
   bio: string | null;
@@ -115,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Set cookie for SSR and middleware
       document.cookie = `auth_token=${result.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
 
-      setUser(result.user);
+      setUser(result.user as User);
       console.log('[AuthProvider] Sign in successful');
     } catch (error) {
       console.error('[AuthProvider] Sign in error:', error);
@@ -141,7 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Set cookie for SSR and middleware
       document.cookie = `auth_token=${result.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
 
-      setUser(result.user);
+      setUser(result.user as User);
       console.log('[AuthProvider] Sign up successful');
     } catch (error) {
       console.error('[AuthProvider] Sign up error:', error);

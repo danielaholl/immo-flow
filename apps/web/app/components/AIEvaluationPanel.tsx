@@ -112,8 +112,8 @@ export function AIEvaluationPanel({
   if (!hasEvaluation && !isLoading) {
     return (
       <div className={`bg-gradient-to-r ${mode === 'seller' ? 'from-emerald-50 to-teal-50 border-emerald-200' : 'from-purple-50 to-indigo-50 border-purple-200'} rounded-2xl border p-4 sm:p-6 ${className}`}>
-        <div className="flex flex-col gap-4">
-          <div className="flex items-start gap-3 flex-1">
+        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
             <Sparkles size={20} className={`flex-shrink-0 ${mode === 'seller' ? 'text-emerald-600' : 'text-purple-600'} mt-0.5`} />
             <div className="flex-1 min-w-0">
               <h4 className="text-base sm:text-lg font-semibold text-gray-900">
@@ -128,7 +128,7 @@ export function AIEvaluationPanel({
           </div>
           <button
             onClick={handleStartEvaluation}
-            className={`w-full px-4 sm:px-6 py-3 ${mode === 'seller' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700' : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700'} text-white rounded-xl font-medium transition-all flex items-center justify-center gap-2 shadow-lg`}
+            className={`w-full md:w-auto flex-shrink-0 px-4 sm:px-6 py-3 ${mode === 'seller' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700' : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700'} text-white rounded-xl font-medium transition-all flex items-center justify-center gap-2 shadow-lg`}
           >
             <Sparkles size={18} />
             <span className="whitespace-nowrap">AI-Score starten</span>
@@ -158,6 +158,50 @@ export function AIEvaluationPanel({
     );
   }
 
+  // Get color indicator based on mode and score
+  // Offizielle Schwellenwerte: >= 70 (Exzellent), >= 40 (Moderat), < 40 (Risiko)
+  const getColorIndicator = () => {
+    if (mode === 'buyer' && buyerEvaluation?.buyer_investor) {
+      const score = buyerEvaluation.buyer_investor.investmentScore;
+      let color = '#EF4444'; // red
+      let label = 'Risiko';
+
+      if (score >= 70) {
+        color = '#22C55E'; // green
+        label = 'Exzellent';
+      } else if (score >= 40) {
+        color = '#EAB308'; // yellow
+        label = 'Moderat';
+      }
+
+      return { color, label };
+    }
+
+    if (mode === 'seller' && sellerEvaluation) {
+      // For seller mode, use price assessment to determine color
+      const assessment = sellerEvaluation.priceAssessment?.toLowerCase() || '';
+      let color = '#22C55E'; // green (default: fair price)
+      let label = 'Gut';
+
+      if (assessment.includes('unter') || assessment.includes('günstig')) {
+        color = '#22C55E'; // green
+        label = 'Attraktiv';
+      } else if (assessment.includes('über') || assessment.includes('hoch')) {
+        color = '#EF4444'; // red
+        label = 'Prüfen';
+      } else if (assessment.includes('fair') || assessment.includes('markt')) {
+        color = '#EAB308'; // yellow
+        label = 'Fair';
+      }
+
+      return { color, label };
+    }
+
+    return null;
+  };
+
+  const colorIndicator = getColorIndicator();
+
   // Results view - collapsible panel with results
   return (
     <div className={`bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden ${className}`}>
@@ -172,33 +216,108 @@ export function AIEvaluationPanel({
             setIsExpanded(!isExpanded);
           }
         }}
-        className="w-full p-4 sm:p-5 flex items-center justify-between hover:bg-gray-50 transition-colors cursor-pointer"
+        className="w-full p-4 sm:p-5 hover:bg-gray-50 transition-colors cursor-pointer"
       >
-        <div className="flex items-center gap-2 min-w-0">
-          <Sparkles size={18} className={`flex-shrink-0 ${mode === 'seller' ? 'text-emerald-600' : 'text-purple-600'}`} />
-          <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">
-            AI-Score
-          </h3>
-        </div>
-        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-          {/* Refresh button - only shown when expanded */}
-          {isExpanded && (
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <Sparkles size={18} className={`flex-shrink-0 ${mode === 'seller' ? 'text-emerald-600' : 'text-purple-600'}`} />
+            <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">
+              AI-Score
+            </h3>
+            {/* Ampel-Anzeige für Buyer Mode */}
+            {colorIndicator && (
+              <div className="flex items-center gap-1.5 ml-2">
+                <div
+                  className="w-3 h-3 rounded-full"
+                  style={{ backgroundColor: colorIndicator.color }}
+                />
+                <span className="text-xs font-medium text-gray-600 hidden sm:inline">
+                  {colorIndicator.label}
+                </span>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Neu bewerten Button */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 handleRefreshEvaluation();
               }}
-              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 text-xs sm:text-sm ${mode === 'seller' ? 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50' : 'text-purple-600 hover:text-purple-700 hover:bg-purple-50'} rounded-lg transition-colors`}
+              className={`p-2 rounded-lg transition-colors ${mode === 'seller' ? 'hover:bg-emerald-100 text-emerald-600' : 'hover:bg-purple-100 text-purple-600'}`}
+              title="Bewertung neu generieren"
             >
-              <RefreshCw size={14} className="flex-shrink-0" />
-              <span className="hidden sm:inline whitespace-nowrap">Neue Bewertung</span>
+              <RefreshCw size={16} />
             </button>
-          )}
-          <ChevronDown
-            size={20}
-            className={`flex-shrink-0 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
-          />
+            <ChevronDown
+              size={20}
+              className={`flex-shrink-0 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+            />
+          </div>
         </div>
+
+        {/* Key Metrics Preview - shown when collapsed */}
+        {!isExpanded && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+            {/* Seller Mode Metrics */}
+            {mode === 'seller' && sellerEvaluation && (
+              <>
+                <div className="text-center">
+                  <div className="text-xs text-gray-500 mb-0.5">Marktwert</div>
+                  <div className="text-sm font-semibold text-gray-900">
+                    {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(sellerEvaluation.recommendedPrice)}
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs text-gray-500 mb-0.5">Preis</div>
+                  <div className="text-sm font-semibold text-gray-900">{sellerEvaluation.priceAssessment}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs text-gray-500 mb-0.5">Dauer</div>
+                  <div className="text-sm font-semibold text-gray-900">
+                    {sellerEvaluation.marketingDurationMin}-{sellerEvaluation.marketingDurationMax} Wo.
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs text-gray-500 mb-0.5">Vergleiche</div>
+                  <div className="text-sm font-semibold text-gray-900">{sellerEvaluation.comparableSales}</div>
+                </div>
+              </>
+            )}
+
+            {/* Buyer Investor Mode Metrics */}
+            {mode === 'buyer' && buyerEvaluation?.buyer_investor && (
+              <>
+                <div className="text-center">
+                  <div className="text-xs text-gray-500 mb-0.5">Score</div>
+                  <div className="text-sm font-semibold text-gray-900">{buyerEvaluation.buyer_investor.investmentScore}/100</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs text-gray-500 mb-0.5">Rendite</div>
+                  <div className="text-sm font-semibold text-gray-900">
+                    {buyerEvaluation.buyer_investor.grossYield?.toFixed(1) || '—'}%
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs text-gray-500 mb-0.5">Cashflow</div>
+                  <div className={`text-sm font-semibold ${(buyerEvaluation.buyer_investor.monthlyBudget || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {(buyerEvaluation.buyer_investor.monthlyBudget || 0) >= 0 ? '+' : ''}
+                    {(buyerEvaluation.buyer_investor.monthlyBudget || 0).toLocaleString('de-DE')}€
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs text-gray-500 mb-0.5">Risiko</div>
+                  <div className={`text-sm font-semibold ${
+                    buyerEvaluation.buyer_investor.riskLevel === 'niedrig' ? 'text-green-600' :
+                    buyerEvaluation.buyer_investor.riskLevel === 'mittel' ? 'text-yellow-600' : 'text-red-600'
+                  }`}>
+                    {buyerEvaluation.buyer_investor.riskLevel}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Collapsible Content */}

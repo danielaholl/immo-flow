@@ -11,6 +11,7 @@ import { PropertyPreview, PropertyPreviewData } from '../components/PropertyPrev
 import { AIEvaluationPanel, type SellerEvaluation } from '../components/AIEvaluationPanel';
 import { DeletePropertyModal } from '../components/DeletePropertyModal';
 import { MapPin, Home, Plus, Eye, Pencil, Power, Heart, X } from 'lucide-react';
+import { PropertyListThumbnail } from '../components/PropertyListThumbnail';
 import { trpc } from '@/lib/trpc';
 import { useMasterDetailNavigation } from '@/app/hooks/useMasterDetailNavigation';
 import { MobileDetailHeader } from '../components/MobileDetailHeader';
@@ -65,7 +66,7 @@ function convertSellerAnalysisToEvaluation(sellerAnalysis: any): SellerEvaluatio
 }
 
 export default function MyPropertiesPage() {
-  const { user, loading: authLoading } = useAuthContext();
+  const { user, profile, loading: authLoading } = useAuthContext();
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
@@ -226,6 +227,15 @@ export default function MyPropertiesPage() {
   // Mobile master-detail navigation
   const { selectedItem: selectedProperty, selectedPropertyId, selectItem, goBack } =
     useMasterDetailNavigation(sortedProperties, '/my-properties');
+
+  // Track last selected ID for visual indication on mobile
+  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (selectedPropertyId) {
+      setLastSelectedId(selectedPropertyId);
+    }
+  }, [selectedPropertyId]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('de-DE', {
@@ -417,84 +427,33 @@ export default function MyPropertiesPage() {
 
               <div className="space-y-3">
                 {sortedProperties.map((property, index) => {
-                  const isSelected = property.id === selectedPropertyId;
-                  const statusBadge = getStatusBadge(property.status || 'pending');
+                  // Show selection: current selected OR last selected (for mobile when back to list)
+                  const isSelected = property.id === selectedPropertyId ||
+                                   (!selectedPropertyId && property.id === lastSelectedId);
 
                   return (
-                    <div
+                    <PropertyListThumbnail
                       key={property.id}
-                      className={`group relative bg-white border rounded-xl overflow-hidden transition-all h-32 ${
-                        isSelected
-                          ? 'border-primary shadow-md ring-2 ring-primary/20'
-                          : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
-                      }`}
-                    >
-                      {/* Remove Button (X) - Always visible */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteClick({
-                            id: property.id,
-                            title: property.title,
-                            price: property.price,
-                          });
-                        }}
-                        className="absolute top-2 right-2 z-20 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors shadow-md"
-                        title="Inserat löschen"
-                      >
-                        <X size={14} />
-                      </button>
-
-                      <div className="flex h-full cursor-pointer" onClick={() => selectItem(property.id)}>
-                        {/* Thumbnail */}
-                        <div className="relative w-28 flex-shrink-0 bg-gray-100">
-                          {property.images && property.images.length > 0 ? (
-                            <img
-                              src={property.images[0]}
-                              alt={property.title}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Home size={32} className="text-gray-300" />
-                            </div>
-                          )}
-                          {/* Status Badge - same style as AI score badge */}
-                          <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-md bg-black/75 shadow-md">
-                            <div
-                              className="w-2 h-2 rounded-full"
-                              style={{
-                                backgroundColor: property.status === 'active' ? '#22C55E' : '#9CA3AF'
-                              }}
-                            />
-                            <span className="text-white text-xs font-semibold">
-                              {property.status === 'active' ? 'Online' : 'Offline'}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Info */}
-                        <div className="flex-1 p-3 min-w-0 flex flex-col justify-center">
-                          <p className="text-primary font-bold" style={{ fontSize: '16.8px' }}>{formatPrice(property.price)}</p>
-                          <h3 className="font-medium text-gray-900 truncate mt-0.5" style={{ fontSize: '16.8px' }}>{property.title}</h3>
-                          <p className="text-gray-500 mt-1 flex items-center gap-1 truncate" style={{ fontSize: '14.4px' }}>
-                            <MapPin size={12} className="flex-shrink-0" />
-                            <span className="truncate">{property.location}</span>
-                          </p>
-                          <div className="flex items-center gap-2 mt-2 text-gray-500" style={{ fontSize: '14.4px' }}>
-                            <span className="flex items-center gap-1">
-                              <Eye size={12} />
-                              {(property as any).unique_viewers || 0}
-                            </span>
-                            <span>•</span>
-                            <span className="flex items-center gap-1">
-                              <Heart size={12} />
-                              {(property as any).favorites_count || 0}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                      id={property.id}
+                      title={property.title}
+                      isSelected={isSelected}
+                      onClick={() => selectItem(property.id)}
+                      image={property.images?.[0]}
+                      price={property.price}
+                      location={property.location}
+                      statusOnline={property.status === 'active'}
+                      viewCount={(property as any).unique_viewers || 0}
+                      favoriteCount={(property as any).favorites_count || 0}
+                      onDelete={(e) => {
+                        e.stopPropagation();
+                        handleDeleteClick({
+                          id: property.id,
+                          title: property.title,
+                          price: property.price,
+                        });
+                      }}
+                      deleteTooltip="Inserat löschen"
+                    />
                   );
                 })}
               </div>
@@ -540,10 +499,10 @@ export default function MyPropertiesPage() {
                     <div className="mt-6 bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Anbieter</h3>
                       <div className="flex items-center gap-4">
-                        {user?.user_metadata?.avatar_url ? (
+                        {profile?.avatar_url ? (
                           <img
-                            src={user.user_metadata.avatar_url}
-                            alt={`${user.user_metadata?.first_name || ''} ${user.user_metadata?.last_name || ''}`}
+                            src={profile.avatar_url}
+                            alt={`${profile?.first_name || ''} ${profile?.last_name || ''}`}
                             className="w-16 h-16 rounded-full object-cover"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
@@ -553,18 +512,18 @@ export default function MyPropertiesPage() {
                         ) : (
                           <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                             <span className="text-2xl font-bold text-gray-400">
-                              {user?.user_metadata?.first_name?.charAt(0)?.toUpperCase() || 'P'}
+                              {profile?.first_name?.charAt(0)?.toUpperCase() || 'P'}
                             </span>
                           </div>
                         )}
                         <div>
                           <h4 className="font-bold text-gray-900">
-                            {user?.user_metadata?.first_name || user?.user_metadata?.last_name
-                              ? `${user.user_metadata.first_name || ''} ${user.user_metadata.last_name || ''}`.trim()
+                            {profile?.first_name || profile?.last_name
+                              ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
                               : 'Privater Anbieter'}
                           </h4>
-                          {user?.user_metadata?.company ? (
-                            <p className="text-sm text-gray-600">{user.user_metadata.company}</p>
+                          {profile?.company ? (
+                            <p className="text-sm text-gray-600">{profile.company}</p>
                           ) : (
                             <p className="text-sm text-gray-500">-</p>
                           )}
@@ -573,24 +532,27 @@ export default function MyPropertiesPage() {
                     </div>
                   </div>
 
-                  {/* CTA Buttons */}
-                  <div className="bg-white p-4 lg:p-8 pt-4 space-y-3 border-t border-gray-100 mb-20 lg:mb-0">
-                    <div className="flex flex-col gap-3">
+                  {/* CTA Buttons - Responsive: stacked on mobile, row on tablet+ */}
+                  <div className="bg-white p-4 lg:p-8 pt-4 border-t border-gray-100 mb-20 lg:mb-0">
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                      {/* Bearbeiten Button */}
                       <button
                         onClick={() => router.push(`/edit-listing/${selectedProperty.id}`)}
-                        className="w-full bg-primary text-white font-semibold py-3 sm:py-4 px-4 sm:px-6 rounded-xl hover:opacity-90 transition-colors inline-flex items-center justify-center gap-2 text-sm sm:text-base"
+                        className="flex-1 bg-primary text-white font-semibold py-3 px-4 rounded-xl hover:opacity-90 transition-colors inline-flex items-center justify-center gap-2 text-sm"
                       >
-                        <Pencil size={18} className="sm:w-5 sm:h-5" />
-                        Bearbeiten
+                        <Pencil size={16} />
+                        <span>Bearbeiten</span>
                       </button>
+
+                      {/* Aktivieren/Deaktivieren Button */}
                       {selectedProperty.status === 'archived' ? (
                         <button
                           onClick={() => handleActivate(selectedProperty.id)}
                           disabled={activateMutation.isLoading}
-                          className="w-full bg-green-500 text-white font-semibold py-3 sm:py-4 px-4 sm:px-6 rounded-xl hover:bg-green-600 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50 text-sm sm:text-base"
+                          className="flex-1 bg-green-500 text-white font-semibold py-3 px-4 rounded-xl hover:bg-green-600 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
                         >
-                          <Power size={18} className="sm:w-5 sm:h-5" />
-                          {activateMutation.isLoading ? 'Aktivieren...' : 'Aktivieren'}
+                          <Power size={16} />
+                          <span>{activateMutation.isLoading ? '...' : 'Aktivieren'}</span>
                         </button>
                       ) : (
                         <button
@@ -600,29 +562,31 @@ export default function MyPropertiesPage() {
                             price: selectedProperty.price,
                           })}
                           disabled={deactivateMutation.isLoading}
-                          className="w-full bg-white border-2 border-gray-300 text-gray-900 font-semibold py-3 sm:py-4 px-4 sm:px-6 rounded-xl hover:border-gray-400 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50 text-sm sm:text-base"
+                          className="flex-1 bg-white border-2 border-gray-300 text-gray-700 font-semibold py-3 px-4 rounded-xl hover:border-gray-400 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
                         >
-                          <Power size={18} className="sm:w-5 sm:h-5" />
-                          {deactivateMutation.isLoading ? 'Deaktivieren...' : 'Deaktivieren'}
+                          <Power size={16} />
+                          <span>{deactivateMutation.isLoading ? '...' : 'Deaktivieren'}</span>
                         </button>
                       )}
+
+                      {/* Löschen Button */}
+                      <button
+                        onClick={() => handleDeleteClick({
+                          id: selectedProperty.id,
+                          title: selectedProperty.title,
+                          price: selectedProperty.price,
+                        })}
+                        disabled={deleteMutation.isLoading}
+                        className="flex-1 bg-white border-2 border-red-300 text-red-600 font-semibold py-3 px-4 rounded-xl hover:bg-red-50 hover:border-red-400 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 6h18"></path>
+                          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                        </svg>
+                        <span>{deleteMutation.isLoading ? '...' : 'Löschen'}</span>
+                      </button>
                     </div>
-                    <button
-                      onClick={() => handleDeleteClick({
-                        id: selectedProperty.id,
-                        title: selectedProperty.title,
-                        price: selectedProperty.price,
-                      })}
-                      disabled={deleteMutation.isLoading}
-                      className="w-full bg-white border-2 border-red-300 text-red-600 font-semibold py-3 px-4 sm:px-6 rounded-xl hover:bg-red-50 hover:border-red-400 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50 text-sm sm:text-base"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="sm:w-5 sm:h-5">
-                        <path d="M3 6h18"></path>
-                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                      </svg>
-                      {deleteMutation.isLoading ? 'Lösche...' : 'Inserat löschen'}
-                    </button>
                   </div>
                 </div>
 

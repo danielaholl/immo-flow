@@ -2,7 +2,7 @@
  * Investment Evaluation Helper Functions
  * Utility functions for property investment evaluation
  */
-import { openai } from './logger.js'./openai.js';
+import { openai } from './openai.js';
 import {
   AI_CONFIG,
   SCORE_WEIGHTS,
@@ -13,8 +13,8 @@ import {
   PRICE_SCORES,
   OPERATING_COSTS,
   FEATURES,
-} from './logger.js'../constants/evaluation.js';
-import { AIError, ErrorCode, logError } from './logger.js'./errors.js';
+} from '../constants/evaluation.js';
+import { AIError, ErrorCode, logError } from './errors.js';
 import type {
   Property,
   LocationAnalysis,
@@ -22,7 +22,7 @@ import type {
   MarketPriceAnalysis,
   RentEstimation,
   FinancingTerms,
-} from './logger.js'../types/investment-evaluation.js';
+} from '../types/investment-evaluation.js';
 
 /**
  * Call OpenAI API with retry logic
@@ -408,7 +408,7 @@ export function calculateOverallScore(
 }
 
 /**
- * Determine color rating from './logger.js'verall score
+ * Determine color rating from overall score
  */
 export function determineColorRating(overallScore: number): 'green' | 'yellow' | 'red' {
   if (overallScore >= COLOR_RATING_THRESHOLDS.green) {

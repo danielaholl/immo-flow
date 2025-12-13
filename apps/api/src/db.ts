@@ -1,6 +1,15 @@
 /**
  * PostgreSQL Database Connection
  */
+import { config } from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+// Load environment variables BEFORE creating the pool
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+config({ path: join(__dirname, '../../../.env') });
+
 import pg from 'pg';
 const { Pool } = pg;
 

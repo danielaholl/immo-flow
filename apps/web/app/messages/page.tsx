@@ -7,6 +7,7 @@ import { trpc } from '@/lib/trpc';
 import { MessageSquare, Home, MapPin, Euro, Clock, ArrowLeft, Send, Bot, Loader2, X } from 'lucide-react';
 import Link from 'next/link';
 import { Header } from '../components/Header';
+import { PropertyListThumbnail } from '../components/PropertyListThumbnail';
 import { joinConversation, leaveConversation, onNewMessage, sendTypingIndicator, onTypingIndicator, onTypingStop } from '@/lib/socket';
 
 export default function MessagesPage() {
@@ -19,6 +20,7 @@ export default function MessagesPage() {
   const [message, setMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [typingUser, setTypingUser] = useState<string | null>(null);
+  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -71,6 +73,13 @@ export default function MessagesPage() {
   };
 
   const selectedConversation = conversations?.find((c) => c.id === selectedConversationId);
+
+  // Track last selected ID for visual indication on mobile
+  useEffect(() => {
+    if (selectedConversationId) {
+      setLastSelectedId(selectedConversationId);
+    }
+  }, [selectedConversationId]);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -236,8 +245,9 @@ export default function MessagesPage() {
             <div className="flex-1 overflow-y-auto">
               <div className="space-y-3 p-4">
                 {conversations.map((conversation) => {
-                  const firstImage = conversation.propertyImages?.[0];
-                  const isSelected = conversation.id === selectedConversationId;
+                  // Show selection: current selected OR last selected (for mobile when back to list)
+                  const isSelected = conversation.id === selectedConversationId ||
+                                   (!selectedConversationId && conversation.id === lastSelectedId);
                   const convIsBuyer = conversation.role === 'buyer';
                   const convOtherPerson = conversation.otherParticipant;
                   const convDisplayName = convOtherPerson.company ||
@@ -245,67 +255,20 @@ export default function MessagesPage() {
                                          'Unbekannt';
 
                   return (
-                    <div
+                    <PropertyListThumbnail
                       key={conversation.id}
-                      className={`group relative bg-white border rounded-xl overflow-hidden transition-all h-32 cursor-pointer ${
-                        isSelected
-                          ? 'border-primary shadow-md ring-2 ring-primary/20'
-                          : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
-                      }`}
+                      id={conversation.id}
+                      title={conversation.propertyTitle}
+                      isSelected={isSelected}
                       onClick={() => setSelectedConversationId(conversation.id)}
-                    >
-                      {/* Delete Button (X) - Always visible */}
-                      <button
-                        onClick={(e) => handleDeleteConversation(conversation.id, e)}
-                        className="absolute top-2 right-2 z-20 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors shadow-md"
-                        title="Konversation löschen"
-                      >
-                        <X size={14} />
-                      </button>
-
-                      {/* Unread Badge - Top Right (below X button) */}
-                      {conversation.unreadCount > 0 && (
-                        <div className="absolute top-10 right-2 z-20 bg-blue-500 text-white text-xs font-bold rounded-full px-2 py-1 shadow-md">
-                          {conversation.unreadCount}
-                        </div>
-                      )}
-
-                      <div className="flex h-full">
-                        {/* Thumbnail - Full height */}
-                        <div className="relative w-28 flex-shrink-0 bg-gray-100">
-                          {firstImage ? (
-                            <img
-                              src={firstImage}
-                              alt={conversation.propertyTitle}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Home size={32} className="text-gray-300" />
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Info */}
-                        <div className="flex-1 p-3 min-w-0 flex flex-col justify-center">
-                          <h3 className="font-semibold text-gray-900 text-sm line-clamp-1 mb-1">
-                            {conversation.propertyTitle}
-                          </h3>
-                          <div className="text-xs text-gray-600 mb-2">
-                            <span className="font-medium">
-                              {convIsBuyer ? 'Verkäufer' : 'Interessent'}:
-                            </span>{' '}
-                            <span className="truncate">{convDisplayName}</span>
-                          </div>
-                          {conversation.lastMessageAt && (
-                            <p className="text-xs text-gray-500 flex items-center gap-1">
-                              <Clock size={10} className="flex-shrink-0" />
-                              {new Date(conversation.lastMessageAt).toLocaleDateString('de-DE')}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                      image={conversation.propertyImages?.[0]}
+                      roleLabel={convIsBuyer ? 'Verkäufer' : 'Interessent'}
+                      roleValue={convDisplayName}
+                      lastMessageDate={conversation.lastMessageAt ? new Date(conversation.lastMessageAt) : undefined}
+                      unreadCount={conversation.unreadCount}
+                      onDelete={(e) => handleDeleteConversation(conversation.id, e)}
+                      deleteTooltip="Konversation löschen"
+                    />
                   );
                 })}
               </div>

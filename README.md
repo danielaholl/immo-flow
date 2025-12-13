@@ -398,6 +398,48 @@ pnpm install
 pnpm build
 ```
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## Contributing
 
 1. Feature Branch erstellen
@@ -407,7 +449,6 @@ pnpm build
 
 ## License
 
-MIT License - siehe [LICENSE](LICENSE)
 
 ## Support
 

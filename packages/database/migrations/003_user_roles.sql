@@ -4,8 +4,8 @@
 
 -- Create user_profiles table
 CREATE TABLE IF NOT EXISTS user_profiles (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE NOT NULL,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE UNIQUE NOT NULL,
   first_name TEXT,
   last_name TEXT,
   phone TEXT,
@@ -25,22 +25,22 @@ CREATE POLICY "Users can view own profile"
   ON user_profiles
   FOR SELECT
   TO authenticated
-  USING (user_id = auth.uid());
+  USING (user_id = public.current_user_id());
 
 -- RLS Policy: Users can update their own profile
 CREATE POLICY "Users can update own profile"
   ON user_profiles
   FOR UPDATE
   TO authenticated
-  USING (user_id = auth.uid())
-  WITH CHECK (user_id = auth.uid());
+  USING (user_id = public.current_user_id())
+  WITH CHECK (user_id = public.current_user_id());
 
 -- RLS Policy: Users can insert their own profile (for manual creation if needed)
 CREATE POLICY "Users can insert own profile"
   ON user_profiles
   FOR INSERT
   TO authenticated
-  WITH CHECK (user_id = auth.uid());
+  WITH CHECK (user_id = public.current_user_id());
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -57,25 +57,29 @@ CREATE TRIGGER update_user_profiles_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+-- NOTE: This trigger is for Supabase auth.users only
+-- We use our own auth system, so profiles are created manually in the API
+-- Commenting out to prevent errors with our custom users table
+--
 -- Function to auto-create user_profiles on auth.users INSERT
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO public.user_profiles (user_id, first_name, last_name)
-  VALUES (
-    NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'first_name', ''),
-    COALESCE(NEW.raw_user_meta_data->>'last_name', '')
-  );
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+-- CREATE OR REPLACE FUNCTION public.handle_new_user()
+-- RETURNS TRIGGER AS $$
+-- BEGIN
+--   INSERT INTO public.user_profiles (user_id, first_name, last_name)
+--   VALUES (
+--     NEW.id,
+--     COALESCE(NEW.raw_user_meta_data->>'first_name', ''),
+--     COALESCE(NEW.raw_user_meta_data->>'last_name', '')
+--   );
+--   RETURN NEW;
+-- END;
+-- $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Trigger to auto-create profile when user signs up
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW
-  EXECUTE FUNCTION public.handle_new_user();
+-- CREATE TRIGGER on_auth_user_created
+--   AFTER INSERT ON auth.users
+--   FOR EACH ROW
+--   EXECUTE FUNCTION public.handle_new_user();
 
 -- Create indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_user_profiles_user_id ON user_profiles(user_id);

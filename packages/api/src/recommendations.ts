@@ -1,8 +1,9 @@
 /**
  * Recommendation System API
  * TikTok-style personalized property recommendations
+ * Migrated to use PostgreSQL directly
  */
-import { supabase } from '@immoflow/database';
+import { query, queryOne, queryWithUser } from '@immoflow/database';
 import type { Database } from '@immoflow/database';
 
 // =====================================================
@@ -55,25 +56,30 @@ export async function trackInteraction(
     metadata?: Record<string, any>;
   }
 ): Promise<PropertyInteraction> {
-  const { data, error } = await supabase
-    .from('property_interactions')
-    .insert({
-      user_id: userId,
-      property_id: propertyId,
-      interaction_type: interactionType,
-      dwell_time_seconds: options?.dwellTimeSeconds || 0,
-      source: options?.source,
-      metadata: options?.metadata as any || {},
-    })
-    .select()
-    .single();
+  try {
+    const result = await queryOne<PropertyInteraction>(
+      `INSERT INTO property_interactions (user_id, property_id, interaction_type, dwell_time_seconds, source, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [
+        userId,
+        propertyId,
+        interactionType,
+        options?.dwellTimeSeconds || 0,
+        options?.source || null,
+        JSON.stringify(options?.metadata || {}),
+      ]
+    );
 
-  if (error) {
+    if (!result) {
+      throw new Error('Failed to insert interaction');
+    }
+
+    return result;
+  } catch (error) {
     console.error('Error tracking interaction:', error);
-    throw new Error(`Failed to track interaction: ${error.message}`);
+    throw new Error(`Failed to track interaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
-
-  return data;
 }
 
 /**
@@ -83,19 +89,20 @@ export async function getUserInteractions(
   userId: string,
   limit: number = 50
 ): Promise<PropertyInteraction[]> {
-  const { data, error } = await supabase
-    .from('property_interactions')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(limit);
+  try {
+    const results = await query<PropertyInteraction>(
+      `SELECT * FROM property_interactions
+       WHERE user_id = $1
+       ORDER BY created_at DESC
+       LIMIT $2`,
+      [userId, limit]
+    );
 
-  if (error) {
+    return results;
+  } catch (error) {
     console.error('Error fetching interactions:', error);
-    throw new Error(`Failed to fetch interactions: ${error.message}`);
+    throw new Error(`Failed to fetch interactions: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
-
-  return data || [];
 }
 
 // =====================================================
@@ -104,15 +111,18 @@ export async function getUserInteractions(
 
 /**
  * Calculate and update user preferences based on their interactions
+ * TODO: Migrate RPC function to local implementation
  */
 export async function updateUserPreferences(userId: string): Promise<void> {
-  const { error } = await supabase.rpc('calculate_user_preferences', {
-    target_user_id: userId,
-  });
-
-  if (error) {
+  try {
+    // Call PostgreSQL function directly
+    await query(
+      'SELECT calculate_user_preferences($1)',
+      [userId]
+    );
+  } catch (error) {
     console.error('Error updating user preferences:', error);
-    throw new Error(`Failed to update user preferences: ${error.message}`);
+    throw new Error(`Failed to update user preferences: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -120,30 +130,37 @@ export async function updateUserPreferences(userId: string): Promise<void> {
  * Get user's preference profile
  */
 export async function getUserPreferences(userId: string): Promise<UserPreferencesParsed | null> {
-  const { data, error } = await supabase
-    .from('user_preferences')
-    .select('*')
-    .eq('user_id', userId)
-    .maybeSingle();
+  try {
+    const data = await queryOne<UserPreferences>(
+      'SELECT * FROM user_preferences WHERE user_id = $1',
+      [userId]
+    );
 
-  if (error) {
+    if (!data) return null;
+
+    // Parse JSON fields
+    return {
+      id: data.id,
+      user_id: data.user_id,
+      preferred_locations: (typeof data.preferred_locations === 'string'
+        ? JSON.parse(data.preferred_locations)
+        : data.preferred_locations) || [],
+      price_range: (typeof data.price_range === 'string'
+        ? JSON.parse(data.price_range)
+        : data.price_range) || {},
+      preferred_rooms: (typeof data.preferred_rooms === 'string'
+        ? JSON.parse(data.preferred_rooms)
+        : data.preferred_rooms) || [],
+      preferred_features: (typeof data.preferred_features === 'string'
+        ? JSON.parse(data.preferred_features)
+        : data.preferred_features) || [],
+      interaction_count: data.interaction_count || 0,
+      last_updated: data.last_updated || new Date().toISOString(),
+    };
+  } catch (error) {
     console.error('Error fetching user preferences:', error);
-    throw new Error(`Failed to fetch user preferences: ${error.message}`);
+    throw new Error(`Failed to fetch user preferences: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
-
-  if (!data) return null;
-
-  // Parse JSON fields
-  return {
-    id: data.id,
-    user_id: data.user_id,
-    preferred_locations: (data.preferred_locations as any) || [],
-    price_range: (data.price_range as any) || {},
-    preferred_rooms: (data.preferred_rooms as any) || [],
-    preferred_features: (data.preferred_features as any) || [],
-    interaction_count: data.interaction_count || 0,
-    last_updated: data.last_updated || new Date().toISOString(),
-  };
 }
 
 // =====================================================
@@ -302,43 +319,50 @@ export async function getPersonalizedFeed(
   const limit = options?.limit || 50;
   const diversityFactor = options?.diversityFactor ?? 0.3;
 
-  // 1. Get user preferences
-  const preferences = await getUserPreferences(userId);
+  try {
+    // 1. Get user preferences
+    const preferences = await getUserPreferences(userId);
 
-  // 2. Fetch active properties
-  let query = supabase
-    .from('properties')
-    .select('*')
-    .eq('status', 'active');
+    // 2. Fetch active properties
+    let properties: any[];
 
-  // Optionally exclude already viewed properties
-  if (options?.excludeViewed) {
-    const { data: viewedProperties } = await supabase
-      .from('property_interactions')
-      .select('property_id')
-      .eq('user_id', userId)
-      .eq('interaction_type', 'view');
+    if (options?.excludeViewed) {
+      // Get viewed property IDs first
+      const viewedProperties = await query<{ property_id: string }>(
+        `SELECT property_id FROM property_interactions
+         WHERE user_id = $1 AND interaction_type = 'view'`,
+        [userId]
+      );
 
-    if (viewedProperties && viewedProperties.length > 0) {
       const viewedIds = viewedProperties.map((v) => v.property_id);
-      query = query.not('id', 'in', `(${viewedIds.join(',')})`);
+
+      // Fetch properties excluding viewed ones
+      const fetchLimit = Math.min(limit * 3, 150);
+      if (viewedIds.length > 0) {
+        properties = await query(
+          `SELECT * FROM properties
+           WHERE status = 'active' AND id NOT IN (${viewedIds.map((_, i) => `$${i + 1}`).join(',')})
+           LIMIT $${viewedIds.length + 1}`,
+          [...viewedIds, fetchLimit]
+        );
+      } else {
+        properties = await query(
+          'SELECT * FROM properties WHERE status = $1 LIMIT $2',
+          ['active', fetchLimit]
+        );
+      }
+    } else {
+      // Fetch more properties than needed for diversity balancing
+      const fetchLimit = Math.min(limit * 3, 150);
+      properties = await query(
+        'SELECT * FROM properties WHERE status = $1 LIMIT $2',
+        ['active', fetchLimit]
+      );
     }
-  }
 
-  // Fetch more properties than needed for diversity balancing
-  const fetchLimit = Math.min(limit * 3, 150);
-  query = query.limit(fetchLimit);
-
-  const { data: properties, error } = await query;
-
-  if (error) {
-    console.error('Error fetching properties:', error);
-    throw new Error(`Failed to fetch properties: ${error.message}`);
-  }
-
-  if (!properties || properties.length === 0) {
-    return [];
-  }
+    if (!properties || properties.length === 0) {
+      return [];
+    }
 
   // 3. Calculate match scores for all properties
   const scoredProperties = properties.map((property) =>
@@ -384,27 +408,31 @@ export async function getPersonalizedFeed(
     diversifiedProperties.push(...shuffled.slice(0, explorationCount));
   }
 
-  return diversifiedProperties.slice(0, limit);
+    return diversifiedProperties.slice(0, limit);
+  } catch (error) {
+    console.error('Error getting personalized feed:', error);
+    throw new Error(`Failed to get personalized feed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 /**
  * Get trending properties (most viewed recently)
  */
 export async function getTrendingProperties(limit: number = 20): Promise<any[]> {
-  const { data, error } = await supabase
-    .from('properties')
-    .select('*')
-    .eq('status', 'active')
-    .order('views', { ascending: false })
-    .order('created_at', { ascending: false })
-    .limit(limit);
+  try {
+    const properties = await query(
+      `SELECT * FROM properties
+       WHERE status = $1
+       ORDER BY views DESC, created_at DESC
+       LIMIT $2`,
+      ['active', limit]
+    );
 
-  if (error) {
+    return properties;
+  } catch (error) {
     console.error('Error fetching trending properties:', error);
-    throw new Error(`Failed to fetch trending properties: ${error.message}`);
+    throw new Error(`Failed to fetch trending properties: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
-
-  return data || [];
 }
 
 /**
@@ -414,37 +442,36 @@ export async function getSimilarProperties(
   propertyId: string,
   limit: number = 10
 ): Promise<any[]> {
-  // Get the reference property
-  const { data: property, error: propError } = await supabase
-    .from('properties')
-    .select('*')
-    .eq('id', propertyId)
-    .single();
+  try {
+    // Get the reference property
+    const property = await queryOne(
+      'SELECT * FROM properties WHERE id = $1',
+      [propertyId]
+    );
 
-  if (propError || !property) {
-    console.error('Error fetching property:', propError);
-    throw new Error(`Failed to fetch property: ${propError?.message}`);
-  }
+    if (!property) {
+      throw new Error('Property not found');
+    }
 
-  // Find similar properties based on location, price range, and rooms
-  const priceMin = property.price * 0.8;
-  const priceMax = property.price * 1.2;
+    // Find similar properties based on location, price range, and rooms
+    const priceMin = property.price * 0.8;
+    const priceMax = property.price * 1.2;
 
-  const { data: similarProps, error } = await supabase
-    .from('properties')
-    .select('*')
-    .eq('status', 'active')
-    .neq('id', propertyId)
-    .eq('location', property.location)
-    .gte('price', priceMin)
-    .lte('price', priceMax)
-    .limit(limit);
+    const similarProps = await query(
+      `SELECT * FROM properties
+       WHERE status = $1
+         AND id != $2
+         AND location = $3
+         AND price >= $4
+         AND price <= $5
+       LIMIT $6`,
+      ['active', propertyId, property.location, priceMin, priceMax, limit]
+    );
 
-  if (error) {
+    return similarProps;
+  } catch (error) {
     console.error('Error fetching similar properties:', error);
     // Don't throw, just return empty array
     return [];
   }
-
-  return similarProps || [];
 }

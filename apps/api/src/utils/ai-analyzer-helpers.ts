@@ -2,14 +2,14 @@
  * AI Analyzer Helper Functions
  * Utility functions for AI-powered property analysis
  */
-import { openai } from './logger.js'./openai.js';
-import { createLogger } from './logger.js'@immoflow/utils';
-import type { ScrapedPropertyData } from './logger.js'@immoflow/types';
+import { openai } from './openai.js';
+import { createLogger } from '@immoflow/utils';
+import type { ScrapedPropertyData } from '../services/property-scraper.js';
 import type {
   AIRating,
   PropertyAnalysis,
   AIAnalysisResponse,
-} from './logger.js'../types/ai-analyzer-types.js';
+} from '../types/ai-analyzer-types.js';
 
 const log = createLogger('ai-analyzer-helpers');
 

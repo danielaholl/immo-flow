@@ -56,7 +56,6 @@ export default function DiscoverScreen() {
       </View>
     );
   }
-
   return (
     <View style={styles.container}>
       <FlatList

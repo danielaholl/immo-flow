@@ -10,7 +10,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- =====================================================
 CREATE TABLE agents (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   email TEXT UNIQUE NOT NULL,
   phone TEXT,
@@ -88,7 +88,7 @@ CREATE INDEX properties_ai_score_idx ON properties(ai_score DESC);
 CREATE TABLE bookings (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   property_id UUID REFERENCES properties(id) ON DELETE CASCADE NOT NULL,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
 
   -- Booking details
   date TIMESTAMPTZ NOT NULL,
@@ -114,7 +114,7 @@ CREATE INDEX bookings_status_idx ON bookings(status);
 CREATE TABLE favorites (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   property_id UUID REFERENCES properties(id) ON DELETE CASCADE NOT NULL,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
 
   -- Timestamps
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -146,8 +146,8 @@ CREATE POLICY "Anyone can view agents"
 CREATE POLICY "Users can manage their own agent profile"
   ON agents FOR ALL
   TO authenticated
-  USING (user_id = auth.uid())
-  WITH CHECK (user_id = auth.uid());
+  USING (user_id = public.current_user_id())
+  WITH CHECK (user_id = public.current_user_id());
 
 -- PROPERTIES POLICIES
 CREATE POLICY "Anyone can view active properties"
@@ -158,52 +158,52 @@ CREATE POLICY "Anyone can view active properties"
 CREATE POLICY "Agents can view all their properties"
   ON properties FOR SELECT
   TO authenticated
-  USING (agent_id IN (SELECT id FROM agents WHERE user_id = auth.uid()));
+  USING (agent_id IN (SELECT id FROM agents WHERE user_id = public.current_user_id()));
 
 CREATE POLICY "Agents can create properties"
   ON properties FOR INSERT
   TO authenticated
-  WITH CHECK (agent_id IN (SELECT id FROM agents WHERE user_id = auth.uid()));
+  WITH CHECK (agent_id IN (SELECT id FROM agents WHERE user_id = public.current_user_id()));
 
 CREATE POLICY "Agents can update their own properties"
   ON properties FOR UPDATE
   TO authenticated
-  USING (agent_id IN (SELECT id FROM agents WHERE user_id = auth.uid()))
-  WITH CHECK (agent_id IN (SELECT id FROM agents WHERE user_id = auth.uid()));
+  USING (agent_id IN (SELECT id FROM agents WHERE user_id = public.current_user_id()))
+  WITH CHECK (agent_id IN (SELECT id FROM agents WHERE user_id = public.current_user_id()));
 
 CREATE POLICY "Agents can delete their own properties"
   ON properties FOR DELETE
   TO authenticated
-  USING (agent_id IN (SELECT id FROM agents WHERE user_id = auth.uid()));
+  USING (agent_id IN (SELECT id FROM agents WHERE user_id = public.current_user_id()));
 
 -- BOOKINGS POLICIES
 CREATE POLICY "Users can view their own bookings"
   ON bookings FOR SELECT
   TO authenticated
-  USING (user_id = auth.uid() OR
+  USING (user_id = public.current_user_id() OR
          property_id IN (
            SELECT id FROM properties WHERE agent_id IN (
-             SELECT id FROM agents WHERE user_id = auth.uid()
+             SELECT id FROM agents WHERE user_id = public.current_user_id()
            )
          ));
 
 CREATE POLICY "Users can create bookings"
   ON bookings FOR INSERT
   TO authenticated
-  WITH CHECK (user_id = auth.uid());
+  WITH CHECK (user_id = public.current_user_id());
 
 CREATE POLICY "Users can update their own bookings"
   ON bookings FOR UPDATE
   TO authenticated
-  USING (user_id = auth.uid())
-  WITH CHECK (user_id = auth.uid());
+  USING (user_id = public.current_user_id())
+  WITH CHECK (user_id = public.current_user_id());
 
 CREATE POLICY "Agents can update bookings for their properties"
   ON bookings FOR UPDATE
   TO authenticated
   USING (property_id IN (
     SELECT id FROM properties WHERE agent_id IN (
-      SELECT id FROM agents WHERE user_id = auth.uid()
+      SELECT id FROM agents WHERE user_id = public.current_user_id()
     )
   ));
 
@@ -211,13 +211,13 @@ CREATE POLICY "Agents can update bookings for their properties"
 CREATE POLICY "Users can view their own favorites"
   ON favorites FOR SELECT
   TO authenticated
-  USING (user_id = auth.uid());
+  USING (user_id = public.current_user_id());
 
 CREATE POLICY "Users can manage their own favorites"
   ON favorites FOR ALL
   TO authenticated
-  USING (user_id = auth.uid())
-  WITH CHECK (user_id = auth.uid());
+  USING (user_id = public.current_user_id())
+  WITH CHECK (user_id = public.current_user_id());
 
 -- =====================================================
 -- FUNCTIONS & TRIGGERS

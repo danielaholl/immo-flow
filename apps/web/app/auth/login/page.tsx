@@ -14,7 +14,12 @@ export default function LoginPage() {
   const { signIn } = useAuthContext();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get('redirectTo') || '/';
+
+  // Support both redirectTo and returnUrl parameters
+  const returnUrl = searchParams.get('returnUrl') || searchParams.get('redirectTo') || '/';
+  const message = searchParams.get('message');
+  const action = searchParams.get('action');
+  const feature = searchParams.get('feature');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,7 +28,14 @@ export default function LoginPage() {
 
     try {
       await signIn(email, password);
-      router.push(redirectTo);
+
+      // Store pending action in sessionStorage if exists
+      if (action) {
+        sessionStorage.setItem('pendingAction', action);
+      }
+
+      // Redirect to return URL
+      router.push(returnUrl);
     } catch (err: any) {
       console.error('Login error:', err);
       setError('Anmeldung fehlgeschlagen. Bitte überprüfen Sie Ihre Anmeldedaten.');
@@ -39,6 +51,29 @@ export default function LoginPage() {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Willkommen zurück</h1>
           <p className="text-gray-600">Melden Sie sich in Ihrem NestFlow-Konto an</p>
         </div>
+
+        {/* Contextual Message Banner - Progressive Disclosure */}
+        {(message || action || feature) && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm font-medium text-blue-900 mb-2">
+              {message || 'Bitte melde dich an, um fortzufahren'}
+            </p>
+            {action && (
+              <div className="mt-2 p-2 bg-blue-100 rounded">
+                <p className="text-xs font-semibold text-blue-800">
+                  Aktion: {action}
+                </p>
+              </div>
+            )}
+            {feature && (
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-xs text-blue-700">
+                  Feature: {feature}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -91,7 +126,10 @@ export default function LoginPage() {
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
             Noch kein Konto?{' '}
-            <Link href="/auth/signup" className="text-primary hover:underline font-medium">
+            <Link
+              href={`/auth/signup?returnUrl=${encodeURIComponent(returnUrl)}`}
+              className="text-primary hover:underline font-medium"
+            >
               Jetzt registrieren
             </Link>
           </p>

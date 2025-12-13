@@ -7,6 +7,7 @@ import { AIEvaluationPanel } from './AIEvaluationPanel';
 // import { AIInvestmentEvaluation, InvestmentScoreBadge } from '@immoflow/ui';
 
 export interface PropertyPreviewData {
+  id?: string;
   images: string[];
   price: number;
   commission_rate?: number;
@@ -147,14 +148,30 @@ export interface PropertyPreviewData {
   owner?: {
     first_name?: string;
     last_name?: string;
-    company?: string;
-    avatar_url?: string;
+    company?: string | null;
+    avatar_url?: string | null;
+    user_type?: string;
+    phone?: string | null;
+  };
+  // Additional metadata fields
+  property_type?: string;
+  created_at?: string;
+  updated_at?: string;
+  user_id?: string;
+  owner_profile?: {
+    first_name?: string;
+    last_name?: string;
+    company?: string | null;
+    avatar_url?: string | null;
+    user_type?: string;
+    phone?: string | null;
   };
 }
 
 export interface PropertyPreviewProps {
   data: PropertyPreviewData;
   className?: string;
+  showActions?: boolean;
   showAddress?: boolean;
   onRequestAddress?: () => void;
   showInvestmentScore?: boolean;
@@ -290,8 +307,8 @@ export function PropertyPreview({
   const [isCashflowExpanded, setIsCashflowExpanded] = useState(false);
   // State for weitere details accordion - expanded by default when data exists
   const [isWeitereDetailsExpanded, setIsWeitereDetailsExpanded] = useState(false);
-  // State for description accordion
-  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  // State for description accordion - expanded by default
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(true);
   // State for AI evaluation accordion
   const [isAIEvaluationExpanded, setIsAIEvaluationExpanded] = useState(false);
   // State for highlights and red flags accordion
@@ -886,27 +903,27 @@ export function PropertyPreview({
           </div>
         )}
 
-        {/* Description - Accordion */}
+        {/* Description - Collapsible */}
         {data.description && (() => {
-          // Split description into sentences (1-2 sentences for preview)
-          const sentences = data.description.split(/(?<=[.!?])\s+/);
-          const previewSentences = sentences.slice(0, 2).join(' ');
-          const remainingSentences = sentences.slice(2).join(' ');
-          const hasMoreContent = remainingSentences.length > 0;
+          const maxPreviewLength = 150;
+          const isLongDescription = data.description.length > maxPreviewLength;
+          const previewText = isLongDescription
+            ? data.description.slice(0, maxPreviewLength) + '...'
+            : data.description;
 
           return (
             <div className="mb-6 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-              {/* Header with Important Notes or Preview */}
               <div className="p-6">
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <h3 className="text-lg font-semibold text-gray-900">Beschreibung</h3>
-                  {hasMoreContent && (
+                  {isLongDescription && (
                     <button
                       onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
-                      className="flex items-center transition-colors flex-shrink-0"
+                      className="flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors flex-shrink-0"
                     >
+                      {isDescriptionExpanded ? 'Weniger' : 'Mehr'} anzeigen
                       <ChevronDown
-                        className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isDescriptionExpanded ? 'rotate-180' : ''}`}
+                        className={`w-4 h-4 transition-transform duration-200 ${isDescriptionExpanded ? 'rotate-180' : ''}`}
                       />
                     </button>
                   )}
@@ -914,38 +931,18 @@ export function PropertyPreview({
 
                 {/* Important Notes as Header - Show if exists */}
                 {data.important_notes && (
-                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl mb-4">
                     <p className="text-sm text-gray-700 leading-relaxed">
                       {data.important_notes}
                     </p>
                   </div>
                 )}
 
-                {/* If no important_notes, show first 1-2 sentences in header */}
-                {!data.important_notes && (
-                  <p className="text-gray-700 leading-relaxed" style={{ fontSize: '18px' }}>
-                    {previewSentences}
-                  </p>
-                )}
+                {/* Description Text */}
+                <p className="text-gray-700 leading-relaxed" style={{ fontSize: '18px' }}>
+                  {isDescriptionExpanded || !isLongDescription ? data.description : previewText}
+                </p>
               </div>
-
-              {/* Expanded Description Text - Show remaining content */}
-              {isDescriptionExpanded && hasMoreContent && (
-                <div className="px-6 pb-6 border-t border-gray-200 pt-4">
-                  <p className="text-gray-700 leading-relaxed" style={{ fontSize: '18px' }}>
-                    {remainingSentences}
-                  </p>
-                </div>
-              )}
-
-              {/* If important_notes exists, show full description in expanded panel */}
-              {isDescriptionExpanded && data.important_notes && (
-                <div className="px-6 pb-6 border-t border-gray-200 pt-4">
-                  <p className="text-gray-700 leading-relaxed" style={{ fontSize: '18px' }}>
-                    {data.description}
-                  </p>
-                </div>
-              )}
             </div>
           );
         })()}

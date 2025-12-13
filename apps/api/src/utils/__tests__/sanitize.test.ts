@@ -2,14 +2,14 @@
  * Sanitization Tests
  * Tests for XSS protection and input sanitization
  */
-import { describe, it, expect } from './logger.js'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   sanitizeHtml,
   sanitizePlainText,
   sanitizeRichText,
   isSafeFieldName,
   isAllowedPropertyField,
-} from './logger.js'../sanitize.js';
+} from '../sanitize.js';
 
 describe('Sanitization Utilities', () => {
   describe('sanitizePlainText', () => {

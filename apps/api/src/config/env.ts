@@ -1,4 +1,4 @@
-import { z } from './logger.js'zod';
+import { z } from 'zod';
 
 const envSchema = z.object({
   // Node Environment

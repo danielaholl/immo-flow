@@ -2,8 +2,8 @@
  * Property Scraper Helper Functions
  * Utility functions for web scraping
  */
-import type { ScrapedPropertyData } from './logger.js'@immoflow/types';
-import type { BrowserConfig, MockPropertyType } from './logger.js'../types/scraper-types.js';
+import type { ScrapedPropertyData } from '../services/property-scraper.js';
+import type { BrowserConfig, MockPropertyType } from '../types/scraper-types.js';
 
 /**
  * Parse price string to number
@@ -19,7 +19,7 @@ export function parsePrice(priceText: string): number {
 }
 
 /**
- * Parse number from './logger.js'ext
+ * Parse number from text
  */
 export function parseNumber(text: string): number {
   const cleaned = text
@@ -122,7 +122,7 @@ export const MOCK_PROPERTY_TYPES: MockPropertyType[] = [
  * Used when actual scraping is blocked
  */
 export function generateMockPropertyData(url: string, source: string): ScrapedPropertyData {
-  // Extract a property ID from './logger.js'he URL if possible
+  // Extract a property ID from the URL if possible
   const idMatch = url.match(/\/(\d+)/);
   const propertyId = idMatch ? idMatch[1] : '123456789';
 

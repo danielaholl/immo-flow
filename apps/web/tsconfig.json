@@ -1,10 +1,14 @@
 {
   "extends": "@immoflow/typescript-config/nextjs.json",
   "compilerOptions": {
+    "skipLibCheck": true,
     "paths": {
-      "@/*": ["./*"]
-    }
+      "@/*": ["./*"],
+      "@api/*": ["../api/dist/*"],
+      "react-native": ["./node_modules/react-native-web"]
+    },
+    "baseUrl": "."
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": ["next-env.d.ts", "react-native.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
 }
