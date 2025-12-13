@@ -89,6 +89,37 @@ router.post(
 );
 
 /**
+ * POST /upload/avatar
+ * Upload a user avatar image
+ */
+router.post(
+  '/avatar',
+  authenticateToken,
+  upload.single('avatar'),
+  async (req: Request, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No avatar file provided' });
+      }
+
+      const storage = getStorageProvider();
+      const imageVariants = await storage.uploadImage(req.file, 'avatars');
+
+      return res.status(200).json({
+        success: true,
+        data: imageVariants,
+      });
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      return res.status(500).json({
+        error: 'Failed to upload avatar',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+);
+
+/**
  * POST /upload/property-document
  * Upload a single property document (PDF, etc.)
  */

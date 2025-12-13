@@ -406,45 +406,47 @@ export const messagingRouter = router({
             input.content
           );
 
-          // Only send AI response if confidence is high enough
-          // If shouldForwardToSeller is true (low confidence), skip AI response
-          if (!qaResponse.shouldForwardToSeller) {
-            // Insert AI response
-            const aiMessageResult = await db.query(
-              `INSERT INTO messages (
-                conversation_id,
-                sender_type,
-                content,
-                is_ai_generated,
-                ai_confidence,
-                forwarded_to_seller
-              ) VALUES ($1, 'ai', $2, true, $3, $4)
-              RETURNING id, created_at`,
-              [
-                input.conversationId,
-                qaResponse.answer,
-                qaResponse.confidence,
-                false, // Not forwarded since AI answered with confidence
-              ]
-            );
+          // AI responds ALWAYS - either with answer or with forwarding message
+          const aiResponseContent = qaResponse.shouldForwardToSeller
+            ? 'Diese Information liegt mir leider nicht vor, aber ich werde Ihre Frage an den Verkäufer weiterleiten.'
+            : qaResponse.answer;
+          const forwardedToSeller = qaResponse.shouldForwardToSeller;
 
-            const aiMessage = {
-              id: aiMessageResult.rows[0].id,
-              senderType: 'ai',
-              content: qaResponse.answer,
-              isAiGenerated: true,
-              aiConfidence: qaResponse.confidence,
-              createdAt: aiMessageResult.rows[0].created_at,
-            };
-
-            // Emit AI message
-            emitNewMessage(input.conversationId, aiMessage);
-          } else {
-            // Low confidence - don't send AI response, let seller read the message directly
-            // No system notification needed - question goes directly to seller
-            // TODO: Send email notification to seller
+          if (forwardedToSeller) {
             console.log(`[Messaging] Question forwarded to seller (low AI confidence): ${recipientProfileId}`);
           }
+
+          // Insert AI response
+          const aiMessageResult = await db.query(
+            `INSERT INTO messages (
+              conversation_id,
+              sender_type,
+              content,
+              is_ai_generated,
+              ai_confidence,
+              forwarded_to_seller
+            ) VALUES ($1, 'ai', $2, true, $3, $4)
+            RETURNING id, created_at`,
+            [
+              input.conversationId,
+              aiResponseContent,
+              qaResponse.confidence,
+              forwardedToSeller,
+            ]
+          );
+
+          const aiMessage = {
+            id: aiMessageResult.rows[0].id,
+            senderType: 'ai',
+            content: aiResponseContent,
+            isAiGenerated: true,
+            aiConfidence: qaResponse.confidence,
+            forwardedToSeller,
+            createdAt: aiMessageResult.rows[0].created_at,
+          };
+
+          // Emit AI message
+          emitNewMessage(input.conversationId, aiMessage);
         } catch (error) {
           console.error('[Messaging] AI Q&A failed:', error);
           // On error, forward to seller without AI response or notification

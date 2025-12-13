@@ -230,7 +230,7 @@ export default function MessagesPage() {
         </div>
       ) : (
         /* Main Content - 2 Column Layout */
-        <div className="flex overflow-hidden" style={{ height: 'calc(100vh - 80px)' }}>
+        <div className="flex overflow-hidden h-[calc(100vh-64px-64px)] lg:h-[calc(100vh-80px)]">
           {/* Left Column - Conversations List */}
           <div className={`${selectedConversationId ? 'hidden' : 'block'} lg:block w-full lg:w-1/4 bg-white border-r border-gray-200 flex flex-col overflow-hidden`}>
             {/* Header */}
@@ -287,40 +287,45 @@ export default function MessagesPage() {
 
                 return (
                   <div className="h-full flex flex-col">
-                    {/* Conversation Header */}
-                    <div className="bg-white border-b border-gray-200 p-4 flex-shrink-0">
+                    {/* Conversation Header - AI Chat Style */}
+                    <div className="bg-gradient-to-r from-primary to-primary/80 p-4 flex-shrink-0">
                       <div className="flex items-center gap-4">
                         {/* Back Button - Mobile only */}
                         <button
                           onClick={() => setSelectedConversationId(null)}
-                          className="lg:hidden p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors"
+                          className="lg:hidden p-2 -ml-2 hover:bg-white/10 rounded-lg transition-colors"
                           aria-label="Zurück zur Liste"
                         >
-                          <ArrowLeft size={24} className="text-gray-900" />
+                          <ArrowLeft size={24} className="text-white" />
                         </button>
 
-                        <div className="flex-1 min-w-0">
-                          <h2 className="font-semibold text-lg text-gray-900 line-clamp-1">
-                            {selectedConversation.propertyTitle}
-                          </h2>
-                          <p className="text-sm text-gray-600">
-                            {isBuyer ? 'Verkäufer' : 'Interessent'}: {displayName}
-                          </p>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                            <Bot size={20} className="text-white" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h2 className="font-semibold text-lg text-white line-clamp-1">
+                              {selectedConversation.propertyTitle}
+                            </h2>
+                            <p className="text-sm text-white/80">
+                              {isBuyer ? 'Verkäufer' : 'Interessent'}: {displayName}
+                            </p>
+                          </div>
                         </div>
-                    <Link
-                      href={`/property/${selectedConversation.propertyId}`}
-                      className="text-primary hover:underline text-sm font-medium flex-shrink-0"
-                    >
-                      Zum Inserat →
-                    </Link>
-                  </div>
-                </div>
+                        <Link
+                          href={`/property/${selectedConversation.propertyId}`}
+                          className="text-white hover:text-white/80 text-sm font-medium flex-shrink-0 ml-auto"
+                        >
+                          Zum Inserat →
+                        </Link>
+                      </div>
+                    </div>
 
                 {/* Messages */}
-                <div className="flex-1 overflow-y-auto overflow-x-hidden p-6">
+                <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 bg-white">
                   <div className="max-w-4xl mx-auto space-y-4">
                     {messages?.map((msg) => {
-                      const isOwnMessage = msg.senderId === user.id;
+                      const isOwnMessage = msg.senderId === profile?.id;
                       const isAI = msg.senderType === 'ai';
                       const isSystem = msg.senderType === 'system';
 
@@ -340,20 +345,18 @@ export default function MessagesPage() {
                             {/* Sender Info */}
                             {!isOwnMessage && (
                               <div className="flex items-center gap-2 mb-1 ml-1">
-                                {isAI && <Bot size={16} className="text-blue-600" />}
-                                <span className="text-xs text-gray-500">
+                                {isAI && <Bot size={16} className="text-primary" />}
+                                <span className="text-xs text-gray-500 font-medium">
                                   {isAI ? 'KI-Assistent' : displayName}
                                 </span>
                               </div>
                             )}
 
-                            {/* Message Bubble */}
+                            {/* Message Bubble - AI Chat Style */}
                             <div
                               className={`rounded-2xl px-4 py-3 ${
                                 isOwnMessage
-                                  ? 'bg-primary text-white'
-                                  : isAI
-                                  ? 'bg-blue-50 border-2 border-blue-200 text-gray-900'
+                                  ? 'bg-gray-50 text-gray-900'
                                   : 'bg-white border border-gray-200 text-gray-900'
                               }`}
                             >
@@ -394,42 +397,41 @@ export default function MessagesPage() {
                   </div>
                 </div>
 
-                {/* Input */}
-                <div className="bg-white border-t border-gray-200 p-4 pb-24 lg:pb-4 flex-shrink-0">
-                  <div className="max-w-4xl mx-auto flex gap-3">
-                    <textarea
-                      ref={messageInputRef}
-                      value={message}
-                      onChange={(e) => {
-                        setMessage(e.target.value);
-                        handleTyping();
-                      }}
-                      onKeyDown={handleKeyPress}
-                      placeholder="Nachricht schreiben..."
-                      className="flex-1 resize-none border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent max-h-32"
-                      rows={1}
-                      style={{
-                        minHeight: '48px',
-                        height: 'auto',
-                      }}
-                      onInput={(e) => {
-                        const target = e.target as HTMLTextAreaElement;
-                        target.style.height = 'auto';
-                        target.style.height = Math.min(target.scrollHeight, 128) + 'px';
-                      }}
-                    />
+                {/* Input - AI Chat Style */}
+                <div className="bg-white border-t border-gray-200 p-4 pb-6 flex-shrink-0 mt-auto">
+                  <div className="max-w-4xl mx-auto flex gap-2 items-center">
+                    <div className="flex-1 relative">
+                      <textarea
+                        ref={messageInputRef}
+                        value={message}
+                        onChange={(e) => {
+                          setMessage(e.target.value);
+                          handleTyping();
+                        }}
+                        onKeyDown={handleKeyPress}
+                        placeholder="Stellen Sie eine Frage zur Immobilie..."
+                        className="w-full resize-none border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50 max-h-32 text-sm"
+                        rows={1}
+                        style={{
+                          minHeight: '48px',
+                          height: 'auto',
+                        }}
+                        onInput={(e) => {
+                          const target = e.target as HTMLTextAreaElement;
+                          target.style.height = 'auto';
+                          target.style.height = Math.min(target.scrollHeight, 128) + 'px';
+                        }}
+                      />
+                    </div>
                     <button
                       onClick={handleSendMessage}
                       disabled={!message.trim() || sendMessageMutation.isLoading}
-                      className="bg-primary text-white px-6 py-3 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      className="bg-primary text-white p-3 rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
                     >
                       {sendMessageMutation.isLoading ? (
                         <Loader2 className="animate-spin" size={20} />
                       ) : (
-                        <>
-                          <Send size={20} />
-                          <span className="font-medium">Senden</span>
-                        </>
+                        <Send size={20} />
                       )}
                     </button>
                   </div>
