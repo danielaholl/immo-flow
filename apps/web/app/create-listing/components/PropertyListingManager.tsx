@@ -383,11 +383,22 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
         images: uploadedImages.length > 0 ? uploadedImages : ['https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800'],
       });
 
+      // Filter out null values to avoid Zod validation errors
+      // Backend expects undefined for missing fields, not null
+      const cleanData = Object.fromEntries(
+        Object.entries(propertyData).filter(([_, value]) => value !== null)
+      );
+
+      // Debug logging
+      console.log('[handleSubmit] propertyData:', propertyData);
+      console.log('[handleSubmit] cleanData:', cleanData);
+      console.log('[handleSubmit] property_type in cleanData:', cleanData.property_type);
+
       if (isEditMode && propertyId) {
-        // Update existing property - spread propertyData directly (not in a 'data' wrapper)
+        // Update existing property - spread cleanData directly (not in a 'data' wrapper)
         await updatePropertyMutation.mutateAsync({
           id: propertyId,
-          ...propertyData,
+          ...cleanData,
         });
 
         // Success
@@ -396,7 +407,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
         // Import mode: Save as favorite and mark as imported
         // These properties will only be visible to the user who imported them
         await createPropertyMutation.mutateAsync({
-          ...propertyData,
+          ...cleanData,
           is_favorite: true, // Mark as favorite
           is_imported: true, // Mark as imported (only visible to importing user)
           share_with_community: false, // Don't share with community
@@ -406,7 +417,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
         addBotMessage('Die Immobilie wurde erfolgreich in deine Favoriten übernommen! Ich leite dich zu deinen Favoriten weiter...');
       } else {
         // Create new property
-        await createPropertyMutation.mutateAsync(propertyData);
+        await createPropertyMutation.mutateAsync(cleanData);
 
         // Success
         addBotMessage('Dein Inserat wurde erfolgreich erstellt! Ich leite dich zur Übersicht weiter...');

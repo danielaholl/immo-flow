@@ -276,7 +276,7 @@ export default function MessagesPage() {
           </div>
 
           {/* Right Column - Conversation View */}
-          <div className={`${selectedConversationId ? 'block' : 'hidden'} lg:block w-full lg:w-3/4 flex flex-col bg-gray-50 overflow-hidden`}>
+          <div className={`${selectedConversationId ? 'block' : 'hidden'} lg:block w-full lg:w-3/4 h-full flex flex-col bg-gray-50 overflow-hidden`}>
             {selectedConversationId && selectedConversation ? (
               (() => {
                 const isBuyer = selectedConversation.role === 'buyer';
@@ -286,7 +286,7 @@ export default function MessagesPage() {
                                    'Unbekannt';
 
                 return (
-                  <>
+                  <div className="h-full flex flex-col">
                     {/* Conversation Header */}
                     <div className="bg-white border-b border-gray-200 p-4 flex-shrink-0">
                       <div className="flex items-center gap-4">
@@ -434,7 +434,7 @@ export default function MessagesPage() {
                     </button>
                   </div>
                 </div>
-                  </>
+                  </div>
                 );
               })()
             ) : (

@@ -36,6 +36,9 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isSearching, setIsSearching] = useState(false);
   const [showDismissed, setShowDismissed] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[] | null>(null);
+  const [searchCriteria, setSearchCriteria] = useState<any | null>(null);
+  const [searchTotal, setSearchTotal] = useState<number>(0);
 
   // Initialize auth guard for protected actions
   const {
@@ -129,6 +132,36 @@ export default function HomePage() {
     },
   });
 
+  // AI Search mutation
+  const aiSearchMutation = trpc.aiSearch.search.useMutation({
+    onSuccess: (data) => {
+      console.log(`🔍 [AI Search] Found ${data.total} properties in ${data.processingTime}ms`);
+      setSearchResults(data.properties);
+      setSearchCriteria(data.criteria);
+      setSearchTotal(data.total);
+      setIsSearching(false);
+    },
+    onError: (error) => {
+      console.error('AI Search error:', error);
+      setIsSearching(false);
+    },
+  });
+
+  // Search by criteria mutation (for filter updates)
+  const searchByCriteriaMutation = trpc.aiSearch.searchByCriteria.useMutation({
+    onSuccess: (data) => {
+      console.log(`🔍 [Criteria Search] Found ${data.total} properties`);
+      setSearchResults(data.properties);
+      setSearchCriteria(data.criteria);
+      setSearchTotal(data.total);
+      setIsSearching(false);
+    },
+    onError: (error) => {
+      console.error('Criteria Search error:', error);
+      setIsSearching(false);
+    },
+  });
+
   // Track when page is fully loaded
   const pageLoadLoggedRef = useRef(false);
   useEffect(() => {
@@ -140,6 +173,9 @@ export default function HomePage() {
       pageLoadLoggedRef.current = true;
     }
   }, [loading, properties.length, favoriteIds.size]);
+
+  // Ref to track if initial search from URL has been done
+  const initialSearchDone = useRef(false);
 
   // Helper to check if address should be shown for a property
   const shouldShowAddress = useCallback((propertyId: string) => {
@@ -202,22 +238,175 @@ export default function HomePage() {
     }
   }, []);
 
-  // Handle search
+  // Handle search - AI-powered natural language search
   const handleSearch = useCallback(async (query: string) => {
     if (!query.trim()) {
-      refetchProperties();
+      // Reset to normal feed
+      setSearchResults(null);
+      setSearchCriteria(null);
       setSearchQuery('');
+      setSearchTotal(0);
+      refetchProperties();
       return;
     }
 
-    // TODO: Implement AI search on backend
-    console.log('AI search not yet implemented:', query);
+    setIsSearching(true);
     setSearchQuery(query);
-    setIsSearching(false);
+
+    try {
+      await aiSearchMutation.mutateAsync({
+        query: query.trim(),
+        limit: 20,
+        offset: 0,
+      });
+    } catch (error) {
+      console.error('Search failed:', error);
+      setIsSearching(false);
+    }
+  }, [refetchProperties, aiSearchMutation]);
+
+  // Handle search query from URL (for repeat searches from profile page)
+  useEffect(() => {
+    const searchParam = searchParams.get('search');
+    if (searchParam && !initialSearchDone.current && !authLoading) {
+      initialSearchDone.current = true;
+      handleSearch(searchParam);
+    }
+  }, [searchParams, authLoading, handleSearch]);
+
+  // Clear search and return to feed
+  const clearSearch = useCallback(() => {
+    setSearchResults(null);
+    setSearchCriteria(null);
+    setSearchQuery('');
+    setSearchTotal(0);
+    refetchProperties();
   }, [refetchProperties]);
 
-  // Filter out dismissed properties from the feed
-  const filteredProperties = properties.filter(property => !dismissedIds.has(property.id));
+  // Remove a single criterion from the search
+  const removeCriterion = useCallback((key: string) => {
+    if (!searchCriteria) return;
+
+    const newCriteria = { ...searchCriteria };
+    delete newCriteria[key];
+
+    // Check if any meaningful criteria remain (excluding confidence)
+    const hasAnyCriteria = Object.entries(newCriteria).some(
+      ([k, v]) => k !== 'confidence' && v !== null && v !== undefined && (Array.isArray(v) ? v.length > 0 : true)
+    );
+
+    if (!hasAnyCriteria) {
+      clearSearch();
+    } else {
+      // Trigger new search with updated criteria
+      setIsSearching(true);
+      searchByCriteriaMutation.mutate({
+        criteria: newCriteria,
+        limit: 20,
+        offset: 0,
+      });
+    }
+  }, [searchCriteria, clearSearch, searchByCriteriaMutation]);
+
+  // Use search results if available, otherwise use feed properties
+  const displayProperties = searchResults ?? properties;
+
+  // Filter out dismissed properties from the display
+  const filteredProperties = displayProperties.filter(property => !dismissedIds.has(property.id));
+
+  // Format price for display
+  const formatPrice = (price: number) => {
+    if (price >= 1000000) {
+      return `${(price / 1000000).toFixed(1)} Mio €`;
+    }
+    return `${(price / 1000).toFixed(0)}T €`;
+  };
+
+  // Get criteria display items for filter tags
+  const getCriteriaDisplayItems = () => {
+    if (!searchCriteria) return [];
+
+    const items: { key: string; label: string; value: string }[] = [];
+
+    if (searchCriteria.location) {
+      items.push({
+        key: 'location',
+        label: 'Ort',
+        value: searchCriteria.district
+          ? `${searchCriteria.location} - ${searchCriteria.district}`
+          : searchCriteria.location,
+      });
+    } else if (searchCriteria.district) {
+      items.push({ key: 'district', label: 'Bezirk', value: searchCriteria.district });
+    }
+
+    if (searchCriteria.propertyType) {
+      const typeLabels: Record<string, string> = {
+        apartment: 'Wohnung',
+        house: 'Haus',
+        villa: 'Villa',
+        commercial: 'Gewerbe',
+        land: 'Grundstück',
+      };
+      items.push({
+        key: 'propertyType',
+        label: 'Typ',
+        value: typeLabels[searchCriteria.propertyType] || searchCriteria.propertyType,
+      });
+    }
+
+    if (searchCriteria.rooms) {
+      items.push({ key: 'rooms', label: 'Zimmer', value: `${searchCriteria.rooms} Zi` });
+    } else if (searchCriteria.minRooms || searchCriteria.maxRooms) {
+      const roomRange = searchCriteria.minRooms && searchCriteria.maxRooms
+        ? `${searchCriteria.minRooms}-${searchCriteria.maxRooms} Zi`
+        : searchCriteria.minRooms
+          ? `ab ${searchCriteria.minRooms} Zi`
+          : `bis ${searchCriteria.maxRooms} Zi`;
+      items.push({ key: 'rooms', label: 'Zimmer', value: roomRange });
+    }
+
+    if (searchCriteria.minPrice || searchCriteria.maxPrice) {
+      const priceRange = searchCriteria.minPrice && searchCriteria.maxPrice
+        ? `${formatPrice(searchCriteria.minPrice)} - ${formatPrice(searchCriteria.maxPrice)}`
+        : searchCriteria.minPrice
+          ? `ab ${formatPrice(searchCriteria.minPrice)}`
+          : `bis ${formatPrice(searchCriteria.maxPrice)}`;
+      items.push({ key: 'price', label: 'Preis', value: priceRange });
+    }
+
+    if (searchCriteria.minSqm || searchCriteria.maxSqm) {
+      const sqmRange = searchCriteria.minSqm && searchCriteria.maxSqm
+        ? `${searchCriteria.minSqm}-${searchCriteria.maxSqm} m²`
+        : searchCriteria.minSqm
+          ? `ab ${searchCriteria.minSqm} m²`
+          : `bis ${searchCriteria.maxSqm} m²`;
+      items.push({ key: 'sqm', label: 'Fläche', value: sqmRange });
+    }
+
+    if (searchCriteria.condition) {
+      const conditionLabels: Record<string, string> = {
+        new: 'Neubau',
+        first_occupancy: 'Erstbezug',
+        renovated: 'Renoviert',
+        maintained: 'Gepflegt',
+        needs_renovation: 'Renovierungsbedürftig',
+      };
+      items.push({
+        key: 'condition',
+        label: 'Zustand',
+        value: conditionLabels[searchCriteria.condition] || searchCriteria.condition,
+      });
+    }
+
+    if (searchCriteria.features && searchCriteria.features.length > 0) {
+      searchCriteria.features.forEach((feature: string, index: number) => {
+        items.push({ key: `feature_${index}`, label: 'Feature', value: feature });
+      });
+    }
+
+    return items;
+  };
 
   return (
     <main className="min-h-screen bg-background pb-20 lg:pb-0">
@@ -282,13 +471,10 @@ export default function HomePage() {
             {searchQuery && (
               <div className="flex flex-wrap gap-2 items-center">
                 <p className="text-sm text-gray-600">
-                  Suche nach: <span className="font-medium">{searchQuery}</span>
+                  Suche: <span className="font-medium">&quot;{searchQuery}&quot;</span>
                 </p>
                 <button
-                  onClick={() => {
-                    refetchProperties();
-                    setSearchQuery('');
-                  }}
+                  onClick={clearSearch}
                   className="ml-2 text-xs text-gray-500 hover:text-gray-700 underline"
                 >
                   Zurücksetzen
@@ -296,12 +482,51 @@ export default function HomePage() {
               </div>
             )}
           </div>
-          {searchQuery && (
-            <p className="text-sm text-gray-500">
-              {filteredProperties.length} Ergebnis{filteredProperties.length !== 1 ? 'se' : ''}
-            </p>
-          )}
+          <div className="flex items-center gap-3">
+            {searchCriteria?.confidence && (
+              <div className="flex items-center gap-1 text-xs text-gray-500">
+                <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z"/>
+                </svg>
+                <span>KI {Math.round(searchCriteria.confidence * 100)}%</span>
+              </div>
+            )}
+            {searchQuery && (
+              <p className="text-sm text-gray-500">
+                {searchTotal} Ergebnis{searchTotal !== 1 ? 'se' : ''}
+              </p>
+            )}
+          </div>
         </div>
+
+        {/* Search Criteria Filter Tags */}
+        {searchCriteria && getCriteriaDisplayItems().length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-6">
+            {getCriteriaDisplayItems().map(({ key, value }) => (
+              <span
+                key={key}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 text-sm font-medium rounded-full border border-blue-200"
+              >
+                {value}
+                <button
+                  onClick={() => removeCriterion(key)}
+                  className="ml-1 text-blue-400 hover:text-blue-600 transition-colors"
+                  title="Filter entfernen"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </span>
+            ))}
+            <button
+              onClick={clearSearch}
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-gray-500 text-sm hover:text-gray-700 transition-colors"
+            >
+              Alle Filter löschen
+            </button>
+          </div>
+        )}
 
         {loading ? (
           <div className="text-center py-12">
@@ -321,10 +546,7 @@ export default function HomePage() {
             </p>
             {searchQuery && (
               <button
-                onClick={() => {
-                  refetchProperties();
-                  setSearchQuery('');
-                }}
+                onClick={clearSearch}
                 className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
               >
                 Alle Immobilien anzeigen
