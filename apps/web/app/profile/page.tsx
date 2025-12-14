@@ -886,144 +886,164 @@ export default function ProfilePage() {
             <div className="flex-1 px-4 lg:pr-8 lg:pl-0">
               {/* Empfehlungsprofil Section */}
               <div className="mb-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="font-semibold text-gray-900 text-xl">
-                    Dein Empfehlungsprofil
-                  </h2>
-                  {userPreferences && userPreferences.interaction_count > 0 && (
-                    <span className="text-sm text-gray-500">
-                      {userPreferences.interaction_count} Interaktionen
-                    </span>
-                  )}
+                {/* Header */}
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-pink-500 flex items-center justify-center">
+                      <Sparkles size={20} className="text-white" />
+                    </div>
+                    <div>
+                      <h2 className="font-bold text-gray-900 text-xl">
+                        Dein Empfehlungsprofil
+                      </h2>
+                      {userPreferences && userPreferences.interaction_count > 0 && (
+                        <p className="text-sm text-gray-500">
+                          Basierend auf {userPreferences.interaction_count} Interaktionen
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {loadingPreferences ? (
-                  <div className="flex items-center justify-center py-12 bg-white rounded-xl border border-gray-200 shadow-sm">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                  <div className="flex items-center justify-center py-16 bg-gradient-to-br from-gray-50 to-white rounded-2xl border border-gray-200">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="animate-spin rounded-full h-10 w-10 border-2 border-gray-200 border-t-primary"></div>
+                      <p className="text-sm text-gray-500">Lade Präferenzen...</p>
+                    </div>
                   </div>
                 ) : !userPreferences || userPreferences.interaction_count === 0 ? (
-                  <div className="text-center py-10 bg-white rounded-xl border border-gray-200 shadow-sm">
-                    <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <TrendingUp size={24} className="text-gray-600" />
+                  <div className="text-center py-12 bg-gradient-to-br from-gray-50 to-white rounded-2xl border border-gray-200">
+                    <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                      <TrendingUp size={28} className="text-gray-400" />
                     </div>
-                    <p className="text-gray-900 mb-2 font-medium">
-                      Baue dein persönliches Empfehlungsprofil auf
-                    </p>
-                    <p className="text-gray-600 text-sm mb-4 max-w-md mx-auto">
-                      Schaue dir Properties an und favorisiere sie - unser Algorithmus lernt deine Vorlieben!
+                    <h3 className="text-gray-900 text-lg font-semibold mb-2">
+                      Dein Profil wartet auf dich
+                    </h3>
+                    <p className="text-gray-500 text-sm mb-6 max-w-sm mx-auto leading-relaxed">
+                      Entdecke Immobilien und markiere deine Favoriten. Wir lernen deine Vorlieben und zeigen dir passende Angebote.
                     </p>
                     <button
                       onClick={() => router.push('/')}
-                      className="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium text-sm"
+                      className="inline-flex items-center gap-2 px-5 py-3 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-all font-medium text-sm hover:scale-105 active:scale-95"
                     >
-                      Properties entdecken
+                      <Search size={16} />
+                      Immobilien entdecken
                     </button>
                   </div>
                 ) : (
-                  <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                    {/* Summary Header */}
-                    <div className="mb-6 pb-6 border-b border-gray-200">
-                      <p className="text-gray-600 leading-relaxed">
-                        Basierend auf deinen <span className="font-semibold text-gray-900">{userPreferences.interaction_count} Interaktionen</span> haben wir deine Präferenzen analysiert:
-                      </p>
-                    </div>
+                  <div className="space-y-4">
+                    {/* Grid Layout für Cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-                    {/* Preferred Locations */}
-                    {userPreferences.preferred_locations && userPreferences.preferred_locations.length > 0 && (
-                      <div className="mb-6">
-                        <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                          <MapPin size={16} className="text-blue-500" />
-                          Bevorzugte Orte
-                        </h3>
-                        <div className="flex flex-wrap gap-2">
-                          {userPreferences.preferred_locations.map((loc, idx) => (
-                            <div key={idx} className="group relative">
-                              <span className="px-3 py-2 bg-white border border-blue-300 text-gray-800 rounded-lg text-sm font-medium flex items-center gap-2 hover:shadow-md transition-all">
-                                <MapPin size={14} className="text-blue-500" />
-                                {loc.location}
-                                <span className="text-xs text-gray-500 ml-1">
-                                  {Math.round(loc.weight * 100)}%
-                                </span>
-                              </span>
+                      {/* Price Range Card */}
+                      {userPreferences.price_range && (userPreferences.price_range.min || userPreferences.price_range.max) && (
+                        <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 p-5 hover:shadow-lg hover:border-gray-300 transition-all duration-300">
+                          <div className="flex items-center gap-2 mb-4">
+                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center">
+                              <TrendingUp size={16} className="text-white" />
                             </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                            <h3 className="text-sm font-semibold text-gray-700">Preisbereich</h3>
+                          </div>
 
-                    {/* Price Range */}
-                    {userPreferences.price_range && (userPreferences.price_range.min || userPreferences.price_range.max) && (
-                      <div className="mb-6">
-                        <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                          <TrendingUp size={16} className="text-green-500" />
-                          Preisbereich
-                        </h3>
-                        <div className="bg-white border border-blue-300 rounded-lg p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="text-center">
-                              <p className="text-xs text-gray-500 mb-1">Minimum</p>
-                              <p className="text-lg font-bold text-gray-900">
-                                {userPreferences.price_range.min ? formatPrice(userPreferences.price_range.min) : '-'}
-                              </p>
-                            </div>
-                            <div className="flex-1 mx-4 h-1 bg-gradient-to-r from-green-400 to-blue-500 rounded-full"></div>
-                            <div className="text-center">
-                              <p className="text-xs text-gray-500 mb-1">Maximum</p>
-                              <p className="text-lg font-bold text-gray-900">
-                                {userPreferences.price_range.max ? formatPrice(userPreferences.price_range.max) : '-'}
-                              </p>
+                          {/* Range Bar */}
+                          <div className="mb-4">
+                            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                              <div className="h-full bg-gradient-to-r from-green-400 to-green-500 rounded-full" style={{ width: '100%' }} />
                             </div>
                           </div>
-                          {userPreferences.price_range.avg && (
-                            <div className="mt-3 text-center pt-3 border-t border-gray-200">
-                              <p className="text-xs text-gray-500">Durchschnitt</p>
-                              <p className="text-base font-semibold text-primary">
-                                {formatPrice(userPreferences.price_range.avg)}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
 
-                    {/* Preferred Rooms */}
-                    {userPreferences.preferred_rooms && userPreferences.preferred_rooms.length > 0 && (
-                      <div className="mb-6">
-                        <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                          <Home size={16} className="text-purple-500" />
-                          Bevorzugte Zimmeranzahl
-                        </h3>
-                        <div className="flex flex-wrap gap-2">
-                          {userPreferences.preferred_rooms.map((room, idx) => (
-                            <span key={idx} className="px-4 py-2 bg-white border border-purple-300 text-gray-800 rounded-lg text-sm font-medium hover:shadow-md transition-all">
-                              {room.rooms} Zimmer
-                              <span className="text-xs text-gray-500 ml-2">
-                                {Math.round(room.weight * 100)}%
+                          {/* Price Labels */}
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className="text-xs text-gray-500 block mb-1">
+                                {userPreferences.price_range.min && userPreferences.price_range.max ? 'Von' : userPreferences.price_range.min ? 'Ab' : 'Bis'}
                               </span>
-                            </span>
+                              <span className="text-xl font-bold text-gray-900 tabular-nums">
+                                {userPreferences.price_range.min
+                                  ? Math.round(Number(userPreferences.price_range.min)).toLocaleString('de-DE')
+                                  : Math.round(Number(userPreferences.price_range.max)).toLocaleString('de-DE')} €
+                              </span>
+                            </div>
+                            {userPreferences.price_range.min && userPreferences.price_range.max && (
+                              <div className="text-right">
+                                <span className="text-xs text-gray-500 block mb-1">Bis</span>
+                                <span className="text-xl font-bold text-gray-900 tabular-nums">
+                                  {Math.round(Number(userPreferences.price_range.max)).toLocaleString('de-DE')} €
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Rooms Card */}
+                      {userPreferences.preferred_rooms && userPreferences.preferred_rooms.length > 0 && (
+                        <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 p-5 hover:shadow-lg hover:border-gray-300 transition-all duration-300">
+                          <div className="flex items-center gap-2 mb-4">
+                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center">
+                              <Home size={16} className="text-white" />
+                            </div>
+                            <h3 className="text-sm font-semibold text-gray-700">Zimmeranzahl</h3>
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            {userPreferences.preferred_rooms.map((room, idx) => (
+                              <div key={idx} className="flex-1 bg-white border border-purple-200 rounded-xl p-3 text-center hover:border-purple-400 transition-colors">
+                                <span className="text-2xl font-bold text-gray-900 block">{room.rooms}</span>
+                                <span className="text-xs text-gray-500">Zimmer</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Locations Card - Full Width */}
+                    {userPreferences.preferred_locations && userPreferences.preferred_locations.length > 0 && (
+                      <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 p-5 hover:shadow-lg hover:border-gray-300 transition-all duration-300">
+                        <div className="flex items-center gap-2 mb-4">
+                          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
+                            <MapPin size={16} className="text-white" />
+                          </div>
+                          <h3 className="text-sm font-semibold text-gray-700">Bevorzugte Standorte</h3>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                          {userPreferences.preferred_locations.map((loc, idx) => (
+                            <div
+                              key={idx}
+                              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-blue-200 rounded-xl hover:border-blue-400 hover:shadow-md transition-all cursor-default"
+                            >
+                              <MapPin size={14} className="text-blue-500" />
+                              <span className="font-medium text-gray-900">{loc.location}</span>
+                            </div>
                           ))}
                         </div>
                       </div>
                     )}
 
-                    {/* Preferred Features */}
+                    {/* Features Card - Full Width */}
                     {userPreferences.preferred_features && userPreferences.preferred_features.length > 0 && (
-                      <div>
-                        <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                          <Sparkles size={16} className="text-yellow-500" />
-                          Bevorzugte Ausstattung
-                        </h3>
+                      <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 p-5 hover:shadow-lg hover:border-gray-300 transition-all duration-300">
+                        <div className="flex items-center gap-2 mb-4">
+                          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
+                            <Sparkles size={16} className="text-white" />
+                          </div>
+                          <h3 className="text-sm font-semibold text-gray-700">Gewünschte Ausstattung</h3>
+                        </div>
+
                         <div className="flex flex-wrap gap-2">
                           {userPreferences.preferred_features.slice(0, 8).map((feature, idx) => (
-                            <span key={idx} className="px-3 py-2 bg-white border border-yellow-300 text-gray-800 rounded-lg text-sm flex items-center gap-2 hover:shadow-md transition-all">
-                              ✨ {feature.feature}
-                              <span className="text-xs text-gray-500">
-                                {Math.round(feature.weight * 100)}%
-                              </span>
+                            <span
+                              key={idx}
+                              className="px-4 py-2 bg-white border border-amber-200 text-gray-800 rounded-xl text-sm font-medium hover:border-amber-400 hover:shadow-md transition-all capitalize"
+                            >
+                              {feature.feature || feature}
                             </span>
                           ))}
                           {userPreferences.preferred_features.length > 8 && (
-                            <span className="px-3 py-2 bg-gray-200 text-gray-600 rounded-lg text-sm font-medium">
+                            <span className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl text-sm font-medium">
                               +{userPreferences.preferred_features.length - 8} weitere
                             </span>
                           )}
@@ -1031,10 +1051,11 @@ export default function ProfilePage() {
                       </div>
                     )}
 
-                    {/* Footer Info */}
-                    <div className="mt-6 pt-6 border-t border-blue-200 text-center">
-                      <p className="text-xs text-gray-600">
-                        💡 Je mehr du interagierst, desto besser werden deine Empfehlungen!
+                    {/* Footer Hint */}
+                    <div className="flex items-center justify-center gap-2 py-3 text-gray-500">
+                      <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
+                      <p className="text-xs">
+                        Dein Profil wird mit jeder Interaktion besser
                       </p>
                     </div>
                   </div>

@@ -321,97 +321,35 @@ function buildCountQuery(criteria: SearchCriteria): { sql: string; values: any[]
 }
 
 /**
- * Update user preferences based on search criteria
+ * Debounced preference recalculation
+ * Triggers PostgreSQL function after 30 seconds of inactivity to avoid excessive recalculations
  */
-async function updateUserPreferencesFromSearch(userId: string, criteria: SearchCriteria): Promise<void> {
+const pendingRecalculations = new Map<string, NodeJS.Timeout>();
+
+async function triggerPreferenceRecalculation(userId: string): Promise<void> {
   try {
-    // Get current preferences
-    const existing = await queryOne(
-      'SELECT * FROM user_preferences WHERE user_id = $1',
-      [userId]
-    );
-
+    // Clear any pending recalculation for this user
+    const existing = pendingRecalculations.get(userId);
     if (existing) {
-      // Parse existing data
-      const preferredLocations = typeof existing.preferred_locations === 'string'
-        ? JSON.parse(existing.preferred_locations)
-        : existing.preferred_locations || [];
-      const priceRange = typeof existing.price_range === 'string'
-        ? JSON.parse(existing.price_range)
-        : existing.price_range || {};
-      const preferredRooms = typeof existing.preferred_rooms === 'string'
-        ? JSON.parse(existing.preferred_rooms)
-        : existing.preferred_rooms || [];
-      const preferredFeatures = typeof existing.preferred_features === 'string'
-        ? JSON.parse(existing.preferred_features)
-        : existing.preferred_features || [];
-
-      // Add new location if not already present
-      if (criteria.location && !preferredLocations.includes(criteria.location)) {
-        preferredLocations.push(criteria.location);
-        // Keep only last 10 locations
-        if (preferredLocations.length > 10) preferredLocations.shift();
-      }
-
-      // Update price range
-      if (criteria.minPrice || criteria.maxPrice) {
-        priceRange.min = criteria.minPrice || priceRange.min;
-        priceRange.max = criteria.maxPrice || priceRange.max;
-      }
-
-      // Add rooms preference
-      if (criteria.rooms && !preferredRooms.includes(criteria.rooms)) {
-        preferredRooms.push(criteria.rooms);
-        if (preferredRooms.length > 5) preferredRooms.shift();
-      }
-
-      // Add features
-      if (criteria.features) {
-        for (const feature of criteria.features) {
-          if (!preferredFeatures.includes(feature)) {
-            preferredFeatures.push(feature);
-            if (preferredFeatures.length > 20) preferredFeatures.shift();
-          }
-        }
-      }
-
-      // Update preferences
-      await query(
-        `UPDATE user_preferences
-         SET preferred_locations = $1,
-             price_range = $2,
-             preferred_rooms = $3,
-             preferred_features = $4,
-             interaction_count = interaction_count + 1,
-             last_updated = NOW()
-         WHERE user_id = $5`,
-        [
-          JSON.stringify(preferredLocations),
-          JSON.stringify(priceRange),
-          JSON.stringify(preferredRooms),
-          JSON.stringify(preferredFeatures),
-          userId,
-        ]
-      );
-    } else {
-      // Create new preferences
-      await query(
-        `INSERT INTO user_preferences (user_id, preferred_locations, price_range, preferred_rooms, preferred_features, interaction_count)
-         VALUES ($1, $2, $3, $4, $5, 1)`,
-        [
-          userId,
-          JSON.stringify(criteria.location ? [criteria.location] : []),
-          JSON.stringify({ min: criteria.minPrice, max: criteria.maxPrice }),
-          JSON.stringify(criteria.rooms ? [criteria.rooms] : []),
-          JSON.stringify(criteria.features || []),
-        ]
-      );
+      clearTimeout(existing);
     }
 
-    console.log(`[AI Search] Updated preferences for user ${userId}`);
+    // Schedule recalculation after 30 seconds of search inactivity
+    const timeout = setTimeout(async () => {
+      try {
+        await query('SELECT calculate_user_preferences($1)', [userId]);
+        console.log(`[Preferences] Recalculated for user ${userId.substring(0, 8)}...`);
+      } catch (error) {
+        console.error(`[Preferences] Failed to recalculate for user ${userId}:`, error);
+      } finally {
+        pendingRecalculations.delete(userId);
+      }
+    }, 30000); // 30 second debounce
+
+    pendingRecalculations.set(userId, timeout);
   } catch (error) {
     // Don't throw - preference update is not critical
-    console.error('[AI Search] Failed to update user preferences:', error);
+    console.error('[AI Search] Failed to schedule preference recalculation:', error);
   }
 }
 
@@ -519,12 +457,12 @@ export const aiSearchRouter = router({
       const total = parseInt(countResult?.total || '0', 10);
       console.log('[AI Search] Total count:', total);
 
-      // If user is authenticated, save history and update preferences
+      // If user is authenticated, save history and trigger preference recalculation
       if (ctx.user) {
         // Run in background (don't await)
         Promise.all([
           saveSearchHistory(ctx.user.id, searchQuery, criteria, total),
-          updateUserPreferencesFromSearch(ctx.user.id, criteria),
+          triggerPreferenceRecalculation(ctx.user.id),
         ]).catch(err => console.error('[AI Search] Background tasks failed:', err));
       }
 

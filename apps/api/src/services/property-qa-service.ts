@@ -41,10 +41,9 @@ export async function answerPropertyQuestion(
         p.*,
         up.first_name as owner_first_name,
         up.last_name as owner_last_name,
-        up.company as owner_company,
-        up.user_type as owner_type
+        up.company as owner_company
       FROM properties p
-      LEFT JOIN user_profiles up ON p.user_id = up.id
+      LEFT JOIN user_profiles up ON p.user_id = up.user_id
       WHERE p.id = $1`,
       [propertyId]
     );
@@ -162,42 +161,36 @@ function buildPropertyContext(property: any): string {
   sections.push('GRUNDDATEN:');
   sections.push(`- Titel: ${property.title || 'Keine Angabe'}`);
   sections.push(`- Typ: ${property.property_type || 'Keine Angabe'}`);
-  sections.push(`- Preis: ${property.price ? property.price.toLocaleString('de-DE') + ' €' : 'Keine Angabe'}`);
-  sections.push(`- Wohnfläche: ${property.living_space || 'Keine Angabe'} m²`);
+  sections.push(`- Preis: ${property.price ? Number(property.price).toLocaleString('de-DE') + ' €' : 'Keine Angabe'}`);
+  sections.push(`- Wohnfläche: ${property.sqm || 'Keine Angabe'} m²`);
   sections.push(`- Zimmer: ${property.rooms || 'Keine Angabe'}`);
-  if (property.bedrooms) sections.push(`- Schlafzimmer: ${property.bedrooms}`);
   if (property.bathrooms) sections.push(`- Badezimmer: ${property.bathrooms}`);
   sections.push('');
 
   // Location
   sections.push('LAGE:');
-  sections.push(`- Straße: ${property.street || 'Keine Angabe'}`);
-  sections.push(`- Stadt: ${property.city || 'Keine Angabe'}`);
-  sections.push(`- PLZ: ${property.zip_code || 'Keine Angabe'}`);
-  sections.push(`- Bundesland: ${property.state || 'Keine Angabe'}`);
+  sections.push(`- Ort: ${property.location || 'Keine Angabe'}`);
+  if (property.address) sections.push(`- Adresse: ${property.address}`);
   sections.push('');
 
   // Property Details
   sections.push('OBJEKT-DETAILS:');
   if (property.year_built) sections.push(`- Baujahr: ${property.year_built}`);
   if (property.condition) sections.push(`- Zustand: ${property.condition}`);
-  if (property.floor) sections.push(`- Etage: ${property.floor}`);
+  if (property.floor_level) sections.push(`- Etage: ${property.floor_level}`);
   if (property.total_floors) sections.push(`- Gesamt-Etagen: ${property.total_floors}`);
-  if (property.plot_size) sections.push(`- Grundstücksfläche: ${property.plot_size} m²`);
   if (property.usable_area) sections.push(`- Nutzfläche: ${property.usable_area} m²`);
-  if (property.number_of_floors) sections.push(`- Anzahl Etagen (Haus): ${property.number_of_floors}`);
+  if (property.available_from) sections.push(`- Verfügbar ab: ${property.available_from}`);
   sections.push('');
 
   // Energy & Costs
   sections.push('ENERGIE & KOSTEN:');
-  if (property.energy_certificate_type) sections.push(`- Energieausweis-Typ: ${property.energy_certificate_type}`);
-  if (property.energy_consumption) sections.push(`- Energieverbrauch: ${property.energy_consumption} kWh/(m²·a)`);
+  if (property.energy_certificate) sections.push(`- Energieausweis: ${property.energy_certificate}`);
   if (property.energy_efficiency_class) sections.push(`- Energieeffizienzklasse: ${property.energy_efficiency_class}`);
   if (property.heating_type) sections.push(`- Heizungsart: ${property.heating_type}`);
+  if (property.energy_source) sections.push(`- Energieträger: ${property.energy_source}`);
   if (property.monthly_fee) sections.push(`- Hausgeld: ${property.monthly_fee} €/Monat`);
-  if (property.heating_costs) sections.push(`- Heizkosten: ${property.heating_costs} €/Monat`);
-  if (property.additional_costs) sections.push(`- Zusätzliche Kosten: ${property.additional_costs} €/Monat`);
-  if (property.commission) sections.push(`- Provision: ${property.commission}`);
+  if (property.commission_rate) sections.push(`- Provision: ${property.commission_rate}%`);
   sections.push('');
 
   // Features & Amenities
@@ -209,20 +202,18 @@ function buildPropertyContext(property: any): string {
     sections.push('');
   }
 
-  // Parking
-  if (property.parking_type || property.parking_spaces) {
-    sections.push('PARKMÖGLICHKEITEN:');
-    if (property.parking_type) sections.push(`- Art: ${property.parking_type}`);
-    if (property.parking_spaces) sections.push(`- Anzahl Stellplätze: ${property.parking_spaces}`);
+  // Rental Information
+  if (property.monthly_rent || property.actual_monthly_rent) {
+    sections.push('MIETINFORMATIONEN:');
+    if (property.monthly_rent) sections.push(`- Monatliche Miete: ${property.monthly_rent} €`);
+    if (property.actual_monthly_rent) sections.push(`- Aktuelle Ist-Miete: ${property.actual_monthly_rent} €`);
     sections.push('');
   }
 
-  // Rental Information
-  if (property.rental_status || property.current_rent || property.tenant_count) {
-    sections.push('VERMIETUNGS-INFO:');
-    if (property.rental_status) sections.push(`- Status: ${property.rental_status}`);
-    if (property.current_rent) sections.push(`- Aktuelle Miete: ${property.current_rent} €/Monat`);
-    if (property.tenant_count) sections.push(`- Anzahl Mieter: ${property.tenant_count}`);
+  // Investment Info
+  if (property.yield) {
+    sections.push('INVESTMENT:');
+    sections.push(`- Rendite: ${property.yield}%`);
     sections.push('');
   }
 
@@ -234,13 +225,15 @@ function buildPropertyContext(property: any): string {
   }
 
   // Owner Information
-  sections.push('ANBIETER:');
-  if (property.owner_company) {
-    sections.push(`- Firma: ${property.owner_company}`);
-  } else if (property.owner_first_name || property.owner_last_name) {
-    sections.push(`- Name: ${property.owner_first_name || ''} ${property.owner_last_name || ''}`);
+  if (property.owner_company || property.owner_first_name || property.owner_last_name) {
+    sections.push('ANBIETER:');
+    if (property.owner_company) {
+      sections.push(`- Firma: ${property.owner_company}`);
+    }
+    if (property.owner_first_name || property.owner_last_name) {
+      sections.push(`- Name: ${property.owner_first_name || ''} ${property.owner_last_name || ''}`.trim());
+    }
   }
-  sections.push(`- Typ: ${property.owner_type || 'private'}`);
 
   return sections.join('\n');
 }
@@ -249,14 +242,5 @@ function buildPropertyContext(property: any): string {
  * Generate AI greeting message for new conversation
  */
 export async function generateGreetingMessage(propertyTitle: string): Promise<string> {
-  return `Hallo! Ich bin Ihr KI-Assistent für die Immobilie "${propertyTitle}".
-
-Ich kann Ihnen Fragen zu dieser Immobilie beantworten, z.B.:
-• Ausstattungsdetails (Balkon, Keller, etc.)
-• Kosten und Nebenkosten
-• Lage und Umgebung
-• Zustand und Baujahr
-• Energieeffizienz
-
-Wenn ich eine Frage nicht beantworten kann, leite ich sie automatisch an den Verkäufer weiter. Wie kann ich Ihnen helfen?`;
+  return `Hallo! Ich bin Ihr KI-Assistent für "${propertyTitle}" – stellen Sie mir gerne Ihre Fragen zur Immobilie.`;
 }

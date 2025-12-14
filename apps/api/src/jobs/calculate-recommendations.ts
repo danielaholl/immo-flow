@@ -28,9 +28,14 @@ cron.schedule('*/30 * * * *', async () => {
     console.log('[CRON] Calculating user preferences...');
     const startTime = Date.now();
 
-    // Get all users with interactions
+    // Get all users with interactions OR recent searches
     const users = await query<{ id: string }>(
-      'SELECT DISTINCT user_id as id FROM property_interactions'
+      `SELECT DISTINCT user_id as id FROM (
+        SELECT user_id FROM property_interactions
+        UNION
+        SELECT user_id FROM search_history
+        WHERE last_searched_at > NOW() - INTERVAL '7 days'
+      ) combined_users`
     );
 
     let updated = 0;

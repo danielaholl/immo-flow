@@ -60,10 +60,10 @@ export function useConversationalAI(): UseConversationalAIResult {
 
     // Different welcome messages based on mode
     if (mode === 'import') {
-      addBotMessage('Hey! Ich helfe dir, dein Inserat zu importieren. Lade einfach Screenshots des Inserats oder ein PDF-Exposé hoch, und ich extrahiere automatisch alle Daten für dich. Du kannst dann die Daten bei Bedarf noch anpassen.');
+      addBotMessage('Hey! Exposé, Screenshots oder Bilder hochladen - ich mach den Rest.');
     } else {
       // Default message for create/edit mode
-      addBotMessage('Hey! Erzähl mir einfach, was du über deine Immobilie weißt - Typ, Lage, Preis, Größe, Zimmer, Zustand, Ausstattung usw. Du kannst auch direkt Bilder hochladen. Ich helfe dir dann, ein perfektes Inserat zu erstellen!');
+      addBotMessage('Hey! Beschreib deine Immobilie oder lade Exposé, Screenshots oder Bilder hoch.');
     }
   };
 
