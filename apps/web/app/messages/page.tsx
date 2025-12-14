@@ -11,7 +11,7 @@ import { PropertyListThumbnail } from '../components/PropertyListThumbnail';
 import { PropertyPreview } from '../components/PropertyPreview';
 import { PropertyImageSlideshow } from '../components/PropertyImageSlideshow';
 import { SlideshowManagerProvider } from '../components/SlideshowManagerContext';
-import { joinConversation, leaveConversation, onNewMessage, sendTypingIndicator, onTypingIndicator, onTypingStop } from '@/lib/socket';
+import { joinConversation, leaveConversation, onNewMessage, offNewMessage, sendTypingIndicator, onTypingIndicator, offTypingIndicator, onTypingStop, offTypingStop } from '@/lib/socket';
 import { UniversalChat } from '../components/UniversalChat';
 import type { ChatMessage } from '../components/UniversalChat/types';
 
@@ -29,7 +29,6 @@ export default function MessagesPage() {
   const [conversationFilter, setConversationFilter] = useState<'all' | 'unread'>('all');
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const messageInputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -177,6 +176,10 @@ export default function MessagesPage() {
     };
 
     onNewMessage(handleNewMessage);
+
+    return () => {
+      offNewMessage(handleNewMessage);
+    };
   }, [selectedConversationId, refetchMessages, refetchConversations]);
 
   // Listen for typing indicators
@@ -197,6 +200,11 @@ export default function MessagesPage() {
 
     onTypingIndicator(handleTyping);
     onTypingStop(handleTypingStop);
+
+    return () => {
+      offTypingIndicator(handleTyping);
+      offTypingStop(handleTypingStop);
+    };
   }, [selectedConversationId, user?.id]);
 
   // Auto-scroll to bottom on new messages
@@ -318,13 +326,6 @@ export default function MessagesPage() {
       alert('Fehler beim Hochladen der Dateien.');
     } finally {
       setIsUploadingFiles(false);
-    }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
     }
   };
 

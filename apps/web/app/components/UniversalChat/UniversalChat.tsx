@@ -1,8 +1,8 @@
 'use client';
 
-import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { Send, Loader2, ArrowLeft, Paperclip, Bot } from 'lucide-react';
-import type { UniversalChatProps, ChatMessage, GalleryState, MessageAttachment } from './types';
+import type { UniversalChatProps, ChatMessage } from './types';
 import { AttachmentCard } from './AttachmentCard';
 
 /**
@@ -45,11 +45,6 @@ export function UniversalChat({
   const [internalIsDragOver, setInternalIsDragOver] = useState(false);
   const isDragOver = externalIsDragOver !== undefined ? externalIsDragOver : internalIsDragOver;
   const [localInputValue, setLocalInputValue] = useState('');
-  const [galleryState, setGalleryState] = useState<GalleryState>({
-    isOpen: false,
-    attachments: [],
-    initialIndex: 0,
-  });
 
   // Use controlled or uncontrolled input
   const currentValue = onInputChange ? inputValue : localInputValue;
@@ -86,23 +81,6 @@ export function UniversalChat({
       borderColor: 'border border-yellow-200',
     },
   } = style;
-
-  // Collect all image attachments from messages for gallery navigation
-  const allImageAttachments = useMemo(() => {
-    return messages.flatMap((msg) =>
-      (msg.attachments || []).filter((a) => a.type.startsWith('image/'))
-    );
-  }, [messages]);
-
-  // Open gallery for a specific attachment
-  const openGallery = useCallback((attachment: MessageAttachment) => {
-    const index = allImageAttachments.findIndex((a) => a.url === attachment.url);
-    setGalleryState({
-      isOpen: true,
-      attachments: allImageAttachments,
-      initialIndex: index >= 0 ? index : 0,
-    });
-  }, [allImageAttachments]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -256,18 +234,13 @@ export function UniversalChat({
         {/* Attachments as Standalone Cards (outside bubble) */}
         {hasAttachments && (
           <div className={`space-y-2 ${hasContent ? 'mt-1' : ''}`}>
-            {msg.attachments!.map((attachment, idx) => {
-              const isImage = attachment.type.startsWith('image/');
-
-              return (
-                <AttachmentCard
-                  key={`${msg.id}-attachment-${idx}`}
-                  attachment={attachment}
-                  isUser={isUser}
-                  onClick={isImage ? () => openGallery(attachment) : undefined}
-                />
-              );
-            })}
+            {msg.attachments!.map((attachment, idx) => (
+              <AttachmentCard
+                key={`${msg.id}-attachment-${idx}`}
+                attachment={attachment}
+                isUser={isUser}
+              />
+            ))}
 
             {/* Timestamp after attachments */}
             {showTimestamps && msg.timestamp && (
@@ -397,13 +370,13 @@ export function UniversalChat({
           />
         )}
 
-        <div className="flex gap-3 items-center">
+        <div className="flex gap-3 items-stretch">
           {/* File Upload Button */}
           {showFileUpload && (
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading || disabled}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-700 p-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0"
+              className="bg-gray-100 hover:bg-gray-200 text-gray-700 w-12 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0"
               title="Datei hochladen"
             >
               <Paperclip size={20} />
@@ -411,24 +384,22 @@ export function UniversalChat({
           )}
 
           {/* Text Input */}
-          <div className="flex-1">
-            <textarea
-              ref={textareaRef}
-              value={currentValue}
-              onChange={(e) => handleInputChange(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={placeholder}
-              disabled={disabled || isSending}
-              className="w-full resize-none border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-0 focus:border-gray-900 bg-transparent text-base h-12 transition-colors"
-              rows={1}
-            />
-          </div>
+          <textarea
+            ref={textareaRef}
+            value={currentValue}
+            onChange={(e) => handleInputChange(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            disabled={disabled || isSending}
+            className="flex-1 min-w-0 resize-none border border-gray-300 rounded-lg px-4 focus:outline-none focus:ring-0 focus:border-gray-900 bg-transparent text-base h-12 leading-[46px] transition-colors"
+            rows={1}
+          />
 
           {/* Send Button */}
           <button
             onClick={handleSend}
             disabled={!currentValue.trim() || isSending || disabled}
-            className="bg-gray-900 text-white h-12 w-12 rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 flex items-center justify-center"
+            className="bg-gray-900 text-white w-12 rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 flex items-center justify-center"
           >
             {isSending ? (
               <Loader2 className="animate-spin" size={20} />

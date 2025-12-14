@@ -118,6 +118,15 @@ export function onNewMessage(callback: (data: any) => void): void {
 }
 
 /**
+ * Remove new message listener
+ */
+export function offNewMessage(callback: (data: any) => void): void {
+  if (socket) {
+    socket.off('message:new', callback);
+  }
+}
+
+/**
  * Listen for unread count updates
  */
 export function onUnreadCountUpdate(callback: (data: { unreadCount: number }) => void): void {
@@ -147,11 +156,31 @@ export function onTypingIndicator(
 }
 
 /**
+ * Remove typing indicator listener
+ */
+export function offTypingIndicator(
+  callback: (data: { userId: string; email: string; conversationId: string }) => void
+): void {
+  if (socket) {
+    socket.off('typing:user', callback);
+  }
+}
+
+/**
  * Listen for typing stop
  */
 export function onTypingStop(callback: (data: { userId: string; conversationId: string }) => void): void {
   if (socket) {
     socket.on('typing:stop', callback);
+  }
+}
+
+/**
+ * Remove typing stop listener
+ */
+export function offTypingStop(callback: (data: { userId: string; conversationId: string }) => void): void {
+  if (socket) {
+    socket.off('typing:stop', callback);
   }
 }
 
