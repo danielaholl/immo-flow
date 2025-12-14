@@ -1,7 +1,7 @@
 'use client';
 
 import { Header } from '../components/Header';
-import { PropertyListingManager } from '../create-listing/components/PropertyListingManager';
+import { PropertyListingManager } from '../components/PropertyListingManager';
 
 export default function ImportListingPage() {
   return (

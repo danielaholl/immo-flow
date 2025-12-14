@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useMemo } from 'react';
 import { useAuthContext } from '../providers/AuthProvider';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { trpc } from '@/lib/trpc';
-import { MessageSquare, Home, MapPin, Euro, Clock, ArrowLeft, Send, Bot, Loader2, X } from 'lucide-react';
+import { MessageSquare, Home, MapPin, Euro, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { Header } from '../components/Header';
 import { PropertyListThumbnail } from '../components/PropertyListThumbnail';
@@ -12,6 +12,8 @@ import { PropertyPreview } from '../components/PropertyPreview';
 import { PropertyImageSlideshow } from '../components/PropertyImageSlideshow';
 import { SlideshowManagerProvider } from '../components/SlideshowManagerContext';
 import { joinConversation, leaveConversation, onNewMessage, sendTypingIndicator, onTypingIndicator, onTypingStop } from '@/lib/socket';
+import { UniversalChat } from '../components/UniversalChat';
+import type { ChatMessage } from '../components/UniversalChat/types';
 
 export default function MessagesPage() {
   const { user, profile, loading: authLoading } = useAuthContext();
@@ -25,8 +27,10 @@ export default function MessagesPage() {
   const [typingUser, setTypingUser] = useState<string | null>(null);
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
   const [conversationFilter, setConversationFilter] = useState<'all' | 'unread'>('all');
+  const [isUploadingFiles, setIsUploadingFiles] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch conversations
@@ -53,6 +57,47 @@ export default function MessagesPage() {
     { conversationId: selectedConversationId!, limit: 100, offset: 0 },
     { enabled: !!user && !!selectedConversationId, refetchInterval: 5000 }
   );
+
+  // Convert messages to UniversalChat format
+  const convertedMessages: ChatMessage[] = useMemo(() => {
+    if (!messages || !profile) return [];
+
+    const selectedConv = conversations?.find(c => c.id === selectedConversationId);
+    const otherPerson = selectedConv?.otherParticipant;
+    const otherDisplayName = otherPerson?.company ||
+      `${otherPerson?.firstName || ''} ${otherPerson?.lastName || ''}`.trim() ||
+      'Unbekannt';
+
+    return messages.map((msg) => {
+      const isOwnMessage = msg.senderId === profile.id;
+      const isAI = msg.senderType === 'ai';
+      const isSystem = msg.senderType === 'system';
+
+      let sender: 'user' | 'bot' | 'ai' | 'system' = 'bot';
+      let senderName: string | undefined;
+
+      if (isOwnMessage) {
+        sender = 'user';
+      } else if (isAI) {
+        sender = 'ai';
+        senderName = 'KI-Assistent';
+      } else if (isSystem) {
+        sender = 'system';
+      } else {
+        sender = 'bot';
+        senderName = otherDisplayName;
+      }
+
+      return {
+        id: msg.id,
+        content: msg.content,
+        sender,
+        senderName,
+        timestamp: new Date(msg.createdAt),
+        attachments: msg.attachments || [],
+      };
+    });
+  }, [messages, profile, conversations, selectedConversationId]);
 
   // Send message mutation
   const sendMessageMutation = trpc.messaging.sendMessage.useMutation({
@@ -191,6 +236,7 @@ export default function MessagesPage() {
       await sendMessageMutation.mutateAsync({
         conversationId: selectedConversationId,
         content: message.trim(),
+        attachments: [],
       });
 
       // Stop typing indicator
@@ -200,6 +246,78 @@ export default function MessagesPage() {
       }
     } catch (error) {
       console.error('Error sending message:', error);
+    }
+  };
+
+  // Handle file upload - uploads and sends immediately
+  const handleFileUpload = async (files: FileList) => {
+    if (!files || files.length === 0 || !selectedConversationId) return;
+
+    setIsUploadingFiles(true);
+
+    try {
+      for (const file of Array.from(files)) {
+        const formData = new FormData();
+        const isImage = file.type.startsWith('image/');
+
+        if (isImage) {
+          formData.append('images', file);
+        } else {
+          formData.append('document', file);
+        }
+
+        const endpoint = isImage ? '/upload/property-images' : '/upload/property-document';
+
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          },
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error('Upload failed');
+        }
+
+        const result = await response.json();
+
+        let attachment: { url: string; type: string; name: string; size?: number; thumbnailUrl?: string } | null = null;
+
+        if (isImage && result.data) {
+          // For images, use the large variant URL
+          const imageData = Array.isArray(result.data) ? result.data[0] : result.data;
+          attachment = {
+            url: imageData.large || imageData.medium || imageData.thumbnail,
+            type: file.type,
+            name: file.name,
+            size: file.size,
+          };
+        } else if (result.data) {
+          // For documents (including PDFs), include thumbnailUrl if available
+          attachment = {
+            url: result.data.url,
+            type: file.type,
+            name: file.name,
+            size: file.size,
+            thumbnailUrl: result.data.thumbnailUrl,
+          };
+        }
+
+        // Send message with attachment immediately
+        if (attachment) {
+          await sendMessageMutation.mutateAsync({
+            conversationId: selectedConversationId,
+            content: '',
+            attachments: [attachment],
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error uploading files:', error);
+      alert('Fehler beim Hochladen der Dateien.');
+    } finally {
+      setIsUploadingFiles(false);
     }
   };
 
@@ -326,142 +444,39 @@ export default function MessagesPage() {
                                    'Unbekannt';
 
                 return (
-                  <div className="h-full flex flex-col">
-                    {/* Conversation Header - Airbnb Style */}
-                    <div className="bg-white border-b border-gray-200 p-4 flex-shrink-0">
-                      <div className="flex items-center gap-4">
-                        {/* Back Button - Mobile only */}
-                        <button
-                          onClick={() => setSelectedConversationId(null)}
-                          className="lg:hidden p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors"
-                          aria-label="Zurück zur Liste"
-                        >
-                          <ArrowLeft size={24} className="text-gray-700" />
-                        </button>
-
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-                            <MessageSquare size={20} className="text-gray-600" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h2 className="font-semibold text-lg text-gray-900 line-clamp-1">
-                              {selectedConversation.propertyTitle}
-                            </h2>
-                            <p className="text-sm text-gray-500">
-                              {isBuyer ? 'Verkäufer' : 'Interessent'}: {displayName}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                {/* Messages */}
-                <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 bg-white">
-                  <div className="space-y-4">
-                    {messages?.map((msg) => {
-                      const isOwnMessage = msg.senderId === profile?.id;
-                      const isAI = msg.senderType === 'ai';
-                      const isSystem = msg.senderType === 'system';
-
-                      if (isSystem) {
-                        return (
-                          <div key={msg.id} className="flex justify-center">
-                            <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-2 max-w-md text-center">
-                              <p className="text-sm text-yellow-800">{msg.content}</p>
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <div key={msg.id} className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
-                          <div className={`max-w-[85%] ${isOwnMessage ? 'order-2' : 'order-1'}`}>
-                            {/* Sender Info */}
-                            {!isOwnMessage && (
-                              <div className="flex items-center gap-2 mb-1 ml-1">
-                                {isAI && <Bot size={16} className="text-primary" />}
-                                <span className="text-sm text-gray-500 font-medium">
-                                  {isAI ? 'KI-Assistent' : displayName}
-                                </span>
-                              </div>
-                            )}
-
-                            {/* Message Bubble - AI Chat Style */}
-                            <div
-                              className={`px-4 py-3 ${
-                                isOwnMessage
-                                  ? 'bg-gray-900 text-white rounded-xl rounded-br-none'
-                                  : 'bg-white border border-gray-200 text-gray-900 rounded-xl rounded-bl-none'
-                              }`}
-                            >
-                              <p className="text-base whitespace-pre-wrap break-words">{msg.content}</p>
-                            </div>
-
-                            {/* Timestamp */}
-                            <div className={`mt-1 ${isOwnMessage ? 'text-right mr-1' : 'ml-1'}`}>
-                              <span className="text-sm text-gray-500">
-                                {new Date(msg.createdAt).toLocaleTimeString('de-DE', {
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                    {/* Typing Indicator */}
-                    {typingUser && (
-                      <div className="flex justify-start">
-                        <div className="bg-gray-100 rounded-2xl px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <div className="flex gap-1">
-                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                            </div>
-                            <span className="text-xs text-gray-600">{typingUser} schreibt...</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    <div ref={messagesEndRef} />
-                  </div>
-                </div>
-
-                {/* Input - AI Chat Style */}
-                <div className="bg-white border-t border-gray-200 p-4 flex-shrink-0 mt-auto">
-                  <div className="flex gap-3 items-center">
-                    <div className="flex-1">
-                      <textarea
-                        ref={messageInputRef}
-                        value={message}
-                        onChange={(e) => {
-                          setMessage(e.target.value);
-                          handleTyping();
-                        }}
-                        onKeyDown={handleKeyPress}
-                        placeholder="Stellen Sie eine Frage zur Immobilie..."
-                        className="w-full resize-none border border-gray-900 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-transparent text-base h-12"
-                        rows={1}
-                      />
-                    </div>
-                    <button
-                      onClick={handleSendMessage}
-                      disabled={!message.trim() || sendMessageMutation.isLoading}
-                      className="bg-gray-900 text-white h-12 w-12 rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 flex items-center justify-center"
-                    >
-                      {sendMessageMutation.isLoading ? (
-                        <Loader2 className="animate-spin" size={20} />
-                      ) : (
-                        <Send size={20} />
-                      )}
-                    </button>
-                  </div>
-                </div>
-                  </div>
+                  <UniversalChat
+                    messages={convertedMessages}
+                    header={{
+                      title: selectedConversation.propertyTitle,
+                      subtitle: `${isBuyer ? 'Verkäufer' : 'Interessent'}: ${displayName}`,
+                      icon: <MessageSquare size={20} className="text-gray-600" />,
+                      showBackButton: true,
+                      backButtonMobileOnly: true,
+                      onBackClick: () => setSelectedConversationId(null),
+                    }}
+                    input={{
+                      placeholder: "Nachricht schreiben...",
+                      disabled: sendMessageMutation.isLoading || isUploadingFiles,
+                      showFileUpload: true,
+                      acceptedFileTypes: "image/jpeg,image/png,image/webp,application/pdf",
+                      multipleFiles: true,
+                    }}
+                    inputValue={message}
+                    onInputChange={(value) => {
+                      setMessage(value);
+                      handleTyping();
+                    }}
+                    onSendMessage={() => handleSendMessage()}
+                    onFileUpload={handleFileUpload}
+                    isTyping={!!typingUser}
+                    isSending={sendMessageMutation.isLoading}
+                    isUploading={isUploadingFiles}
+                    fileInputRef={fileInputRef}
+                    messagesEndRef={messagesEndRef}
+                    showTimestamps={true}
+                    showSenderNames={true}
+                    className="h-full"
+                  />
                 );
               })()
             ) : (

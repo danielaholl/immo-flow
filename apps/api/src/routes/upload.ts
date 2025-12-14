@@ -11,7 +11,7 @@ import { authenticateToken } from '../middleware/auth.js';
 const router: Router = express.Router();
 
 // Configure Multer for memory storage (we'll process with Sharp)
-const upload = multer({
+const uploadImages = multer({
   storage: multer.memoryStorage(),
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB max file size
@@ -26,6 +26,35 @@ const upload = multer({
   },
 });
 
+// Configure Multer for document uploads (PDFs, images, etc.)
+const uploadDocuments = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 20 * 1024 * 1024, // 20MB max file size for documents
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept images and PDFs
+    const allowedMimes = [
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'image/gif',
+      'image/heic',
+      'image/heif',
+      'image/bmp',
+      'image/tiff',
+      'application/pdf',
+    ];
+    // Also accept any image/* type
+    if (allowedMimes.includes(file.mimetype) || file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      console.error(`[Upload] Rejected file type: ${file.mimetype} (${file.originalname})`);
+      cb(new Error(`File type not allowed: ${file.mimetype}`));
+    }
+  },
+});
+
 /**
  * POST /upload/property-image
  * Upload a single property image
@@ -33,7 +62,7 @@ const upload = multer({
 router.post(
   '/property-image',
   authenticateToken,
-  upload.single('image'),
+  uploadImages.single('image'),
   async (req: Request, res: Response) => {
     try {
       if (!req.file) {
@@ -64,7 +93,7 @@ router.post(
 router.post(
   '/property-images',
   authenticateToken,
-  upload.array('images', 10),
+  uploadImages.array('images', 10),
   async (req: Request, res: Response) => {
     try {
       if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
@@ -95,7 +124,7 @@ router.post(
 router.post(
   '/avatar',
   authenticateToken,
-  upload.single('avatar'),
+  uploadImages.single('avatar'),
   async (req: Request, res: Response) => {
     try {
       if (!req.file) {
@@ -122,11 +151,12 @@ router.post(
 /**
  * POST /upload/property-document
  * Upload a single property document (PDF, etc.)
+ * For PDFs, generates a thumbnail from the first page
  */
 router.post(
   '/property-document',
   authenticateToken,
-  upload.single('document'),
+  uploadDocuments.single('document'),
   async (req: Request, res: Response) => {
     try {
       if (!req.file) {
@@ -134,6 +164,17 @@ router.post(
       }
 
       const storage = getStorageProvider();
+
+      // For PDFs, use uploadPdfWithThumbnail to generate first-page preview
+      if (req.file.mimetype === 'application/pdf') {
+        const uploadedFile = await storage.uploadPdfWithThumbnail(req.file, 'documents');
+        return res.status(200).json({
+          success: true,
+          data: uploadedFile,
+        });
+      }
+
+      // For other documents, use regular upload
       const uploadedFile = await storage.uploadFile(req.file, 'documents');
 
       return res.status(200).json({

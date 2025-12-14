@@ -1,8 +1,9 @@
 'use client';
 
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { Send, Loader2, ArrowLeft, Paperclip, Bot } from 'lucide-react';
-import type { UniversalChatProps, ChatMessage } from './types';
+import type { UniversalChatProps, ChatMessage, GalleryState, MessageAttachment } from './types';
+import { AttachmentCard } from './AttachmentCard';
 
 /**
  * Universal Chat Component
@@ -19,23 +20,36 @@ export function UniversalChat({
   onInputChange,
   onSendMessage,
   onFileUpload,
+  onFileInputChange,
   isTyping = false,
-  typingText = 'schreibt...',
   isSending = false,
   isUploading = false,
-  enableDragDrop = false,
+  enableDragDrop,
   className = '',
   showTimestamps = true,
   showSenderNames = true,
   messagesEndRef: externalMessagesEndRef,
   emptyState,
+  fileInputRef: externalFileInputRef,
+  onDragEnter: externalDragEnter,
+  onDragLeave: externalDragLeave,
+  onDragOver: externalDragOver,
+  onDrop: externalDrop,
+  isDragOver: externalIsDragOver,
 }: UniversalChatProps) {
   const internalMessagesEndRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = externalMessagesEndRef || internalMessagesEndRef;
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const internalFileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = externalFileInputRef || internalFileInputRef;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [isDragOver, setIsDragOver] = useState(false);
+  const [internalIsDragOver, setInternalIsDragOver] = useState(false);
+  const isDragOver = externalIsDragOver !== undefined ? externalIsDragOver : internalIsDragOver;
   const [localInputValue, setLocalInputValue] = useState('');
+  const [galleryState, setGalleryState] = useState<GalleryState>({
+    isOpen: false,
+    attachments: [],
+    initialIndex: 0,
+  });
 
   // Use controlled or uncontrolled input
   const currentValue = onInputChange ? inputValue : localInputValue;
@@ -49,6 +63,9 @@ export function UniversalChat({
     acceptedFileTypes = 'image/jpeg,image/png,image/webp,application/pdf',
     multipleFiles = true,
   } = input;
+
+  // Drag & Drop is enabled by default when file upload is available
+  const isDragDropEnabled = enableDragDrop ?? (showFileUpload || !!externalDrop || !!onFileUpload);
 
   // Default style config
   const {
@@ -69,6 +86,23 @@ export function UniversalChat({
       borderColor: 'border border-yellow-200',
     },
   } = style;
+
+  // Collect all image attachments from messages for gallery navigation
+  const allImageAttachments = useMemo(() => {
+    return messages.flatMap((msg) =>
+      (msg.attachments || []).filter((a) => a.type.startsWith('image/'))
+    );
+  }, [messages]);
+
+  // Open gallery for a specific attachment
+  const openGallery = useCallback((attachment: MessageAttachment) => {
+    const index = allImageAttachments.findIndex((a) => a.url === attachment.url);
+    setGalleryState({
+      isOpen: true,
+      attachments: allImageAttachments,
+      initialIndex: index >= 0 ? index : 0,
+    });
+  }, [allImageAttachments]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -94,53 +128,79 @@ export function UniversalChat({
 
   // Handle file upload
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // If external handler provided, use it (for full control over the event)
+    if (onFileInputChange) {
+      onFileInputChange(e);
+      return;
+    }
+    // Otherwise use the simplified FileList callback
     if (e.target.files && e.target.files.length > 0) {
       onFileUpload?.(e.target.files);
       e.target.value = '';
     }
   };
 
-  // Drag & Drop handlers
-  const handleDragEnter = (e: React.DragEvent) => {
-    if (!enableDragDrop) return;
+  // Drag & Drop handlers - use external handlers if provided, otherwise use internal
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    if (externalDragEnter) {
+      externalDragEnter(e);
+      return;
+    }
+    if (!isDragDropEnabled) return;
     e.preventDefault();
     e.stopPropagation();
     if (e.dataTransfer.types.includes('Files')) {
-      setIsDragOver(true);
+      setInternalIsDragOver(true);
     }
   };
 
-  const handleDragLeave = (e: React.DragEvent) => {
-    if (!enableDragDrop) return;
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    if (externalDragLeave) {
+      externalDragLeave(e);
+      return;
+    }
+    if (!isDragDropEnabled) return;
     e.preventDefault();
     e.stopPropagation();
     if (e.currentTarget === e.target) {
-      setIsDragOver(false);
+      setInternalIsDragOver(false);
     }
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    if (!enableDragDrop) return;
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    if (externalDragOver) {
+      externalDragOver(e);
+      return;
+    }
+    if (!isDragDropEnabled) return;
     e.preventDefault();
     e.stopPropagation();
   };
 
-  const handleDrop = (e: React.DragEvent) => {
-    if (!enableDragDrop) return;
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    if (externalDrop) {
+      externalDrop(e);
+      return;
+    }
+    if (!isDragDropEnabled) return;
     e.preventDefault();
     e.stopPropagation();
-    setIsDragOver(false);
+    setInternalIsDragOver(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       onFileUpload?.(e.dataTransfer.files);
     }
   };
 
-  // Render message bubble
+  // Render message with attachments as standalone cards (WhatsApp/Telegram style)
   const renderMessage = (msg: ChatMessage) => {
     const isUser = msg.sender === 'user';
     const isSystem = msg.sender === 'system';
     const isBot = msg.sender === 'bot' || msg.sender === 'ai';
 
+    const hasContent = msg.content && msg.content.trim();
+    const hasAttachments = msg.attachments && msg.attachments.length > 0;
+
+    // System messages
     if (isSystem) {
       return (
         <div key={msg.id} className="flex justify-center">
@@ -152,41 +212,76 @@ export function UniversalChat({
     }
 
     return (
-      <div key={msg.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-        <div className={`max-w-[85%] ${isUser ? 'order-2' : 'order-1'}`}>
-          {/* Sender Info */}
-          {!isUser && showSenderNames && msg.senderName && (
-            <div className="flex items-center gap-2 mb-1 ml-1">
-              {isBot && <Bot size={16} className="text-primary" />}
-              <span className="text-sm text-gray-500 font-medium">
-                {msg.senderName}
-              </span>
-            </div>
-          )}
+      <div key={msg.id} className="space-y-2">
+        {/* Text Content in Bubble (only if there's text) */}
+        {hasContent && (
+          <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[85%] ${isUser ? 'order-2' : 'order-1'}`}>
+              {/* Sender Info */}
+              {!isUser && showSenderNames && msg.senderName && (
+                <div className="flex items-center gap-2 mb-1 ml-1">
+                  {isBot && <Bot size={16} className="text-primary" />}
+                  <span className="text-sm text-gray-500 font-medium">
+                    {msg.senderName}
+                  </span>
+                </div>
+              )}
 
-          {/* Message Bubble */}
-          <div
-            className={`px-4 py-3 ${
-              isUser
-                ? `${userBubble.bgColor} ${userBubble.textColor} ${userBubble.borderRadius}`
-                : `${botBubble.bgColor} ${botBubble.textColor} ${botBubble.borderColor} ${botBubble.borderRadius}`
-            }`}
-          >
-            <p className="text-base whitespace-pre-wrap break-words">{msg.content}</p>
+              {/* Message Bubble - Text Only */}
+              <div
+                className={`px-4 py-3 ${
+                  isUser
+                    ? `${userBubble.bgColor} ${userBubble.textColor} ${userBubble.borderRadius}`
+                    : `${botBubble.bgColor} ${botBubble.textColor} ${botBubble.borderColor} ${botBubble.borderRadius}`
+                }`}
+              >
+                <p className="text-base whitespace-pre-wrap break-words">{msg.content}</p>
+              </div>
+
+              {/* Timestamp for text-only messages */}
+              {showTimestamps && msg.timestamp && !hasAttachments && (
+                <div className={`mt-1 ${isUser ? 'text-right mr-1' : 'ml-1'}`}>
+                  <span className="text-sm text-gray-500">
+                    {msg.timestamp.toLocaleTimeString('de-DE', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
+        )}
 
-          {/* Timestamp */}
-          {showTimestamps && msg.timestamp && (
-            <div className={`mt-1 ${isUser ? 'text-right mr-1' : 'ml-1'}`}>
-              <span className="text-sm text-gray-500">
-                {msg.timestamp.toLocaleTimeString('de-DE', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </span>
-            </div>
-          )}
-        </div>
+        {/* Attachments as Standalone Cards (outside bubble) */}
+        {hasAttachments && (
+          <div className={`space-y-2 ${hasContent ? 'mt-1' : ''}`}>
+            {msg.attachments!.map((attachment, idx) => {
+              const isImage = attachment.type.startsWith('image/');
+
+              return (
+                <AttachmentCard
+                  key={`${msg.id}-attachment-${idx}`}
+                  attachment={attachment}
+                  isUser={isUser}
+                  onClick={isImage ? () => openGallery(attachment) : undefined}
+                />
+              );
+            })}
+
+            {/* Timestamp after attachments */}
+            {showTimestamps && msg.timestamp && (
+              <div className={`${isUser ? 'text-right mr-1' : 'ml-1'}`}>
+                <span className="text-sm text-gray-500">
+                  {msg.timestamp.toLocaleTimeString('de-DE', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   };
@@ -200,7 +295,7 @@ export function UniversalChat({
           {header.showBackButton && (
             <button
               onClick={header.onBackClick}
-              className="p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className={`p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors ${header.backButtonMobileOnly ? 'lg:hidden' : ''}`}
               aria-label="Zurück"
             >
               <ArrowLeft size={24} className="text-gray-700" />
@@ -225,26 +320,30 @@ export function UniversalChat({
         </div>
       </div>
 
-      {/* Messages Area */}
-      <div
-        className="flex-1 overflow-y-auto overflow-x-hidden p-6 bg-white relative"
-        onDragEnter={handleDragEnter}
-        onDragLeave={handleDragLeave}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
-      >
-        {/* Drag overlay */}
-        {isDragOver && enableDragDrop && (
-          <div className="absolute inset-0 bg-primary/10 border-4 border-dashed border-primary rounded-lg z-10 flex items-center justify-center pointer-events-none">
-            <div className="bg-white rounded-xl px-6 py-4 shadow-lg">
-              <Paperclip size={48} className="text-primary mx-auto mb-2" />
-              <p className="text-lg font-medium text-primary">Dateien hier ablegen</p>
-              <p className="text-sm text-gray-500 mt-1">Bilder oder PDF</p>
+      {/* Messages Area Wrapper - relative container for overlay */}
+      <div className="flex-1 relative overflow-hidden">
+        {/* Drag overlay - Airbnb style (outside scrollable area) */}
+        {isDragOver && isDragDropEnabled && (
+          <div className="absolute inset-0 bg-black/5 backdrop-blur-[1px] border-2 border-dashed border-gray-900 rounded-xl z-10 flex items-center justify-center pointer-events-none transition-all">
+            <div className="bg-white rounded-2xl px-8 py-6 shadow-xl border border-gray-100">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Paperclip size={32} className="text-gray-900" />
+              </div>
+              <p className="text-lg font-semibold text-gray-900 text-center">Dateien hier ablegen</p>
+              <p className="text-sm text-gray-500 mt-1 text-center">Bilder oder PDF-Dokumente</p>
             </div>
           </div>
         )}
 
-        {/* Empty state */}
+        {/* Scrollable messages area */}
+        <div
+          className="h-full overflow-y-auto overflow-x-hidden p-6 bg-white"
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+        >
+          {/* Empty state */}
         {messages.length === 0 && emptyState ? (
           <div className="flex items-center justify-center h-full">
             {emptyState}
@@ -263,7 +362,6 @@ export function UniversalChat({
                       <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                       <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                     </div>
-                    <span className="text-sm text-gray-600">{typingText}</span>
                   </div>
                 </div>
               </div>
@@ -282,6 +380,7 @@ export function UniversalChat({
             <div ref={messagesEndRef} />
           </div>
         )}
+        </div>
       </div>
 
       {/* Input Area */}
@@ -320,7 +419,7 @@ export function UniversalChat({
               onKeyDown={handleKeyDown}
               placeholder={placeholder}
               disabled={disabled || isSending}
-              className="w-full resize-none border border-gray-900 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-transparent text-base h-12"
+              className="w-full resize-none border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-0 focus:border-gray-900 bg-transparent text-base h-12 transition-colors"
               rows={1}
             />
           </div>

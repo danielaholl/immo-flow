@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation';
 import { Header } from '@/app/components/Header';
-import { PropertyListingManager } from '@/app/create-listing/components/PropertyListingManager';
+import { PropertyListingManager } from '@/app/components/PropertyListingManager';
 
 export default function EditListingPage() {
   const params = useParams();

@@ -4,13 +4,29 @@
 
 export type MessageSender = 'user' | 'bot' | 'ai' | 'system';
 
+export interface MessageAttachment {
+  url: string;
+  type: string; // MIME type like 'image/jpeg', 'application/pdf'
+  name: string;
+  size?: number;
+  /** Thumbnail URL for PDF first-page preview */
+  thumbnailUrl?: string;
+}
+
+/** Gallery/Lightbox state for image viewing */
+export interface GalleryState {
+  isOpen: boolean;
+  attachments: MessageAttachment[];
+  initialIndex: number;
+}
+
 export interface ChatMessage {
   id: string;
   content: string;
   sender: MessageSender;
   timestamp?: Date;
   senderName?: string;
-  extractedData?: Record<string, unknown>;
+  attachments?: MessageAttachment[];
 }
 
 export interface ChatHeaderConfig {
@@ -18,6 +34,8 @@ export interface ChatHeaderConfig {
   subtitle?: string;
   icon?: React.ReactNode;
   showBackButton?: boolean;
+  /** Only show back button on mobile (lg:hidden) */
+  backButtonMobileOnly?: boolean;
   onBackClick?: () => void;
 }
 
@@ -66,12 +84,12 @@ export interface UniversalChatProps {
   onInputChange?: (value: string) => void;
   /** Callback when message is sent */
   onSendMessage?: (message: string) => void;
-  /** Callback when files are uploaded */
+  /** Callback when files are uploaded (receives FileList) */
   onFileUpload?: (files: FileList) => void;
+  /** Alternative callback for file input change (receives full ChangeEvent) */
+  onFileInputChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   /** Whether the bot/AI is currently typing/processing */
   isTyping?: boolean;
-  /** Custom typing indicator text */
-  typingText?: string;
   /** Whether message sending is in progress */
   isSending?: boolean;
   /** Whether file upload is in progress */
@@ -88,4 +106,16 @@ export interface UniversalChatProps {
   messagesEndRef?: React.RefObject<HTMLDivElement>;
   /** Custom empty state content */
   emptyState?: React.ReactNode;
+  /** External file input ref for advanced control */
+  fileInputRef?: React.RefObject<HTMLInputElement>;
+  /** Custom drag enter handler */
+  onDragEnter?: (e: React.DragEvent<HTMLDivElement>) => void;
+  /** Custom drag leave handler */
+  onDragLeave?: (e: React.DragEvent<HTMLDivElement>) => void;
+  /** Custom drag over handler */
+  onDragOver?: (e: React.DragEvent<HTMLDivElement>) => void;
+  /** Custom drop handler */
+  onDrop?: (e: React.DragEvent<HTMLDivElement>) => void;
+  /** External control of drag over state */
+  isDragOver?: boolean;
 }

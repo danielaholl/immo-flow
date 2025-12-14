@@ -12,7 +12,7 @@
  * 3. Uncomment code below
  */
 
-import { StorageProvider, UploadedFile, ImageVariant } from './StorageProvider.js';
+import { StorageProvider, UploadedFile, UploadedFileWithThumbnail, ImageVariant } from './StorageProvider.js';
 
 export class CloudflareR2Provider extends StorageProvider {
   constructor() {
@@ -50,6 +50,13 @@ export class CloudflareR2Provider extends StorageProvider {
   }
 
   getPublicUrl(filename: string): string {
+    throw new Error('Not implemented');
+  }
+
+  async uploadPdfWithThumbnail(
+    file: Express.Multer.File,
+    folder: string
+  ): Promise<UploadedFileWithThumbnail> {
     throw new Error('Not implemented');
   }
 }

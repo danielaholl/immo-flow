@@ -280,6 +280,7 @@ export const messagingRouter = router({
           m.is_ai_generated,
           m.ai_confidence,
           m.forwarded_to_seller,
+          m.attachments,
           m.created_at,
           up.first_name,
           up.last_name,
@@ -300,6 +301,7 @@ export const messagingRouter = router({
         isAiGenerated: row.is_ai_generated,
         aiConfidence: row.ai_confidence ? parseFloat(row.ai_confidence) : null,
         forwardedToSeller: row.forwarded_to_seller,
+        attachments: row.attachments || [],
         createdAt: row.created_at,
         sender: row.sender_id
           ? {
@@ -320,8 +322,20 @@ export const messagingRouter = router({
     .input(
       z.object({
         conversationId: z.string().uuid(),
-        content: z.string().min(1).max(10000),
-      })
+        content: z.string().max(10000).default(''),
+        attachments: z.array(
+          z.object({
+            url: z.string().url(),
+            type: z.string(), // 'image/jpeg', 'application/pdf', etc.
+            name: z.string(),
+            size: z.number().optional(),
+            thumbnailUrl: z.string().url().optional(),
+          })
+        ).optional().default([]),
+      }).refine(
+        (data) => data.content.trim().length > 0 || (data.attachments && data.attachments.length > 0),
+        { message: 'Message must have content or at least one attachment' }
+      )
     )
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.user.id;
@@ -381,10 +395,10 @@ export const messagingRouter = router({
 
       // Insert user message
       const userMessageResult = await db.query(
-        `INSERT INTO messages (conversation_id, sender_id, sender_type, content)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO messages (conversation_id, sender_id, sender_type, content, attachments)
+         VALUES ($1, $2, $3, $4, $5)
          RETURNING id, created_at`,
-        [input.conversationId, userProfileId, senderType, input.content]
+        [input.conversationId, userProfileId, senderType, input.content, JSON.stringify(input.attachments)]
       );
 
       const userMessage = {
@@ -392,6 +406,7 @@ export const messagingRouter = router({
         senderId: userProfileId,
         senderType,
         content: input.content,
+        attachments: input.attachments,
         createdAt: userMessageResult.rows[0].created_at,
       };
 

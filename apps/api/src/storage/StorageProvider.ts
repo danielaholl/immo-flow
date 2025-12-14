@@ -10,6 +10,11 @@ export interface UploadedFile {
   mimetype: string;
 }
 
+export interface UploadedFileWithThumbnail extends UploadedFile {
+  /** Thumbnail URL for PDF first-page preview */
+  thumbnailUrl?: string;
+}
+
 export interface ImageVariant {
   original: string;
   thumbnail: string; // 400x300
@@ -56,4 +61,12 @@ export abstract class StorageProvider {
    * Get public URL for a file
    */
   abstract getPublicUrl(filename: string): string;
+
+  /**
+   * Upload a PDF file with first-page thumbnail generation
+   */
+  abstract uploadPdfWithThumbnail(
+    file: Express.Multer.File,
+    folder: string
+  ): Promise<UploadedFileWithThumbnail>;
 }

@@ -4,20 +4,19 @@
  */
 'use client';
 
-import { useEffect, useState, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthContext } from '@/app/providers/AuthProvider';
 import { PropertyPreview, PropertyPreviewData } from './PropertyPreview';
 import { SlideshowManagerProvider } from './SlideshowManagerContext';
 import { PropertyImageSlideshow } from './PropertyImageSlideshow';
 import { trpc } from '@/lib/trpc';
-import { MessageSquare, Eye, Images, Loader2 } from 'lucide-react';
+import { MessageSquare, Eye, Images, Loader2, Sparkles } from 'lucide-react';
 import { useConversationalAI } from '../create-listing/hooks/useConversationalAI';
 import { useImageUpload } from '../create-listing/hooks/useImageUpload';
 import type { ListingData } from '../create-listing/types';
-
-// Lazy load ChatInterface for better initial load performance
-const ChatInterface = lazy(() => import('./ChatInterface').then(mod => ({ default: mod.ChatInterface })));
+import { UniversalChat } from './UniversalChat';
+import type { ChatMessage } from './UniversalChat/types';
 
 interface PropertyListingManagerProps {
   propertyId?: string; // Optional: wenn vorhanden, ist es Edit-Modus
@@ -1029,6 +1028,15 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
     // Note: Seller evaluation is shown separately via SellerAnalysis component
   }), [listingData, uploadedImages, user, profile, isComplete]);
 
+  // Convert messages from Message format to ChatMessage format for UniversalChat
+  const convertedMessages: ChatMessage[] = useMemo(() => {
+    return messages.map(msg => ({
+      id: msg.id,
+      content: msg.content,
+      sender: msg.type as 'user' | 'bot',
+    }));
+  }, [messages]);
+
   return (
     <SlideshowManagerProvider>
       <div className="flex-1 max-w-[1800px] w-full mx-auto px-2 sm:px-4 lg:px-8 py-3 lg:py-6 overflow-hidden">
@@ -1074,36 +1082,39 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-6 h-full">
           {/* Chat Section - Scrollbar */}
           <div className={`h-full min-h-0 overflow-hidden ${mobileView !== 'chat' ? 'hidden lg:flex' : ''}`}>
-            <Suspense fallback={
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 flex items-center justify-center h-full">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              </div>
-            }>
-              <ChatInterface
-                messages={messages}
-                textInput={textInput}
-                textInputRef={textInputRef}
-                messagesEndRef={messagesEndRef}
-                fileInputRef={fileInputRef}
-                isUploadingImages={isUploadingImages}
-                isExtracting={extractDataMutation.isLoading || isAnalyzingPdf || classifyAndAnalyzeImagesMutation.isPending}
-                isComplete={isComplete}
-                isSubmitting={isSubmitting}
-                isDragOver={isDragOver}
-                currentStep={currentStep}
-                isEditMode={isEditMode}
-                isImportMode={isImportMode}
-                onTextInputChange={setTextInput}
-                onSendMessage={handleSendMessage}
-                onImageUpload={handleFileUploadWithExtraction}
-                onFileInputClick={() => fileInputRef.current?.click()}
-                onSubmit={handleSubmit}
-                onDragEnter={handleDragEnter}
-                onDragLeave={handleDragLeave}
-                onDragOver={handleDragOver}
-                onDrop={handleDrop}
-              />
-            </Suspense>
+            <UniversalChat
+              messages={convertedMessages}
+              header={{
+                title: "Ela - Deine KI-Assistentin",
+                subtitle: "Powered by GPT-4",
+                icon: <Sparkles className="w-5 h-5 text-primary" />,
+              }}
+              input={{
+                placeholder: isEditMode
+                  ? "Was möchtest du ändern?"
+                  : "Beschreibe deine Immobilie oder lade ein PDF hoch...",
+                disabled: extractDataMutation.isLoading || isAnalyzingPdf,
+                showFileUpload: true,
+                acceptedFileTypes: "image/jpeg,image/png,image/webp,image/gif,application/pdf",
+                multipleFiles: true,
+              }}
+              inputValue={textInput}
+              onInputChange={setTextInput}
+              onSendMessage={() => handleSendMessage()}
+              isTyping={extractDataMutation.isLoading || isAnalyzingPdf || classifyAndAnalyzeImagesMutation.isPending}
+              isUploading={isUploadingImages}
+              fileInputRef={fileInputRef}
+              onFileInputChange={handleFileUploadWithExtraction}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              isDragOver={isDragOver}
+              messagesEndRef={messagesEndRef}
+              showTimestamps={false}
+              showSenderNames={false}
+              className="rounded-2xl shadow-sm border border-gray-200 h-full"
+            />
           </div>
 
           {/* Preview Section - Scrollbar wenn viel Daten */}

@@ -3,11 +3,12 @@
  * Stores files on local file system in /public/uploads/
  */
 
-import { StorageProvider, UploadedFile, ImageVariant } from './StorageProvider.js';
+import { StorageProvider, UploadedFile, UploadedFileWithThumbnail, ImageVariant } from './StorageProvider.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import sharp from 'sharp';
+import { pdf } from 'pdf-to-img';
 
 export class LocalStorageProvider extends StorageProvider {
   private uploadDir: string;
@@ -150,5 +151,56 @@ export class LocalStorageProvider extends StorageProvider {
    */
   getPublicUrl(filename: string): string {
     return `${this.publicUrl}/uploads/${filename}`;
+  }
+
+  /**
+   * Upload a PDF file with first-page thumbnail generation
+   */
+  async uploadPdfWithThumbnail(
+    file: Express.Multer.File,
+    folder: string
+  ): Promise<UploadedFileWithThumbnail> {
+    const folderPath = path.join(this.uploadDir, folder);
+    await this.ensureDir(folderPath);
+
+    const baseFilename = uuidv4();
+    const pdfFilename = `${baseFilename}.pdf`;
+    const thumbFilename = `${baseFilename}-thumb.webp`;
+
+    const pdfPath = path.join(folderPath, pdfFilename);
+    const thumbPath = path.join(folderPath, thumbFilename);
+
+    // Save original PDF
+    await fs.writeFile(pdfPath, file.buffer);
+
+    // Generate thumbnail from first page
+    let thumbnailUrl: string | undefined;
+    try {
+      const document = await pdf(file.buffer, { scale: 1.5 });
+
+      for await (const page of document) {
+        // Process only the first page with Sharp
+        await sharp(page)
+          .resize(400, 300, { fit: 'cover' })
+          .webp({ quality: 80 })
+          .toFile(thumbPath);
+        break; // Only need first page
+      }
+
+      // Check if thumbnail was created successfully
+      await fs.access(thumbPath);
+      thumbnailUrl = this.getPublicUrl(`${folder}/${thumbFilename}`);
+    } catch (error) {
+      console.error('[Storage] PDF thumbnail generation failed:', error);
+      // Continue without thumbnail - not critical
+    }
+
+    return {
+      url: this.getPublicUrl(`${folder}/${pdfFilename}`),
+      filename: pdfFilename,
+      size: file.size,
+      mimetype: file.mimetype,
+      thumbnailUrl,
+    };
   }
 }
