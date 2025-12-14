@@ -1,5 +1,9 @@
 /**
+ * @deprecated Use UniversalChat component instead.
+ * This component is kept for backwards compatibility.
+ *
  * Chat Interface Component for conversational listing creation
+ * @see ../components/UniversalChat/UniversalChat.tsx for the new implementation
  */
 'use client';
 

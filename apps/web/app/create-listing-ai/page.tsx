@@ -1,29 +1,21 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthContext } from '@/app/providers/AuthProvider';
 import { Header } from '../components/Header';
 import { PropertyPreview, PropertyPreviewData } from '../components/PropertyPreview';
+import { UniversalChat, ChatMessage } from '../components/UniversalChat';
 import { trpc } from '@/lib/trpc';
-import { Sparkles, ImagePlus, X, Send, ArrowLeft, Loader2 } from 'lucide-react';
-
-interface Message {
-  id: string;
-  type: 'bot' | 'user';
-  content: string;
-  extractedData?: any;
-}
+import { Sparkles, ArrowLeft, Loader2 } from 'lucide-react';
 
 export default function CreateListingAIPage() {
   const router = useRouter();
   const { user, profile, loading } = useAuthContext();
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const hasInitialized = useRef(false);
 
   // State
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [textInput, setTextInput] = useState('');
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [isUploadingImages, setIsUploadingImages] = useState(false);
@@ -33,207 +25,148 @@ export default function CreateListingAIPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState<'welcome' | 'chat'>('welcome');
 
-  // Drag & Drop States
-  const [isDragOver, setIsDragOver] = useState(false);
-
   // tRPC mutations
   const extractDataMutation = trpc.aiChat.extractPropertyData.useMutation();
   const createPropertyMutation = trpc.properties.create.useMutation();
 
-  // Auto-scroll to bottom
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
   // Initialize
   useEffect(() => {
-    // Wait for auth to finish loading
-    if (loading) {
-      return;
-    }
+    if (loading) return;
 
-    // Redirect to home if not authenticated
     if (!user) {
       router.push('/');
       return;
     }
 
-    // Prevent double initialization in React StrictMode
-    if (hasInitialized.current) {
-      return;
-    }
+    if (hasInitialized.current) return;
     hasInitialized.current = true;
 
     // Welcome message
     addBotMessage('Hey! Ich bin Ela, deine KI-Assistentin. Ich helfe dir, dein Inserat in wenigen Schritten zu erstellen.');
     setTimeout(() => {
-      addBotMessage('Erzähl mir einfach über deine Immobilie. Du kannst auch jederzeit Bilder hochladen, indem du sie hier reinziehst oder auf das + Symbol klickst.');
+      addBotMessage('Erzähl mir einfach über deine Immobilie. Du kannst auch jederzeit Bilder hochladen, indem du sie hier reinziehst oder auf das Clip-Symbol klickst.');
       setCurrentStep('chat');
     }, 1000);
   }, [user, loading]);
 
-  const addBotMessage = (content: string, extractedData?: any) => {
-    setMessages(prev => [...prev, {
+  const addBotMessage = (content: string) => {
+    setChatMessages(prev => [...prev, {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      type: 'bot',
       content,
-      extractedData,
+      sender: 'bot',
+      senderName: 'Ela',
+      timestamp: new Date(),
     }]);
   };
 
   const addUserMessage = (content: string) => {
-    setMessages(prev => [...prev, {
+    setChatMessages(prev => [...prev, {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      type: 'user',
       content,
+      sender: 'user',
+      timestamp: new Date(),
     }]);
   };
 
-  // Image upload
-  const processImageFiles = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
+  // Convert ChatMessage[] to display format
+  const displayMessages = useMemo(() => chatMessages, [chatMessages]);
 
+  // File upload handler
+  const handleFileUpload = async (files: FileList) => {
     const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
-    if (imageFiles.length === 0) return;
+    const pdfFiles = Array.from(files).filter(file => file.type === 'application/pdf');
+
+    if (imageFiles.length === 0 && pdfFiles.length === 0) return;
 
     setIsUploadingImages(true);
 
     try {
-      const formData = new FormData();
-      imageFiles.forEach(file => formData.append('images', file));
+      // Handle image uploads
+      if (imageFiles.length > 0) {
+        const formData = new FormData();
+        imageFiles.forEach(file => formData.append('images', file));
 
-      const token = localStorage.getItem('auth_token');
-      if (!token) throw new Error('No authentication token found');
+        const token = localStorage.getItem('auth_token');
+        if (!token) throw new Error('No authentication token found');
 
-      const response = await fetch('http://localhost:4000/upload/property-images', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData,
-      });
+        const response = await fetch('http://localhost:4000/upload/property-images', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData,
+        });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to upload images');
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || 'Failed to upload images');
+        }
+
+        const result = await response.json();
+
+        if (result.success && result.data) {
+          const imageUrls = result.data.map((img: any) => img.original);
+          setUploadedImages(prev => [...prev, ...imageUrls]);
+          setListingData((prev: any) => ({ ...prev, images: [...(prev.images || []), ...imageUrls] }));
+          addBotMessage(`Super! Ich habe ${imageUrls.length} Bild${imageUrls.length > 1 ? 'er' : ''} erhalten. Du kannst noch mehr Bilder hinzufügen oder mir von deiner Immobilie erzählen.`);
+        }
       }
 
-      const result = await response.json();
-
-      if (result.success && result.data) {
-        const imageUrls = result.data.map((img: any) => img.original);
-        setUploadedImages(prev => [...prev, ...imageUrls]);
-        setListingData((prev: any) => ({ ...prev, images: [...(prev.images || []), ...imageUrls] }));
-        console.log(`✅ Successfully uploaded ${imageUrls.length} images`);
-
-        // Show success message in chat
-        addBotMessage(`Super! Ich habe ${imageUrls.length} Bild${imageUrls.length > 1 ? 'er' : ''} erhalten. ${uploadedImages.length + imageUrls.length > 0 ? 'Du kannst noch mehr Bilder hinzufügen oder mir von deiner Immobilie erzählen.' : ''}`);
+      // Handle PDF uploads (if needed)
+      if (pdfFiles.length > 0) {
+        addBotMessage('PDF-Verarbeitung wird noch implementiert. Bitte beschreibe deine Immobilie stattdessen.');
       }
     } catch (error) {
-      console.error('❌ Failed to upload images:', error);
-      addBotMessage(`Entschuldigung, beim Hochladen der Bilder ist ein Fehler aufgetreten. Bitte versuche es nochmal.`);
+      console.error('Failed to upload files:', error);
+      addBotMessage('Entschuldigung, beim Hochladen der Dateien ist ein Fehler aufgetreten. Bitte versuche es nochmal.');
     } finally {
       setIsUploadingImages(false);
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    processImageFiles(e.target.files);
-    e.target.value = '';
-  };
+  // Handle send message
+  const handleSendMessage = async (messageContent: string) => {
+    if (!messageContent.trim() || extractDataMutation.isLoading) return;
 
-  const handleRemoveImage = (index: number) => {
-    const newImages = uploadedImages.filter((_, i) => i !== index);
-    setUploadedImages(newImages);
-    setListingData((prev: any) => ({ ...prev, images: newImages }));
-  };
-
-  // Drag and drop handlers for chat area
-  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.dataTransfer.types.includes('Files')) {
-      setIsDragOver(true);
-    }
-  };
-
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    // Only set isDragOver to false if we're leaving the chat container
-    if (e.currentTarget === e.target) {
-      setIsDragOver(false);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(false);
-    const files = e.dataTransfer.files;
-    if (files && files.length > 0) {
-      processImageFiles(files);
-    }
-  };
-
-  // Handle text message
-  const handleSendMessage = async () => {
-    if (!textInput.trim() || extractDataMutation.isLoading) return;
-
-    const userMessage = textInput.trim();
+    addUserMessage(messageContent);
     setTextInput('');
-    addUserMessage(userMessage);
 
-    // Add to conversation history
     const newHistory = [
       ...conversationHistory,
-      { role: 'user' as const, content: userMessage },
+      { role: 'user' as const, content: messageContent },
     ];
     setConversationHistory(newHistory);
 
     try {
-      // Call AI extraction
       const result = await extractDataMutation.mutateAsync({
-        message: userMessage,
+        message: messageContent,
         conversationHistory: newHistory,
         currentData: listingData,
       });
 
-      // Update listing data
       setListingData(result.extractedData);
 
-      // Add to conversation history
       setConversationHistory([
         ...newHistory,
         { role: 'assistant' as const, content: result.response },
       ]);
 
-      // Add bot response
-      addBotMessage(result.response, result.extractedData);
+      addBotMessage(result.response);
 
-      // Check if complete
       if (result.isComplete) {
         setIsComplete(true);
         setTimeout(() => {
           addBotMessage(
-            '🎉 Perfekt! Ich habe alle wichtigen Informationen. ' +
+            'Perfekt! Ich habe alle wichtigen Informationen. ' +
             'Du kannst das Inserat jetzt veröffentlichen oder noch weitere Details hinzufügen.'
           );
         }, 500);
       } else if (result.followUpQuestion) {
-        // AI has a follow-up question
         setTimeout(() => {
           addBotMessage(result.followUpQuestion);
         }, 500);
       }
     } catch (error) {
       console.error('Error extracting data:', error);
-      addBotMessage(
-        '❌ Entschuldigung, da ist etwas schiefgegangen. Kannst du es bitte nochmal versuchen?'
-      );
+      addBotMessage('Entschuldigung, da ist etwas schiefgegangen. Kannst du es bitte nochmal versuchen?');
     }
   };
 
@@ -247,18 +180,15 @@ export default function CreateListingAIPage() {
     setIsSubmitting(true);
 
     try {
-      // Prepare property data
       const propertyData = {
         ...listingData,
         user_id: user?.id,
         images: uploadedImages.length > 0 ? uploadedImages : ['https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800'],
       };
 
-      // Create property
-      const result = await createPropertyMutation.mutateAsync(propertyData);
+      await createPropertyMutation.mutateAsync(propertyData);
 
-      // Success
-      addBotMessage('✅ Dein Inserat wurde erfolgreich erstellt! Ich leite dich zur Übersicht weiter...');
+      addBotMessage('Dein Inserat wurde erfolgreich erstellt! Ich leite dich zur Übersicht weiter...');
 
       setTimeout(() => {
         router.push('/my-properties');
@@ -295,6 +225,17 @@ export default function CreateListingAIPage() {
     },
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="flex items-center justify-center" style={{ minHeight: 'calc(100vh - 80px)' }}>
+          <Loader2 className="animate-spin text-primary" size={48} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
@@ -310,158 +251,33 @@ export default function CreateListingAIPage() {
         </button>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8" style={{ height: 'calc(100vh - 180px)' }}>
-          {/* Chat Section */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-full">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-primary to-primary/80 text-white px-6 py-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                  <Sparkles size={24} />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold">AI-Assistent</h2>
-                  <p className="text-sm text-white/80">Powered by GPT-4</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Messages - Drag & Drop Zone */}
-            <div
-              className="flex-1 overflow-y-auto p-6 space-y-4 relative"
-              onDragEnter={handleDragEnter}
-              onDragLeave={handleDragLeave}
-              onDragOver={handleDragOver}
-              onDrop={handleDrop}
-            >
-              {/* Drag overlay */}
-              {isDragOver && (
-                <div className="absolute inset-0 bg-primary/10 border-4 border-dashed border-primary rounded-lg z-10 flex items-center justify-center pointer-events-none">
-                  <div className="bg-white rounded-xl px-6 py-4 shadow-lg">
-                    <ImagePlus size={48} className="text-primary mx-auto mb-2" />
-                    <p className="text-lg font-medium text-primary">Bilder hier ablegen</p>
-                  </div>
-                </div>
-              )}
-
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                      msg.type === 'user'
-                        ? 'bg-primary text-white'
-                        : 'bg-gray-100 text-gray-900'
-                    }`}
-                  >
-                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                  </div>
-                </div>
-              ))}
-
-              {/* Show uploaded images in chat */}
-              {uploadedImages.length > 0 && (
-                <div className="flex justify-end">
-                  <div className="max-w-[80%]">
-                    <div className="flex flex-wrap gap-2">
-                      {uploadedImages.map((img, idx) => (
-                        <div key={idx} className="relative">
-                          <img
-                            src={img}
-                            alt={`Upload ${idx + 1}`}
-                            className="w-24 h-24 object-cover rounded-lg"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {extractDataMutation.isLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-gray-100 rounded-2xl px-4 py-3 flex items-center gap-2">
-                    <Loader2 size={16} className="animate-spin" />
-                    <p className="text-sm text-gray-600">Ela analysiert deine Nachricht...</p>
-                  </div>
-                </div>
-              )}
-
-              {isUploadingImages && (
-                <div className="flex justify-end">
-                  <div className="bg-primary/10 rounded-2xl px-4 py-3 flex items-center gap-2">
-                    <Loader2 size={16} className="animate-spin text-primary" />
-                    <p className="text-sm text-primary">Bilder werden hochgeladen...</p>
-                  </div>
-                </div>
-              )}
-
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Chat Input with + Button */}
-            {currentStep === 'chat' && (
-              <div className="p-4 border-t border-gray-200">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  multiple
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-
-                <div className="flex gap-2">
-                  {/* Image Upload Button */}
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploadingImages}
-                    className="bg-gray-100 hover:bg-gray-200 text-gray-700 p-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                    title="Bilder hochladen"
-                  >
-                    <ImagePlus size={20} />
-                  </button>
-
-                  {/* Text Input */}
-                  <input
-                    type="text"
-                    value={textInput}
-                    onChange={(e) => setTextInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                    placeholder="Beschreibe deine Immobilie..."
-                    disabled={extractDataMutation.isLoading}
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  />
-
-                  {/* Send Button */}
-                  <button
-                    onClick={handleSendMessage}
-                    disabled={!textInput.trim() || extractDataMutation.isLoading}
-                    className="bg-primary hover:bg-primary/90 text-white p-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Send size={20} />
-                  </button>
-                </div>
-
-                {isComplete && (
-                  <button
-                    onClick={handleSubmit}
-                    disabled={isSubmitting}
-                    className="w-full mt-3 bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 size={20} className="animate-spin" />
-                        Wird erstellt...
-                      </>
-                    ) : (
-                      'Inserat veröffentlichen'
-                    )}
-                  </button>
-                )}
-              </div>
-            )}
+          {/* Chat Section - Using UniversalChat */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <UniversalChat
+              messages={displayMessages}
+              header={{
+                title: 'Ela - Deine KI-Assistentin',
+                subtitle: 'Powered by GPT-4',
+                icon: <Sparkles size={20} className="text-gray-600" />,
+              }}
+              input={{
+                placeholder: 'Beschreibe deine Immobilie...',
+                disabled: currentStep !== 'chat' || extractDataMutation.isLoading,
+                showFileUpload: true,
+                acceptedFileTypes: 'image/jpeg,image/png,image/webp,image/gif,application/pdf',
+                multipleFiles: true,
+              }}
+              inputValue={textInput}
+              onInputChange={setTextInput}
+              onSendMessage={handleSendMessage}
+              onFileUpload={handleFileUpload}
+              isTyping={extractDataMutation.isLoading}
+              typingText="Ela analysiert deine Nachricht..."
+              isUploading={isUploadingImages}
+              enableDragDrop={true}
+              showTimestamps={false}
+              showSenderNames={true}
+            />
           </div>
 
           {/* Preview Section */}
@@ -469,6 +285,24 @@ export default function CreateListingAIPage() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sticky top-8">
               <h3 className="text-lg font-semibold mb-4">Live-Vorschau</h3>
               <PropertyPreview data={previewData} showActions={false} />
+
+              {/* Publish Button */}
+              {isComplete && (
+                <button
+                  onClick={handleSubmit}
+                  disabled={isSubmitting}
+                  className="w-full mt-4 bg-gray-900 hover:bg-gray-800 text-white py-3 rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 size={20} className="animate-spin" />
+                      Wird erstellt...
+                    </>
+                  ) : (
+                    'Inserat veröffentlichen'
+                  )}
+                </button>
+              )}
 
               {/* Extracted Fields Info */}
               {Object.keys(listingData).length > 0 && (

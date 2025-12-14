@@ -7,14 +7,14 @@
 import { useEffect, useState, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthContext } from '@/app/providers/AuthProvider';
-import { PropertyPreview, PropertyPreviewData } from '../../components/PropertyPreview';
-import { SlideshowManagerProvider } from '../../components/SlideshowManagerContext';
-import { PropertyImageSlideshow } from '../../components/PropertyImageSlideshow';
+import { PropertyPreview, PropertyPreviewData } from './PropertyPreview';
+import { SlideshowManagerProvider } from './SlideshowManagerContext';
+import { PropertyImageSlideshow } from './PropertyImageSlideshow';
 import { trpc } from '@/lib/trpc';
 import { MessageSquare, Eye, Images, Loader2 } from 'lucide-react';
-import { useConversationalAI } from '../hooks/useConversationalAI';
-import { useImageUpload } from '../hooks/useImageUpload';
-import type { ListingData } from '../types';
+import { useConversationalAI } from '../create-listing/hooks/useConversationalAI';
+import { useImageUpload } from '../create-listing/hooks/useImageUpload';
+import type { ListingData } from '../create-listing/types';
 
 // Lazy load ChatInterface for better initial load performance
 const ChatInterface = lazy(() => import('./ChatInterface').then(mod => ({ default: mod.ChatInterface })));
