@@ -75,10 +75,10 @@ export function PropertyListThumbnail({
       {onDelete && (
         <button
           onClick={onDelete}
-          className="absolute top-2 right-2 z-20 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors shadow-md"
+          className="absolute bottom-2 right-2 z-20 w-8 h-8 bg-white hover:bg-gray-100 text-gray-900 rounded-full flex items-center justify-center transition-colors shadow-md border border-gray-200"
           title={deleteTooltip}
         >
-          <X size={14} />
+          <X size={18} />
         </button>
       )}
 
@@ -136,30 +136,30 @@ export function PropertyListThumbnail({
         <div className="flex-1 p-3 min-w-0 flex flex-col justify-center">
           {/* Price */}
           {price !== undefined && (
-            <p className="text-primary font-bold text-sm">{formatPrice(price)}</p>
+            <p className="text-primary font-bold text-base">{formatPrice(price)}</p>
           )}
 
           {/* Title */}
-          <h3 className="font-medium text-gray-900 text-sm truncate mt-0.5">{title}</h3>
+          <h3 className="font-medium text-gray-900 text-base truncate mt-0.5">{title}</h3>
 
           {/* Location */}
           {location && (
-            <p className="text-xs text-gray-500 mt-1 flex items-center gap-1 truncate">
-              <MapPin size={10} className="flex-shrink-0" />
+            <p className="text-sm text-gray-500 mt-1 flex items-center gap-1 truncate">
+              <MapPin size={12} className="flex-shrink-0" />
               <span className="truncate">{location}</span>
             </p>
           )}
 
           {/* Role Info (for messages) */}
           {roleLabel && roleValue && (
-            <div className="text-xs text-gray-600 mt-1">
+            <div className="text-sm text-gray-600 mt-1">
               <span className="font-medium">{roleLabel}:</span>{' '}
               <span className="truncate">{roleValue}</span>
             </div>
           )}
 
           {/* Bottom Row - Property Stats or Date */}
-          <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+          <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
             {/* Property details */}
             {rooms !== undefined && sqm !== undefined && price !== undefined && (
               <>
@@ -175,12 +175,12 @@ export function PropertyListThumbnail({
             {viewCount !== undefined && favoriteCount !== undefined && (
               <>
                 <span className="flex items-center gap-1">
-                  <Eye size={12} />
+                  <Eye size={14} />
                   {viewCount}
                 </span>
                 <span>•</span>
                 <span className="flex items-center gap-1">
-                  <Heart size={12} />
+                  <Heart size={14} />
                   {favoriteCount}
                 </span>
               </>
@@ -189,7 +189,7 @@ export function PropertyListThumbnail({
             {/* Last message date */}
             {lastMessageDate && (
               <span className="flex items-center gap-1">
-                <Clock size={10} className="flex-shrink-0" />
+                <Clock size={12} className="flex-shrink-0" />
                 {lastMessageDate.toLocaleDateString('de-DE')}
               </span>
             )}

@@ -6,6 +6,7 @@ import type { MessageAttachment } from './types';
 interface AttachmentCardProps {
   attachment: MessageAttachment;
   isUser: boolean;
+  onClick?: () => void;
 }
 
 /**
@@ -15,6 +16,7 @@ interface AttachmentCardProps {
 export function AttachmentCard({
   attachment,
   isUser,
+  onClick,
 }: AttachmentCardProps) {
   const isPdf = attachment.type === 'application/pdf';
 
@@ -32,9 +34,9 @@ export function AttachmentCard({
         className={`
           relative max-w-[280px] rounded-2xl overflow-hidden shadow-sm
           border border-gray-200 bg-white
-          ${isPdf ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}
+          ${(onClick || isPdf) ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}
         `}
-        onClick={isPdf ? handlePdfClick : undefined}
+        onClick={isPdf ? handlePdfClick : onClick}
       >
         {/* Preview Image (for images and PDF thumbnails) */}
         {previewUrl ? (

@@ -413,55 +413,53 @@ export const messagingRouter = router({
       // Emit new message via Socket.io
       emitNewMessage(input.conversationId, userMessage);
 
-      // If buyer sends message, trigger AI response
-      if (isBuyer) {
+      // If buyer sends message with text content, trigger AI response
+      // Skip AI response for attachment-only messages (images, PDFs)
+      const hasTextContent = input.content.trim().length > 0;
+
+      if (isBuyer && hasTextContent) {
         try {
           const qaResponse = await answerPropertyQuestion(
             conversation.property_id,
             input.content
           );
 
-          // AI responds ALWAYS - either with answer or with forwarding message
-          const aiResponseContent = qaResponse.shouldForwardToSeller
-            ? 'Diese Information liegt mir leider nicht vor, aber ich werde Ihre Frage an den Verkäufer weiterleiten.'
-            : qaResponse.answer;
-          const forwardedToSeller = qaResponse.shouldForwardToSeller;
-
-          if (forwardedToSeller) {
+          // Only respond if AI has an answer (don't respond if forwarding to seller)
+          if (qaResponse.shouldForwardToSeller) {
             console.log(`[Messaging] Question forwarded to seller (low AI confidence): ${recipientProfileId}`);
+            // No AI response - seller will see the question directly
+          } else {
+            // Insert AI response only when we have a good answer
+            const aiMessageResult = await db.query(
+              `INSERT INTO messages (
+                conversation_id,
+                sender_type,
+                content,
+                is_ai_generated,
+                ai_confidence,
+                forwarded_to_seller
+              ) VALUES ($1, 'ai', $2, true, $3, false)
+              RETURNING id, created_at`,
+              [
+                input.conversationId,
+                qaResponse.answer,
+                qaResponse.confidence,
+              ]
+            );
+
+            const aiMessage = {
+              id: aiMessageResult.rows[0].id,
+              senderType: 'ai',
+              content: qaResponse.answer,
+              isAiGenerated: true,
+              aiConfidence: qaResponse.confidence,
+              forwardedToSeller: false,
+              createdAt: aiMessageResult.rows[0].created_at,
+            };
+
+            // Emit AI message
+            emitNewMessage(input.conversationId, aiMessage);
           }
-
-          // Insert AI response
-          const aiMessageResult = await db.query(
-            `INSERT INTO messages (
-              conversation_id,
-              sender_type,
-              content,
-              is_ai_generated,
-              ai_confidence,
-              forwarded_to_seller
-            ) VALUES ($1, 'ai', $2, true, $3, $4)
-            RETURNING id, created_at`,
-            [
-              input.conversationId,
-              aiResponseContent,
-              qaResponse.confidence,
-              forwardedToSeller,
-            ]
-          );
-
-          const aiMessage = {
-            id: aiMessageResult.rows[0].id,
-            senderType: 'ai',
-            content: aiResponseContent,
-            isAiGenerated: true,
-            aiConfidence: qaResponse.confidence,
-            forwardedToSeller,
-            createdAt: aiMessageResult.rows[0].created_at,
-          };
-
-          // Emit AI message
-          emitNewMessage(input.conversationId, aiMessage);
         } catch (error) {
           console.error('[Messaging] AI Q&A failed:', error);
           // On error, forward to seller without AI response or notification

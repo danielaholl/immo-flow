@@ -13,6 +13,13 @@ export interface MessageAttachment {
   thumbnailUrl?: string;
 }
 
+/** Gallery/Lightbox state for image viewing */
+export interface GalleryState {
+  isOpen: boolean;
+  attachments: MessageAttachment[];
+  initialIndex: number;
+}
+
 export interface ChatMessage {
   id: string;
   content: string;

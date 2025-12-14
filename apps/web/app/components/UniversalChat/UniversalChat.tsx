@@ -1,9 +1,10 @@
 'use client';
 
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { Send, Loader2, ArrowLeft, Paperclip, Bot } from 'lucide-react';
-import type { UniversalChatProps, ChatMessage } from './types';
+import type { UniversalChatProps, ChatMessage, GalleryState, MessageAttachment } from './types';
 import { AttachmentCard } from './AttachmentCard';
+import { AttachmentGallery } from './AttachmentGallery';
 
 /**
  * Universal Chat Component
@@ -45,6 +46,11 @@ export function UniversalChat({
   const [internalIsDragOver, setInternalIsDragOver] = useState(false);
   const isDragOver = externalIsDragOver !== undefined ? externalIsDragOver : internalIsDragOver;
   const [localInputValue, setLocalInputValue] = useState('');
+  const [galleryState, setGalleryState] = useState<GalleryState>({
+    isOpen: false,
+    attachments: [],
+    initialIndex: 0,
+  });
 
   // Use controlled or uncontrolled input
   const currentValue = onInputChange ? inputValue : localInputValue;
@@ -81,6 +87,23 @@ export function UniversalChat({
       borderColor: 'border border-yellow-200',
     },
   } = style;
+
+  // Collect all image attachments from messages for gallery navigation
+  const allImageAttachments = useMemo(() => {
+    return messages.flatMap((msg) =>
+      (msg.attachments || []).filter((a) => a.type.startsWith('image/'))
+    );
+  }, [messages]);
+
+  // Open gallery for a specific attachment
+  const openGallery = useCallback((attachment: MessageAttachment) => {
+    const index = allImageAttachments.findIndex((a) => a.url === attachment.url);
+    setGalleryState({
+      isOpen: true,
+      attachments: allImageAttachments,
+      initialIndex: index >= 0 ? index : 0,
+    });
+  }, [allImageAttachments]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -198,7 +221,7 @@ export function UniversalChat({
               {/* Sender Info */}
               {!isUser && showSenderNames && msg.senderName && (
                 <div className="flex items-center gap-2 mb-1 ml-1">
-                  {isBot && <Bot size={16} className="text-primary" />}
+                  {msg.sender === 'bot' && <Bot size={16} className="text-primary" />}
                   <span className="text-sm text-gray-500 font-medium">
                     {msg.senderName}
                   </span>
@@ -234,13 +257,17 @@ export function UniversalChat({
         {/* Attachments as Standalone Cards (outside bubble) */}
         {hasAttachments && (
           <div className={`space-y-2 ${hasContent ? 'mt-1' : ''}`}>
-            {msg.attachments!.map((attachment, idx) => (
-              <AttachmentCard
-                key={`${msg.id}-attachment-${idx}`}
-                attachment={attachment}
-                isUser={isUser}
-              />
-            ))}
+            {msg.attachments!.map((attachment, idx) => {
+              const isImage = attachment.type.startsWith('image/');
+              return (
+                <AttachmentCard
+                  key={`${msg.id}-attachment-${idx}`}
+                  attachment={attachment}
+                  isUser={isUser}
+                  onClick={isImage ? () => openGallery(attachment) : undefined}
+                />
+              );
+            })}
 
             {/* Timestamp after attachments */}
             {showTimestamps && msg.timestamp && (
@@ -409,6 +436,14 @@ export function UniversalChat({
           </button>
         </div>
       </div>
+
+      {/* Image Gallery Lightbox */}
+      <AttachmentGallery
+        isOpen={galleryState.isOpen}
+        attachments={galleryState.attachments}
+        initialIndex={galleryState.initialIndex}
+        onClose={() => setGalleryState((prev) => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }

@@ -79,7 +79,7 @@ export default function MessagesPage() {
         sender = 'user';
       } else if (isAI) {
         sender = 'ai';
-        senderName = 'KI-Assistent';
+        senderName = otherDisplayName; // Show seller name instead of "KI-Assistent"
       } else if (isSystem) {
         sender = 'system';
       } else {
