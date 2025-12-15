@@ -355,13 +355,11 @@ export function UniversalChat({
             {/* Typing Indicator */}
             {isTyping && (
               <div className="flex justify-start">
-                <div className="bg-gray-100 rounded-xl rounded-bl-none px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <div className="flex gap-1">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                    </div>
+                <div className={`${botBubble.bgColor} ${botBubble.borderColor} ${botBubble.borderRadius} px-4 py-3`}>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 bg-gray-900 rounded-full animate-[bounce_1s_ease-in-out_infinite]" style={{ animationDelay: '0ms' }} />
+                    <div className="w-2 h-2 bg-gray-900 rounded-full animate-[bounce_1s_ease-in-out_infinite]" style={{ animationDelay: '200ms' }} />
+                    <div className="w-2 h-2 bg-gray-900 rounded-full animate-[bounce_1s_ease-in-out_infinite]" style={{ animationDelay: '400ms' }} />
                   </div>
                 </div>
               </div>
@@ -418,7 +416,7 @@ export function UniversalChat({
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             disabled={disabled || isSending}
-            className="flex-1 min-w-0 resize-none border border-gray-300 rounded-lg px-4 focus:outline-none focus:ring-0 focus:border-gray-900 bg-transparent text-base h-12 leading-[46px] transition-colors"
+            className="flex-1 min-w-0 resize-none border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-0 focus:border-gray-900 bg-transparent text-base h-12 leading-normal transition-colors"
             rows={1}
           />
 

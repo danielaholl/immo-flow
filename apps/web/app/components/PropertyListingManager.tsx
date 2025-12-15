@@ -1092,7 +1092,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
               input={{
                 placeholder: isEditMode
                   ? "Was möchtest du ändern?"
-                  : "Beschreibe deine Immobilie oder lade ein PDF hoch...",
+                  : "Erzähl mir davon...",
                 disabled: extractDataMutation.isLoading || isAnalyzingPdf,
                 showFileUpload: true,
                 acceptedFileTypes: "image/jpeg,image/png,image/webp,image/gif,application/pdf",

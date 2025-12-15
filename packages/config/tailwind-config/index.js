@@ -57,6 +57,36 @@ module.exports = {
           good: '#F59E0B',      // Yellow - 70-84
           poor: '#EF4444',      // Red - below 70
         },
+        // Accent colors (from placeholder_house.png inspiration)
+        accent: {
+          // Pool water - refreshing, clean, trust
+          aqua: {
+            DEFAULT: '#7DD3E8',
+            light: '#B5E8F0',
+            50: '#E8F9FC',
+          },
+          // Warm white - soft backgrounds
+          cream: {
+            DEFAULT: '#FFF5F5',
+            dark: '#F5EDE8',
+          },
+          // Sky blue - calm, professional
+          sky: {
+            DEFAULT: '#E8F4F8',
+          },
+          // Cherry blossom - soft highlights
+          blush: {
+            DEFAULT: '#FDF4F8',
+            dark: '#FADADD',
+          },
+        },
+      },
+      // Premium shadows with glow effects
+      boxShadow: {
+        'glow': '0 0 24px rgba(255, 56, 92, 0.3)',
+        'glow-aqua': '0 0 24px rgba(125, 211, 232, 0.3)',
+        'soft': '0 4px 20px rgba(0, 0, 0, 0.08)',
+        'card': '0 8px 32px rgba(0, 0, 0, 0.12)',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

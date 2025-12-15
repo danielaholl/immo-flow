@@ -47,6 +47,22 @@ export const colors = {
   scoreGood: '#F59E0B', // Yellow - 70-84
   scorePoor: '#EF4444', // Red - below 70
 
+  // Accent colors (from placeholder_house.png inspiration)
+  accent: {
+    // Pool water - refreshing, clean, trust
+    aqua: '#7DD3E8',
+    aquaLight: '#B5E8F0',
+    aqua50: '#E8F9FC',
+    // Warm white - soft backgrounds
+    cream: '#FFF5F5',
+    creamDark: '#F5EDE8',
+    // Sky blue - calm, professional
+    sky: '#E8F4F8',
+    // Cherry blossom - soft highlights
+    blush: '#FDF4F8',
+    blushDark: '#FADADD',
+  },
+
   // Overlay colors
   overlay: 'rgba(0, 0, 0, 0.5)',
   overlayLight: 'rgba(0, 0, 0, 0.2)',
