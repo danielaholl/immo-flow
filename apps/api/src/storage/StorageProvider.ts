@@ -22,6 +22,13 @@ export interface ImageVariant {
   large: string; // 1200x900
 }
 
+export interface VideoUploadResult {
+  url: string;
+  filename: string;
+  size: number;
+  mimetype: string;
+}
+
 export abstract class StorageProvider {
   /**
    * Upload a single file
@@ -69,4 +76,12 @@ export abstract class StorageProvider {
     file: Express.Multer.File,
     folder: string
   ): Promise<UploadedFileWithThumbnail>;
+
+  /**
+   * Upload a video file
+   */
+  abstract uploadVideo(
+    file: Express.Multer.File,
+    folder: string
+  ): Promise<VideoUploadResult>;
 }

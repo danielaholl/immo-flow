@@ -29,6 +29,7 @@ export function PropertyCard({
     <View style={styles.card}>
       <PropertyImageSlideshow
         images={property.images}
+        videoUrl={property.video_url}
         title={property.title}
         duration={slideshowDuration}
         isActive={isActive}

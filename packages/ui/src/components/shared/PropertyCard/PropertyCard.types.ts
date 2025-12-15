@@ -19,6 +19,7 @@ export interface Property {
   sqm: number;
   rooms: number;
   images: string[];
+  video_url?: string | null;
   propertyType?: PropertyType;
   aiScore?: number;
   ai_investment_score?: number;

@@ -17,9 +17,9 @@ module.exports = {
         // Surface colors
         surface: {
           DEFAULT: '#FFFFFF',
-          variant: '#F7F7F7',
+          variant: '#FFFFFF',
         },
-        background: '#F7F7F7',
+        background: '#FFFFFF',
         // Text colors
         text: {
           primary: '#222222',
@@ -67,8 +67,8 @@ module.exports = {
           },
           // Warm white - soft backgrounds
           cream: {
-            DEFAULT: '#FFF5F5',
-            dark: '#F5EDE8',
+            DEFAULT: '#FFFFFF',
+            dark: '#FFFFFF',
           },
           // Sky blue - calm, professional
           sky: {
@@ -76,8 +76,8 @@ module.exports = {
           },
           // Cherry blossom - soft highlights
           blush: {
-            DEFAULT: '#FDF4F8',
-            dark: '#FADADD',
+            DEFAULT: '#FFFFFF',
+            dark: '#FFFFFF',
           },
         },
       },
@@ -92,8 +92,8 @@ module.exports = {
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
       fontSize: {
-        'xs': '0.75rem',      // 12px
-        'sm': '0.875rem',     // 14px
+        'xs': '1rem',         // 16px (minimum)
+        'sm': '1rem',         // 16px (minimum)
         'base': '1rem',       // 16px
         'lg': '1.125rem',     // 18px
         'xl': '1.25rem',      // 20px

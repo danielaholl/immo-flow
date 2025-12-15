@@ -26,6 +26,23 @@ const uploadImages = multer({
   },
 });
 
+// Configure Multer for video uploads
+const uploadVideos = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 100 * 1024 * 1024, // 100MB max file size for videos
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept only video files
+    const allowedMimes = ['video/mp4', 'video/quicktime', 'video/webm', 'video/mpeg'];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only MP4, MOV, WebM, and MPEG videos are allowed'));
+    }
+  },
+});
+
 // Configure Multer for document uploads (PDFs, images, etc.)
 const uploadDocuments = multer({
   storage: multer.memoryStorage(),
@@ -142,6 +159,37 @@ router.post(
       console.error('Error uploading avatar:', error);
       return res.status(500).json({
         error: 'Failed to upload avatar',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+);
+
+/**
+ * POST /upload/property-video
+ * Upload a single property video (max 100MB)
+ */
+router.post(
+  '/property-video',
+  authenticateToken,
+  uploadVideos.single('video'),
+  async (req: Request, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No video file provided' });
+      }
+
+      const storage = getStorageProvider();
+      const videoResult = await storage.uploadVideo(req.file, 'properties/videos');
+
+      return res.status(200).json({
+        success: true,
+        data: videoResult,
+      });
+    } catch (error) {
+      console.error('Error uploading video:', error);
+      return res.status(500).json({
+        error: 'Failed to upload video',
         details: error instanceof Error ? error.message : 'Unknown error',
       });
     }

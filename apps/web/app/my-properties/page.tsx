@@ -15,6 +15,7 @@ import { PropertyListThumbnail } from '../components/PropertyListThumbnail';
 import { trpc } from '@/lib/trpc';
 import { useMasterDetailNavigation } from '@/app/hooks/useMasterDetailNavigation';
 import { MobileDetailHeader } from '../components/MobileDetailHeader';
+import { PageContainer } from '../components/PageContainer';
 
 type StatusFilter = 'all' | 'active' | 'archived' | 'pending' | 'sold';
 
@@ -297,7 +298,7 @@ export default function MyPropertiesPage() {
 
   if (authLoading || loading) {
     return (
-      <main className="min-h-screen bg-accent-cream">
+      <main className="min-h-screen bg-white">
         <Header />
         <div className="flex items-center justify-center h-[calc(100vh-100px)]">
           <p className="text-gray-500">Lade Immobilien...</p>
@@ -367,11 +368,11 @@ export default function MyPropertiesPage() {
   } : null;
 
   return (
-    <main className="min-h-screen bg-accent-cream">
+    <main className="min-h-screen bg-white">
       <Header />
 
       {properties.length === 0 ? (
-        <div className="container mx-auto px-4 py-12">
+        <PageContainer className="py-12">
           <div className="text-center py-20">
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Home size={48} className="text-gray-300" />
@@ -389,15 +390,14 @@ export default function MyPropertiesPage() {
               </button>
             </Link>
           </div>
-        </div>
+        </PageContainer>
       ) : (
-        <div className="flex flex-col lg:flex-row overflow-hidden" style={{ height: 'calc(100vh - 100px)' }}>
+        <>
           {/* Mobile Header - visible only on small screens when no detail is shown */}
-          <div className={`${selectedPropertyId ? 'hidden' : 'block'} lg:hidden bg-white border-b border-gray-200 p-4`}>
+          <PageContainer noPaddingY className={`${selectedPropertyId ? 'hidden' : 'block'} lg:hidden bg-white border-b border-gray-200 py-4`}>
             <div className="flex items-center justify-between mb-2">
               <div>
                 <h1 className="text-xl font-bold text-gray-900">Meine Inserate</h1>
-                <p className="text-gray-500 text-sm">{properties.length} Immobilien</p>
               </div>
               <Link href="/create-listing">
                 <button className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors">
@@ -406,16 +406,17 @@ export default function MyPropertiesPage() {
                 </button>
               </Link>
             </div>
-          </div>
+          </PageContainer>
 
-          {/* Left Column - Properties List */}
-          <div className={`${selectedPropertyId ? 'hidden' : 'block'} lg:block lg:w-1/4 border-r border-gray-200 overflow-y-auto`}>
-            <div className="p-4">
+          <PageContainer noPaddingY height="calc(100vh - 100px)">
+            <div className="flex flex-col lg:flex-row overflow-hidden h-full">
+              {/* Left Column - Properties List */}
+              <div className={`${selectedPropertyId ? 'hidden' : 'block'} lg:block lg:w-[480px] lg:min-w-[25%] lg:flex-shrink-0 border-r border-gray-200 overflow-y-auto`}>
+                <div className="py-4 pr-4">
               {/* Desktop Header - Hidden on mobile */}
               <div className="hidden lg:flex items-center justify-between mb-4">
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">Meine Inserate</h1>
-                  <p className="text-gray-500 text-sm">{properties.length} Immobilien</p>
                 </div>
                 <Link href="/create-listing">
                   <button className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors">
@@ -495,7 +496,7 @@ export default function MyPropertiesPage() {
           </div>
 
           {/* Right Column - Property Details (same as detail page) */}
-          <div className={`${selectedPropertyId ? 'block' : 'hidden'} lg:block lg:w-3/4 flex flex-col lg:h-[calc(100vh-100px)]`}>
+          <div className={`${selectedPropertyId ? 'block' : 'hidden'} lg:block lg:flex-1 flex flex-col lg:h-[calc(100vh-100px)]`}>
             {selectedProperty ? (
               <>
                 {/* Mobile Detail Header - Only shown on mobile when detail is open */}
@@ -551,15 +552,22 @@ export default function MyPropertiesPage() {
                           </div>
                         )}
                         <div>
-                          <h4 className="font-bold text-gray-900">
+                          <h4 className="font-bold text-gray-900 text-base">
                             {profile?.first_name || profile?.last_name
                               ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
                               : 'Privater Anbieter'}
                           </h4>
-                          {profile?.company ? (
-                            <p className="text-sm text-gray-600">{profile.company}</p>
-                          ) : (
-                            <p className="text-sm text-gray-500">-</p>
+                          {profile?.company && (
+                            <p className="text-base text-gray-600">{profile.company}</p>
+                          )}
+                          {profile?.phone && (
+                            <a
+                              href={`tel:${profile.phone}`}
+                              className="text-base text-gray-600 hover:text-primary transition-colors flex items-center gap-1 mt-1"
+                            >
+                              <Phone size={16} />
+                              <span>{profile.phone}</span>
+                            </a>
                           )}
                         </div>
                       </div>
@@ -651,8 +659,10 @@ export default function MyPropertiesPage() {
                 )}
               </div>
             )}
+            </div>
           </div>
-        </div>
+          </PageContainer>
+        </>
       )}
 
       {/* Delete Property Modal */}

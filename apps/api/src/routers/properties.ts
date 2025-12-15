@@ -191,6 +191,7 @@ export const propertiesRouter = router({
         sqm: z.number().positive().max(100000, 'Square meters value too high'),
         rooms: z.number().positive().int().max(50, 'Too many rooms'),
         images: z.array(z.string().url().max(1000)).max(50).optional(),
+        video_url: z.string().url().max(1000).optional().nullable(),
         features: z.array(z.string().trim().max(100)).max(100).optional(),
         highlights: z.array(z.string().trim().max(100)).max(100).optional(),
         red_flags: z.array(z.string().trim().max(100)).max(100).optional(),
@@ -221,13 +222,13 @@ export const propertiesRouter = router({
       const property = await queryOne(
         `INSERT INTO properties (
           user_id, title, description, price, location, address,
-          sqm, rooms, images, features, highlights, red_flags, status, commission_rate,
+          sqm, rooms, images, video_url, features, highlights, red_flags, status, commission_rate,
           require_address_consent, property_type, postal_code, street_address,
           year_built, floor_level, total_floors, bathrooms, usable_area,
           usable_area_ratio, monthly_fee, condition, heating_type,
           energy_source, energy_certificate, energy_efficiency_class,
           available_from, important_notes
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33)
         RETURNING *`,
         [
           ctx.user.id,
@@ -239,6 +240,7 @@ export const propertiesRouter = router({
           input.sqm,
           input.rooms,
           input.images || [],
+          input.video_url || null,
           input.features || [],
           input.highlights || [],
           input.red_flags || [],
@@ -281,6 +283,7 @@ export const propertiesRouter = router({
         sqm: z.number().positive().max(100000).optional(),
         rooms: z.number().positive().int().max(50).optional(),
         images: z.array(z.string().url().max(1000)).max(50).optional(),
+        video_url: z.string().url().max(1000).nullish(),
         features: z.array(z.string().trim().max(100)).max(100).optional(),
         highlights: z.array(z.string().trim().max(100)).max(100).optional(),
         red_flags: z.array(z.string().trim().max(100)).max(100).optional(),

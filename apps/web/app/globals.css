@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import Inter font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 /* Accent Color Variables (from placeholder_house.png inspiration) */
 :root {
   /* Pool water - refreshing, clean, trust */
@@ -9,13 +12,13 @@
   --accent-aqua-light: #B5E8F0;
   --accent-aqua-50: #E8F9FC;
   /* Warm white - soft backgrounds */
-  --accent-cream: #FFF5F5;
-  --accent-cream-dark: #F5EDE8;
+  --accent-cream: #FFFFFF;
+  --accent-cream-dark: #FFFFFF;
   /* Sky blue - calm, professional */
   --accent-sky: #E8F4F8;
   /* Cherry blossom - soft highlights */
-  --accent-blush: #FDF4F8;
-  --accent-blush-dark: #FADADD;
+  --accent-blush: #FFFFFF;
+  --accent-blush-dark: #FFFFFF;
   /* Primary glow effect */
   --glow-primary: 0 0 24px rgba(255, 56, 92, 0.3);
   --glow-aqua: 0 0 24px rgba(125, 211, 232, 0.3);

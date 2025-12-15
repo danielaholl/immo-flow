@@ -11,6 +11,7 @@ import { CommissionConsentDialog } from '@/app/components/CommissionConsentDialo
 import { PropertyPreview, PropertyPreviewData } from '@/app/components/PropertyPreview';
 import { PropertyActionButtons } from '@/app/components/PropertyActionButtons';
 import { MobileDetailHeader } from '@/app/components/MobileDetailHeader';
+import { PageContainer } from '@/app/components/PageContainer';
 import { ArrowLeft } from 'lucide-react';
 import { InvestmentScoreBadge, PropertyScoreBadge, GlassActionButton } from '@immoflow/ui';
 import { trpc } from '@/lib/trpc';
@@ -366,7 +367,7 @@ export default function PropertyPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-accent-cream flex items-center justify-center">
+      <main className="min-h-screen bg-white flex items-center justify-center">
         <p className="text-gray-500">Lade Property...</p>
       </main>
     );
@@ -457,7 +458,7 @@ export default function PropertyPage() {
   };
 
   return (
-    <main className="min-h-screen bg-accent-cream">
+    <main className="min-h-screen bg-white">
       <Header />
 
       {/* Mobile Detail Header - Only shown on mobile */}
@@ -469,12 +470,13 @@ export default function PropertyPage() {
         />
       </div>
 
-      {/* Two Column Layout - Full Height */}
-      <div className="flex flex-col lg:flex-row" style={{ minHeight: 'calc(100vh - 80px)' }}>
+      {/* Two Column Layout - Full Height, Centered - aligned with Header */}
+      <PageContainer noPaddingY height="calc(100vh - 80px)">
+        <div className="flex flex-col lg:flex-row h-full">
         {/* Left Column - Property Details (Scrollable) */}
         <div className="w-full lg:w-1/2 flex flex-col lg:h-[calc(100vh-80px)] order-2 lg:order-1">
           {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto px-4 py-4 lg:px-8 lg:py-8 pb-48 lg:pb-8">
+          <div className="flex-1 overflow-y-auto py-4 lg:py-8 pr-0 lg:pr-6 pb-20 lg:pb-8">
             {/* Back Button - Only shown on desktop */}
             <button
               onClick={() => router.back()}
@@ -528,9 +530,10 @@ export default function PropertyPage() {
         </div>
 
         {/* Right Column - Property Card with Slideshow */}
-        <div className="w-full lg:w-1/2 lg:sticky lg:top-20 h-[50vh] lg:h-[calc(100vh-80px)] p-4 lg:p-6 order-1 lg:order-2">
+        <div className="w-full lg:w-1/2 lg:sticky lg:top-20 h-[50vh] lg:h-[calc(100vh-80px)] py-4 lg:py-6 pl-0 lg:pl-6 order-1 lg:order-2">
           <PropertyImageSlideshow
             images={property.images}
+            videoUrl={property.video_url}
             title={property.title}
             className="h-full"
             showCounter={true}
@@ -570,7 +573,8 @@ export default function PropertyPage() {
             }
           />
         </div>
-      </div>
+        </div>
+      </PageContainer>
 
       {/* Commission Consent Dialog */}
       <CommissionConsentDialog

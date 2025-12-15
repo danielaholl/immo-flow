@@ -173,6 +173,7 @@ export type Database = {
           usable_area: number | null
           usable_area_ratio: string | null
           user_id: string | null
+          video_url: string | null
           year_built: number | null
           yield: number | null
         }
@@ -223,6 +224,7 @@ export type Database = {
           usable_area?: number | null
           usable_area_ratio?: string | null
           user_id?: string | null
+          video_url?: string | null
           year_built?: number | null
           yield?: number | null
         }
@@ -273,6 +275,7 @@ export type Database = {
           usable_area?: number | null
           usable_area_ratio?: string | null
           user_id?: string | null
+          video_url?: string | null
           year_built?: number | null
           yield?: number | null
         }

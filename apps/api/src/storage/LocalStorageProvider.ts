@@ -3,7 +3,7 @@
  * Stores files on local file system in /public/uploads/
  */
 
-import { StorageProvider, UploadedFile, UploadedFileWithThumbnail, ImageVariant } from './StorageProvider.js';
+import { StorageProvider, UploadedFile, UploadedFileWithThumbnail, ImageVariant, VideoUploadResult } from './StorageProvider.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -201,6 +201,32 @@ export class LocalStorageProvider extends StorageProvider {
       size: file.size,
       mimetype: file.mimetype,
       thumbnailUrl,
+    };
+  }
+
+  /**
+   * Upload a video file
+   */
+  async uploadVideo(
+    file: Express.Multer.File,
+    folder: string
+  ): Promise<VideoUploadResult> {
+    const folderPath = path.join(this.uploadDir, folder);
+    await this.ensureDir(folderPath);
+
+    // Keep original extension for videos (mp4, mov, webm)
+    const ext = path.extname(file.originalname).toLowerCase() || '.mp4';
+    const filename = `${uuidv4()}${ext}`;
+    const filepath = path.join(folderPath, filename);
+
+    // Write video file
+    await fs.writeFile(filepath, file.buffer);
+
+    return {
+      url: this.getPublicUrl(`${folder}/${filename}`),
+      filename,
+      size: file.size,
+      mimetype: file.mimetype,
     };
   }
 }

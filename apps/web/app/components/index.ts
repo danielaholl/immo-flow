@@ -16,3 +16,4 @@ export {
 export { PropertyImageSlideshow } from './PropertyImageSlideshow';
 export { FavoriteButton } from './FavoriteButton';
 export { PropertyActionButtons } from './PropertyActionButtons';
+export { PageContainer } from './PageContainer';

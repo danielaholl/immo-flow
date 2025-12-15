@@ -601,7 +601,7 @@ export default function ProfilePage() {
 
   if (authLoading) {
     return (
-      <main className="min-h-screen bg-accent-cream">
+      <main className="min-h-screen bg-white">
         <Header />
         <div className="flex items-center justify-center h-[calc(100vh-100px)]">
           <p className="text-gray-500">Laden...</p>
@@ -621,7 +621,7 @@ export default function ProfilePage() {
   // ============================================
   if (viewMode === 'overview') {
     return (
-      <main className="min-h-screen bg-accent-cream">
+      <main className="min-h-screen bg-white">
         <Header />
 
         <div className="flex flex-col lg:flex-row gap-6 py-8 max-w-7xl mx-auto">
@@ -1282,7 +1282,7 @@ export default function ProfilePage() {
   );
 
   return (
-    <main className="min-h-screen bg-accent-cream">
+    <main className="min-h-screen bg-white">
       <Header />
 
       <div className="h-[calc(100vh-100px)] flex flex-col px-4 py-4">

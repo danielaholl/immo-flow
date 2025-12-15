@@ -17,6 +17,7 @@ import { PropertyListThumbnail } from '../components/PropertyListThumbnail';
 import { trpc } from '@/lib/trpc';
 import { useMasterDetailNavigation } from '@/app/hooks/useMasterDetailNavigation';
 import { MobileDetailHeader } from '../components/MobileDetailHeader';
+import { PageContainer } from '../components/PageContainer';
 
 export default function FavoritesPage() {
   const { user, profile, loading: authLoading } = useAuthContext();
@@ -221,7 +222,7 @@ export default function FavoritesPage() {
 
   if (authLoading || loading) {
     return (
-      <main className="min-h-screen bg-accent-cream">
+      <main className="min-h-screen bg-white">
         <Header />
         <div className="flex items-center justify-center h-[calc(100vh-100px)]">
           <p className="text-gray-500">Lade Favoriten...</p>
@@ -293,11 +294,11 @@ export default function FavoritesPage() {
   } : null;
 
   return (
-    <main className="min-h-screen bg-accent-cream">
+    <main className="min-h-screen bg-white">
       <Header />
 
       {favorites.length === 0 ? (
-        <div className="container mx-auto px-4 py-12">
+        <PageContainer className="py-12">
           <div className="text-center py-20">
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Heart size={48} className="text-gray-300" />
@@ -322,11 +323,11 @@ export default function FavoritesPage() {
               </Link>
             </div>
           </div>
-        </div>
+        </PageContainer>
       ) : (
         <>
           {/* Mobile Header - Only visible on small screens when no detail is shown */}
-          <div className={`${selectedPropertyId ? 'hidden' : 'block'} lg:hidden bg-white border-b border-gray-200 p-4`}>
+          <PageContainer noPaddingY className={`${selectedPropertyId ? 'hidden' : 'block'} lg:hidden bg-white border-b border-gray-200 py-4`}>
             <div className="flex items-center justify-between mb-2">
               <div>
                 <h1 className="text-xl font-bold text-gray-900">Meine Favoriten</h1>
@@ -339,12 +340,13 @@ export default function FavoritesPage() {
                 </button>
               </Link>
             </div>
-          </div>
+          </PageContainer>
 
-          <div className="flex flex-col lg:flex-row overflow-hidden" style={{ height: 'calc(100vh - 100px)' }}>
+          <PageContainer noPaddingY height="calc(100vh - 100px)">
+            <div className="flex flex-col lg:flex-row overflow-hidden h-full">
             {/* Left Column - Favorites List */}
-            <div className={`${selectedPropertyId ? 'hidden' : 'block'} lg:block lg:w-1/4 border-r border-gray-200 overflow-y-auto`}>
-              <div className="p-4">
+            <div className={`${selectedPropertyId ? 'hidden' : 'block'} lg:block lg:w-[480px] lg:min-w-[25%] lg:flex-shrink-0 border-r border-gray-200 overflow-y-auto`}>
+              <div className="py-4 pr-4">
                 {/* Desktop Header - Hidden on mobile */}
                 <div className="hidden lg:flex items-center justify-between mb-1">
                   <h1 className="text-2xl font-bold text-gray-900">Meine Favoriten</h1>
@@ -392,7 +394,7 @@ export default function FavoritesPage() {
           </div>
 
           {/* Right Column - Property Details (same as detail page) */}
-          <div className={`${selectedPropertyId ? 'block' : 'hidden'} lg:block lg:w-3/4 flex flex-col lg:h-[calc(100vh-100px)]`}>
+          <div className={`${selectedPropertyId ? 'block' : 'hidden'} lg:block lg:flex-1 flex flex-col lg:h-[calc(100vh-100px)]`}>
             {selectedProperty ? (
               <>
                 {/* Mobile Detail Header - Only shown on mobile when detail is open */}
@@ -408,7 +410,7 @@ export default function FavoritesPage() {
                   {/* Left - Property Details (Scrollable) */}
                   <div className="w-full lg:w-1/2 flex flex-col lg:h-[calc(100vh-100px)]">
                   {/* Scrollable Content */}
-                  <div className="flex-1 overflow-y-auto p-4 lg:p-8 pb-48 lg:pb-8">
+                  <div className="flex-1 overflow-y-auto p-4 lg:p-8 pb-20 lg:pb-8">
                     {propertyPreviewData && (
                       <PropertyPreview
                         data={propertyPreviewData}
@@ -465,7 +467,8 @@ export default function FavoritesPage() {
               </div>
             )}
           </div>
-        </div>
+          </div>
+        </PageContainer>
         </>
       )}
 

@@ -516,7 +516,7 @@ export function PropertyPreview({
         </div>
 
         {/* Price Card - Premium Gradient */}
-        <div className="mb-6 p-6 bg-gradient-to-br from-accent-cream via-white to-accent-aqua-50 rounded-2xl border border-accent-cream-dark shadow-card">
+        <div className="mb-6 p-6 bg-white rounded-2xl border border-gray-200">
           {/* Price and Price per sqm - Responsive Layout */}
           <div className="flex flex-wrap justify-between items-start gap-4 mb-4">
             {/* Left: Kaufpreis */}
@@ -527,12 +527,31 @@ export function PropertyPreview({
               </h1>
             </div>
 
-            {/* Right: Preis pro m² - Aqua Highlight */}
-            <div className="text-right bg-accent-aqua-50 px-4 py-3 rounded-xl border border-accent-aqua-light">
-              <p className="text-sm text-accent-aqua mb-1">Preis pro m²</p>
-              <h2 className="font-bold text-accent-aqua" style={{ fontSize: '28px', lineHeight: '1' }}>
-                {pricePerSqm > 0 ? formatPrice(pricePerSqm) : '-'}
-              </h2>
+            {/* Right: Preis pro m² */}
+            <div className="text-right">
+              <p className="text-sm text-gray-500 mb-1">Preis pro m²</p>
+              {(() => {
+                // Determine color based on view type and market comparison
+                let priceColor = 'text-gray-900'; // Default black
+
+                if (evaluationViewType === 'buyer') {
+                  const marketAvgPrice = sellerAnalysisMarketAverage || data.evaluation?.market_average_price_per_sqm;
+                  if (marketAvgPrice && pricePerSqm > 0) {
+                    const difference = ((pricePerSqm - marketAvgPrice) / marketAvgPrice) * 100;
+                    if (difference < -3) {
+                      priceColor = 'text-green-600'; // Under market = good for buyer
+                    } else if (difference > 3) {
+                      priceColor = 'text-red-600'; // Over market = bad for buyer
+                    }
+                  }
+                }
+
+                return (
+                  <h2 className={`font-bold ${priceColor}`} style={{ fontSize: '28px', lineHeight: '1' }}>
+                    {pricePerSqm > 0 ? formatPrice(pricePerSqm) : '-'}
+                  </h2>
+                );
+              })()}
             </div>
           </div>
 
@@ -658,7 +677,7 @@ export function PropertyPreview({
 
         {/* Weitere Details Section - Compact Accordion */}
         {(data.sqm || data.rooms || energyEfficiencyClass || data.available_from || data.year_built || data.bathrooms || data.monthly_fee || data.floor_level || data.total_floors || data.heating_type || data.energy_source || data.energy_certificate || data.usable_area || condition) && (
-          <div className="mb-6 bg-accent-cream rounded-2xl border border-accent-cream-dark shadow-soft overflow-hidden">
+          <div className="mb-6 bg-white rounded-2xl border border-gray-200 overflow-hidden">
             {/* Always Visible - Icons and Values Only */}
             <div className="p-6 flex items-center justify-between gap-4">
               <div className="flex flex-wrap gap-6 items-center">
@@ -914,7 +933,7 @@ export function PropertyPreview({
             : data.description;
 
           return (
-            <div className="mb-6 bg-white rounded-2xl border border-accent-cream-dark shadow-soft overflow-hidden">
+            <div className="mb-6 bg-white rounded-2xl border border-gray-200 overflow-hidden">
               <div className="p-6">
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <h3 className="text-lg font-semibold text-gray-900">Beschreibung</h3>
@@ -934,7 +953,7 @@ export function PropertyPreview({
                 {/* Important Notes as Header - Show if exists */}
                 {data.important_notes && (
                   <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl mb-4">
-                    <p className="text-sm text-gray-700 leading-relaxed">
+                    <p className="text-base text-gray-700 leading-relaxed">
                       {data.important_notes}
                     </p>
                   </div>
@@ -989,7 +1008,7 @@ export function PropertyPreview({
 
         {/* Anbieter Info - Only show when owner data exists */}
         {!hideProviderInfo && data.owner && (
-          <div className="mb-6 bg-accent-blush rounded-2xl border border-accent-blush-dark shadow-soft p-6">
+          <div className="mb-6 bg-white rounded-2xl border border-gray-200 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Anbieter</h3>
 
             {/* Header with Avatar and Name */}

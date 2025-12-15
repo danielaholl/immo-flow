@@ -14,6 +14,7 @@ import { SlideshowManagerProvider } from '../components/SlideshowManagerContext'
 import { joinConversation, leaveConversation, onNewMessage, offNewMessage, sendTypingIndicator, onTypingIndicator, offTypingIndicator, onTypingStop, offTypingStop } from '@/lib/socket';
 import { UniversalChat } from '../components/UniversalChat';
 import type { ChatMessage } from '../components/UniversalChat/types';
+import { PageContainer } from '../components/PageContainer';
 
 export default function MessagesPage() {
   const { user, profile, loading: authLoading } = useAuthContext();
@@ -133,8 +134,8 @@ export default function MessagesPage() {
 
   const selectedConversation = conversations?.find((c) => c.id === selectedConversationId);
 
-  // Fetch property details for the selected conversation
-  const { data: propertyDetails } = trpc.properties.getById.useQuery(
+  // Fetch property details for the selected conversation (with owner info for avatar)
+  const { data: propertyDetails } = trpc.properties.getByIdWithOwner.useQuery(
     { id: selectedConversation?.propertyId || '' },
     { enabled: !!selectedConversation?.propertyId }
   );
@@ -331,7 +332,7 @@ export default function MessagesPage() {
 
   if (authLoading || conversationsLoading) {
     return (
-      <div className="min-h-screen bg-accent-cream">
+      <div className="min-h-screen bg-white">
         <Header />
         <div className="flex items-center justify-center" style={{ minHeight: 'calc(100vh - 80px)' }}>
           <Loader2 className="animate-spin text-primary" size={48} />
@@ -345,12 +346,12 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-accent-cream flex flex-col">
+    <div className="min-h-screen bg-white flex flex-col">
       <Header />
 
       {/* Show full-width empty state if no conversations */}
       {!conversations || conversations.length === 0 ? (
-        <div className="container mx-auto px-4 py-12">
+        <PageContainer className="py-12">
           <div className="text-center py-20">
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <MessageSquare size={48} className="text-gray-400" />
@@ -367,75 +368,79 @@ export default function MessagesPage() {
               </button>
             </Link>
           </div>
-        </div>
+        </PageContainer>
       ) : (
         /* Main Content - 2 Column Layout */
-        <div className="flex overflow-hidden h-[calc(100vh-64px-64px)] lg:h-[calc(100vh-80px)]">
-          {/* Left Column - Conversations List */}
-          <div className={`${selectedConversationId ? 'hidden' : 'block'} lg:block w-full lg:w-[25%] bg-white border-r border-gray-200 flex flex-col overflow-hidden`}>
-            {/* Header with Filter */}
-            <div className="p-4 flex-shrink-0">
-              <h1 className="text-xl font-bold text-gray-900 mb-3">Nachrichten</h1>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setConversationFilter('all')}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                    conversationFilter === 'all'
-                      ? 'bg-gray-900 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  Alle ({conversations?.length || 0})
-                </button>
-                <button
-                  onClick={() => setConversationFilter('unread')}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                    conversationFilter === 'unread'
-                      ? 'bg-gray-900 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  Ungelesen ({unreadConversationsCount})
-                </button>
+        <PageContainer noPaddingX noPaddingY height="calc(100vh - 80px)">
+          <div className="flex overflow-hidden h-full">
+            {/* Left Column - Conversations List */}
+            <div className={`${selectedConversationId ? 'hidden' : 'block'} lg:block w-full lg:w-[25%] lg:flex-shrink-0 bg-white border-r border-gray-200 overflow-y-auto`}>
+              <div className="pb-4 pr-4">
+                {/* Header with Filter */}
+                <div className="flex items-center justify-between mb-4">
+                  <h1 className="text-2xl font-bold text-gray-900">Nachrichten</h1>
+                </div>
+
+                {/* Filter Buttons */}
+                <div className="flex gap-2 mb-4">
+                  <button
+                    onClick={() => setConversationFilter('all')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                      conversationFilter === 'all'
+                        ? 'bg-gray-900 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Alle ({conversations?.length || 0})
+                  </button>
+                  <button
+                    onClick={() => setConversationFilter('unread')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                      conversationFilter === 'unread'
+                        ? 'bg-gray-900 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Ungelesen ({unreadConversationsCount})
+                  </button>
+                </div>
+
+                {/* Conversations List */}
+                <div className="space-y-3">
+                  {filteredConversations.map((conversation) => {
+                    // Show selection: current selected OR last selected (for mobile when back to list)
+                    const isSelected = conversation.id === selectedConversationId ||
+                                     (!selectedConversationId && conversation.id === lastSelectedId);
+                    const convIsBuyer = conversation.role === 'buyer';
+                    const convOtherPerson = conversation.otherParticipant;
+                    const convDisplayName = convOtherPerson.company ||
+                                           `${convOtherPerson.firstName || ''} ${convOtherPerson.lastName || ''}`.trim() ||
+                                           'Unbekannt';
+
+                    return (
+                      <PropertyListThumbnail
+                        key={conversation.id}
+                        id={conversation.id}
+                        title={conversation.propertyTitle || 'Immobilie'}
+                        isSelected={isSelected}
+                        onClick={() => setSelectedConversationId(conversation.id)}
+                        image={conversation.propertyImages?.[0]}
+                        price={conversation.propertyPrice}
+                        roleLabel={convIsBuyer ? 'Verkäufer' : 'Interessent'}
+                        roleValue={convDisplayName}
+                        lastMessageDate={conversation.lastMessageAt ? new Date(conversation.lastMessageAt) : undefined}
+                        unreadCount={conversation.unreadCount}
+                        onDelete={(e) => handleDeleteConversation(conversation.id, e)}
+                        deleteTooltip="Konversation löschen"
+                      />
+                    );
+                  })}
+                </div>
               </div>
             </div>
-
-            {/* Conversations List */}
-            <div className="flex-1 overflow-y-auto">
-              <div className="space-y-3 p-4">
-                {filteredConversations.map((conversation) => {
-                  // Show selection: current selected OR last selected (for mobile when back to list)
-                  const isSelected = conversation.id === selectedConversationId ||
-                                   (!selectedConversationId && conversation.id === lastSelectedId);
-                  const convIsBuyer = conversation.role === 'buyer';
-                  const convOtherPerson = conversation.otherParticipant;
-                  const convDisplayName = convOtherPerson.company ||
-                                         `${convOtherPerson.firstName || ''} ${convOtherPerson.lastName || ''}`.trim() ||
-                                         'Unbekannt';
-
-                  return (
-                    <PropertyListThumbnail
-                      key={conversation.id}
-                      id={conversation.id}
-                      title={conversation.propertyTitle}
-                      isSelected={isSelected}
-                      onClick={() => setSelectedConversationId(conversation.id)}
-                      image={conversation.propertyImages?.[0]}
-                      roleLabel={convIsBuyer ? 'Verkäufer' : 'Interessent'}
-                      roleValue={convDisplayName}
-                      lastMessageDate={conversation.lastMessageAt ? new Date(conversation.lastMessageAt) : undefined}
-                      unreadCount={conversation.unreadCount}
-                      onDelete={(e) => handleDeleteConversation(conversation.id, e)}
-                      deleteTooltip="Konversation löschen"
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          </div>
 
           {/* Middle Column - Conversation View */}
-          <div className={`${selectedConversationId ? 'block' : 'hidden'} lg:block w-full lg:w-[40%] h-full flex flex-col bg-gray-50 overflow-hidden`}>
+          <div className={`${selectedConversationId ? 'flex' : 'hidden'} lg:flex w-full lg:w-[35%] lg:flex-shrink-0 h-full flex-col bg-gray-50 overflow-hidden`}>
             {selectedConversationId && selectedConversation ? (
               (() => {
                 const isBuyer = selectedConversation.role === 'buyer';
@@ -482,7 +487,7 @@ export default function MessagesPage() {
               })()
             ) : (
               // No conversation selected - empty state
-              <div className="flex-1 flex items-center justify-center px-6">
+              <div className="h-full flex items-center justify-center px-6">
                 <div className="text-center max-w-md">
                   <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <MessageSquare size={48} className="text-gray-400" />
@@ -500,7 +505,7 @@ export default function MessagesPage() {
 
           {/* Right Column - Property Preview (Desktop only) */}
           <SlideshowManagerProvider>
-            <div className="hidden lg:flex w-[35%] h-full flex-col bg-white border-l border-gray-200 overflow-hidden">
+            <div className="hidden lg:flex lg:w-[40%] lg:flex-shrink-0 h-full flex-col bg-white border-l border-gray-200 overflow-hidden">
               {selectedConversationId && selectedConversation ? (
                 <div className="h-full flex flex-col min-h-0 overflow-hidden">
                   {/* Image Slideshow - Fixed at top */}
@@ -551,9 +556,9 @@ export default function MessagesPage() {
                             available_from: propertyDetails.available_from,
                             monthly_fee: propertyDetails.monthly_fee,
                             commission_rate: propertyDetails.commission_rate,
+                            owner: propertyDetails.owner,
                           }}
                           showConsentSection={false}
-                          hideProviderInfo={true}
                         />
                       ) : (
                         <div className="space-y-4">
@@ -602,7 +607,8 @@ export default function MessagesPage() {
               )}
             </div>
           </SlideshowManagerProvider>
-        </div>
+          </div>
+        </PageContainer>
       )}
     </div>
   );

@@ -15,8 +15,8 @@ export const colors = {
 
   // Surface colors
   surface: '#FFFFFF',
-  surfaceVariant: '#F7F7F7',
-  background: '#F7F7F7',
+  surfaceVariant: '#FFFFFF',
+  background: '#FFFFFF',
 
   // Text colors
   text: {
@@ -54,13 +54,13 @@ export const colors = {
     aquaLight: '#B5E8F0',
     aqua50: '#E8F9FC',
     // Warm white - soft backgrounds
-    cream: '#FFF5F5',
-    creamDark: '#F5EDE8',
+    cream: '#FFFFFF',
+    creamDark: '#FFFFFF',
     // Sky blue - calm, professional
     sky: '#E8F4F8',
     // Cherry blossom - soft highlights
-    blush: '#FDF4F8',
-    blushDark: '#FADADD',
+    blush: '#FFFFFF',
+    blushDark: '#FFFFFF',
   },
 
   // Overlay colors

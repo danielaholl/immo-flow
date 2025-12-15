@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 
 export interface PropertyImageSlideshowProps {
   images: string[] | null | undefined;
+  /** Video URL for short-form property video (TikTok-style) */
+  videoUrl?: string | null;
   title: string;
   duration?: number; // Duration per image in ms
   showCounter?: boolean;
@@ -19,6 +21,8 @@ export interface PropertyImageSlideshowProps {
   isActive?: boolean;
   /** Callback when slideshow completes (reaches last image) */
   onSlideshowComplete?: () => void;
+  /** Callback when video ends */
+  onVideoEnd?: () => void;
   /** Whether to show gradient overlay at the bottom (for text readability) */
   showGradient?: boolean;
 }

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Home, MapPin, Eye, Heart, Clock, X } from 'lucide-react';
 
 export interface PropertyListThumbnailProps {
@@ -54,6 +55,8 @@ export function PropertyListThumbnail({
   onDelete,
   deleteTooltip = 'Löschen',
 }: PropertyListThumbnailProps) {
+  const [imageError, setImageError] = useState(false);
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('de-DE', {
       style: 'currency',
@@ -65,20 +68,20 @@ export function PropertyListThumbnail({
 
   return (
     <div
-      className={`group relative bg-white border rounded-xl overflow-hidden transition-all h-32 ${
+      className={`group relative bg-white border rounded-xl overflow-hidden transition-all h-32 min-w-[400px] ${
         isSelected
-          ? 'border-primary shadow-md ring-2 ring-primary/20'
-          : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+          ? 'border-primary ring-2 ring-primary/20'
+          : 'border-gray-200 hover:border-gray-300'
       }`}
     >
       {/* Delete Button (X) - Always visible if onDelete provided */}
       {onDelete && (
         <button
           onClick={onDelete}
-          className="absolute bottom-2 right-2 z-20 w-8 h-8 bg-white hover:bg-gray-100 text-gray-900 rounded-full flex items-center justify-center transition-colors shadow-md border border-gray-200"
+          className="absolute top-2 right-2 z-20 w-8 h-8 text-gray-500 hover:text-gray-700 rounded-full flex items-center justify-center transition-all"
           title={deleteTooltip}
         >
-          <X size={18} />
+          <X size={20} />
         </button>
       )}
 
@@ -92,11 +95,12 @@ export function PropertyListThumbnail({
       <div className="flex h-full cursor-pointer" onClick={onClick}>
         {/* Thumbnail - Full height */}
         <div className="relative w-28 flex-shrink-0 bg-gray-100">
-          {image ? (
+          {image && !imageError ? (
             <img
               src={image}
               alt={title}
               className="w-full h-full object-cover"
+              onError={() => setImageError(true)}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
@@ -133,7 +137,7 @@ export function PropertyListThumbnail({
         </div>
 
         {/* Info - Unified font sizes */}
-        <div className="flex-1 p-3 min-w-0 flex flex-col justify-center">
+        <div className="flex-1 p-3 min-w-0 flex flex-col justify-start">
           {/* Price */}
           {price !== undefined && (
             <p className="text-primary font-bold text-base">{formatPrice(price)}</p>

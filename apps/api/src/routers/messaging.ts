@@ -185,7 +185,7 @@ export const messagingRouter = router({
       return {
         id: row.id,
         propertyId: row.property_id,
-        propertyTitle: row.property_title,
+        propertyTitle: row.property_title || 'Immobilie',
         propertyPrice: row.property_price,
         propertyImages: row.property_images,
         propertyCity: row.property_city,

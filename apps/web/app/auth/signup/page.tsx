@@ -50,7 +50,7 @@ export default function SignupPage() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-accent-cream px-4 py-12">
+    <main className="min-h-screen flex items-center justify-center bg-white px-4 py-12">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-lg p-8">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Konto erstellen</h1>

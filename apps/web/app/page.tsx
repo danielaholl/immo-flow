@@ -10,6 +10,7 @@ import { useAuthContext } from './providers/AuthProvider';
 import { trpc } from '@/lib/trpc';
 import { useAuthGuard } from './hooks/useAuthGuard';
 import { LoginPromptModal } from './components/LoginPromptModal';
+import { PageContainer } from './components/PageContainer';
 
 /**
  * Home Page - Property Listing with WhatsApp-style Slideshow
@@ -409,7 +410,7 @@ export default function HomePage() {
   };
 
   return (
-    <main className="min-h-screen bg-accent-cream pb-20 lg:pb-0">
+    <main className="min-h-screen bg-white pb-20 lg:pb-0">
       {/* Header */}
      <Header />
 
@@ -429,7 +430,7 @@ export default function HomePage() {
       </section>
 
       {/* Properties Grid */}
-      <section className="container mx-auto px-4 py-8 sm:py-12 mb-16 lg:mb-0">
+      <PageContainer noPaddingY className="py-8 sm:py-12 mb-16 lg:mb-0 bg-white">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-4">
           <div>
             <h3 className="text-2xl sm:text-3xl font-bold text-text-primary mb-2">
@@ -537,6 +538,7 @@ export default function HomePage() {
                     sqm: property.sqm,
                     rooms: property.rooms,
                     images: (property.images as string[]) || [],
+                    video_url: property.video_url || undefined,
                     propertyType: property.property_type as any,
                     aiScore: property.ai_score || undefined,
                     ai_investment_score: property.ai_investment_score || undefined,
@@ -619,6 +621,7 @@ export default function HomePage() {
                           sqm: property.sqm,
                           rooms: property.rooms,
                           images: (property.images as string[]) || [],
+                          video_url: property.video_url || undefined,
                           propertyType: property.property_type as any,
                           aiScore: property.ai_score || undefined,
                           ai_investment_score: property.ai_investment_score || undefined,
@@ -655,11 +658,11 @@ export default function HomePage() {
             )}
           </div>
         )}
-      </section>
+      </PageContainer>
 
       {/* Footer */}
       <footer className="bg-secondary text-text-inverse py-12 mt-20">
-        <div className="container mx-auto px-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div>
               <h4 className="text-lg font-bold mb-4">NestFlow</h4>

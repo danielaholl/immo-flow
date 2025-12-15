@@ -51,7 +51,7 @@ export function Header() {
     <>
       {/* Main Header */}
       <header className="bg-surface border-b border-border sticky top-0 z-50 h-16 lg:h-20">
-        <div className="container mx-auto px-4 h-full flex items-center">
+        <div className="max-w-[1800px] mx-auto px-4 lg:px-6 h-full flex items-center">
           <div className="flex items-center justify-between w-full">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2">
