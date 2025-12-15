@@ -23,6 +23,7 @@ export function PropertyImageSlideshow({
   propertyType,
   isActive: externalIsActive,
   onSlideshowComplete,
+  showGradient = false,
 }: PropertyImageSlideshowProps) {
   const manager = useSlideshowManager();
   const [isActiveSlideshow, setIsActiveSlideshow] = useState(true);
@@ -162,13 +163,15 @@ export function PropertyImageSlideshow({
         <PropertyImagePlaceholder className="w-full h-full" propertyType={propertyType} />
       )}
 
-      {/* Gradient Overlay */}
-      <div
-        className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none"
-        style={{
-          background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%)'
-        }}
-      />
+      {/* Gradient Overlay - only show when explicitly enabled */}
+      {showGradient && (
+        <div
+          className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none"
+          style={{
+            background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%)'
+          }}
+        />
+      )}
 
       {/* Custom Overlay */}
       <div className="contents" onClick={(e) => e.stopPropagation()}>

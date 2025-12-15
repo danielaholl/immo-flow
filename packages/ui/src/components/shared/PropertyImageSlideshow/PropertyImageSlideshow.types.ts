@@ -19,6 +19,8 @@ export interface PropertyImageSlideshowProps {
   isActive?: boolean;
   /** Callback when slideshow completes (reaches last image) */
   onSlideshowComplete?: () => void;
+  /** Whether to show gradient overlay at the bottom (for text readability) */
+  showGradient?: boolean;
 }
 
 export interface SlideshowManager {

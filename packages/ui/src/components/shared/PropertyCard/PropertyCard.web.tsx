@@ -36,6 +36,7 @@ export function PropertyCard({
         rounded="none"
         aspectRatio="auto"
         className="h-full"
+        showGradient={true}
         overlay={
           <>
             {/* AI Rating Badge */}
