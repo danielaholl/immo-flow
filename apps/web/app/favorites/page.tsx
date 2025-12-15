@@ -451,6 +451,7 @@ export default function FavoritesPage() {
                   <div className="w-full lg:w-1/2 lg:sticky lg:top-0 h-[60vh] lg:h-[calc(100vh-100px)] p-4 lg:p-6">
                     <PropertyImageSlideshow
                       images={selectedProperty.images}
+                      videoUrl={selectedProperty.video_url || undefined}
                       title={selectedProperty.title}
                       className="h-full"
                       showCounter={true}

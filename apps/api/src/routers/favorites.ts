@@ -21,6 +21,7 @@ export const favoritesRouter = router({
           'sqm', p.sqm,
           'rooms', p.rooms,
           'images', p.images,
+          'video_url', p.video_url,
           'features', p.features,
           'ai_score', COALESCE(p.ai_investment_score, p.ai_score),
           'commission_rate', p.commission_rate,

@@ -375,7 +375,7 @@ export default function MessagesPage() {
           <div className="flex overflow-hidden h-full">
             {/* Left Column - Conversations List */}
             <div className={`${selectedConversationId ? 'hidden' : 'block'} lg:block w-full lg:w-[25%] lg:flex-shrink-0 bg-white border-r border-gray-200 overflow-y-auto`}>
-              <div className="pb-4 pr-4">
+              <div className="py-4 pr-4 pl-4 lg:pl-6">
                 {/* Header with Filter */}
                 <div className="flex items-center justify-between mb-4">
                   <h1 className="text-2xl font-bold text-gray-900">Nachrichten</h1>
@@ -495,7 +495,7 @@ export default function MessagesPage() {
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">
                     Keine Konversation ausgewählt
                   </h3>
-                  <p className="text-gray-600">
+                  <p className="text-gray-600 text-base">
                     Wählen Sie eine Konversation aus der Liste links aus, um Ihre Nachrichten zu sehen.
                   </p>
                 </div>
@@ -598,8 +598,8 @@ export default function MessagesPage() {
                 // No conversation selected
                 <div className="flex-1 flex items-center justify-center p-6">
                   <div className="text-center">
-                    <Home size={48} className="text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-500 text-sm">
+                    <Home size={64} className="text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-500 text-base">
                       Wählen Sie eine Konversation, um das Inserat zu sehen
                     </p>
                   </div>
