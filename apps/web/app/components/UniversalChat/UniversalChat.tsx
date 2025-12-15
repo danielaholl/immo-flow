@@ -110,6 +110,33 @@ export function UniversalChat({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
+  // Keep focus on textarea after messages update or typing stops
+  useEffect(() => {
+    if (!disabled && !isTyping && !galleryState.isOpen) {
+      // Small delay to ensure DOM is updated
+      const timer = setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [messages, isTyping, disabled, galleryState.isOpen]);
+
+  // Auto-resize textarea based on content
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      // Reset height to auto to get the correct scrollHeight
+      textarea.style.height = 'auto';
+      // Line height is ~26px (text-base 16px * leading-relaxed 1.625)
+      // Max 20 lines = 520px
+      const lineHeight = 26;
+      const maxLines = 20;
+      const maxHeight = lineHeight * maxLines;
+      const newHeight = Math.min(textarea.scrollHeight, maxHeight);
+      textarea.style.height = `${newHeight}px`;
+    }
+  }, [currentValue]);
+
   // Handle send message
   const handleSend = useCallback(() => {
     if (!currentValue.trim() || isSending || disabled) return;
@@ -117,6 +144,8 @@ export function UniversalChat({
     if (!onInputChange) {
       setLocalInputValue('');
     }
+    // Refocus textarea after sending
+    setTimeout(() => textareaRef.current?.focus(), 50);
   }, [currentValue, isSending, disabled, onSendMessage, onInputChange]);
 
   // Handle key press
@@ -381,8 +410,8 @@ export function UniversalChat({
         </div>
       </div>
 
-      {/* Input Area */}
-      <div className="bg-white border-t border-gray-200 p-4 flex-shrink-0">
+      {/* Input Area - ChatGPT Style */}
+      <div className="bg-white p-4 flex-shrink-0">
         {/* Hidden file input */}
         {showFileUpload && (
           <input
@@ -395,20 +424,9 @@ export function UniversalChat({
           />
         )}
 
-        <div className="flex gap-3 items-stretch">
-          {/* File Upload Button */}
-          {showFileUpload && (
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading || disabled}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-700 w-12 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0"
-              title="Datei hochladen"
-            >
-              <Paperclip size={20} />
-            </button>
-          )}
-
-          {/* Text Input */}
+        {/* ChatGPT-style input container */}
+        <div className="relative flex flex-col bg-white rounded-2xl border border-gray-200 transition-colors">
+          {/* Textarea - Top area */}
           <textarea
             ref={textareaRef}
             value={currentValue}
@@ -416,22 +434,46 @@ export function UniversalChat({
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             disabled={disabled || isSending}
-            className="flex-1 min-w-0 resize-none border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-0 focus:border-gray-900 bg-transparent text-base h-12 leading-normal transition-colors"
+            className="min-w-0 resize-none bg-transparent px-4 pt-4 pb-2 focus:outline-none text-base leading-relaxed overflow-y-auto"
             rows={1}
+            style={{ minHeight: '44px', maxHeight: '520px' }}
           />
 
-          {/* Send Button */}
-          <button
-            onClick={handleSend}
-            disabled={!currentValue.trim() || isSending || disabled}
-            className="bg-gray-900 text-white w-12 rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 flex items-center justify-center"
-          >
-            {isSending ? (
-              <Loader2 className="animate-spin" size={20} />
-            ) : (
-              <Send size={20} />
-            )}
-          </button>
+          {/* Bottom row with buttons */}
+          <div className="flex items-center justify-between px-3 pb-3">
+            {/* Left side - Plus button */}
+            <div className="flex items-center gap-2">
+              {showFileUpload && (
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading || disabled}
+                  className="p-2 text-gray-900 hover:bg-gray-100 rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Datei hochladen"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            {/* Right side - Send button */}
+            <button
+              onClick={handleSend}
+              disabled={!currentValue.trim() || isSending || disabled}
+              className="w-9 h-9 flex items-center justify-center bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 text-white rounded-full transition-colors disabled:cursor-not-allowed"
+            >
+              {isSending ? (
+                <Loader2 className="animate-spin" size={18} />
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="19" x2="12" y2="5"/>
+                  <polyline points="5 12 12 5 19 12"/>
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 

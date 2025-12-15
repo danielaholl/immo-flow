@@ -106,7 +106,7 @@ export default function SuggestionsPage() {
 
   if (authLoading || loading) {
     return (
-      <main className="min-h-screen bg-background">
+      <main className="min-h-screen bg-accent-cream">
         <Header />
         <div className="container mx-auto px-4 py-12">
           <div className="text-center">
@@ -122,7 +122,7 @@ export default function SuggestionsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-screen bg-accent-cream">
       <Header />
 
       <div className="container mx-auto px-4 py-12">

@@ -409,45 +409,12 @@ export default function HomePage() {
   };
 
   return (
-    <main className="min-h-screen bg-background pb-20 lg:pb-0">
+    <main className="min-h-screen bg-accent-cream pb-20 lg:pb-0">
       {/* Header */}
      <Header />
 
-      {/* Non-Auth User Banner */}
-      {!authLoading && !user && (
-        <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white">
-          <div className="container mx-auto px-4 py-8 sm:py-10">
-            <div className="max-w-4xl mx-auto text-center">
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4">
-                Entdecke deine Traum-Immobilie
-              </h2>
-              <p className="text-base sm:text-lg lg:text-xl mb-6 sm:mb-8 opacity-95">
-                Melde dich an für vollständige Details, KI-Analysen und direkten Kontakt zu Eigentümern
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center max-w-md mx-auto">
-                <Link
-                  href="/auth/signup"
-                  className="inline-flex items-center justify-center px-6 sm:px-8 py-3 sm:py-4 bg-white text-blue-600 font-semibold rounded-lg hover:bg-gray-100 transition-colors shadow-lg text-base sm:text-lg"
-                >
-                  Kostenloses Konto erstellen
-                </Link>
-                <Link
-                  href="/auth/login"
-                  className="inline-flex items-center justify-center px-6 sm:px-8 py-3 sm:py-4 border-2 border-white text-white font-semibold rounded-lg hover:bg-white/10 transition-colors text-base sm:text-lg"
-                >
-                  Anmelden
-                </Link>
-              </div>
-              <p className="text-xs sm:text-sm mt-4 sm:mt-6 opacity-80">
-                Kostenlose Registrierung • Keine Kreditkarte erforderlich • Jederzeit kündbar
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Hero Section */}
-      <section className="bg-gradient-to-b from-gray-50 to-white py-8 sm:py-12 lg:py-16">
+      <section className="bg-gradient-to-b from-accent-cream to-white py-8 sm:py-12 lg:py-16">
         <div className="w-full max-w-5xl mx-auto px-4 text-center">
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 sm:mb-4">
             Weniger suchen. Besser investieren.
@@ -505,12 +472,12 @@ export default function HomePage() {
             {getCriteriaDisplayItems().map(({ key, value }) => (
               <span
                 key={key}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 text-sm font-medium rounded-full border border-blue-200"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent-sky text-gray-700 text-sm font-medium rounded-full border border-blue-200"
               >
                 {value}
                 <button
                   onClick={() => removeCriterion(key)}
-                  className="ml-1 text-blue-400 hover:text-blue-600 transition-colors"
+                  className="ml-1 text-gray-500 hover:text-gray-700 transition-colors"
                   title="Filter entfernen"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -521,7 +488,7 @@ export default function HomePage() {
             ))}
             <button
               onClick={clearSearch}
-              className="inline-flex items-center gap-1 px-3 py-1.5 text-gray-500 text-sm hover:text-gray-700 transition-colors"
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-gray-500 text-sm hover:text-accent-aqua transition-colors"
             >
               Alle Filter löschen
             </button>
@@ -606,7 +573,7 @@ export default function HomePage() {
 
         {/* Dismissed Properties Section */}
         {user && dismissedData.length > 0 && (
-          <div className="mt-12 pt-8 border-t border-gray-200">
+          <div className="mt-12 pt-8 border-t border-accent-cream-dark">
             <button
               onClick={() => setShowDismissed(!showDismissed)}
               className="flex items-center justify-between w-full text-left mb-4 hover:opacity-80 transition-opacity"
@@ -676,7 +643,7 @@ export default function HomePage() {
                             e.stopPropagation();
                             handleUndismiss(property.id);
                           }}
-                          className="px-6 py-3 bg-white text-gray-900 rounded-lg hover:bg-gray-100 transition-colors font-medium pointer-events-auto shadow-lg"
+                          className="px-6 py-3 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors font-semibold pointer-events-auto shadow-glow"
                         >
                           Wieder anzeigen
                         </button>

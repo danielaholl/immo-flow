@@ -49,6 +49,9 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
   const [isScrapingUrl, setIsScrapingUrl] = useState(false);
   const [scrapeError, setScrapeError] = useState<string | null>(null);
 
+  // Image upload dialog state
+  const [showImageDialog, setShowImageDialog] = useState(false);
+
   // Custom hooks
   const {
     messages,
@@ -365,10 +368,21 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
     }
   }, [listingData, user?.id, uploadedImages, convertToEnglishEnums, createPropertyMutation, generateKIEvaluationMutation, addBotMessage]);
 
+  // Get placeholder image - always show house with pool
+  const getPlaceholderImage = () => {
+    return '/placeholders/placeholder_house.png';
+  };
+
   // Submit property
-  const handleSubmit = async () => {
+  const handleSubmit = async (skipImageCheck = false) => {
     if (!isComplete && !isEditMode && !isImportMode) {
       alert('Bitte fülle alle erforderlichen Felder aus.');
+      return;
+    }
+
+    // Check if images are uploaded (only for create mode, not edit or import)
+    if (!skipImageCheck && !isEditMode && uploadedImages.length === 0) {
+      setShowImageDialog(true);
       return;
     }
 
@@ -376,10 +390,11 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
 
     try {
       // Prepare property data and convert German enums to English
+      // Note: If no images, we pass empty array - frontend shows PropertyImagePlaceholder
       const propertyData = convertToEnglishEnums({
         ...listingData,
         user_id: user?.id,
-        images: uploadedImages.length > 0 ? uploadedImages : ['https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800'],
+        images: uploadedImages.length > 0 ? uploadedImages : [],
       });
 
       // Filter out null values to avoid Zod validation errors
@@ -1039,9 +1054,9 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
 
   return (
     <SlideshowManagerProvider>
-      <div className="flex-1 max-w-[1800px] w-full mx-auto px-2 sm:px-4 lg:px-8 py-3 lg:py-6 overflow-hidden">
+      <div className="w-full" style={{ height: 'calc(100vh - 80px)' }}>
         {/* Mobile Tab Navigation */}
-        <div className="lg:hidden mb-3">
+        <div className="lg:hidden px-2 sm:px-4 py-3">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-1 flex gap-1">
             <button
               onClick={() => setMobileView('chat')}
@@ -1079,14 +1094,13 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-6 h-full">
-          {/* Chat Section - Scrollbar */}
-          <div className={`h-full min-h-0 overflow-hidden ${mobileView !== 'chat' ? 'hidden lg:flex' : ''}`}>
+        <div className="flex flex-col lg:flex-row overflow-hidden h-[calc(100%-70px)] lg:h-full">
+          {/* Chat Section - 1/3 Breite */}
+          <div className={`h-full min-h-0 overflow-hidden lg:w-1/3 lg:border-r lg:border-gray-200 ${mobileView !== 'chat' ? 'hidden lg:block' : ''}`}>
             <UniversalChat
               messages={convertedMessages}
               header={{
-                title: "Ela - Deine KI-Assistentin",
-                subtitle: "Powered by GPT-4",
+                title: isEditMode ? "Inserat bearbeiten" : "Inserat erstellen",
                 icon: <Sparkles className="w-5 h-5 text-primary" />,
               }}
               input={{
@@ -1113,110 +1127,147 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
               messagesEndRef={messagesEndRef}
               showTimestamps={false}
               showSenderNames={false}
-              className="rounded-2xl shadow-sm border border-gray-200 h-full"
+              className="h-full bg-white"
             />
           </div>
 
-          {/* Preview Section - Scrollbar wenn viel Daten */}
-          <div className={`h-full min-h-0 overflow-hidden ${mobileView !== 'preview' ? 'hidden lg:block' : ''}`}>
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 h-full max-h-full overflow-hidden relative flex flex-col">
-              {(listingData.location || listingData.price || listingData.property_type) ? (
-                <>
-                  <div className="flex-1 min-h-0 overflow-y-auto p-4 lg:p-6 space-y-6">
-                    <PropertyPreview
-                      data={previewData}
-                      showConsentSection={false}
-                      hideProviderInfo={isImportMode}
-                      evaluationViewType="seller"
-                      propertyId={listingData.id}
-                      onTriggerEvaluation={handleTriggerKIEvaluation}
-                      isGeneratingEvaluation={createPropertyMutation.isPending || generateKIEvaluationMutation.isPending}
-                    />
-                    {/* Seller Analysis entfernt - AIEvaluationPanel in PropertyPreview übernimmt die Anzeige */}
-                  </div>
-
-                  {/* Fixed Submit Button */}
-                  {(isComplete || isEditMode || isImportMode) && (
-                    <div className="flex-shrink-0 bg-white border-t border-gray-200 p-4 lg:p-6">
-                      <button
-                        onClick={handleSubmit}
-                        disabled={isSubmitting}
-                        className="w-full bg-green-600 hover:bg-green-700 text-white py-3 lg:py-4 rounded-xl text-base lg:text-lg font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg"
-                      >
-                        {isSubmitting ? (
-                          <>
-                            <Loader2 size={20} className="lg:w-6 lg:h-6 animate-spin" />
-                            <span>{isImportMode ? 'Wird gespeichert...' : isEditMode ? 'Wird aktualisiert...' : 'Wird erstellt...'}</span>
-                          </>
-                        ) : (
-                          <>
-                            <span>{isImportMode ? 'In den Favoriten übernehmen' : isEditMode ? 'Änderungen speichern' : 'Inserat erstellen'}</span>
-                          </>
-                        )}
-                      </button>
+          {/* Right Column - Preview + Bilder - 2/3 Breite */}
+          <div className={`lg:w-2/3 flex flex-col lg:flex-row h-full ${mobileView === 'chat' ? 'hidden lg:flex' : ''}`}>
+            {/* Preview Section - 1/2 der rechten Spalte */}
+            <div className={`w-full lg:w-1/2 h-full min-h-0 overflow-hidden flex flex-col ${mobileView === 'images' ? 'hidden lg:flex' : ''}`}>
+              <div className="bg-white h-full max-h-full overflow-hidden relative flex flex-col">
+                {(listingData.location || listingData.price || listingData.property_type) ? (
+                  <>
+                    <div className="flex-1 min-h-0 overflow-y-auto p-4 lg:p-8">
+                      <PropertyPreview
+                        data={previewData}
+                        showConsentSection={false}
+                        hideProviderInfo={isImportMode}
+                        evaluationViewType="seller"
+                        propertyId={listingData.id}
+                        onTriggerEvaluation={handleTriggerKIEvaluation}
+                        isGeneratingEvaluation={createPropertyMutation.isPending || generateKIEvaluationMutation.isPending}
+                      />
                     </div>
-                  )}
-                </>
-              ) : (
-                <div className="h-full flex flex-col items-center justify-center p-8 text-center">
-                  <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-6">
-                    <Eye size={48} className="text-gray-400" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                    Vorschau wird geladen...
-                  </h3>
-                  <p className="text-gray-600 mb-6 max-w-md">
-                    Sobald du Informationen über deine Immobilie im Chat eingibst, erscheint hier eine Live-Vorschau deines Inserats.
-                  </p>
-                  <div className="bg-gray-50 rounded-xl p-6 max-w-md">
-                    <p className="text-sm text-gray-700 font-medium mb-3">
-                      💡 Tipp: Gib einfach alle Details auf einmal ein:
-                    </p>
-                    <ul className="text-sm text-gray-600 space-y-2 text-left">
-                      <li>• Objekttyp (Wohnung, Haus, etc.)</li>
-                      <li>• Lage und Adresse</li>
-                      <li>• Preis und Größe</li>
-                      <li>• Zimmeranzahl und Zustand</li>
-                      <li>• Besondere Ausstattung</li>
-                    </ul>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
 
-          {/* Slideshow Section - Kein Scroll */}
-          <div className={`h-full min-h-0 overflow-hidden ${mobileView !== 'images' ? 'hidden lg:flex' : ''}`}>
-            <div className="w-full h-full rounded-2xl overflow-hidden shadow-sm border border-gray-200 bg-white flex flex-col">
-              {uploadedImages.length > 0 ? (
+                    {/* Fixed Submit Button */}
+                    {(isComplete || isEditMode || isImportMode) && (
+                      <div className="flex-shrink-0 bg-white border-t border-gray-200 p-4 lg:p-6">
+                        <button
+                          onClick={() => handleSubmit()}
+                          disabled={isSubmitting}
+                          className="w-full bg-green-600 hover:bg-green-700 text-white py-3 lg:py-4 rounded-xl text-base lg:text-lg font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg"
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <Loader2 size={20} className="lg:w-6 lg:h-6 animate-spin" />
+                              <span>{isImportMode ? 'Wird gespeichert...' : isEditMode ? 'Wird aktualisiert...' : 'Wird erstellt...'}</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>{isImportMode ? 'In den Favoriten übernehmen' : isEditMode ? 'Änderungen speichern' : 'Inserat erstellen'}</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center p-8 text-center">
+                    <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-6">
+                      <Eye size={48} className="text-gray-400" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                      Vorschau wird geladen...
+                    </h3>
+                    <p className="text-gray-600 mb-6 max-w-md">
+                      Sobald du Informationen über deine Immobilie im Chat eingibst, erscheint hier eine Live-Vorschau deines Inserats.
+                    </p>
+                    <div className="bg-gray-50 rounded-xl p-6 max-w-md">
+                      <p className="text-sm text-gray-700 font-medium mb-3">
+                        💡 Tipp: Gib einfach alle Details auf einmal ein:
+                      </p>
+                      <ul className="text-sm text-gray-600 space-y-2 text-left">
+                        <li>• Objekttyp (Wohnung, Haus, etc.)</li>
+                        <li>• Lage und Adresse</li>
+                        <li>• Preis und Größe</li>
+                        <li>• Zimmeranzahl und Zustand</li>
+                        <li>• Besondere Ausstattung</li>
+                      </ul>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Slideshow Section - 1/2 der rechten Spalte */}
+            <div className={`w-full lg:w-1/2 h-[60vh] lg:h-full min-h-0 overflow-hidden p-4 lg:p-6 ${mobileView === 'preview' ? 'hidden lg:block' : ''}`}>
+              <div className="w-full h-full overflow-hidden flex flex-col rounded-2xl">
                 <PropertyImageSlideshow
-                  images={uploadedImages}
+                  images={uploadedImages.length > 0 ? uploadedImages : [getPlaceholderImage()]}
                   title={listingData.title || 'Deine Immobilie'}
                   duration={3000}
-                  showCounter={true}
-                  showProgressBars={true}
+                  showCounter={uploadedImages.length > 0}
+                  showProgressBars={uploadedImages.length > 0}
                   rounded="none"
                   aspectRatio="auto"
                   className="h-full"
                   propertyType={listingData.property_type || undefined}
+                  overlay={uploadedImages.length === 0 ? (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                      <div className="text-center text-white">
+                        <Images size={48} className="mx-auto mb-3 opacity-80" />
+                        <h3 className="text-xl font-semibold">Noch keine Bilder</h3>
+                        <p className="text-sm opacity-80 mt-1">Lade Bilder über den Chat hoch</p>
+                      </div>
+                    </div>
+                  ) : undefined}
                 />
-              ) : (
-                <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-gradient-to-br from-gray-50 to-gray-100">
-                  <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm">
-                    <Images size={40} className="text-gray-300" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                    Noch keine Bilder
-                  </h3>
-                  <p className="text-sm text-gray-500 max-w-xs">
-                    Lade Bilder oder ein PDF-Exposé über den Chat hoch, um sie hier anzuzeigen.
-                  </p>
-                </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Image Upload Dialog */}
+      {showImageDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Images size={32} className="text-gray-400" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Keine Bilder hochgeladen
+              </h3>
+              <p className="text-gray-600">
+                Möchtest du noch Bilder zu deinem Inserat hinzufügen? Bilder erhöhen die Aufmerksamkeit deutlich.
+              </p>
+            </div>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  setShowImageDialog(false);
+                  setMobileView('images');
+                  fileInputRef.current?.click();
+                }}
+                className="w-full bg-primary hover:bg-primary/90 text-white py-3 rounded-xl font-semibold transition-colors"
+              >
+                Bilder hochladen
+              </button>
+              <button
+                onClick={() => {
+                  setShowImageDialog(false);
+                  handleSubmit(true);
+                }}
+                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-medium transition-colors"
+              >
+                Ohne Bilder fortfahren
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </SlideshowManagerProvider>
   );
 }

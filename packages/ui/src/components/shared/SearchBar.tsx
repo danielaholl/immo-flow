@@ -49,7 +49,7 @@ export function SearchBar({ onSearch, className, placeholder }: SearchBarProps) 
     return (
       <div className={className || ''}>
         {/* Search Field */}
-        <div className="bg-white rounded-full shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
+        <div className="bg-accent-sky rounded-full shadow-lg border border-gray-200 hover:shadow-xl hover:border-accent-aqua transition-all focus-within:border-accent-aqua focus-within:ring-4 focus-within:ring-accent-aqua-50">
           <div className="flex items-center">
             {/* Natural Language Input */}
             <div className="flex-1 px-4 sm:px-6 py-4 sm:py-5 flex items-center">
@@ -61,7 +61,7 @@ export function SearchBar({ onSearch, className, placeholder }: SearchBarProps) 
                 placeholder={desktopPlaceholder}
                 rows={1}
                 disabled={isLoading}
-                className="w-full resize-none outline-none text-gray-900 placeholder-gray-400 text-base sm:text-xl leading-tight max-h-24 overflow-y-auto disabled:opacity-50 bg-transparent"
+                className="w-full resize-none outline-none text-gray-900 placeholder-gray-500 text-base sm:text-xl leading-tight max-h-24 overflow-y-auto disabled:opacity-50 bg-transparent"
                 style={{ minHeight: '28px' }}
               />
             </div>
@@ -71,7 +71,7 @@ export function SearchBar({ onSearch, className, placeholder }: SearchBarProps) 
               <button
                 onClick={handleSearch}
                 disabled={!query.trim() || isLoading}
-                className="bg-primary hover:bg-primary/90 text-white rounded-full px-4 sm:px-6 py-3 sm:py-4 font-semibold flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95 text-base sm:text-lg"
+                className="bg-primary hover:bg-primary/90 text-white rounded-full px-4 sm:px-6 py-3 sm:py-4 font-semibold flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95 text-base sm:text-lg shadow-glow"
                 title={!query.trim() ? "Bitte gib einen Suchbegriff ein" : "Suche starten"}
               >
                 {isLoading ? (

@@ -30,7 +30,7 @@ interface BadgeInfo {
 function getBadgeInfo(score: number): BadgeInfo {
   if (score >= COLOR_RATING_THRESHOLDS.green) {
     return {
-      label: 'Top Deal',
+      label: 'Excellent',
       badgeColor: '#22C55E', // green-500
       dotColor: '#22C55E',
     };
@@ -54,26 +54,41 @@ export function PropertyScoreBadge({ score, variant = 'overlay' }: PropertyScore
 
   return (
     <div
-      className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg"
+      className="flex flex-col items-center px-3 py-2 rounded-lg"
       style={{
-        backgroundColor: 'rgba(0, 0, 0, 0.75)',
-        borderWidth: '1px',
-        borderColor: badgeColor,
+        background: 'rgba(0, 0, 0, 0.7)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        border: '1px solid rgba(255, 255, 255, 0.15)',
+        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
       }}
     >
+      {/* Label */}
       <div
-        className="w-3.5 h-3.5 rounded-full"
-        style={{ backgroundColor: dotColor }}
-      />
-      <div>
+        className="text-[11px] font-bold leading-none mb-1"
+        style={{
+          color: badgeColor,
+          textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+        }}
+      >
+        {label}
+      </div>
+      {/* Dot + Score Row */}
+      <div className="flex items-center gap-1.5">
         <div
-          className="text-[13px] font-bold leading-tight mb-0.5"
-          style={{ color: badgeColor }}
+          className="w-4 h-4 rounded-full flex-shrink-0"
+          style={{
+            backgroundColor: dotColor,
+          }}
+        />
+        <div
+          className="text-[20px] font-bold leading-none"
+          style={{
+            color: 'rgba(255, 255, 255, 0.95)',
+            textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+          }}
         >
-          {label}
-        </div>
-        <div className="text-[11px] font-medium text-white/70">
-          {score}/100
+          {score}
         </div>
       </div>
     </div>

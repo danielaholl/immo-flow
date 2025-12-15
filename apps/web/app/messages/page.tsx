@@ -331,7 +331,7 @@ export default function MessagesPage() {
 
   if (authLoading || conversationsLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-accent-cream">
         <Header />
         <div className="flex items-center justify-center" style={{ minHeight: 'calc(100vh - 80px)' }}>
           <Loader2 className="animate-spin text-primary" size={48} />
@@ -345,7 +345,7 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-accent-cream flex flex-col">
       <Header />
 
       {/* Show full-width empty state if no conversations */}

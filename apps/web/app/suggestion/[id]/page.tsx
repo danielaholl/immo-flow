@@ -112,7 +112,7 @@ export default function SuggestionPage() {
             <PropertyImageSlideshow
               images={property.images}
               title={property.title}
-              className="aspect-[4/5] shadow-xl"
+              className="aspect-[4/5]"
               duration={4000}
               propertyType={property.property_type || undefined}
               overlay={

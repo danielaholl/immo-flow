@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Heart } from 'lucide-react';
 // import { AIInvestmentEvaluation, PropertyFeedbackModal } from '@immoflow/ui'; // Components don't exist
 import { useAuthContext } from '@/app/providers/AuthProvider';
 import { Header } from '@/app/components/Header';
@@ -13,7 +12,7 @@ import { PropertyPreview, PropertyPreviewData } from '@/app/components/PropertyP
 import { PropertyActionButtons } from '@/app/components/PropertyActionButtons';
 import { MobileDetailHeader } from '@/app/components/MobileDetailHeader';
 import { ArrowLeft } from 'lucide-react';
-import { InvestmentScoreBadge, PropertyScoreBadge } from '@immoflow/ui';
+import { InvestmentScoreBadge, PropertyScoreBadge, GlassActionButton } from '@immoflow/ui';
 import { trpc } from '@/lib/trpc';
 import { useAuthGuard } from '@/app/hooks/useAuthGuard';
 import { LoginPromptModal } from '@/app/components/LoginPromptModal';
@@ -367,7 +366,7 @@ export default function PropertyPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-white flex items-center justify-center">
+      <main className="min-h-screen bg-accent-cream flex items-center justify-center">
         <p className="text-gray-500">Lade Property...</p>
       </main>
     );
@@ -458,7 +457,7 @@ export default function PropertyPage() {
   };
 
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen bg-accent-cream">
       <Header />
 
       {/* Mobile Detail Header - Only shown on mobile */}
@@ -533,7 +532,7 @@ export default function PropertyPage() {
           <PropertyImageSlideshow
             images={property.images}
             title={property.title}
-            className="h-full shadow-xl"
+            className="h-full"
             showCounter={true}
             showProgressBars={true}
             propertyType={property.property_type || undefined}
@@ -551,35 +550,19 @@ export default function PropertyPage() {
                   );
                 })()}
 
-                {/* Action Buttons - Bottom Right */}
+                {/* Action Buttons - Bottom Right - Reusable Components */}
                 {!isOwner && (
                   <div className="absolute bottom-6 right-4 z-20 flex flex-row gap-3">
-                    <button
+                    <GlassActionButton
+                      type="dismiss"
                       onClick={() => router.push('/')}
-                      className="w-12 h-12 rounded-full flex items-center justify-center border hover:scale-105 transition-transform"
-                      style={{
-                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                        borderColor: 'rgba(239, 68, 68, 0.6)'
-                      }}
-                    >
-                      <span className="text-2xl text-red-500">✕</span>
-                    </button>
+                    />
                     {user && (
-                      <button
+                      <GlassActionButton
+                        type="favorite"
+                        isActive={isFavorite}
                         onClick={handleFavoriteToggle}
-                        className="w-12 h-12 rounded-full flex items-center justify-center border hover:scale-105 transition-transform"
-                        style={{
-                          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                          borderColor: 'rgba(16, 185, 129, 0.6)'
-                        }}
-                      >
-                        <Heart
-                          size={24}
-                          color="#10B981"
-                          fill={isFavorite ? '#10B981' : 'none'}
-                          strokeWidth={2}
-                        />
-                      </button>
+                      />
                     )}
                   </div>
                 )}

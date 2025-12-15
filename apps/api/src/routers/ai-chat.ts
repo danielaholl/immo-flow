@@ -36,6 +36,7 @@ const PropertyDataSchema = z.object({
   features: z.array(z.string()).nullish(),
   description: z.string().nullish(),
   floor_level: z.string().nullish(),
+  total_floors: z.number().nullish(),
   year_built: z.number().nullish(),
   available_from: z.string().nullish(),
   important_notes: z.string().nullish(),
@@ -86,7 +87,8 @@ VERFÜGBARE FELDER (verwende diese exakten Feldnamen):
 - rooms: Anzahl Zimmer (Zahl)
 - bathrooms: Anzahl Badezimmer (Zahl)
 - year_built: Baujahr (Zahl, z.B. 1974) - SEPARATES FELD, nicht Teil der Beschreibung!
-- floor_level: Etage (String, z.B. "2" oder "EG")
+- floor_level: NUR BEI WOHNUNGEN: Etage (String, z.B. "2" oder "EG")
+- total_floors: NUR BEI HÄUSERN: Anzahl der Geschoße (Zahl, z.B. 2). Bei Wohnungen: Gesamtanzahl Etagen im Gebäude.
 - condition: 'new' | 'first_occupancy' | 'renovated' | 'maintained' | 'needs_renovation'
 - features: Array von Ausstattungen ["Balkon", "Garage", etc.]
 - description: Beschreibungstext
@@ -98,10 +100,15 @@ Deine Aufgabe im Edit-Modus:
 3. Bestätige die Änderungen freundlich
 4. Frage NICHT nach fehlenden Feldern
 
+WICHTIG - Property-Typ-abhängige Felder:
+- Bei Häusern (house, villa): "Anzahl Geschoße" oder "zweigeschossig" etc. → total_floors
+- Bei Wohnungen (apartment): "3. Stock" oder "3. OG" → floor_level
+
 Beispiele:
 - "Baujahr ist 1974" → { "year_built": 1974 }
 - "Ändere Preis auf 450.000 €" → { "price": 450000 }
-- "3. Stock" oder "3. OG" → { "floor_level": "3" }
+- "3. Stock" oder "3. OG" (bei Wohnung) → { "floor_level": "3" }
+- "2-geschossig" oder "2 Geschoße" (bei Haus) → { "total_floors": 2 }
 - "2 Badezimmer" → { "bathrooms": 2 }
 
 Antworte im JSON Format:
@@ -137,7 +144,8 @@ Erforderliche Felder (Priorität 1):
 
 Alle weiteren Felder (Priorität 2 - systematisch erfragen):
 - bathrooms: Anzahl Badezimmer
-- floor_level: Etage (z.B. "3" oder "EG")
+- floor_level: NUR BEI WOHNUNGEN (apartment): Etage (z.B. "3" oder "EG") - NICHT bei Häusern fragen!
+- total_floors: NUR BEI HÄUSERN (house, villa): Anzahl der Geschoße (z.B. 2 für ein zweigeschossiges Haus). Bei Wohnungen ist dies die Gesamtzahl der Etagen im Gebäude.
 - year_built: Baujahr
 - postal_code: Postleitzahl
 - street_address: Straße und Hausnummer
@@ -145,6 +153,10 @@ Alle weiteren Felder (Priorität 2 - systematisch erfragen):
 - features: Array von Ausstattungsmerkmalen (z.B. ["Balkon", "Garage", "Einbauküche", "Garten", "Terrasse", "Stellplatz", "Aufzug", "Keller"])
 - available_from: Verfügbar ab (Datum)
 - important_notes: WICHTIGE rechtliche und finanzielle Details (z.B. Erbbaurecht, Nießbrauch, Denkmalschutz, Vorkaufsrecht, Wegerecht, Altlasten, laufende Renovierungen, Mietverträge, etc.)
+
+WICHTIG - Property-Typ-abhängige Felder:
+- Bei property_type = 'house' oder 'villa': Frage nach "Anzahl der Geschoße" (total_floors), NICHT nach Etage (floor_level)
+- Bei property_type = 'apartment': Frage nach "Etage" (floor_level) und optional nach Gesamtanzahl Etagen im Gebäude (total_floors)
 
 WICHTIG:
 1. In deiner Antwort sollst du die NEU erkannten Werte auflisten:

@@ -5,9 +5,9 @@ import { PropertyListingManager } from '../components/PropertyListingManager';
 
 export default function CreateListingPage() {
   return (
-    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
+    <main className="min-h-screen bg-accent-cream">
       <Header />
       <PropertyListingManager />
-    </div>
+    </main>
   );
 }

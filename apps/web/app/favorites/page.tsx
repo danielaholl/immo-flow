@@ -221,7 +221,7 @@ export default function FavoritesPage() {
 
   if (authLoading || loading) {
     return (
-      <main className="min-h-screen bg-white">
+      <main className="min-h-screen bg-accent-cream">
         <Header />
         <div className="flex items-center justify-center h-[calc(100vh-100px)]">
           <p className="text-gray-500">Lade Favoriten...</p>
@@ -293,7 +293,7 @@ export default function FavoritesPage() {
   } : null;
 
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen bg-accent-cream">
       <Header />
 
       {favorites.length === 0 ? (
@@ -450,7 +450,7 @@ export default function FavoritesPage() {
                     <PropertyImageSlideshow
                       images={selectedProperty.images}
                       title={selectedProperty.title}
-                      className="h-full shadow-xl"
+                      className="h-full"
                       showCounter={true}
                       showProgressBars={true}
                       slideshowId={`favorites-${selectedProperty.id}`}

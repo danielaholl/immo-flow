@@ -297,7 +297,7 @@ export default function MyPropertiesPage() {
 
   if (authLoading || loading) {
     return (
-      <main className="min-h-screen bg-white">
+      <main className="min-h-screen bg-accent-cream">
         <Header />
         <div className="flex items-center justify-center h-[calc(100vh-100px)]">
           <p className="text-gray-500">Lade Immobilien...</p>
@@ -367,7 +367,7 @@ export default function MyPropertiesPage() {
   } : null;
 
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen bg-accent-cream">
       <Header />
 
       {properties.length === 0 ? (
@@ -625,7 +625,7 @@ export default function MyPropertiesPage() {
                     <PropertyImageSlideshow
                       images={selectedProperty.images}
                       title={selectedProperty.title}
-                      className="h-full shadow-xl"
+                      className="h-full"
                       showCounter={true}
                       showProgressBars={true}
                       slideshowId={`my-properties-${selectedProperty.id}`}

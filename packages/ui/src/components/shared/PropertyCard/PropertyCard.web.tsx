@@ -1,12 +1,14 @@
 'use client';
 
 import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { House, Heart } from 'lucide-react';
+import { View, Text, StyleSheet } from 'react-native';
+import { House } from 'lucide-react';
 import { colors } from '../../../theme';
 import type { PropertyCardProps } from './PropertyCard.types';
 import { usePropertyCardLogic } from './PropertyCard.logic';
 import { PropertyImageSlideshow } from '../PropertyImageSlideshow';
+import { GlassActionButton } from '../../web/GlassActionButton';
+import { PropertyScoreBadge } from '../../web/PropertyScoreBadge';
 
 export function PropertyCard({
   property,
@@ -39,53 +41,39 @@ export function PropertyCard({
         showGradient={true}
         overlay={
           <>
-            {/* AI Rating Badge */}
-            {logic.badgeInfo && (
-              <View style={[styles.ratingBadge, { borderColor: logic.badgeInfo.color }]}>
-                <View style={[styles.ratingDot, { backgroundColor: logic.badgeInfo.dotColor }]} />
-                <View>
-                  <Text style={[styles.ratingLabel, { color: logic.badgeInfo.color }]}>
-                    {logic.badgeInfo.label}
-                  </Text>
-                  <Text style={styles.ratingScore}>
-                    {logic.score !== undefined && logic.score !== null ? `${logic.score}/100` : '---'}
-                  </Text>
-                </View>
-              </View>
+            {/* AI Score Badge - Reusable Component */}
+            {logic.score !== undefined && logic.score !== null && (
+              <div className="absolute top-12 right-3 z-15">
+                <PropertyScoreBadge score={logic.score} variant="overlay" />
+              </div>
             )}
 
-            {/* Action Buttons */}
-            <View style={styles.topRightButtons}>
-              <Pressable
-                style={[styles.topActionButton, styles.actionButtonDislike]}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  onDismiss?.(e);
-                }}
-              >
-                <Text style={styles.closeIcon}>✕</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.topActionButton, styles.actionButtonFavorite]}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  onFavorite?.(e);
-                }}
-              >
-                <Heart
-                  size={24}
-                  color="#10B981"
-                  fill={isFavorite ? '#10B981' : 'none'}
-                  strokeWidth={2}
-                />
-              </Pressable>
-            </View>
+            {/* Action Buttons - Reusable Components */}
+            <div className="absolute bottom-5 right-3 flex flex-row gap-2 z-20">
+              <GlassActionButton
+                type="dismiss"
+                onClick={(e) => onDismiss?.(e as any)}
+              />
+              <GlassActionButton
+                type="favorite"
+                isActive={isFavorite}
+                onClick={(e) => onFavorite?.(e as any)}
+              />
+            </div>
 
-            {/* Owner Badge */}
+            {/* Owner Badge - Glassmorphism */}
             {isOwner && (
-              <View style={styles.favoriteButton}>
-                <House size={32} color="white" strokeWidth={1.5} fill="#22C55E" />
-              </View>
+              <div
+                className="absolute top-12 right-3 w-12 h-12 rounded-full flex items-center justify-center z-20 shadow-xl"
+                style={{
+                  backgroundColor: 'rgba(0, 0, 0, 0.55)',
+                  backdropFilter: 'blur(16px)',
+                  WebkitBackdropFilter: 'blur(16px)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                }}
+              >
+                <House size={24} color="white" strokeWidth={1.5} />
+              </div>
             )}
 
             {/* Property Info Overlay */}
@@ -119,62 +107,6 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 8,
   },
-  ratingBadge: {
-    position: 'absolute',
-    top: 50,
-    right: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    gap: 8,
-    borderWidth: 1,
-    zIndex: 15,
-  },
-  topRightButtons: {
-    position: 'absolute',
-    bottom: 20,
-    right: 12,
-    flexDirection: 'row',
-    gap: 8,
-    zIndex: 20,
-  },
-  topActionButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 0.5,
-    cursor: 'pointer',
-  },
-  ratingDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-  },
-  ratingLabel: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-    marginBottom: 1,
-  },
-  ratingScore: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  favoriteButton: {
-    position: 'absolute',
-    top: 40,
-    right: 12,
-    padding: 12,
-    zIndex: 20,
-    cursor: 'pointer',
-  },
   infoOverlay: {
     position: 'absolute',
     bottom: 0,
@@ -204,16 +136,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.85)',
     marginBottom: 8,
-  },
-  actionButtonDislike: {
-    borderColor: 'rgba(239, 68, 68, 0.6)',
-  },
-  actionButtonFavorite: {
-    borderColor: 'rgba(16, 185, 129, 0.6)',
-  },
-  closeIcon: {
-    fontSize: 28,
-    color: '#EF4444',
-    fontWeight: '400',
   },
 });
