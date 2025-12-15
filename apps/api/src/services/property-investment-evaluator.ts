@@ -49,6 +49,9 @@ interface MarketPriceAnalysis {
   average_price_per_sqm: number; // Current market average price per sqm
   price_range_min: number; // Lower range
   price_range_max: number; // Upper range
+  negotiation_price: number; // Realistic negotiation target price (total)
+  negotiation_discount_percent: number; // Expected discount in %
+  negotiation_reasoning: string; // Why this discount is achievable
   reasoning: string;
 }
 
@@ -87,6 +90,20 @@ export interface InvestmentEvaluationResult {
 /**
  * Call OpenAI API with retry logic
  */
+const INVESTOR_SYSTEM_PROMPT = `Du bist ein erfahrener Immobilieninvestor mit über 30 Jahren Erfahrung im deutschen Immobilienmarkt.
+
+Du hast hunderte von Immobilien gekauft, vermietet und verkauft. Du kennst alle Fallstricke, versteckten Kosten und Risiken. Du bewertest jedes Objekt kritisch und nüchtern aus reiner Investorenperspektive - nicht emotional, sondern zahlenbasiert.
+
+Deine Expertise umfasst:
+- Renditeberechnung und Cashflow-Analyse
+- Standortbewertung und Mikrolage-Analyse
+- Marktzyklen und Timing
+- Renovierungskosten und versteckte Mängel
+- Mietrecht und Vermietungsrisiken
+- Finanzierungsstrategien und Hebeleffekte
+
+Du gibst ehrliche, direkte Einschätzungen ohne Beschönigung. Wenn ein Deal schlecht ist, sagst du es klar.`;
+
 async function callOpenAI<T>(prompt: string): Promise<T> {
   try {
     const openai = getOpenAIClient();
@@ -95,7 +112,7 @@ async function callOpenAI<T>(prompt: string): Promise<T> {
       messages: [
         {
           role: 'system',
-          content: 'Du bist ein Immobilien-Investitions-Experte.',
+          content: INVESTOR_SYSTEM_PROMPT,
         },
         {
           role: 'user',
@@ -150,7 +167,7 @@ Antworte NUR mit einem JSON-Objekt in folgendem Format:
  * Analyze current market price using AI with current 2025 data
  */
 async function analyzeMarketPriceWithAI(property: Property): Promise<MarketPriceAnalysis> {
-  const marketPricePrompt = `Du bist ein Immobilien-Experte mit Zugang zu aktuellen Marktdaten. Es ist DEZEMBER 2025.
+  const marketPricePrompt = `Es ist DEZEMBER 2025. Du analysierst diese Immobilie für einen Kaufinteressenten.
 
 WICHTIG: Verwende AKTUELLE Immobilienpreise aus Dezember 2025 für diese spezifische Lage in Deutschland!
 
@@ -161,20 +178,27 @@ Objekttyp: Wohnung
 Größe: ${property.sqm} m²
 Zimmer: ${property.rooms}
 Baujahr: ${property.year_built || 'Unbekannt'}
+ANGEBOTSPREIS: ${property.price.toLocaleString('de-DE')} € (${Math.round(property.price / property.sqm).toLocaleString('de-DE')} €/m²)
 
-Ermittle den AKTUELLEN durchschnittlichen Marktpreis pro m² für vergleichbare Immobilien in dieser spezifischen Lage im Dezember 2025.
+AUFGABE 1: Ermittle den AKTUELLEN durchschnittlichen Marktpreis pro m² für vergleichbare Immobilien.
 
-Berücksichtige:
-1. Aktuelle Kaufpreise in dieser konkreten Lage (${property.location})
-2. Objekttyp und Zustand (Altbau/Neubau)
-3. Aktuelle Markttrends 2025
+AUFGABE 2: Ermittle einen REALISTISCHEN VERHANDLUNGSPREIS.
+Als erfahrener Investor weißt du, dass fast jeder Preis verhandelbar ist. Berücksichtige:
+- Wie lange ist das Objekt schon inseriert? (Längere Zeit = mehr Verhandlungsspielraum)
+- Liegt der Preis über oder unter dem Marktwert?
+- Aktuelle Marktlage (Käufer- oder Verkäufermarkt?)
+- Typische Verhandlungsspielräume in dieser Region (meist 5-15%)
+- Besondere Umstände (Sanierungsbedarf, Leerstand, etc.)
 
 Antworte NUR mit einem JSON-Objekt in folgendem Format:
 {
-  "average_price_per_sqm": <Zahl>, // Durchschnittlicher Marktpreis pro m² in EUR
-  "price_range_min": <Zahl>, // Untere Preisspanne pro m²
-  "price_range_max": <Zahl>, // Obere Preisspanne pro m²
-  "reasoning": "Kurze Begründung mit Verweis auf aktuelle 2025 Marktpreise (2-3 Sätze)"
+  "average_price_per_sqm": <Zahl>,
+  "price_range_min": <Zahl>,
+  "price_range_max": <Zahl>,
+  "negotiation_price": <Zahl>, // Realistischer Zielpreis nach Verhandlung (Gesamtpreis in EUR)
+  "negotiation_discount_percent": <Zahl>, // Erwarteter Rabatt in % (z.B. 8 für 8%)
+  "negotiation_reasoning": "Begründung warum dieser Verhandlungspreis realistisch ist (1-2 Sätze)",
+  "reasoning": "Kurze Begründung für Marktpreise (1-2 Sätze)"
 }`;
 
   return await callOpenAI<MarketPriceAnalysis>(marketPricePrompt);
@@ -220,10 +244,16 @@ Antworte NUR mit dem Text (MAX 3 SÄTZE), KEIN JSON!`;
   // Call OpenAI and get the text response directly
   const response = await getOpenAIClient().chat.completions.create({
     model: 'gpt-4o',
-    messages: [{
-      role: 'user',
-      content: marketAnalysisPrompt
-    }],
+    messages: [
+      {
+        role: 'system',
+        content: INVESTOR_SYSTEM_PROMPT,
+      },
+      {
+        role: 'user',
+        content: marketAnalysisPrompt,
+      },
+    ],
     temperature: 0.7,
   });
 
@@ -417,10 +447,11 @@ Baujahr: ${property.year_built || 'Unbekannt'}
 
 Erstelle:
 1. HIGHLIGHTS (3-5 kurze, prägnante Stichpunkte über die POSITIVEN Aspekte der Investition)
-2. ZU BEACHTEN (2-4 kurze, prägnante Stichpunkte über RISIKEN oder Nachteile)
+2. ZU BEACHTEN (2-4 ausführliche Sätze über RISIKEN oder Nachteile mit konkreter Begründung)
 
 WICHTIG:
-- Jeder Punkt sollte MAXIMAL 6-8 Wörter haben
+- Highlights: MAXIMAL 6-8 Wörter pro Punkt
+- Red Flags: Ausführliche Sätze (15-25 Wörter) mit konkreter Erklärung WARUM es ein Risiko ist
 - Sei konkret und zahlenbasiert wo möglich
 - Fokus auf Investment-Perspektive
 
@@ -430,11 +461,11 @@ Beispiele für gute Highlights:
 - "Hohe Bruttorendite von 4,8%"
 - "Starkes Wertsteigerungspotential"
 
-Beispiele für gute Red Flags:
-- "Preis 20% über regionalem Durchschnitt"
-- "Niedrige Rendite unter 3%"
-- "Renovierungsbedarf nicht kalkuliert"
-- "Rückläufige Marktentwicklung in der Region"
+Beispiele für gute Red Flags (ausführlich mit Begründung):
+- "Der Kaufpreis liegt 20% über dem regionalen Durchschnitt, was die Rendite erheblich schmälert und einen Wiederverkauf erschweren könnte."
+- "Die Bruttorendite von nur 2,8% liegt deutlich unter dem Marktdurchschnitt von 4%, wodurch sich die Investition erst nach vielen Jahren amortisiert."
+- "Aufgrund des Baujahrs 1965 ist mittelfristig mit erhöhtem Sanierungsbedarf zu rechnen, insbesondere bei Heizung und Fassade."
+- "Die stagnierende Bevölkerungsentwicklung in dieser Region könnte langfristig zu sinkender Nachfrage und Wertverlust führen."
 
 Antworte NUR mit einem JSON-Objekt in folgendem Format:
 {
@@ -748,6 +779,10 @@ export async function evaluatePropertyInvestment(
           summary: `Investmentbewertung: ${overallScore}/100 mit ${grossYieldPercentage.toFixed(1)}% Bruttorendite.`,
           strengths: highlights.slice(0, 5),
           weaknesses: red_flags.slice(0, 5),
+          // Verhandlungspreis
+          negotiationPrice: marketPriceAnalysis.negotiation_price,
+          negotiationDiscount: marketPriceAnalysis.negotiation_discount_percent,
+          negotiationReasoning: marketPriceAnalysis.negotiation_reasoning,
         },
       }),
     ]
