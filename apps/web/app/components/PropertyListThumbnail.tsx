@@ -68,7 +68,7 @@ export function PropertyListThumbnail({
 
   return (
     <div
-      className={`group relative bg-white border rounded-xl overflow-hidden transition-all h-32 min-w-[400px] ${
+      className={`group relative bg-white border rounded-xl overflow-hidden transition-all h-44 min-w-[400px] ${
         isSelected
           ? 'border-primary ring-2 ring-primary/20'
           : 'border-gray-200 hover:border-gray-300'

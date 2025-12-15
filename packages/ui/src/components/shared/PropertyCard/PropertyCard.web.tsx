@@ -84,7 +84,7 @@ export function PropertyCard({
               </Text>
               <Text style={styles.price}>{logic.formattedPrice}</Text>
               <Text style={styles.details}>
-                {property.sqm} m²
+                {property.rooms} Zi • {property.sqm} m²
                 {logic.formattedPricePerSqm ? ` • ${logic.formattedPricePerSqm}/m²` : ''}
               </Text>
             </View>

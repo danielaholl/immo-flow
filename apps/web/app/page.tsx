@@ -420,7 +420,7 @@ export default function HomePage() {
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 sm:mb-4">
             Weniger suchen. Besser investieren.
           </h2>
-          <p className="text-lg sm:text-xl lg:text-2xl text-gray-600 max-w-2xl mx-auto mb-6 sm:mb-8">
+          <p className="text-xl sm:text-2xl lg:text-3xl text-gray-600 max-w-2xl mx-auto mb-6 sm:mb-8">
             Dein unfairer Vorteil am Immobilienmarkt.
           </p>
 

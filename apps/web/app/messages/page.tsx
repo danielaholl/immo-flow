@@ -488,7 +488,7 @@ export default function MessagesPage() {
             ) : (
               // No conversation selected - empty state
               <div className="h-full flex items-center justify-center px-6">
-                <div className="text-center max-w-md">
+                <div className="text-center">
                   <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <MessageSquare size={48} className="text-gray-400" />
                   </div>

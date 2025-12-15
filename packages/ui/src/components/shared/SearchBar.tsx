@@ -49,7 +49,7 @@ export function SearchBar({ onSearch, className, placeholder }: SearchBarProps) 
     return (
       <div className={className || ''}>
         {/* Search Field */}
-        <div className="bg-white rounded-full shadow-lg border border-gray-200 hover:shadow-xl hover:border-accent-aqua transition-all focus-within:border-accent-aqua focus-within:ring-4 focus-within:ring-accent-aqua-50">
+        <div className="bg-white rounded-full shadow-lg border border-gray-200 hover:shadow-xl hover:border-accent-aqua transition-all focus-within:border-accent-aqua">
           <div className="flex items-center">
             {/* Natural Language Input */}
             <div className="flex-1 px-4 sm:px-6 py-4 sm:py-5 flex items-center">
@@ -91,7 +91,7 @@ export function SearchBar({ onSearch, className, placeholder }: SearchBarProps) 
                     />
                   </svg>
                 )}
-                <span className="hidden sm:inline">Suchen</span>
+                <span className="hidden sm:inline">Suche</span>
               </button>
             </div>
           </div>
