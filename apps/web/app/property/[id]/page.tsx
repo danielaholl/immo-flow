@@ -52,8 +52,8 @@ export default function PropertyPage() {
   });
 
   // Fetch property with owner using tRPC
-  // Uses getById which returns teaser for non-auth users, full details for authenticated users
-  const { data: property, isLoading: loading } = trpc.properties.getById.useQuery(
+  // Uses getByIdWithOwner which includes owner profile data (name, phone, avatar, etc.)
+  const { data: property, isLoading: loading } = trpc.properties.getByIdWithOwner.useQuery(
     { id: params.id as string },
     {
       enabled: !!params.id,
@@ -146,7 +146,7 @@ export default function PropertyPage() {
       // Invalidate and refetch AI evaluation
       utils.evaluations.getAIEvaluation.invalidate();
       // Invalidate and refetch property data to update the badge
-      utils.properties.getById.invalidate({ id: params.id as string });
+      utils.properties.getByIdWithOwner.invalidate({ id: params.id as string });
       setIsEvaluating(false);
     },
     onError: (error) => {
@@ -170,7 +170,7 @@ export default function PropertyPage() {
       setBuyerEvaluation(newEvaluation);
 
       // Invalidate and refetch property data to update the badge
-      utils.properties.getById.invalidate({ id: params.id as string });
+      utils.properties.getByIdWithOwner.invalidate({ id: params.id as string });
 
       setIsEvaluating(false);
     },
@@ -453,6 +453,7 @@ export default function PropertyPage() {
       last_name: property.owner.last_name,
       company: property.owner.company,
       avatar_url: property.owner.avatar_url,
+      phone: property.owner.phone,
     } : undefined,
   };
 
@@ -470,9 +471,9 @@ export default function PropertyPage() {
       </div>
 
       {/* Two Column Layout - Full Height */}
-      <div className="flex flex-col-reverse lg:flex-row" style={{ minHeight: 'calc(100vh - 80px)' }}>
+      <div className="flex flex-col lg:flex-row" style={{ minHeight: 'calc(100vh - 80px)' }}>
         {/* Left Column - Property Details (Scrollable) */}
-        <div className="w-full lg:w-1/2 flex flex-col lg:h-[calc(100vh-80px)]">
+        <div className="w-full lg:w-1/2 flex flex-col lg:h-[calc(100vh-80px)] order-2 lg:order-1">
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto px-4 py-4 lg:px-8 lg:py-8 pb-48 lg:pb-8">
             {/* Back Button - Only shown on desktop */}
@@ -528,13 +529,14 @@ export default function PropertyPage() {
         </div>
 
         {/* Right Column - Property Card with Slideshow */}
-        <div className="w-full lg:w-1/2 lg:sticky lg:top-20 h-[50vh] lg:h-[calc(100vh-80px)] p-4 lg:p-6">
+        <div className="w-full lg:w-1/2 lg:sticky lg:top-20 h-[50vh] lg:h-[calc(100vh-80px)] p-4 lg:p-6 order-1 lg:order-2">
           <PropertyImageSlideshow
             images={property.images}
             title={property.title}
             className="h-full shadow-xl"
             showCounter={true}
             showProgressBars={true}
+            propertyType={property.property_type || undefined}
             overlay={
               <>
                 {/* AI-Score Badge - Top Right (PropertyScoreBadge Component) */}

@@ -13,7 +13,8 @@
     "./theme": "./src/theme/index.ts"
   },
   "react-native": {
-    "./src/components/shared/PropertyCard/PropertyCard": "./src/components/shared/PropertyCard/PropertyCard.native.tsx"
+    "./src/components/shared/PropertyCard/PropertyCard": "./src/components/shared/PropertyCard/PropertyCard.native.tsx",
+    "./src/components/shared/PropertyImageSlideshow/PropertyImageSlideshow": "./src/components/shared/PropertyImageSlideshow/PropertyImageSlideshow.native.tsx"
   },
   "scripts": {
     "lint": "eslint .",

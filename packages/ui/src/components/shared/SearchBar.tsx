@@ -42,22 +42,26 @@ export function SearchBar({ onSearch, className, placeholder }: SearchBarProps) 
   };
 
   if (Platform.OS === 'web') {
+    // Shorter placeholder for mobile
+    const mobilePlaceholder = placeholder || "Was suchst du?";
+    const desktopPlaceholder = placeholder || "z.B. '3 Zimmer Wohnung in München mit Balkon'";
+
     return (
       <div className={className || ''}>
         {/* Search Field */}
         <div className="bg-white rounded-full shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
           <div className="flex items-center">
             {/* Natural Language Input */}
-            <div className="flex-1 px-6 py-5 flex items-center">
+            <div className="flex-1 px-4 sm:px-6 py-4 sm:py-5 flex items-center">
               <textarea
                 ref={inputRef}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={placeholder || "z.B. 'Suche eine 3 Zimmer Wohnung in München Schwabing mit Balkon'"}
+                placeholder={desktopPlaceholder}
                 rows={1}
                 disabled={isLoading}
-                className="w-full resize-none outline-none text-gray-900 placeholder-gray-400 text-xl leading-tight max-h-24 overflow-y-auto disabled:opacity-50 bg-transparent"
+                className="w-full resize-none outline-none text-gray-900 placeholder-gray-400 text-base sm:text-xl leading-tight max-h-24 overflow-y-auto disabled:opacity-50 bg-transparent"
                 style={{ minHeight: '28px' }}
               />
             </div>
@@ -67,7 +71,8 @@ export function SearchBar({ onSearch, className, placeholder }: SearchBarProps) 
               <button
                 onClick={handleSearch}
                 disabled={!query.trim() || isLoading}
-                className="bg-primary hover:bg-primary/90 text-white rounded-full px-6 py-4 font-semibold flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95 text-lg"
+                className="bg-primary hover:bg-primary/90 text-white rounded-full px-4 sm:px-6 py-3 sm:py-4 font-semibold flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95 text-base sm:text-lg"
+                title={!query.trim() ? "Bitte gib einen Suchbegriff ein" : "Suche starten"}
               >
                 {isLoading ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -91,6 +96,13 @@ export function SearchBar({ onSearch, className, placeholder }: SearchBarProps) 
             </div>
           </div>
         </div>
+
+        {/* Helper text below search bar */}
+        {!query.trim() && (
+          <p className="text-center text-gray-400 text-xs sm:text-sm mt-2">
+            Beschreibe in eigenen Worten, was du suchst
+          </p>
+        )}
       </div>
     );
   }

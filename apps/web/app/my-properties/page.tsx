@@ -10,7 +10,7 @@ import { PropertyImageSlideshow } from '../components/PropertyImageSlideshow';
 import { PropertyPreview, PropertyPreviewData } from '../components/PropertyPreview';
 import { AIEvaluationPanel, type SellerEvaluation } from '../components/AIEvaluationPanel';
 import { DeletePropertyModal } from '../components/DeletePropertyModal';
-import { MapPin, Home, Plus, Eye, Pencil, Power, Heart, X } from 'lucide-react';
+import { Home, Plus, Pencil, Power, Trash2, Phone } from 'lucide-react';
 import { PropertyListThumbnail } from '../components/PropertyListThumbnail';
 import { trpc } from '@/lib/trpc';
 import { useMasterDetailNavigation } from '@/app/hooks/useMasterDetailNavigation';
@@ -18,8 +18,55 @@ import { MobileDetailHeader } from '../components/MobileDetailHeader';
 
 type StatusFilter = 'all' | 'active' | 'archived' | 'pending' | 'sold';
 
+// Typed seller_analysis structure
+interface SellerAnalysisData {
+  market_position?: {
+    price_comparison?: 'above_market' | 'market_average' | 'below_market';
+    market_average_price_per_sqm?: number;
+    recommendation?: string;
+  };
+  selling_points?: string[];
+  improvements?: string[];
+}
+
+// Typed ai_detailed_evaluation structure
+interface AIDetailedEvaluationData {
+  yield_metrics?: unknown;
+  rental_income?: unknown;
+  cashflow_calculation?: unknown;
+  evaluation?: unknown;
+}
+
+// Extended property type with statistics from getByUserId query
+// Using Omit to override JSONB fields with proper types
+type PropertyWithStats = Omit<Property, 'seller_analysis' | 'ai_detailed_evaluation'> & {
+  // Statistics fields from LEFT JOIN
+  total_views: number;
+  unique_viewers: number;
+  favorites_count: number;
+  rating_count: number;
+  views_last_7_days: number;
+  views_last_30_days: number;
+  feedback_count: number;
+  avg_rating: number | null;
+  avg_suggested_price: number | null;
+  positive_feedback_count: number | null;
+  neutral_feedback_count: number | null;
+  negative_feedback_count: number | null;
+  days_online: number;
+  // Override JSONB fields with proper types
+  seller_analysis: SellerAnalysisData | null;
+  ai_detailed_evaluation: AIDetailedEvaluationData | null;
+  // Additional fields that may be returned but not in base Property type
+  actual_monthly_rent?: number | null;
+  strengths?: string[] | null;
+  weaknesses?: string[] | null;
+  opportunities?: string[] | null;
+  risks?: string[] | null;
+};
+
 // Helper function to convert seller_analysis data to SellerEvaluation format
-function convertSellerAnalysisToEvaluation(sellerAnalysis: any): SellerEvaluation | undefined {
+function convertSellerAnalysisToEvaluation(sellerAnalysis: PropertyWithStats['seller_analysis']): SellerEvaluation | undefined {
   if (!sellerAnalysis) return undefined;
 
   // Extract market position data
@@ -86,13 +133,16 @@ export default function MyPropertiesPage() {
   renderCountRef.current += 1;
 
   // Fetch user's properties with tRPC
-  const { data: properties = [], isLoading: loading } = trpc.properties.getByUserId.useQuery(undefined, {
+  const { data: propertiesData = [], isLoading: loading } = trpc.properties.getByUserId.useQuery(undefined, {
     enabled: !!user,
     onSuccess: () => {
       const duration = performance.now() - pageLoadStartTimeRef.current;
       console.log(`📄 [PERF-MY-PROPS] Properties loaded in ${duration.toFixed(2)}ms`);
     },
   });
+
+  // Cast to PropertyWithStats for proper typing
+  const properties = propertiesData as PropertyWithStats[];
 
   // Get utils for cache invalidation
   const utils = trpc.useContext();
@@ -179,10 +229,9 @@ export default function MyPropertiesPage() {
     setDeactivateModalOpen(true);
   };
 
-  const handleDeactivateConfirm = (reason: string, soldPrice?: number) => {
+  const handleDeactivateConfirm = (_reason: string, _soldPrice?: number) => {
     if (!propertyToDeactivate) return;
-
-    // For now, just deactivate - we could extend the API to accept reason and soldPrice later
+    // TODO: Extend API to accept reason and soldPrice for analytics
     deactivateMutation.mutate({ id: propertyToDeactivate.id });
   };
 
@@ -246,21 +295,6 @@ export default function MyPropertiesPage() {
     }).format(price);
   };
 
-  const getStatusBadge = (status: string | null) => {
-    switch (status) {
-      case 'active':
-        return { label: 'Aktiv', bg: 'bg-green-500', text: 'text-white' };
-      case 'pending':
-        return { label: 'Ausstehend', bg: 'bg-yellow-500', text: 'text-white' };
-      case 'archived':
-        return { label: 'Deaktiviert', bg: 'bg-gray-500', text: 'text-white' };
-      case 'sold':
-        return { label: 'Verkauft', bg: 'bg-blue-500', text: 'text-white' };
-      default:
-        return { label: status || 'Unbekannt', bg: 'bg-gray-500', text: 'text-white' };
-    }
-  };
-
   if (authLoading || loading) {
     return (
       <main className="min-h-screen bg-white">
@@ -274,8 +308,8 @@ export default function MyPropertiesPage() {
 
   // Convert property data to PropertyPreview format
   // Extract detailed evaluation data from JSONB field
-  const detailedEval = selectedProperty ? (selectedProperty as any).ai_detailed_evaluation : null;
-  const sellerEval = selectedProperty ? convertSellerAnalysisToEvaluation((selectedProperty as any).seller_analysis) : undefined;
+  const detailedEval = selectedProperty?.ai_detailed_evaluation;
+  const sellerEval = selectedProperty ? convertSellerAnalysisToEvaluation(selectedProperty.seller_analysis) : undefined;
 
   const propertyPreviewData: PropertyPreviewData | null = selectedProperty ? {
     images: selectedProperty.images || [],
@@ -284,7 +318,7 @@ export default function MyPropertiesPage() {
     location: selectedProperty.location || '',
     address: selectedProperty.address ?? undefined,
     title: selectedProperty.title || '',
-    type: (selectedProperty as any).property_type ?? undefined,
+    type: selectedProperty.property_type ?? undefined,
     sqm: selectedProperty.sqm || 0,
     rooms: selectedProperty.rooms || 0,
     description: selectedProperty.description || '',
@@ -292,42 +326,42 @@ export default function MyPropertiesPage() {
     yield: selectedProperty.yield ?? undefined,
     highlights: selectedProperty.highlights ?? undefined,
     red_flags: selectedProperty.red_flags ?? undefined,
-    ai_investment_score: (selectedProperty as any).ai_investment_score ?? selectedProperty.ai_score ?? undefined,
+    ai_investment_score: selectedProperty.ai_investment_score ?? selectedProperty.ai_score ?? undefined,
     require_address_consent: false,
-    monthly_fee: (selectedProperty as any).monthly_fee ?? undefined,
-    usable_area: (selectedProperty as any).usable_area ?? undefined,
-    usable_area_ratio: (selectedProperty as any).usable_area_ratio ?? undefined,
-    bathrooms: (selectedProperty as any).bathrooms ?? undefined,
-    total_floors: (selectedProperty as any).total_floors ?? undefined,
-    floor_level: (selectedProperty as any).floor_level ?? undefined,
-    available_from: (selectedProperty as any).available_from ?? undefined,
-    year_built: (selectedProperty as any).year_built ?? undefined,
-    heating_type: (selectedProperty as any).heating_type ?? undefined,
-    energy_source: (selectedProperty as any).energy_source ?? undefined,
-    energy_certificate: (selectedProperty as any).energy_certificate ?? undefined,
-    energy_efficiency_class: (selectedProperty as any).energy_efficiency_class ?? undefined,
-    condition: (selectedProperty as any).condition ?? undefined,
-    important_notes: (selectedProperty as any).important_notes ?? undefined,
+    monthly_fee: selectedProperty.monthly_fee ?? undefined,
+    usable_area: selectedProperty.usable_area ?? undefined,
+    usable_area_ratio: selectedProperty.usable_area_ratio ?? undefined,
+    bathrooms: selectedProperty.bathrooms ?? undefined,
+    total_floors: selectedProperty.total_floors ?? undefined,
+    floor_level: selectedProperty.floor_level ?? undefined,
+    available_from: selectedProperty.available_from ?? undefined,
+    year_built: selectedProperty.year_built ?? undefined,
+    heating_type: selectedProperty.heating_type ?? undefined,
+    energy_source: selectedProperty.energy_source ?? undefined,
+    energy_certificate: selectedProperty.energy_certificate ?? undefined,
+    energy_efficiency_class: selectedProperty.energy_efficiency_class ?? undefined,
+    condition: selectedProperty.condition ?? undefined,
+    important_notes: selectedProperty.important_notes ?? undefined,
     // Extract AI analysis data from ai_detailed_evaluation JSONB
-    actual_monthly_rent: (selectedProperty as any).actual_monthly_rent ?? undefined,
+    actual_monthly_rent: selectedProperty.actual_monthly_rent ?? undefined,
     yield_metrics: detailedEval?.yield_metrics ?? undefined,
     rental_income: detailedEval?.rental_income ?? undefined,
     cashflow_calculation: detailedEval?.cashflow_calculation ?? undefined,
     evaluation: detailedEval?.evaluation ?? undefined,
     // AI Rating fields
-    ai_rating_explanation: (selectedProperty as any).ai_rating_explanation ?? undefined,
-    strengths: (selectedProperty as any).strengths ?? undefined,
-    weaknesses: (selectedProperty as any).weaknesses ?? undefined,
-    opportunities: (selectedProperty as any).opportunities ?? undefined,
-    risks: (selectedProperty as any).risks ?? undefined,
+    ai_rating_explanation: selectedProperty.ai_rating_explanation ?? undefined,
+    strengths: selectedProperty.strengths ?? undefined,
+    weaknesses: selectedProperty.weaknesses ?? undefined,
+    opportunities: selectedProperty.opportunities ?? undefined,
+    risks: selectedProperty.risks ?? undefined,
     // Days online
-    days_online: (selectedProperty as any).days_online ?? undefined,
+    days_online: selectedProperty.days_online ?? undefined,
     // Aggregated feedback stats (only for seller view)
-    total_views: (selectedProperty as any).total_views ?? undefined,
-    favorites_count: (selectedProperty as any).favorites_count ?? undefined,
-    rating_count: (selectedProperty as any).rating_count ?? undefined,
-    avg_rating: (selectedProperty as any).avg_rating ?? undefined,
-    avg_suggested_price: (selectedProperty as any).avg_suggested_price ?? undefined,
+    total_views: selectedProperty.total_views ?? undefined,
+    favorites_count: selectedProperty.favorites_count ?? undefined,
+    rating_count: selectedProperty.rating_count ?? undefined,
+    avg_rating: selectedProperty.avg_rating ?? undefined,
+    avg_suggested_price: selectedProperty.avg_suggested_price ?? undefined,
     // Seller evaluation from seller_analysis JSONB field
     seller_evaluation: sellerEval,
   } : null;
@@ -442,8 +476,8 @@ export default function MyPropertiesPage() {
                       price={property.price}
                       location={property.location}
                       statusOnline={property.status === 'active'}
-                      viewCount={(property as any).unique_viewers || 0}
-                      favoriteCount={(property as any).favorites_count || 0}
+                      viewCount={property.unique_viewers || 0}
+                      favoriteCount={property.favorites_count || 0}
                       onDelete={(e) => {
                         e.stopPropagation();
                         handleDeleteClick({
@@ -487,7 +521,7 @@ export default function MyPropertiesPage() {
                         showInvestmentScore={false}
                         isOwner={true}
                         hideProviderInfo={true}
-                        sellerAnalysisMarketAverage={(selectedProperty as any).seller_analysis?.market_position?.market_average_price_per_sqm}
+                        sellerAnalysisMarketAverage={selectedProperty.seller_analysis?.market_position?.market_average_price_per_sqm}
                         evaluationViewType="seller"
                         onTriggerEvaluation={(viewType) => handleGenerateSellerAnalysis(selectedProperty.id)}
                         propertyId={selectedProperty.id}
@@ -579,11 +613,7 @@ export default function MyPropertiesPage() {
                         disabled={deleteMutation.isLoading}
                         className="flex-1 bg-white border-2 border-red-300 text-red-600 font-semibold py-3 px-4 rounded-xl hover:bg-red-50 hover:border-red-400 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M3 6h18"></path>
-                          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                        </svg>
+                        <Trash2 size={16} />
                         <span>{deleteMutation.isLoading ? '...' : 'Löschen'}</span>
                       </button>
                     </div>
@@ -599,6 +629,7 @@ export default function MyPropertiesPage() {
                       showCounter={true}
                       showProgressBars={true}
                       slideshowId={`my-properties-${selectedProperty.id}`}
+                      propertyType={selectedProperty.property_type || undefined}
                     />
                   </div>
                 </div>

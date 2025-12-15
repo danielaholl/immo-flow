@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useCallback } from 'react';
 import type { Property, PropertyType, BadgeInfo } from './PropertyCard.types';
 
@@ -41,7 +43,14 @@ export function usePropertyCardLogic(property: Property) {
     score?: number,
     scoreColor?: 'green' | 'yellow' | 'red'
   ): BadgeInfo | null => {
-    if (score === undefined) return null;
+    // Show "Pending" badge for properties without score
+    if (score === undefined || score === null) {
+      return {
+        label: 'Ausstehend',
+        color: '#9CA3AF',
+        dotColor: '#9CA3AF',
+      };
+    }
 
     if (scoreColor === 'green' || score >= 70) {
       return {

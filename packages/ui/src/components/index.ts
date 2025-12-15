@@ -9,6 +9,7 @@ export * from './shared/Avatar';
 export * from './shared/Badge';
 export * from './shared/SearchBar';
 export * from './shared/PropertyCard'; // Platform-aware export (web/native)
+export * from './shared/PropertyImageSlideshow'; // Platform-aware export (web/native)
 
 // Web-only Components
 export { ChatAssistant, type ChatAssistantProps, type Message as ChatMessage } from './web/ChatAssistant';

@@ -114,6 +114,7 @@ export default function SuggestionPage() {
               title={property.title}
               className="aspect-[4/5] shadow-xl"
               duration={4000}
+              propertyType={property.property_type || undefined}
               overlay={
                 <>
                   {/* AI Score Badge */}

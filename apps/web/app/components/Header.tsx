@@ -198,7 +198,7 @@ export function Header() {
 
       {/* Bottom Navigation Bar - Only for logged-in mobile users */}
       {user && (
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg safe-area-inset-bottom">
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-[100] bg-white border-t border-gray-200 shadow-lg safe-area-inset-bottom">
           <div className="grid grid-cols-5 h-16">
             {/* Entdecken */}
             <Link

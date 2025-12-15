@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { MapPin, ChartNoAxesCombined, Bath, Sparkles, DoorClosed, Square, Layers, Euro, Calendar, Building2, Clock, Flame, Zap, ChevronDown, MessageCircle, Star, Eye, Heart } from 'lucide-react';
+import { MapPin, Bath, Sparkles, DoorClosed, Square, Layers, Euro, Building2, Clock, Flame, Zap, ChevronDown, MessageCircle, Star, Eye, Heart, Phone } from 'lucide-react';
 import { AIEvaluationPanel } from './AIEvaluationPanel';
 // AIInvestmentEvaluation und InvestmentScoreBadge auskommentiert - nur stichpunktartige Bewertung
 // import { AIInvestmentEvaluation, InvestmentScoreBadge } from '@immoflow/ui';
@@ -152,6 +152,7 @@ export interface PropertyPreviewData {
     avatar_url?: string | null;
     user_type?: string;
     phone?: string | null;
+    bio?: string | null;
   };
   // Additional metadata fields
   property_type?: string;
@@ -165,6 +166,7 @@ export interface PropertyPreviewData {
     avatar_url?: string | null;
     user_type?: string;
     phone?: string | null;
+    bio?: string | null;
   };
 }
 
@@ -307,8 +309,8 @@ export function PropertyPreview({
   const [isCashflowExpanded, setIsCashflowExpanded] = useState(false);
   // State for weitere details accordion - expanded by default when data exists
   const [isWeitereDetailsExpanded, setIsWeitereDetailsExpanded] = useState(false);
-  // State for description accordion - expanded by default
-  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(true);
+  // State for description accordion - collapsed by default
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   // State for AI evaluation accordion
   const [isAIEvaluationExpanded, setIsAIEvaluationExpanded] = useState(false);
   // State for highlights and red flags accordion
@@ -939,7 +941,7 @@ export function PropertyPreview({
                 )}
 
                 {/* Description Text */}
-                <p className="text-gray-700 leading-relaxed" style={{ fontSize: '18px' }}>
+                <p className="text-gray-700 leading-relaxed text-base">
                   {isDescriptionExpanded || !isLongDescription ? data.description : previewText}
                 </p>
               </div>
@@ -989,7 +991,9 @@ export function PropertyPreview({
         {!hideProviderInfo && data.owner && (
           <div className="mb-6 bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Anbieter</h3>
-            <div className="flex items-center justify-between gap-4">
+
+            {/* Header with Avatar and Name */}
+            <div className="flex items-center justify-between gap-4 mb-4">
               <div className="flex items-center gap-4">
                 {data.owner?.avatar_url ? (
                   <img
@@ -1014,10 +1018,8 @@ export function PropertyPreview({
                       ? `${data.owner.first_name || ''} ${data.owner.last_name || ''}`.trim()
                       : 'Privater Anbieter'}
                   </h4>
-                  {data.owner?.company ? (
+                  {data.owner?.company && (
                     <p className="text-sm text-gray-600">{data.owner.company}</p>
-                  ) : (
-                    <p className="text-sm text-gray-500">-</p>
                   )}
                 </div>
               </div>
@@ -1033,6 +1035,22 @@ export function PropertyPreview({
                 </button>
               )}
             </div>
+
+            {/* Bio */}
+            {data.owner?.bio && (
+              <p className="text-sm text-gray-600 mb-4">{data.owner.bio}</p>
+            )}
+
+            {/* Phone */}
+            {(data.owner?.phone || data.owner_profile?.phone) && (
+              <a
+                href={`tel:${data.owner?.phone || data.owner_profile?.phone}`}
+                className="inline-flex items-center gap-2 text-sm text-gray-700 hover:text-primary transition-colors"
+              >
+                <Phone size={16} />
+                <span>{data.owner?.phone || data.owner_profile?.phone}</span>
+              </a>
+            )}
           </div>
         )}
 

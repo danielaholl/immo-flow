@@ -516,6 +516,7 @@ export default function MessagesPage() {
                         rounded="none"
                         className="h-full"
                         slideshowId={`messages-property-${selectedConversation.propertyId}`}
+                        propertyType={propertyDetails?.property_type || undefined}
                       />
                     </div>
                   </div>

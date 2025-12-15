@@ -454,6 +454,7 @@ export default function FavoritesPage() {
                       showCounter={true}
                       showProgressBars={true}
                       slideshowId={`favorites-${selectedProperty.id}`}
+                      propertyType={selectedProperty.property_type || undefined}
                     />
                   </div>
                 </div>

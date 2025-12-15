@@ -724,8 +724,16 @@ export default function ProfilePage() {
                   ) : (
                     <>
                       <h1 className="font-semibold text-gray-900 text-2xl">
-                        {profile?.first_name} {profile?.last_name}
+                        {profile?.first_name || profile?.last_name
+                          ? `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim()
+                          : user?.email?.split('@')[0] || 'Nutzer'}
                       </h1>
+                      {!profile?.first_name && !profile?.last_name && (
+                        <p className="text-amber-600 text-sm mt-1 flex items-center gap-1">
+                          <Edit3 size={14} />
+                          Name noch nicht hinterlegt
+                        </p>
+                      )}
                       {profile?.company && (
                         <p className="text-gray-600 mt-1">{profile.company}</p>
                       )}

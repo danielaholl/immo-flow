@@ -1198,6 +1198,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
                   rounded="none"
                   aspectRatio="auto"
                   className="h-full"
+                  propertyType={listingData.property_type || undefined}
                 />
               ) : (
                 <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-gradient-to-br from-gray-50 to-gray-100">
