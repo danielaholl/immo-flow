@@ -67,53 +67,6 @@ type PropertyWithStats = Omit<Property, 'seller_analysis' | 'ai_detailed_evaluat
   risks?: string[] | null;
 };
 
-// Helper function to convert seller_analysis data to SellerEvaluation format
-function convertSellerAnalysisToEvaluation(sellerAnalysis: PropertyWithStats['seller_analysis']): SellerEvaluation | undefined {
-  if (!sellerAnalysis) return undefined;
-
-  // Extract market position data
-  const marketPosition = sellerAnalysis.market_position;
-  const pricePerSqm = marketPosition?.market_average_price_per_sqm || 0;
-
-  // Calculate estimated market value based on market average
-  // This is a rough estimate - the actual property sqm would be needed for accuracy
-  const marketValueMin = pricePerSqm * 0.9;
-  const marketValueMax = pricePerSqm * 1.1;
-
-  // Use AI-generated selling points (highlights of the property)
-  const sellingPoints: string[] = sellerAnalysis.selling_points || [];
-
-  // Summarize improvements to top 3, shortened
-  const shortenSuggestion = (text: string): string => {
-    // Take first sentence or truncate at 80 chars
-    const firstSentence = text.split(/[.!?]/)[0];
-    if (firstSentence.length <= 80) return firstSentence;
-    return firstSentence.substring(0, 77) + '...';
-  };
-
-  const improvements = (sellerAnalysis.improvements || [])
-    .slice(0, 3)
-    .map(shortenSuggestion);
-
-  return {
-    viewType: 'seller',
-    marketValueMin: Math.round(marketValueMin * 100), // Placeholder - would need sqm
-    marketValueMax: Math.round(marketValueMax * 100), // Placeholder - would need sqm
-    recommendedPrice: Math.round(pricePerSqm * 100), // Placeholder
-    comparableSales: 5, // Placeholder
-    marketingDurationMin: 4,
-    marketingDurationMax: 8,
-    priceAssessment: marketPosition?.price_comparison === 'above_market'
-      ? 'Über Marktwert'
-      : marketPosition?.price_comparison === 'below_market'
-        ? 'Unter Marktwert'
-        : 'Marktgerecht',
-    summary: marketPosition?.recommendation || 'Keine Zusammenfassung verfügbar',
-    sellingPoints: sellingPoints.length > 0 ? sellingPoints : [],
-    improvementSuggestions: improvements,
-  };
-}
-
 export default function MyPropertiesPage() {
   const { user, profile, loading: authLoading } = useAuthContext();
   const router = useRouter();
@@ -312,10 +265,7 @@ export default function MyPropertiesPage() {
   // Extract detailed evaluation data from JSONB field
   const detailedEval = selectedProperty?.ai_detailed_evaluation;
   // Use seller_evaluation directly (from property-seller-evaluator with validated market values)
-  // Fall back to converted seller_analysis only if seller_evaluation doesn't exist
-  const sellerEval = selectedProperty?.seller_evaluation
-    ? (selectedProperty.seller_evaluation as SellerEvaluation)
-    : (selectedProperty ? convertSellerAnalysisToEvaluation(selectedProperty.seller_analysis) : undefined);
+  const sellerEval = selectedProperty?.seller_evaluation as SellerEvaluation | undefined;
 
   const propertyPreviewData: PropertyPreviewData | null = selectedProperty ? {
     images: selectedProperty.images || [],
@@ -368,7 +318,7 @@ export default function MyPropertiesPage() {
     rating_count: selectedProperty.rating_count ?? undefined,
     avg_rating: selectedProperty.avg_rating ?? undefined,
     avg_suggested_price: selectedProperty.avg_suggested_price ?? undefined,
-    // Seller evaluation from seller_analysis JSONB field
+    // Seller evaluation from seller_evaluation JSONB field
     seller_evaluation: sellerEval,
   } : null;
 

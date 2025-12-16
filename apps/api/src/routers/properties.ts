@@ -823,37 +823,6 @@ export const propertiesRouter = router({
       };
     }),
 
-  // Generate seller analysis for a property
-  generateSellerAnalysis: protectedProcedure
-    .input(z.object({ propertyId: z.string().uuid() }))
-    .mutation(async ({ input, ctx }) => {
-      // Import seller analysis service
-      const { generateSellerAnalysis } = await import('../services/seller-analysis.js');
-
-      // Get property
-      const property = await queryOne(
-        `SELECT * FROM properties WHERE id = $1 AND user_id = $2`,
-        [input.propertyId, ctx.user.id]
-      );
-
-      if (!property) {
-        throw new Error('Property not found or access denied');
-      }
-
-      // Generate seller analysis
-      const analysis = await generateSellerAnalysis(property);
-
-      // Update property with seller analysis
-      await query(
-        `UPDATE properties
-         SET seller_analysis = $1, updated_at = NOW()
-         WHERE id = $2`,
-        [JSON.stringify(analysis), input.propertyId]
-      );
-
-      return analysis;
-    }),
-
   // Track property view
   trackView: publicProcedure
     .input(z.object({
