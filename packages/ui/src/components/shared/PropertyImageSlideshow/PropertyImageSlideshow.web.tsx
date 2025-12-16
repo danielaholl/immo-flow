@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { Trash2 } from 'lucide-react';
 import type { PropertyImageSlideshowProps } from './PropertyImageSlideshow.types';
 import { useSlideshowLogic } from './PropertyImageSlideshow.logic';
 import { useSlideshowManager } from './SlideshowManagerContext';
 import { PropertyImagePlaceholder } from '../../web/PropertyImagePlaceholder';
+import { GlassButton } from '../../web/GlassButton';
 
 export function PropertyImageSlideshow({
   images,
@@ -26,6 +28,8 @@ export function PropertyImageSlideshow({
   onSlideshowComplete,
   onVideoEnd,
   showGradient = false,
+  onDeleteImage,
+  onDeleteVideo,
 }: PropertyImageSlideshowProps) {
   const manager = useSlideshowManager();
   const [isActiveSlideshow, setIsActiveSlideshow] = useState(true);
@@ -318,12 +322,27 @@ export function PropertyImageSlideshow({
               </svg>
             )}
           </div>
+          {/* Delete Video Button - Bottom Right */}
+          {onDeleteVideo && (
+            <div className="absolute bottom-4 right-3 z-20">
+              <GlassButton
+                variant="danger"
+                size="md"
+                iconLeft={<Trash2 />}
+                onClick={() => onDeleteVideo()}
+                ariaLabel="Video löschen"
+                tooltip="Video löschen"
+              >
+                Löschen
+              </GlassButton>
+            </div>
+          )}
         </div>
       )}
 
       {/* Main Image - when video ended or no video */}
       {!showVideo && (
-        <>
+        <div className="relative w-full h-full">
           {hasImages && !imageError ? (
             <img
               src={images![currentImageIndex] || images![0]}
@@ -334,7 +353,22 @@ export function PropertyImageSlideshow({
           ) : (
             <PropertyImagePlaceholder className="w-full h-full" propertyType={propertyType} />
           )}
-        </>
+          {/* Delete Image Button - Bottom Right */}
+          {onDeleteImage && hasImages && !imageError && (
+            <div className="absolute bottom-4 right-3 z-20">
+              <GlassButton
+                variant="danger"
+                size="md"
+                iconLeft={<Trash2 />}
+                onClick={() => onDeleteImage(currentImageIndex)}
+                ariaLabel="Bild löschen"
+                tooltip="Bild löschen"
+              >
+                Löschen
+              </GlassButton>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Gradient Overlay - only show when explicitly enabled and not during video */}

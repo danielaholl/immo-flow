@@ -25,26 +25,18 @@ export function UniversalChat({
   isTyping = false,
   isSending = false,
   isUploading = false,
-  enableDragDrop,
   className = '',
   showTimestamps = true,
   showSenderNames = true,
   messagesEndRef: externalMessagesEndRef,
   emptyState,
   fileInputRef: externalFileInputRef,
-  onDragEnter: externalDragEnter,
-  onDragLeave: externalDragLeave,
-  onDragOver: externalDragOver,
-  onDrop: externalDrop,
-  isDragOver: externalIsDragOver,
 }: UniversalChatProps) {
   const internalMessagesEndRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = externalMessagesEndRef || internalMessagesEndRef;
   const internalFileInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = externalFileInputRef || internalFileInputRef;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [internalIsDragOver, setInternalIsDragOver] = useState(false);
-  const isDragOver = externalIsDragOver !== undefined ? externalIsDragOver : internalIsDragOver;
   const [localInputValue, setLocalInputValue] = useState('');
   const [galleryState, setGalleryState] = useState<GalleryState>({
     isOpen: false,
@@ -64,9 +56,6 @@ export function UniversalChat({
     acceptedFileTypes = 'image/jpeg,image/png,image/webp,application/pdf',
     multipleFiles = true,
   } = input;
-
-  // Drag & Drop is enabled by default when file upload is available
-  const isDragDropEnabled = enableDragDrop ?? (showFileUpload || !!externalDrop || !!onFileUpload);
 
   // Default style config
   const {
@@ -167,57 +156,6 @@ export function UniversalChat({
     if (e.target.files && e.target.files.length > 0) {
       onFileUpload?.(e.target.files);
       e.target.value = '';
-    }
-  };
-
-  // Drag & Drop handlers - use external handlers if provided, otherwise use internal
-  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
-    if (externalDragEnter) {
-      externalDragEnter(e);
-      return;
-    }
-    if (!isDragDropEnabled) return;
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.dataTransfer.types.includes('Files')) {
-      setInternalIsDragOver(true);
-    }
-  };
-
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    if (externalDragLeave) {
-      externalDragLeave(e);
-      return;
-    }
-    if (!isDragDropEnabled) return;
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.currentTarget === e.target) {
-      setInternalIsDragOver(false);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    if (externalDragOver) {
-      externalDragOver(e);
-      return;
-    }
-    if (!isDragDropEnabled) return;
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    if (externalDrop) {
-      externalDrop(e);
-      return;
-    }
-    if (!isDragDropEnabled) return;
-    e.preventDefault();
-    e.stopPropagation();
-    setInternalIsDragOver(false);
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      onFileUpload?.(e.dataTransfer.files);
     }
   };
 
@@ -349,29 +287,10 @@ export function UniversalChat({
         </div>
       </div>
 
-      {/* Messages Area Wrapper - relative container for overlay */}
+      {/* Messages Area Wrapper */}
       <div className="flex-1 relative overflow-hidden">
-        {/* Drag overlay - Airbnb style (outside scrollable area) */}
-        {isDragOver && isDragDropEnabled && (
-          <div className="absolute inset-0 bg-black/5 backdrop-blur-[1px] border-2 border-dashed border-gray-900 rounded-xl z-10 flex items-center justify-center pointer-events-none transition-all">
-            <div className="bg-white rounded-2xl px-8 py-6 shadow-xl border border-gray-100">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Paperclip size={32} className="text-gray-900" />
-              </div>
-              <p className="text-lg font-semibold text-gray-900 text-center">Dateien hier ablegen</p>
-              <p className="text-sm text-gray-500 mt-1 text-center">Bilder oder PDF-Dokumente</p>
-            </div>
-          </div>
-        )}
-
         {/* Scrollable messages area */}
-        <div
-          className="h-full overflow-y-auto overflow-x-hidden p-6 bg-white"
-          onDragEnter={handleDragEnter}
-          onDragLeave={handleDragLeave}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
-        >
+        <div className="h-full overflow-y-auto overflow-x-hidden p-6 bg-white">
           {/* Empty state */}
         {messages.length === 0 && emptyState ? (
           <div className="flex items-center justify-center h-full">

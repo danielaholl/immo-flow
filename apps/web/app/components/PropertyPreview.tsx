@@ -9,6 +9,7 @@ import { AIEvaluationPanel } from './AIEvaluationPanel';
 export interface PropertyPreviewData {
   id?: string;
   images: string[];
+  video_url?: string | null;
   price: number;
   commission_rate?: number;
   location: string;

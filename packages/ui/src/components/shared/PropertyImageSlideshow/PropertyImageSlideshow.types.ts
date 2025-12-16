@@ -25,6 +25,10 @@ export interface PropertyImageSlideshowProps {
   onVideoEnd?: () => void;
   /** Whether to show gradient overlay at the bottom (for text readability) */
   showGradient?: boolean;
+  /** Callback when an image is deleted */
+  onDeleteImage?: (index: number) => void;
+  /** Callback when the video is deleted */
+  onDeleteVideo?: () => void;
 }
 
 export interface SlideshowManager {

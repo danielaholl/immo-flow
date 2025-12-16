@@ -60,10 +60,10 @@ export function useConversationalAI(): UseConversationalAIResult {
 
     // Different welcome messages based on mode
     if (mode === 'import') {
-      addBotMessage('Hey! Exposé, Screenshots oder Bilder hochladen - ich mach den Rest.');
+      addBotMessage('Hey! Exposé, Screenshots, Bilder oder Videos hochladen - ich mach den Rest.');
     } else {
       // Default message for create/edit mode
-      addBotMessage('Hey! Beschreib deine Immobilie oder lade Exposé, Screenshots oder Bilder hoch.');
+      addBotMessage('Hey! Beschreib deine Immobilie oder lade Exposé, Screenshots, Bilder oder Videos hoch.');
     }
   };
 

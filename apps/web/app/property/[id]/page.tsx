@@ -12,8 +12,8 @@ import { PropertyPreview, PropertyPreviewData } from '@/app/components/PropertyP
 import { PropertyActionButtons } from '@/app/components/PropertyActionButtons';
 import { MobileDetailHeader } from '@/app/components/MobileDetailHeader';
 import { PageContainer } from '@/app/components/PageContainer';
-import { ArrowLeft } from 'lucide-react';
-import { InvestmentScoreBadge, PropertyScoreBadge, GlassActionButton } from '@immoflow/ui';
+import { ArrowLeft, Heart, X } from 'lucide-react';
+import { InvestmentScoreBadge, PropertyScoreBadge, GlassButton } from '@immoflow/ui';
 import { trpc } from '@/lib/trpc';
 import { useAuthGuard } from '@/app/hooks/useAuthGuard';
 import { LoginPromptModal } from '@/app/components/LoginPromptModal';
@@ -556,15 +556,24 @@ export default function PropertyPage() {
                 {/* Action Buttons - Bottom Right - Reusable Components */}
                 {!isOwner && (
                   <div className="absolute bottom-6 right-4 z-20 flex flex-row gap-3">
-                    <GlassActionButton
-                      type="dismiss"
+                    <GlassButton
+                      variant="default"
+                      iconOnly
+                      subtleBorder
+                      iconLeft={<X strokeWidth={2.5} />}
                       onClick={() => router.push('/')}
+                      tooltip="Nicht interessiert"
+                      ariaLabel="Nicht interessiert"
                     />
                     {user && (
-                      <GlassActionButton
-                        type="favorite"
-                        isActive={isFavorite}
+                      <GlassButton
+                        variant="favorite"
+                        iconOnly
+                        subtleBorder
+                        iconLeft={<Heart fill={isFavorite ? '#FF385C' : 'none'} strokeWidth={2} />}
                         onClick={handleFavoriteToggle}
+                        tooltip={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                        ariaLabel={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
                       />
                     )}
                   </div>

@@ -94,8 +94,6 @@ export interface UniversalChatProps {
   isSending?: boolean;
   /** Whether file upload is in progress */
   isUploading?: boolean;
-  /** Enable drag & drop for files */
-  enableDragDrop?: boolean;
   /** Custom class name for the container */
   className?: string;
   /** Show timestamps on messages */
@@ -108,14 +106,4 @@ export interface UniversalChatProps {
   emptyState?: React.ReactNode;
   /** External file input ref for advanced control */
   fileInputRef?: React.RefObject<HTMLInputElement>;
-  /** Custom drag enter handler */
-  onDragEnter?: (e: React.DragEvent<HTMLDivElement>) => void;
-  /** Custom drag leave handler */
-  onDragLeave?: (e: React.DragEvent<HTMLDivElement>) => void;
-  /** Custom drag over handler */
-  onDragOver?: (e: React.DragEvent<HTMLDivElement>) => void;
-  /** Custom drop handler */
-  onDrop?: (e: React.DragEvent<HTMLDivElement>) => void;
-  /** External control of drag over state */
-  isDragOver?: boolean;
 }

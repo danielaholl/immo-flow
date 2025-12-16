@@ -162,7 +162,7 @@ export function ChatInterface({
               onClick={onFileInputClick}
               disabled={isUploadingImages}
               className="bg-gray-100 hover:bg-gray-200 text-gray-700 p-2.5 lg:p-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-              title="Bilder oder PDF-Exposé hochladen"
+              title="Bilder, Videos oder PDF-Exposé hochladen"
             >
               <Paperclip size={18} className="lg:w-5 lg:h-5" />
             </button>

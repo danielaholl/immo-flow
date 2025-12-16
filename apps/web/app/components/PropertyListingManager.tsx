@@ -14,6 +14,7 @@ import { trpc } from '@/lib/trpc';
 import { MessageSquare, Eye, Images, Loader2, Sparkles } from 'lucide-react';
 import { useConversationalAI } from '../create-listing/hooks/useConversationalAI';
 import { useImageUpload } from '../create-listing/hooks/useImageUpload';
+import { useVideoUpload } from '../create-listing/hooks/useVideoUpload';
 import type { ListingData } from '../create-listing/types';
 import { UniversalChat } from './UniversalChat';
 import type { ChatMessage } from './UniversalChat/types';
@@ -83,10 +84,15 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
       );
     } else {
       addBotMessage(
-        `Super! Ich habe ${count} Bild${count > 1 ? 'er' : ''} erhalten. Du kannst noch mehr Bilder hinzufügen oder mir von deiner Immobilie erzählen.`
+        `Super! Ich habe ${count} Bild${count > 1 ? 'er' : ''} erhalten. Du kannst noch mehr Bilder, Videos hinzufügen oder mir von deiner Immobilie erzählen.`
       );
     }
   });
+
+  const {
+    videoUrl,
+    setVideoUrl,
+  } = useVideoUpload();
 
   // Sync uploaded images with listing data
   useEffect(() => {
@@ -97,6 +103,29 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
       }));
     }
   }, [uploadedImages]);
+
+  // Sync video URL with listing data
+  useEffect(() => {
+    setListingData((prev) => ({
+      ...prev,
+      video_url: videoUrl
+    }));
+  }, [videoUrl]);
+
+  // Delete handlers for images and video
+  const handleDeleteImage = useCallback((index: number) => {
+    setUploadedImages((prev) => {
+      const newImages = [...prev];
+      newImages.splice(index, 1);
+      return newImages;
+    });
+    addBotMessage('Bild wurde entfernt.');
+  }, [addBotMessage]);
+
+  const handleDeleteVideo = useCallback(() => {
+    setVideoUrl(null);
+    addBotMessage('Video wurde entfernt.');
+  }, [setVideoUrl, addBotMessage]);
 
   // tRPC mutations and utils
   const extractDataMutation = trpc.aiChat.extractPropertyData.useMutation();
@@ -157,8 +186,13 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
       setUploadedImages(propertyToEdit.images);
     }
 
+    // Load video
+    if ((propertyToEdit as any).video_url) {
+      setVideoUrl((propertyToEdit as any).video_url);
+    }
+
     setIsLoadingProperty(false);
-  }, [isEditMode, propertyToEdit, setUploadedImages]);
+  }, [isEditMode, propertyToEdit, setUploadedImages, setVideoUrl]);
 
   // Track if welcome message was shown
   const welcomeShownRef = useRef(false);
@@ -330,6 +364,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
           rooms: listingData.rooms || 0,
           condition: listingData.condition || 'maintained',
           images: uploadedImages.length > 0 ? uploadedImages : [],
+          video_url: videoUrl || undefined,
         });
 
         console.log('[KI Evaluation] Creating property with data:', tempPropertyData);
@@ -395,6 +430,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
         ...listingData,
         user_id: user?.id,
         images: uploadedImages.length > 0 ? uploadedImages : [],
+        video_url: videoUrl || undefined,
       });
 
       // Filter out null values to avoid Zod validation errors
@@ -545,7 +581,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
       setUploadedImages(newImages);
 
       addBotMessage(
-        `Super! Ich habe das Bild von der URL hinzugefügt. Du kannst weitere Bilder hochladen oder mir von deiner Immobilie erzählen.`
+        `Super! Ich habe das Bild von der URL hinzugefügt. Du kannst weitere Bilder, Videos hochladen oder mir von deiner Immobilie erzählen.`
       );
 
       // Clear URL input
@@ -662,10 +698,13 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
     }
   };
 
-  // Drag and drop handlers
+  // Drag and drop handlers with counter for nested elements
+  const dragCounterRef = useRef(0);
+
   const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
+    dragCounterRef.current++;
     if (e.dataTransfer.types.includes('Files')) {
       setIsDragOver(true);
     }
@@ -674,7 +713,8 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
   const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.currentTarget === e.target) {
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
       setIsDragOver(false);
     }
   };
@@ -687,6 +727,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
   const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
+    dragCounterRef.current = 0;
     setIsDragOver(false);
 
     const files = e.dataTransfer.files;
@@ -808,10 +849,17 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
       return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(ext || '');
     };
 
+    const isVideo = (file: File) => {
+      if (file.type.startsWith('video/')) return true;
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      return ['mp4', 'mov', 'webm', 'mpeg'].includes(ext || '');
+    };
+
     const pdfFiles = fileArray.filter(isPdf);
     const imageFiles = fileArray.filter(isImage);
+    const videoFiles = fileArray.filter(isVideo);
 
-    console.log('[Upload] PDFs:', pdfFiles.length, 'Images:', imageFiles.length);
+    console.log('[Upload] PDFs:', pdfFiles.length, 'Images:', imageFiles.length, 'Videos:', videoFiles.length);
 
     // Handle PDFs (in import mode, automatically analyze)
     if (pdfFiles.length > 0) {
@@ -975,7 +1023,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
 
           addBotMessage(
             `Ich konnte die Bilder nicht eindeutig klassifizieren (möglicherweise unklare Screenshots). Die Bilder wurden zur Galerie hinzugefügt.\n\n` +
-            `Du kannst ein PDF-Exposé hochladen oder mir die Daten direkt mitteilen.`
+            `Du kannst ein PDF-Exposé, Videos hochladen oder mir die Daten direkt mitteilen.`
           );
         }
 
@@ -989,8 +1037,55 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
 
         addBotMessage(
           `Fehler bei der Bildanalyse. Die Bilder wurden zur Galerie hinzugefügt.\n\n` +
-          `Du kannst ein PDF-Exposé hochladen oder mir die Daten direkt mitteilen.`
+          `Du kannst ein PDF-Exposé, Videos hochladen oder mir die Daten direkt mitteilen.`
         );
+      }
+    }
+
+    // Handle video upload (only first video, max 100MB)
+    if (videoFiles.length > 0) {
+      const videoFile = videoFiles[0];
+      const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100MB
+
+      // Validate file size
+      if (videoFile.size > MAX_VIDEO_SIZE) {
+        addBotMessage('Das Video ist zu groß. Maximale Größe: 100MB');
+        return;
+      }
+
+      addBotMessage(`Video "${videoFile.name}" wird hochgeladen...`);
+
+      try {
+        const formData = new FormData();
+        formData.append('video', videoFile);
+
+        const token = localStorage.getItem('auth_token');
+        if (!token) throw new Error('Keine Authentifizierung gefunden');
+
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+        const response = await fetch(`${apiUrl}/upload/property-video`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Upload fehlgeschlagen mit Status ${response.status}`);
+        }
+
+        const result = await response.json();
+        if (result.success && result.data?.url) {
+          setVideoUrl(result.data.url);
+          addBotMessage('Video erfolgreich hochgeladen! Es wird in der Vorschau angezeigt.');
+        } else {
+          throw new Error(result.message || 'Upload fehlgeschlagen');
+        }
+      } catch (error: any) {
+        console.error('[Upload] Video upload error:', error);
+        addBotMessage(`Video-Upload fehlgeschlagen: ${error.message || 'Unbekannter Fehler'}`);
       }
     }
   };
@@ -1007,6 +1102,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
     plot_size: listingData.plot_size,
     condition: listingData.condition || 'maintained',
     images: uploadedImages.length > 0 ? uploadedImages : ['https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800'],
+    video_url: videoUrl,
     description: listingData.description || '',
     features: listingData.features || [],
     important_notes: listingData.important_notes || undefined,
@@ -1041,7 +1137,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
       phone: profile?.phone || null,
     } : undefined,
     // Note: Seller evaluation is shown separately via SellerAnalysis component
-  }), [listingData, uploadedImages, user, profile, isComplete]);
+  }), [listingData, uploadedImages, videoUrl, user, profile, isComplete]);
 
   // Convert messages from Message format to ChatMessage format for UniversalChat
   const convertedMessages: ChatMessage[] = useMemo(() => {
@@ -1054,7 +1150,25 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
 
   return (
     <SlideshowManagerProvider>
-      <div className="w-full" style={{ height: 'calc(100vh - 80px)' }}>
+      <div
+        className="w-full relative"
+        style={{ height: 'calc(100vh - 80px)' }}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+      >
+        {/* Global Drop Overlay */}
+        {isDragOver && (
+          <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm border-4 border-dashed border-white rounded-2xl flex items-center justify-center pointer-events-none">
+            <div className="text-center">
+              <Images size={64} className="mx-auto mb-4 text-white" />
+              <p className="text-2xl font-semibold text-white">Dateien hier ablegen</p>
+              <p className="text-white/80 mt-2">Bilder, Videos oder PDF-Exposé</p>
+            </div>
+          </div>
+        )}
+
         {/* Mobile Tab Navigation */}
         <div className="lg:hidden px-2 sm:px-4 py-3">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-1 flex gap-1">
@@ -1109,7 +1223,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
                   : "Erzähl mir davon...",
                 disabled: extractDataMutation.isLoading || isAnalyzingPdf,
                 showFileUpload: true,
-                acceptedFileTypes: "image/jpeg,image/png,image/webp,image/gif,application/pdf",
+                acceptedFileTypes: "image/jpeg,image/png,image/webp,image/gif,application/pdf,video/mp4,video/quicktime,video/webm,video/mpeg",
                 multipleFiles: true,
               }}
               inputValue={textInput}
@@ -1119,11 +1233,6 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
               isUploading={isUploadingImages}
               fileInputRef={fileInputRef}
               onFileInputChange={handleFileUploadWithExtraction}
-              onDragEnter={handleDragEnter}
-              onDragLeave={handleDragLeave}
-              onDragOver={handleDragOver}
-              onDrop={handleDrop}
-              isDragOver={isDragOver}
               messagesEndRef={messagesEndRef}
               showTimestamps={false}
               showSenderNames={false}
@@ -1203,26 +1312,31 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
             {/* Slideshow Section - 1/2 der rechten Spalte */}
             <div className={`w-full lg:w-1/2 h-[60vh] lg:h-full min-h-0 overflow-hidden p-4 lg:p-6 ${mobileView === 'preview' ? 'hidden lg:block' : ''}`}>
               <div className="w-full h-full overflow-hidden flex flex-col rounded-2xl">
-                <PropertyImageSlideshow
-                  images={uploadedImages.length > 0 ? uploadedImages : [getPlaceholderImage()]}
-                  title={listingData.title || 'Deine Immobilie'}
-                  duration={3000}
-                  showCounter={uploadedImages.length > 0}
-                  showProgressBars={uploadedImages.length > 0}
-                  rounded="none"
-                  aspectRatio="auto"
-                  className="h-full"
-                  propertyType={listingData.property_type || undefined}
-                  overlay={uploadedImages.length === 0 ? (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                      <div className="text-center text-white">
-                        <Images size={48} className="mx-auto mb-3 opacity-80" />
-                        <h3 className="text-xl font-semibold">Noch keine Bilder</h3>
-                        <p className="text-sm opacity-80 mt-1">Lade Bilder über den Chat hoch</p>
+                <div className="flex-1 min-h-0">
+                  <PropertyImageSlideshow
+                    images={uploadedImages.length > 0 ? uploadedImages : [getPlaceholderImage()]}
+                    videoUrl={videoUrl}
+                    title={listingData.title || 'Deine Immobilie'}
+                    duration={3000}
+                    showCounter={uploadedImages.length > 0}
+                    showProgressBars={uploadedImages.length > 0}
+                    rounded="none"
+                    aspectRatio="auto"
+                    className="h-full"
+                    propertyType={listingData.property_type || undefined}
+                    onDeleteImage={uploadedImages.length > 0 ? handleDeleteImage : undefined}
+                    onDeleteVideo={videoUrl ? handleDeleteVideo : undefined}
+                    overlay={uploadedImages.length === 0 && !videoUrl ? (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                        <div className="text-center text-white">
+                          <Images size={48} className="mx-auto mb-3 opacity-80" />
+                          <h3 className="text-xl font-semibold">Noch keine Medien</h3>
+                          <p className="text-sm opacity-80 mt-1">Lade Bilder oder Videos über den Chat hoch</p>
+                        </div>
                       </div>
-                    </div>
-                  ) : undefined}
-                />
+                    ) : undefined}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -1238,10 +1352,10 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
                 <Images size={32} className="text-gray-400" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Keine Bilder hochgeladen
+                Keine Medien hochgeladen
               </h3>
               <p className="text-gray-600">
-                Möchtest du noch Bilder zu deinem Inserat hinzufügen? Bilder erhöhen die Aufmerksamkeit deutlich.
+                Möchtest du noch Bilder oder Videos zu deinem Inserat hinzufügen? Medien erhöhen die Aufmerksamkeit deutlich.
               </p>
             </div>
             <div className="flex flex-col gap-3">
@@ -1253,7 +1367,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
                 }}
                 className="w-full bg-primary hover:bg-primary/90 text-white py-3 rounded-xl font-semibold transition-colors"
               >
-                Bilder hochladen
+                Bilder oder Videos hochladen
               </button>
               <button
                 onClick={() => {

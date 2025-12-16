@@ -18,6 +18,7 @@ export interface ListingData {
   description?: string;
   features?: string[];
   images?: string[];
+  video_url?: string | null;
   important_notes?: string;
   year_built?: number;
   floor_level?: string; // For apartments (e.g., "3", "EG")

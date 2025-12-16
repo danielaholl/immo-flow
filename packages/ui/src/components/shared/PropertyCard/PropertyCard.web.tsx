@@ -2,12 +2,12 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { House } from 'lucide-react';
+import { House, Heart, X } from 'lucide-react';
 import { colors } from '../../../theme';
 import type { PropertyCardProps } from './PropertyCard.types';
 import { usePropertyCardLogic } from './PropertyCard.logic';
 import { PropertyImageSlideshow } from '../PropertyImageSlideshow';
-import { GlassActionButton } from '../../web/GlassActionButton';
+import { GlassButton } from '../../web/GlassButton';
 import { PropertyScoreBadge } from '../../web/PropertyScoreBadge';
 
 export function PropertyCard({
@@ -51,14 +51,23 @@ export function PropertyCard({
 
             {/* Action Buttons - Reusable Components */}
             <div className="absolute bottom-5 right-3 flex flex-row gap-2 z-20">
-              <GlassActionButton
-                type="dismiss"
+              <GlassButton
+                variant="default"
+                iconOnly
+                subtleBorder
+                iconLeft={<X strokeWidth={2.5} />}
                 onClick={(e) => onDismiss?.(e as any)}
+                tooltip="Nicht interessiert"
+                ariaLabel="Nicht interessiert"
               />
-              <GlassActionButton
-                type="favorite"
-                isActive={isFavorite}
+              <GlassButton
+                variant="favorite"
+                iconOnly
+                subtleBorder
+                iconLeft={<Heart fill={isFavorite ? '#FF385C' : 'none'} strokeWidth={2} />}
                 onClick={(e) => onFavorite?.(e as any)}
+                tooltip={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                ariaLabel={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
               />
             </div>
 
