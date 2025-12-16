@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { House, Heart, X } from 'lucide-react';
+import { House, Heart, X, MapPin } from 'lucide-react';
 import { colors } from '../../../theme';
 import type { PropertyCardProps } from './PropertyCard.types';
 import { usePropertyCardLogic } from './PropertyCard.logic';
@@ -44,7 +44,7 @@ export function PropertyCard({
           <>
             {/* AI Score Badge - Reusable Component */}
             {logic.score !== undefined && logic.score !== null && (
-              <div className="absolute top-12 right-3 z-15">
+              <div className="absolute top-12 right-3 z-10 pointer-events-none">
                 <PropertyScoreBadge score={logic.score} variant="overlay" />
               </div>
             )}
@@ -74,7 +74,7 @@ export function PropertyCard({
             {/* Owner Badge - Glassmorphism */}
             {isOwner && (
               <div
-                className="absolute top-12 right-3 w-12 h-12 rounded-full flex items-center justify-center z-20 shadow-xl"
+                className="absolute top-12 right-3 w-12 h-12 rounded-full flex items-center justify-center z-10 shadow-xl pointer-events-none"
                 style={{
                   backgroundColor: 'rgba(0, 0, 0, 0.55)',
                   backdropFilter: 'blur(16px)',
@@ -86,11 +86,17 @@ export function PropertyCard({
               </div>
             )}
 
-            {/* Property Info Overlay */}
-            <View style={styles.infoOverlay}>
+            {/* Property Info Overlay - pointer-events-none to allow clicks through */}
+            <View style={[styles.infoOverlay, { pointerEvents: 'none' }]}>
               <Text style={styles.title} numberOfLines={2} ellipsizeMode="tail">
                 {property.title}
               </Text>
+              {property.location && (
+                <View style={styles.locationRow}>
+                  <MapPin size={14} color="rgba(255, 255, 255, 0.85)" strokeWidth={2} />
+                  <Text style={styles.location}>{property.location}</Text>
+                </View>
+              )}
               <Text style={styles.price}>{logic.formattedPrice}</Text>
               <Text style={styles.details}>
                 {property.rooms} Zi • {property.sqm} m²
@@ -129,10 +135,23 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: '#FFFFFF',
-    marginBottom: 4,
+    marginBottom: 2,
     textShadowColor: 'rgba(0, 0, 0, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 4,
+  },
+  location: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.85)',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   price: {
     fontSize: 22,

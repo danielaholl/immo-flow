@@ -43,8 +43,18 @@ const ratingConfig = {
   },
 };
 
+// Score von 0-100 auf 1-5 konvertieren
+function toDisplayScore(score: number): number {
+  if (score >= 80) return 5;
+  if (score >= 60) return 4;
+  if (score >= 40) return 3;
+  if (score >= 20) return 2;
+  return 1;
+}
+
 export function AIRatingHero({ rating, score, explanation }: AIRatingHeroProps) {
   const config = ratingConfig[rating];
+  const displayScore = toDisplayScore(score);
 
   return (
     <div className={`bg-gradient-to-br ${config.gradient} rounded-2xl p-6 md:p-8 text-white shadow-xl`}>
@@ -59,7 +69,7 @@ export function AIRatingHero({ rating, score, explanation }: AIRatingHeroProps) 
       <div className="mb-6">
         <div className="flex items-center justify-between mb-3">
           <span className="text-sm md:text-base opacity-90">Investment Score:</span>
-          <span className="text-3xl md:text-4xl font-bold">{score}/100</span>
+          <span className="text-3xl md:text-4xl font-bold">{displayScore}/5</span>
         </div>
         <div className="w-full h-3 md:h-4 bg-white/20 rounded-full overflow-hidden">
           <div

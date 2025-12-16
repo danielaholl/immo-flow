@@ -32,6 +32,15 @@ interface SellerAnalysisProps {
   isGenerating?: boolean;
 }
 
+// Score von 0-100 auf 1-5 konvertieren
+const toDisplayScore = (score: number): number => {
+  if (score >= 80) return 5;
+  if (score >= 60) return 4;
+  if (score >= 40) return 3;
+  if (score >= 20) return 2;
+  return 1;
+};
+
 export function SellerAnalysis({ analysis, onGenerateAnalysis, isGenerating }: SellerAnalysisProps) {
   // State for accordions
   const [isCompletenessExpanded, setIsCompletenessExpanded] = useState(false);
@@ -39,14 +48,16 @@ export function SellerAnalysis({ analysis, onGenerateAnalysis, isGenerating }: S
   const [isPriceExpanded, setIsPriceExpanded] = useState(false);
 
   const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-green-600';
-    if (score >= 60) return 'text-yellow-600';
+    const displayScore = toDisplayScore(score);
+    if (displayScore >= 4) return 'text-green-600';
+    if (displayScore === 3) return 'text-yellow-600';
     return 'text-red-600';
   };
 
   const getScoreBgColor = (score: number) => {
-    if (score >= 80) return 'bg-green-100';
-    if (score >= 60) return 'bg-yellow-100';
+    const displayScore = toDisplayScore(score);
+    if (displayScore >= 4) return 'bg-green-100';
+    if (displayScore === 3) return 'bg-yellow-100';
     return 'bg-red-100';
   };
 
@@ -95,11 +106,11 @@ export function SellerAnalysis({ analysis, onGenerateAnalysis, isGenerating }: S
           <div>
             <p className="text-sm font-medium text-gray-600 mb-1">Inseratsqualität</p>
             <p className={`text-3xl font-bold ${getScoreColor(analysis.listing_quality_score)}`}>
-              {analysis.listing_quality_score}/100
+              {toDisplayScore(analysis.listing_quality_score)}/5
             </p>
           </div>
           <div className="text-right">
-            {analysis.listing_quality_score >= 80 ? (
+            {toDisplayScore(analysis.listing_quality_score) >= 4 ? (
               <CheckCircle className="text-green-600" size={32} />
             ) : (
               <AlertCircle className="text-yellow-600" size={32} />

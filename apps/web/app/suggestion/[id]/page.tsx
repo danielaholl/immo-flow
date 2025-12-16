@@ -65,9 +65,20 @@ export default function SuggestionPage() {
     }).format(price);
   };
 
+  // Score von 0-100 auf 1-5 konvertieren
+  const toDisplayScore = (score: number) => {
+    if (score >= 80) return 5;
+    if (score >= 60) return 4;
+    if (score >= 40) return 3;
+    if (score >= 20) return 2;
+    return 1;
+  };
+
+  // Farbberechnung: 4-5 grün, 3 gelb, 1-2 rot
   const getScoreColor = (score: number) => {
-    if (score >= 85) return '#22C55E';
-    if (score >= 70) return '#F59E0B';
+    const ds = toDisplayScore(score);
+    if (ds >= 4) return '#22C55E';
+    if (ds === 3) return '#F59E0B';
     return '#EF4444';
   };
 
@@ -124,7 +135,7 @@ export default function SuggestionPage() {
                         className="w-3 h-3 rounded-full"
                         style={{ backgroundColor: getScoreColor(property.ai_score) }}
                       />
-                      <span className="text-white font-semibold">{property.ai_score}/100</span>
+                      <span className="text-white font-semibold">{toDisplayScore(property.ai_score)}/5</span>
                     </div>
                   )}
 

@@ -1,8 +1,35 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Sparkles, RefreshCw, Home, TrendingUp, Euro, Target, AlertTriangle, CheckCircle, ChevronDown } from 'lucide-react';
+import { Sparkles, RefreshCw, Home, Euro, Target, AlertTriangle, CheckCircle, ChevronDown } from 'lucide-react';
 import { InvestmentScoreBadge } from '@immoflow/ui';
+
+// Utility: Score von 0-100 auf 1-5 konvertieren
+const toDisplayScore = (score: number): number => {
+  if (score >= 80) return 5;
+  if (score >= 60) return 4;
+  if (score >= 40) return 3;
+  if (score >= 20) return 2;
+  return 1;
+};
+
+// Utility: Score-Farbberechnung (1-5 Skala)
+// 5 = top, 4 = gut, 3 = ok, 2 = schwach, 1 = nein
+const getScoreColor = (score: number): { color: string; label: string } => {
+  const displayScore = toDisplayScore(score);
+  if (displayScore >= 4) return { color: '#22C55E', label: displayScore === 5 ? 'Top' : 'Gut' };
+  if (displayScore === 3) return { color: '#EAB308', label: 'OK' };
+  return { color: '#EF4444', label: displayScore === 2 ? 'Schwach' : 'Nein' };
+};
+
+// Utility: Preisformatierung
+const formatPrice = (price: number): string => {
+  return new Intl.NumberFormat('de-DE', {
+    style: 'currency',
+    currency: 'EUR',
+    maximumFractionDigits: 0,
+  }).format(price);
+};
 
 // Types for evaluations
 export interface SellerEvaluation {
@@ -62,28 +89,19 @@ export interface BuyerEvaluation {
 
 export interface AIEvaluationPanelProps {
   mode: 'buyer' | 'seller';
-  propertyId?: string; // Optional - may not exist in create mode
-  // Existing evaluation data
   sellerEvaluation?: SellerEvaluation;
   buyerEvaluation?: BuyerEvaluation;
-  // Loading state (controlled externally)
   isLoading?: boolean;
-  // Callback to trigger evaluation
   onTriggerEvaluation: (viewType: 'seller' | 'buyer_selfuse' | 'buyer_investor') => void;
-  // Optional: callback when evaluation is updated
-  onEvaluationUpdated?: () => void;
-  // Custom class name
   className?: string;
 }
 
 export function AIEvaluationPanel({
   mode,
-  // propertyId is passed for reference but not used internally - evaluation is triggered by parent
   sellerEvaluation,
   buyerEvaluation,
   isLoading = false,
   onTriggerEvaluation,
-  // onEvaluationUpdated can be used by parent if needed
   className = '',
 }: AIEvaluationPanelProps) {
   // State for collapsible panel - starts collapsed (must be before any early returns)
@@ -163,50 +181,6 @@ export function AIEvaluationPanel({
     );
   }
 
-  // Get color indicator based on mode and score
-  // Offizielle Schwellenwerte: >= 70 (Exzellent), >= 40 (Moderat), < 40 (Risiko)
-  const getColorIndicator = () => {
-    if (mode === 'buyer' && buyerEvaluation?.buyer_investor) {
-      const score = buyerEvaluation.buyer_investor.investmentScore;
-      let color = '#EF4444'; // red
-      let label = 'Risiko';
-
-      if (score >= 70) {
-        color = '#22C55E'; // green
-        label = 'Exzellent';
-      } else if (score >= 40) {
-        color = '#EAB308'; // yellow
-        label = 'Moderat';
-      }
-
-      return { color, label };
-    }
-
-    if (mode === 'seller' && sellerEvaluation) {
-      // For seller mode, use price assessment to determine color
-      const assessment = sellerEvaluation.priceAssessment?.toLowerCase() || '';
-      let color = '#22C55E'; // green (default: fair price)
-      let label = 'Gut';
-
-      if (assessment.includes('unter') || assessment.includes('günstig')) {
-        color = '#22C55E'; // green
-        label = 'Attraktiv';
-      } else if (assessment.includes('über') || assessment.includes('hoch')) {
-        color = '#EF4444'; // red
-        label = 'Prüfen';
-      } else if (assessment.includes('fair') || assessment.includes('markt')) {
-        color = '#EAB308'; // yellow
-        label = 'Fair';
-      }
-
-      return { color, label };
-    }
-
-    return null;
-  };
-
-  const colorIndicator = getColorIndicator();
-
   // Results view - collapsible panel with results
   return (
     <div className={`bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden ${className}`}>
@@ -237,10 +211,11 @@ export function AIEvaluationPanel({
                 e.stopPropagation();
                 handleRefreshEvaluation();
               }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${mode === 'seller' ? 'hover:bg-emerald-100 text-emerald-600' : 'hover:bg-purple-100 text-purple-600'}`}
+              disabled={isLoading}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${mode === 'seller' ? 'hover:bg-emerald-100 text-emerald-600' : 'hover:bg-purple-100 text-purple-600'} ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              <RefreshCw size={14} />
-              Neu generieren
+              <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+              {isLoading ? 'Lädt...' : 'Neu generieren'}
             </button>
             <ChevronDown
               size={20}
@@ -257,7 +232,7 @@ export function AIEvaluationPanel({
                 <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
                   <div className="text-xs text-gray-500 mb-1">Marktwert</div>
                   <div className="text-lg font-bold text-gray-900">
-                    {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(sellerEvaluation.recommendedPrice)}
+                    {formatPrice(sellerEvaluation.recommendedPrice)}
                   </div>
                 </div>
                 <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
@@ -270,38 +245,24 @@ export function AIEvaluationPanel({
             )}
 
             {/* Buyer Investor Mode Metrics */}
-            {mode === 'buyer' && buyerEvaluation?.buyer_investor && (
+            {mode === 'buyer' && buyerEvaluation?.buyer_investor && (() => {
+              const scoreInfo = getScoreColor(buyerEvaluation.buyer_investor.investmentScore);
+              return (
               <>
                 <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
                   <div
                     className="text-xs font-medium mb-1"
-                    style={{
-                      color: buyerEvaluation.buyer_investor.investmentScore >= 70
-                        ? '#22C55E'
-                        : buyerEvaluation.buyer_investor.investmentScore >= 40
-                          ? '#EAB308'
-                          : '#EF4444'
-                    }}
+                    style={{ color: scoreInfo.color }}
                   >
-                    {buyerEvaluation.buyer_investor.investmentScore >= 70
-                      ? 'Exzellent'
-                      : buyerEvaluation.buyer_investor.investmentScore >= 40
-                        ? 'Moderat'
-                        : 'Risiko'}
+                    {scoreInfo.label}
                   </div>
                   <div className="flex items-center justify-center gap-2">
                     <div
                       className="w-3 h-3 rounded-full flex-shrink-0"
-                      style={{
-                        backgroundColor: buyerEvaluation.buyer_investor.investmentScore >= 70
-                          ? '#22C55E'
-                          : buyerEvaluation.buyer_investor.investmentScore >= 40
-                            ? '#EAB308'
-                            : '#EF4444'
-                      }}
+                      style={{ backgroundColor: scoreInfo.color }}
                     />
                     <span className="text-lg font-bold text-gray-900">
-                      {buyerEvaluation.buyer_investor.investmentScore}/100
+                      {toDisplayScore(buyerEvaluation.buyer_investor.investmentScore)}/5
                     </span>
                   </div>
                 </div>
@@ -325,7 +286,8 @@ export function AIEvaluationPanel({
                   </div>
                 </div>
               </>
-            )}
+              );
+            })()}
           </div>
       </div>
 
@@ -354,14 +316,6 @@ export function AIEvaluationPanel({
 
 // Seller Results Component
 function SellerResults({ evaluation }: { evaluation: SellerEvaluation }) {
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('de-DE', {
-      style: 'currency',
-      currency: 'EUR',
-      maximumFractionDigits: 0,
-    }).format(price);
-  };
-
   return (
     <div className="space-y-4">
       {/* Market Value */}
@@ -370,23 +324,23 @@ function SellerResults({ evaluation }: { evaluation: SellerEvaluation }) {
           <Euro size={16} className="text-green-600" />
           <h4 className="text-sm font-medium text-gray-700">Marktwertanalyse</h4>
         </div>
-        <ul className="space-y-1.5 text-sm">
+        <ul className="space-y-1.5 text-base leading-relaxed">
           <li className="flex">
-            <span className="text-gray-600 w-[30%] flex-shrink-0">Geschätzter Marktwert:</span>
+            <span className="text-gray-700 w-[55%] flex-shrink-0">Geschätzter Marktwert:</span>
             <span className="font-semibold text-gray-900 flex-1 text-right">
               {formatPrice(evaluation.marketValueMin)} - {formatPrice(evaluation.marketValueMax)}
             </span>
           </li>
           <li className="flex">
-            <span className="text-gray-600 w-[30%] flex-shrink-0">Empfohlener Preis:</span>
+            <span className="text-gray-700 w-[55%] flex-shrink-0">Empfohlener Preis:</span>
             <span className="font-semibold text-green-600 flex-1 text-right">{formatPrice(evaluation.recommendedPrice)}</span>
           </li>
           <li className="flex">
-            <span className="text-gray-600 w-[30%] flex-shrink-0">Preiseinschätzung:</span>
+            <span className="text-gray-700 w-[55%] flex-shrink-0">Preiseinschätzung:</span>
             <span className="font-semibold text-gray-900 flex-1 text-right">{evaluation.priceAssessment}</span>
           </li>
           <li className="flex">
-            <span className="text-gray-600 w-[30%] flex-shrink-0">Vergleichbare Verkäufe:</span>
+            <span className="text-gray-700 w-[55%] flex-shrink-0">Vergleichbare Verkäufe:</span>
             <span className="font-semibold text-gray-900 flex-1 text-right">{evaluation.comparableSales} in der Region</span>
           </li>
         </ul>
@@ -398,9 +352,9 @@ function SellerResults({ evaluation }: { evaluation: SellerEvaluation }) {
           <Target size={16} className="text-blue-600" />
           <h4 className="text-sm font-medium text-gray-700">Vermarktung</h4>
         </div>
-        <ul className="space-y-1.5 text-sm">
+        <ul className="space-y-1.5 text-base leading-relaxed">
           <li className="flex">
-            <span className="text-gray-600 w-[30%] flex-shrink-0">Erwartete Vermarktungsdauer:</span>
+            <span className="text-gray-700 w-[55%] flex-shrink-0">Erwartete Vermarktungsdauer:</span>
             <span className="font-semibold text-gray-900 flex-1 text-right">
               {evaluation.marketingDurationMin} - {evaluation.marketingDurationMax} Wochen
             </span>
@@ -415,7 +369,7 @@ function SellerResults({ evaluation }: { evaluation: SellerEvaluation }) {
             <CheckCircle size={16} className="text-green-600" />
             <h4 className="text-sm font-medium text-gray-700">Verkaufsargumente</h4>
           </div>
-          <ul className="space-y-1 text-sm">
+          <ul className="space-y-1 text-base leading-relaxed">
             {evaluation.sellingPoints.slice(0, 5).map((point, idx) => (
               <li key={idx} className="flex items-start gap-2 text-gray-700">
                 <span className="text-green-500 mt-0.5">•</span>
@@ -433,7 +387,7 @@ function SellerResults({ evaluation }: { evaluation: SellerEvaluation }) {
             <AlertTriangle size={16} className="text-amber-600" />
             <h4 className="text-sm font-medium text-gray-700">Verbesserungsvorschläge</h4>
           </div>
-          <ul className="space-y-1 text-sm">
+          <ul className="space-y-1 text-base leading-relaxed">
             {evaluation.improvementSuggestions.slice(0, 5).map((suggestion, idx) => (
               <li key={idx} className="flex items-start gap-2 text-gray-700">
                 <span className="text-amber-500 mt-0.5">•</span>
@@ -447,7 +401,7 @@ function SellerResults({ evaluation }: { evaluation: SellerEvaluation }) {
       {/* Summary */}
       {evaluation.summary && (
         <div className="border-t border-gray-200 pt-4">
-          <p className="text-sm text-gray-600 italic">{evaluation.summary}</p>
+          <p className="text-base text-gray-700 leading-relaxed">{evaluation.summary}</p>
         </div>
       )}
     </div>
@@ -471,29 +425,29 @@ function BuyerResults({
             <Home size={16} className="text-blue-600" />
             <h4 className="text-sm font-medium text-gray-700">Wohn-Score</h4>
           </div>
-          <ul className="space-y-1.5 text-sm">
+          <ul className="space-y-1.5 text-base leading-relaxed">
             <li className="flex items-center">
-              <span className="text-gray-600 w-[30%] flex-shrink-0">Wohn-Score:</span>
+              <span className="text-gray-700 w-[55%] flex-shrink-0">Wohn-Score:</span>
               <span className="flex-1 flex justify-end">
                 <InvestmentScoreBadge score={selfuseEvaluation.livingScore} size="sm" />
               </span>
             </li>
             <li className="flex">
-              <span className="text-gray-600 w-[30%] flex-shrink-0">Lagequalität:</span>
+              <span className="text-gray-700 w-[55%] flex-shrink-0">Lagequalität:</span>
               <span className="font-semibold text-gray-900 flex-1 text-right">{selfuseEvaluation.locationQuality}</span>
             </li>
             <li className="flex">
-              <span className="text-gray-600 w-[30%] flex-shrink-0">Einkaufsmöglichkeiten:</span>
+              <span className="text-gray-700 w-[55%] flex-shrink-0">Einkaufsmöglichkeiten:</span>
               <span className="font-semibold text-gray-900 flex-1 text-right">{selfuseEvaluation.shoppingFacilities}</span>
             </li>
             <li className="flex">
-              <span className="text-gray-600 w-[30%] flex-shrink-0">Kaufen vs. Mieten:</span>
+              <span className="text-gray-700 w-[55%] flex-shrink-0">Kaufen vs. Mieten:</span>
               <span className="font-semibold text-gray-900 flex-1 text-right">
                 {selfuseEvaluation.buyVsRentYears} Jahre ({selfuseEvaluation.buyVsRentAssessment})
               </span>
             </li>
             <li className="flex">
-              <span className="text-gray-600 w-[30%] flex-shrink-0">Lärmpegel:</span>
+              <span className="text-gray-700 w-[55%] flex-shrink-0">Lärmpegel:</span>
               <span className="font-semibold text-gray-900 flex-1 text-right">{selfuseEvaluation.noiseLevel}</span>
             </li>
           </ul>
@@ -510,7 +464,7 @@ function BuyerResults({
             <div>
               <div className="text-xs text-gray-500 mb-1">Verhandlungspreis</div>
               <div className="text-gray-900 font-semibold" style={{ fontSize: '20px' }}>
-                {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(investorEvaluation.negotiationPrice)}
+                {formatPrice(investorEvaluation.negotiationPrice)}
                 {investorEvaluation.negotiationDiscount && (
                   <span className="font-normal ml-2">
                     (-{investorEvaluation.negotiationDiscount}%)
@@ -518,7 +472,7 @@ function BuyerResults({
                 )}
               </div>
               {investorEvaluation.negotiationReasoning && (
-                <div className="text-base text-gray-900 mt-1">
+                <div className="text-base text-gray-700 leading-relaxed mt-1">
                   {investorEvaluation.negotiationReasoning}
                 </div>
               )}
@@ -526,14 +480,14 @@ function BuyerResults({
           )}
           <div>
             <div className="text-xs text-gray-500 mb-1">Mikrolage</div>
-            <div className="text-base text-gray-900">
+            <div className="text-base text-gray-700 leading-relaxed">
               {investorEvaluation.microLocation}
               {investorEvaluation.microLocationTrend && ` (${investorEvaluation.microLocationTrend})`}
             </div>
           </div>
           <div>
             <div className="text-xs text-gray-500 mb-1">Risiko</div>
-            <div className="text-base text-gray-900">
+            <div className="text-base text-gray-700 leading-relaxed">
               {investorEvaluation.riskLevel}
               {investorEvaluation.riskFactors?.length > 0 &&
                 ` (${investorEvaluation.riskFactors.slice(0, 2).join(', ')})`}

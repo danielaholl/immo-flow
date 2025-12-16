@@ -2,28 +2,43 @@
 
 import React from 'react';
 
-// Helper functions (moved from @immoflow/api to avoid backend dependencies in browser)
+// Score von 0-100 auf 1-5 konvertieren
+function toDisplayScore(score: number): number {
+  if (score >= 80) return 5;
+  if (score >= 60) return 4;
+  if (score >= 40) return 3;
+  if (score >= 20) return 2;
+  return 1;
+}
+
+// Helper functions
+// 1-5 Skala: 5=top, 4=gut, 3=ok, 2=schwach, 1=nein
 function getScoreColorClass(score: number | null | undefined): 'green' | 'yellow' | 'red' | null {
   if (score === null || score === undefined) return null;
-  if (score >= 70) return 'green';
-  if (score >= 40) return 'yellow';
+  const displayScore = toDisplayScore(score);
+  if (displayScore >= 4) return 'green';
+  if (displayScore === 3) return 'yellow';
   return 'red';
 }
 
 function getScoreBadgeData(score: number | null | undefined) {
   if (score === null || score === undefined) return null;
 
+  const displayScore = toDisplayScore(score);
   const colorClass = getScoreColorClass(score);
-  const labels = {
-    green: 'Exzellent',
-    yellow: 'Moderat',
-    red: 'Risiko',
+
+  const labels: Record<number, string> = {
+    5: 'Top',
+    4: 'Gut',
+    3: 'OK',
+    2: 'Schwach',
+    1: 'Nein',
   };
 
   return {
-    score,
+    score: displayScore,
     colorClass,
-    label: colorClass ? labels[colorClass] : null,
+    label: labels[displayScore] || null,
   };
 }
 
@@ -36,13 +51,10 @@ interface InvestmentScoreBadgeProps {
 
 /**
  * Display AI investment score with color-coded badge
- * Green (70-100): Excellent investment
- * Yellow (40-69): Moderate investment
- * Red (0-39): Risky investment
+ * Anzeige: 1-5 Skala (intern 0-100)
+ * 5 = top, 4 = gut, 3 = ok, 2 = schwach, 1 = nein
  *
  * @deprecated Use PropertyScoreBadge from @immoflow/ui instead.
- * PropertyScoreBadge provides a unified badge component with consistent design
- * and thresholds across the entire application.
  */
 export function InvestmentScoreBadge({
   score,
@@ -75,11 +87,11 @@ export function InvestmentScoreBadge({
   return (
     <div
       className={`inline-flex items-center gap-1.5 font-semibold rounded-full border ${colorClass} ${sizeClasses[size]} ${className}`}
-      title={`Investment-Score: ${scoreValue}/100 - ${label}`}
+      title={`Investment-Score: ${scoreValue}/5 - ${label}`}
     >
       <span className="text-lg leading-none">{icon}</span>
       <span>{scoreValue}</span>
-      {showLabel && <span className="font-normal">/ 100</span>}
+      {showLabel && <span className="font-normal">/ 5</span>}
     </div>
   );
 }

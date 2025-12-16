@@ -653,11 +653,9 @@ export function PropertyPreview({
         </div>
 
         {/* BUYER VIEW: KI-Bewertung mit wiederverwendbarer Komponente */}
-        {/* Buyer mode requires propertyId because we're viewing an existing property */}
         {evaluationViewType === 'buyer' && onTriggerEvaluation && propertyId && (
           <AIEvaluationPanel
             mode="buyer"
-            propertyId={propertyId}
             buyerEvaluation={data.buyer_evaluation}
             isLoading={isGeneratingEvaluation}
             onTriggerEvaluation={onTriggerEvaluation}
@@ -666,11 +664,9 @@ export function PropertyPreview({
         )}
 
         {/* SELLER VIEW: KI-Bewertung mit wiederverwendbarer Komponente */}
-        {/* Seller mode requires propertyId - only show after property is saved */}
         {evaluationViewType === 'seller' && onTriggerEvaluation && propertyId && (
           <AIEvaluationPanel
             mode="seller"
-            propertyId={propertyId}
             sellerEvaluation={data.seller_evaluation}
             isLoading={isGeneratingEvaluation}
             onTriggerEvaluation={onTriggerEvaluation}
@@ -682,7 +678,10 @@ export function PropertyPreview({
         {(data.sqm || data.rooms || energyEfficiencyClass || data.available_from || data.year_built || data.bathrooms || data.monthly_fee || data.floor_level || data.total_floors || data.heating_type || data.energy_source || data.energy_certificate || data.usable_area || condition) && (
           <div className="mb-6 bg-white rounded-2xl border border-gray-200 overflow-hidden">
             {/* Always Visible - Icons and Values Only */}
-            <div className="p-6 flex items-center justify-between gap-4">
+            <div
+              className="p-6 flex items-center justify-between gap-4 cursor-pointer"
+              onClick={() => setIsWeitereDetailsExpanded(!isWeitereDetailsExpanded)}
+            >
               <div className="flex flex-wrap gap-6 items-center">
                 {/* Living Area */}
                 {data.sqm && data.sqm > 0 && (
@@ -717,17 +716,10 @@ export function PropertyPreview({
                 )}
               </div>
 
-              {/* Expand/Collapse Button */}
-              {(data.bathrooms || data.year_built || conditionLabel || data.monthly_fee || data.floor_level || data.total_floors || data.heating_type || data.energy_source || data.energy_certificate || data.usable_area) && (
-                <button
-                  onClick={() => setIsWeitereDetailsExpanded(!isWeitereDetailsExpanded)}
-                  className="flex items-center transition-colors flex-shrink-0"
-                >
-                  <ChevronDown
-                    className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isWeitereDetailsExpanded ? 'rotate-180' : ''}`}
-                  />
-                </button>
-              )}
+              {/* Expand/Collapse Icon */}
+              <ChevronDown
+                className={`w-5 h-5 text-gray-400 transition-transform duration-200 flex-shrink-0 ${isWeitereDetailsExpanded ? 'rotate-180' : ''}`}
+              />
             </div>
 
             {/* Expanded Details - Show on Click */}

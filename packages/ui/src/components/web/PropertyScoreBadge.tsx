@@ -1,25 +1,31 @@
 /**
  * PropertyScoreBadge Component
- * Einheitlicher Badge für AI Investment Score mit offiziellen Schwellenwerten
+ * Einheitlicher Badge für AI Investment Score
  *
- * Schwellenwerte (aus evaluation.ts):
- * - 🟢 Grün: >= 70 (Exzellente Investition)
- * - 🟡 Gelb: >= 40 (Moderate Investition)
- * - 🔴 Rot: < 40 (Risikoreich)
+ * Anzeige: 1-5 Skala (intern 0-100)
+ * - 5 = top / sofort interessant (>= 80)
+ * - 4 = gut / sehr prüfenswert (>= 60)
+ * - 3 = ok / nur bei gutem Preis (>= 40)
+ * - 2 = schwach / nur Spezialfall (>= 20)
+ * - 1 = nein (< 20)
  */
 
 import React from 'react';
 
 interface PropertyScoreBadgeProps {
+  /** Score auf 0-100 Skala (wird als 1-5 angezeigt) */
   score: number;
   variant?: 'overlay' | 'inline';
 }
 
-// Offizielle Schwellenwerte aus /apps/api/src/constants/evaluation.ts
-const COLOR_RATING_THRESHOLDS = {
-  green: 70,
-  yellow: 40,
-} as const;
+// Score von 0-100 auf 1-5 konvertieren
+function toDisplayScore(score: number): number {
+  if (score >= 80) return 5;
+  if (score >= 60) return 4;
+  if (score >= 40) return 3;
+  if (score >= 20) return 2;
+  return 1;
+}
 
 interface BadgeInfo {
   label: string;
@@ -27,69 +33,60 @@ interface BadgeInfo {
   dotColor: string;
 }
 
-function getBadgeInfo(score: number): BadgeInfo {
-  if (score >= COLOR_RATING_THRESHOLDS.green) {
+function getBadgeInfo(displayScore: number): BadgeInfo {
+  if (displayScore >= 4) {
+    // 4-5: grün (gut/top)
     return {
-      label: 'Excellent',
-      badgeColor: '#22C55E', // green-500
+      label: displayScore === 5 ? 'Top' : 'Gut',
+      badgeColor: '#22C55E',
       dotColor: '#22C55E',
     };
-  } else if (score >= COLOR_RATING_THRESHOLDS.yellow) {
+  } else if (displayScore === 3) {
+    // 3: gelb (ok)
     return {
-      label: 'Moderat',
-      badgeColor: '#F59E0B', // amber-500
+      label: 'OK',
+      badgeColor: '#F59E0B',
       dotColor: '#F59E0B',
     };
   } else {
+    // 1-2: rot (schwach/nein)
     return {
-      label: 'Risiko',
-      badgeColor: '#EF4444', // red-500
+      label: displayScore === 2 ? 'Schwach' : 'Nein',
+      badgeColor: '#EF4444',
       dotColor: '#EF4444',
     };
   }
 }
 
 export function PropertyScoreBadge({ score, variant = 'overlay' }: PropertyScoreBadgeProps) {
-  const { label, badgeColor, dotColor } = getBadgeInfo(score);
+  const displayScore = toDisplayScore(score);
+  const { dotColor } = getBadgeInfo(displayScore);
 
   return (
     <div
-      className="flex flex-col items-center px-3 py-2 rounded-lg"
+      className="px-4 py-2.5 rounded-xl flex items-center justify-center gap-2"
       style={{
-        background: 'rgba(0, 0, 0, 0.7)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-        border: '1px solid rgba(255, 255, 255, 0.15)',
-        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
+        backdropFilter: 'blur(2px)',
+        WebkitBackdropFilter: 'blur(2px)',
+        border: '1px solid rgba(255, 255, 255, 0.5)',
       }}
     >
-      {/* Label */}
+      {/* Dot */}
       <div
-        className="text-[11px] font-bold leading-none mb-1"
+        className="w-5 h-5 rounded-full flex-shrink-0"
         style={{
-          color: badgeColor,
+          backgroundColor: dotColor,
+        }}
+      />
+      {/* Score */}
+      <div
+        className="text-[28px] font-bold leading-none"
+        style={{
+          color: 'rgba(255, 255, 255, 0.95)',
           textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
         }}
       >
-        {label}
-      </div>
-      {/* Dot + Score Row */}
-      <div className="flex items-center gap-1.5">
-        <div
-          className="w-4 h-4 rounded-full flex-shrink-0"
-          style={{
-            backgroundColor: dotColor,
-          }}
-        />
-        <div
-          className="text-[20px] font-bold leading-none"
-          style={{
-            color: 'rgba(255, 255, 255, 0.95)',
-            textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
-          }}
-        >
-          {score}
-        </div>
+        {displayScore}
       </div>
     </div>
   );

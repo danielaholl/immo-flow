@@ -280,7 +280,8 @@ export function PropertyImageSlideshow({
       {onClick && !showVideo && (
         <button
           onClick={onClick}
-          className="absolute inset-0 top-10 z-5 cursor-pointer"
+          className="absolute inset-0 top-10 cursor-pointer"
+          style={{ zIndex: 5 }}
           aria-label="View property details"
         />
       )}
@@ -299,14 +300,20 @@ export function PropertyImageSlideshow({
             onEnded={handleVideoEnd}
             onTimeUpdate={handleVideoTimeUpdate}
           />
-          {/* Mute/Unmute Glass Badge - Top Left (same height as score badge) */}
+          {/* Mute/Unmute Glass Badge - Top Left (same style as GlassButton) */}
           <div
-            className="absolute top-12 left-3 z-20 w-12 h-12 rounded-full flex items-center justify-center shadow-xl cursor-pointer"
+            className="absolute top-12 left-3 z-20 w-[52px] h-[52px] rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-95"
             style={{
-              backgroundColor: 'rgba(0, 0, 0, 0.55)',
-              backdropFilter: 'blur(16px)',
-              WebkitBackdropFilter: 'blur(16px)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
+              backdropFilter: 'blur(2px)',
+              WebkitBackdropFilter: 'blur(2px)',
+              border: '1px solid rgba(255, 255, 255, 0.5)',
+              background: 'transparent',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
             }}
           >
             {isMuted ? (
