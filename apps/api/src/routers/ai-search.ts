@@ -6,22 +6,9 @@
 import { z } from 'zod';
 import { router, publicProcedure, protectedProcedure } from '../trpc.js';
 import { query, queryOne } from '../db.js';
-import OpenAI from 'openai';
 import { getCached, setCached } from '../cache/redis.js';
 import { feedCache } from '../cache/memory.js';
-
-// Lazy OpenAI client initialization
-let openai: OpenAI | null = null;
-function getOpenAIClient() {
-  if (!openai) {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      throw new Error('OPENAI_API_KEY environment variable is not set');
-    }
-    openai = new OpenAI({ apiKey });
-  }
-  return openai;
-}
+import { getOpenAIClient, buildSystemPrompt } from '../utils/openai.js';
 
 // Schema for extracted search criteria
 const SearchCriteriaSchema = z.object({
@@ -42,23 +29,21 @@ const SearchCriteriaSchema = z.object({
 
 export type SearchCriteria = z.infer<typeof SearchCriteriaSchema>;
 
-// System prompt for AI criteria extraction
-const SEARCH_EXTRACTION_PROMPT = `Du bist ein spezialisierter Assistent für Immobiliensuchen in Deutschland.
-
-Deine Aufgabe: Extrahiere strukturierte Suchkriterien aus der natürlichsprachigen Suchanfrage des Benutzers.
+// Additional instructions for search criteria extraction
+const SEARCH_EXTRACTION_INSTRUCTIONS = `Extrahiere strukturierte Suchkriterien aus der natuerlichsprachigen Suchanfrage des Benutzers.
 
 WICHTIGE REGELN:
 1. EXTRAHIERE NUR EXPLIZIT GENANNTE KRITERIEN - erfinde KEINE Werte! Wenn etwas nicht genannt wird, setze es auf null.
 2. Preise: Interpretiere "T" oder "Tausend" als 1000, z.B. "400T" = 400000, "1,5 Mio" = 1500000
 3. Zimmer: "3 Zi" oder "3 Zimmer" = rooms: 3. WICHTIG: Nur wenn explizit genannt!
 4. Wohnungstyp: "Wohnung" = apartment, "Haus" = house, "Villa" = villa, "Gewerbe" = commercial
-5. Features: Erkenne typische Merkmale wie "Balkon", "Garage", "Garten", "Terrasse", "Aufzug", "Keller", "Einbauküche"
-6. Zustand: "Neubau" = new, "Erstbezug" = first_occupancy, "renoviert" = renovated, "gepflegt" = maintained, "renovierungsbedürftig" = needs_renovation
-7. Fläche: "80qm" oder "80m²" = sqm: 80
+5. Features: Erkenne typische Merkmale wie "Balkon", "Garage", "Garten", "Terrasse", "Aufzug", "Keller", "Einbaukueche"
+6. Zustand: "Neubau" = new, "Erstbezug" = first_occupancy, "renoviert" = renovated, "gepflegt" = maintained, "renovierungsbeduerftig" = needs_renovation
+7. Flaeche: "80qm" oder "80m2" = sqm: 80
 8. Preisspanne: "max 400T" = maxPrice, "ab 200T" oder "mind. 200T" = minPrice, "200-400T" = minPrice + maxPrice
 9. Zimmerspanne: "2-3 Zimmer" = minRooms: 2, maxRooms: 3
 
-AUSGABE: Gib NUR valide JSON zurück:
+AUSGABE: Gib NUR valide JSON zurueck:
 {
   "location": "Stadt oder null",
   "district": "Stadtteil oder null",
@@ -76,10 +61,10 @@ AUSGABE: Gib NUR valide JSON zurück:
 }
 
 Beispiele:
-- "3 Zi Wohnung München max 400T" → {"rooms": 3, "propertyType": "apartment", "location": "München", "maxPrice": 400000, "confidence": 0.95}
-- "Haus mit Garten in Berlin 500-800T Euro" → {"propertyType": "house", "features": ["Garten"], "location": "Berlin", "minPrice": 500000, "maxPrice": 800000, "confidence": 0.92}
-- "günstige Wohnung" → {"propertyType": "apartment", "confidence": 0.4}
-- "suche wohnung bis 300000 euro" → {"propertyType": "apartment", "maxPrice": 300000, "confidence": 0.9} (KEINE rooms, da nicht genannt!)`;
+- "3 Zi Wohnung Muenchen max 400T" -> {"rooms": 3, "propertyType": "apartment", "location": "Muenchen", "maxPrice": 400000, "confidence": 0.95}
+- "Haus mit Garten in Berlin 500-800T Euro" -> {"propertyType": "house", "features": ["Garten"], "location": "Berlin", "minPrice": 500000, "maxPrice": 800000, "confidence": 0.92}
+- "guenstige Wohnung" -> {"propertyType": "apartment", "confidence": 0.4}
+- "suche wohnung bis 300000 euro" -> {"propertyType": "apartment", "maxPrice": 300000, "confidence": 0.9} (KEINE rooms, da nicht genannt!)`;
 
 /**
  * Extract search criteria from natural language using AI
@@ -88,10 +73,11 @@ async function extractSearchCriteria(searchQuery: string): Promise<SearchCriteri
   const startTime = Date.now();
 
   try {
+    const systemPrompt = buildSystemPrompt('search', SEARCH_EXTRACTION_INSTRUCTIONS);
     const completion = await getOpenAIClient().chat.completions.create({
       model: 'gpt-4-turbo-preview',
       messages: [
-        { role: 'system', content: SEARCH_EXTRACTION_PROMPT },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: searchQuery },
       ],
       response_format: { type: 'json_object' },

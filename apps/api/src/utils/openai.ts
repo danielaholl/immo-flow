@@ -4,6 +4,9 @@
  */
 import OpenAI from 'openai';
 
+// Re-export prompt utilities for convenience
+export { buildSystemPrompt, type PromptContext } from '../prompts/master-prompt';
+
 let openaiClient: OpenAI | null = null;
 
 /**

@@ -3,21 +3,10 @@
  * Verwendet OpenAI Vision API um Text und Daten aus Screenshots zu extrahieren
  */
 
-import OpenAI from 'openai';
 import { createLogger } from '../utils/logger.js';
+import { getOpenAIClient, buildSystemPrompt } from '../utils/openai.js';
 
 const log = createLogger('screenshot-analyzer');
-
-let openai: OpenAI | null = null;
-
-function getOpenAIClient(): OpenAI {
-  if (!openai) {
-    openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-  }
-  return openai;
-}
 
 export interface ScreenshotAnalysisResult {
   extractedText: string;
@@ -41,16 +30,8 @@ export async function analyzeScreenshot(
 ): Promise<ScreenshotAnalysisResult> {
   try {
     const client = getOpenAIClient();
-    const response = await client.chat.completions.create({
-      model: 'gpt-4o', // Unterstützt Vision
-      messages: [
-        {
-          role: 'system',
-          content: `Du bist ein Experte für Immobilien-Exposés.
-Deine Aufgabe ist es, Screenshots von Immobilienportalen zu analysieren und alle relevanten Informationen zu extrahieren.
-
-Extrahiere ALLE sichtbaren Informationen aus dem Screenshot, inklusive:
-- Immobiliendetails (Preis, Größe, Zimmer, etc.)
+    const systemPrompt = buildSystemPrompt('extraction', `Extrahiere ALLE sichtbaren Informationen aus dem Screenshot, inklusive:
+- Immobiliendetails (Preis, Groesse, Zimmer, etc.)
 - Beschreibungstexte
 - Ausstattungsmerkmale
 - Lage-Informationen
@@ -58,7 +39,14 @@ Extrahiere ALLE sichtbaren Informationen aus dem Screenshot, inklusive:
 - Kontaktinformationen (falls sichtbar)
 - Alle anderen relevanten Details
 
-Gib den kompletten Text strukturiert zurück.`,
+Gib den kompletten Text strukturiert zurueck.`);
+
+    const response = await client.chat.completions.create({
+      model: 'gpt-4o', // Unterstützt Vision
+      messages: [
+        {
+          role: 'system',
+          content: systemPrompt,
         },
         {
           role: 'user',
@@ -148,44 +136,44 @@ export async function extractPropertyDataFromScreenshots(
 
   try {
     const client = getOpenAIClient();
+    const extractionInstructions = `Extrahiere folgende Felder (falls vorhanden):
+- propertyType: Art der Immobilie - MUSS einer dieser Werte sein: "apartment" (Wohnung, Apartment, ETW), "house" (Haus, EFH, DHH, RH), "villa" (Villa), "commercial" (Gewerbe)
+- title: Titel/Ueberschrift der Immobilie
+- description: Vollstaendige Objektbeschreibung
+- price: Kaufpreis in Euro (nur die Zahl)
+- location: Ort/Stadt
+- streetAddress: Strasse und Hausnummer (falls vorhanden)
+- postalCode: Postleitzahl
+- sqm: Wohnflaeche in m2 (nur die Zahl)
+- rooms: Anzahl Zimmer (Dezimalzahl, z.B. 3.5)
+- bathrooms: Anzahl Badezimmer
+- yearBuilt: Baujahr
+- floorLevel: Bei Wohnungen: Etage (z.B. "2", "EG", "DG")
+- totalFloors: Bei Haeusern: Anzahl Geschosse
+- monthlyFee: Hausgeld/Nebenkosten pro Monat
+- heatingType: Heizungsart
+- energyClass: Energieeffizienzklasse
+- condition: Zustand (z.B. "Erstbezug", "Renoviert", "Gepflegt", "Sanierungsbeduerftig")
+- features: Array von Ausstattungsmerkmalen
+- highlights: Besondere Highlights
+- redFlags: Potenzielle Probleme (falls erkennbar)
+
+WICHTIG fuer propertyType:
+- Enthaelt der Text "Wohnung", "Apartment", "Zimmer-Wohnung", "ETW", "Apt" -> propertyType: "apartment"
+- Enthaelt der Text "Haus", "Einfamilienhaus", "EFH", "Reihenhaus", "DHH" -> propertyType: "house"
+- Enthaelt der Text "Villa", "Landhaus" -> propertyType: "villa"
+- Enthaelt der Text "Gewerbe", "Buero", "Laden" -> propertyType: "commercial"
+
+Gib NUR ein valides JSON-Objekt zurueck, ohne zusaetzlichen Text.
+Wenn ein Feld nicht gefunden wird, setze es auf null.`;
+
+    const systemPrompt = buildSystemPrompt('extraction', extractionInstructions);
     const response = await client.chat.completions.create({
       model: 'gpt-4o',
       messages: [
         {
           role: 'system',
-          content: `Du bist ein Experte für Immobilien-Exposés.
-Deine Aufgabe ist es, aus extrahierten Texten von Screenshots strukturierte Immobiliendaten zu erstellen.
-
-Extrahiere folgende Felder (falls vorhanden):
-- propertyType: Art der Immobilie - MUSS einer dieser Werte sein: "apartment" (Wohnung, Apartment, ETW), "house" (Haus, EFH, DHH, RH), "villa" (Villa), "commercial" (Gewerbe)
-- title: Titel/Überschrift der Immobilie
-- description: Vollständige Objektbeschreibung
-- price: Kaufpreis in Euro (nur die Zahl)
-- location: Ort/Stadt
-- streetAddress: Strasse und Hausnummer (falls vorhanden)
-- postalCode: Postleitzahl
-- sqm: Wohnfläche in m² (nur die Zahl)
-- rooms: Anzahl Zimmer (Dezimalzahl, z.B. 3.5)
-- bathrooms: Anzahl Badezimmer
-- yearBuilt: Baujahr
-- floorLevel: Bei Wohnungen: Etage (z.B. "2", "EG", "DG")
-- totalFloors: Bei Häusern: Anzahl Geschosse
-- monthlyFee: Hausgeld/Nebenkosten pro Monat
-- heatingType: Heizungsart
-- energyClass: Energieeffizienzklasse
-- condition: Zustand (z.B. "Erstbezug", "Renoviert", "Gepflegt", "Sanierungsbedürftig")
-- features: Array von Ausstattungsmerkmalen
-- highlights: Besondere Highlights
-- redFlags: Potenzielle Probleme (falls erkennbar)
-
-WICHTIG für propertyType:
-- Enthält der Text "Wohnung", "Apartment", "Zimmer-Wohnung", "ETW", "Apt" → propertyType: "apartment"
-- Enthält der Text "Haus", "Einfamilienhaus", "EFH", "Reihenhaus", "DHH" → propertyType: "house"
-- Enthält der Text "Villa", "Landhaus" → propertyType: "villa"
-- Enthält der Text "Gewerbe", "Büro", "Laden" → propertyType: "commercial"
-
-Gib NUR ein valides JSON-Objekt zurück, ohne zusätzlichen Text.
-Wenn ein Feld nicht gefunden wird, setze es auf null.`,
+          content: systemPrompt,
         },
         {
           role: 'user',

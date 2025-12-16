@@ -2,21 +2,10 @@
  * Detailed Property Evaluator Service
  * Uses OpenAI with master prompt for in-depth property evaluation
  */
-import OpenAI from 'openai';
 import { createLogger } from '../utils/logger.js';
+import { getOpenAIClient, buildSystemPrompt } from '../utils/openai.js';
 
 const log = createLogger('property-detailed-evaluator');
-
-let openai: OpenAI | null = null;
-
-function getOpenAIClient(): OpenAI {
-  if (!openai) {
-    openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-  }
-  return openai;
-}
 
 export type RatingColor = 'green' | 'orange' | 'red';
 
@@ -47,30 +36,29 @@ export interface DetailedEvaluation {
   price_justification: string;
 }
 
-const MASTER_PROMPT = `Du bist ein sehr erfahrener Immobilieninvestor mit 30 Jahren Praxis, spezialisiert auf Wohnimmobilien im Raum München und Umland.
-
-Analysiere ausschließlich die Informationen aus dem Exposé und deiner Markterfahrung, ohne dir etwas auszudenken.
+// Spezifische Anweisungen für detaillierte Bewertung (zusätzlich zum Master-Prompt)
+const DETAILED_EVALUATION_INSTRUCTIONS = `Analysiere ausschließlich die Informationen aus dem Exposé und deiner Markterfahrung, ohne dir etwas auszudenken.
 
 Deine Aufgaben:
 
 **Lagebewertung**
 - Beurteile die Lage (Mikro- und Makrolage) kurz und knapp
 - Gehe auf Infrastruktur, ÖPNV, Nachfrage, Umfeld und Vermietbarkeit ein
-- Vergib eine Ampelbewertung: 🟢 Grün = sehr gute / gefragte Lage | 🟠 Orange = solide / durchschnittliche Lage | 🔴 Rot = schwache / problematische Lage
+- Vergib eine Ampelbewertung: green = sehr gute / gefragte Lage | orange = solide / durchschnittliche Lage | red = schwache / problematische Lage
 
 **Rendite & Wirtschaftlichkeit**
 - Schätze knapp die Bruttorendite (auf Basis von Kaufpreis vs. Ist-/Soll-Miete aus dem Exposé)
 - Beurteile in 1–2 Sätzen, ob die Rendite im Verhältnis zur Lage attraktiv, okay oder schwach ist
-- Vergib eine Ampelbewertung (🟢 / 🟠 / 🔴)
+- Vergib eine Ampelbewertung (green / orange / red)
 
 **Entwicklungspotenzial**
 - Prüfe kurz Ansatzpunkte für: Mietsteigerung / Indexierung, Aufteilung, Sanierung, Umnutzung, möblierte Vermietung, Aufwertung der Ausstattung etc.
 - Fasse das Entwicklungspotenzial in 2–3 sehr knappen Stichpunkten zusammen
-- Vergib eine Ampelbewertung (🟢 / 🟠 / 🔴)
+- Vergib eine Ampelbewertung (green / orange / red)
 
 **Gesamtbewertung & Empfehlung**
 - Fasse die Immobilie in max. 3 Sätzen zusammen (Lage, Rendite, Potenzial)
-- Gib eine Gesamt-Ampelbewertung: 🟢 Top-Investment | 🟠 Kann man machen / selektiv interessant | 🔴 Nicht attraktiv / Risiko zu hoch
+- Gib eine Gesamt-Ampelbewertung: green = Top-Investment | orange = Kann man machen / selektiv interessant | red = Nicht attraktiv / Risiko zu hoch
 
 **Verhandlungspreis (Top-Deal-Empfehlung)**
 - Empfiehl einen konkreten Verhandlungspreis, bei dem es aus Investorensicht ein wirklich guter Deal ist
@@ -102,7 +90,7 @@ export async function generateDetailedEvaluation(
   propertyPrice: number
 ): Promise<DetailedEvaluation> {
   try {
-    const userPrompt = `${MASTER_PROMPT}
+    const userPrompt = `${DETAILED_EVALUATION_INSTRUCTIONS}
 
 EXPOSÉ-TEXT:
 ${exposeText.substring(0, 8000)}
@@ -110,12 +98,13 @@ ${exposeText.substring(0, 8000)}
 Kaufpreis laut Exposé: ${propertyPrice.toLocaleString('de-DE')} €`;
 
     const client = getOpenAIClient();
+    const systemPrompt = buildSystemPrompt('investor');
     const response = await client.chat.completions.create({
       model: 'gpt-4o',
       messages: [
         {
           role: 'system',
-          content: 'Du bist ein sehr erfahrener Immobilieninvestor mit 30 Jahren Praxis, spezialisiert auf Wohnimmobilien im Raum München und Umland.',
+          content: systemPrompt,
         },
         {
           role: 'user',

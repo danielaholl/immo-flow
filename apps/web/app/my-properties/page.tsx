@@ -57,6 +57,7 @@ type PropertyWithStats = Omit<Property, 'seller_analysis' | 'ai_detailed_evaluat
   days_online: number;
   // Override JSONB fields with proper types
   seller_analysis: SellerAnalysisData | null;
+  seller_evaluation: SellerEvaluation | null;
   ai_detailed_evaluation: AIDetailedEvaluationData | null;
   // Additional fields that may be returned but not in base Property type
   actual_monthly_rent?: number | null;
@@ -175,14 +176,14 @@ export default function MyPropertiesPage() {
     },
   });
 
-  // Generate seller analysis mutation
-  const generateSellerAnalysisMutation = trpc.properties.generateSellerAnalysis.useMutation({
+  // Generate seller evaluation mutation (uses property-seller-evaluator with realistic market value validation)
+  const generateSellerEvaluationMutation = trpc.properties.generateKIEvaluation.useMutation({
     onSuccess: () => {
       utils.properties.getByUserId.invalidate();
     },
     onError: (error) => {
-      console.error('Error generating seller analysis:', error);
-      alert('Fehler bei der Verkäufer-Analyse. Bitte versuchen Sie es erneut.');
+      console.error('Error generating seller evaluation:', error);
+      alert('Fehler bei der Verkäufer-Bewertung. Bitte versuchen Sie es erneut.');
     },
   });
 
@@ -236,8 +237,8 @@ export default function MyPropertiesPage() {
     deactivateMutation.mutate({ id: propertyToDeactivate.id });
   };
 
-  const handleGenerateSellerAnalysis = async (propertyId: string) => {
-    generateSellerAnalysisMutation.mutate({ propertyId });
+  const handleGenerateSellerEvaluation = async (propertyId: string) => {
+    generateSellerEvaluationMutation.mutate({ propertyId, viewType: 'seller' });
   };
 
   const handleDeleteClick = (property: { id: string; title: string; price: number }) => {
@@ -310,7 +311,11 @@ export default function MyPropertiesPage() {
   // Convert property data to PropertyPreview format
   // Extract detailed evaluation data from JSONB field
   const detailedEval = selectedProperty?.ai_detailed_evaluation;
-  const sellerEval = selectedProperty ? convertSellerAnalysisToEvaluation(selectedProperty.seller_analysis) : undefined;
+  // Use seller_evaluation directly (from property-seller-evaluator with validated market values)
+  // Fall back to converted seller_analysis only if seller_evaluation doesn't exist
+  const sellerEval = selectedProperty?.seller_evaluation
+    ? (selectedProperty.seller_evaluation as SellerEvaluation)
+    : (selectedProperty ? convertSellerAnalysisToEvaluation(selectedProperty.seller_analysis) : undefined);
 
   const propertyPreviewData: PropertyPreviewData | null = selectedProperty ? {
     images: selectedProperty.images || [],
@@ -524,9 +529,9 @@ export default function MyPropertiesPage() {
                         hideProviderInfo={true}
                         sellerAnalysisMarketAverage={selectedProperty.seller_analysis?.market_position?.market_average_price_per_sqm}
                         evaluationViewType="seller"
-                        onTriggerEvaluation={(viewType) => handleGenerateSellerAnalysis(selectedProperty.id)}
+                        onTriggerEvaluation={(viewType) => handleGenerateSellerEvaluation(selectedProperty.id)}
                         propertyId={selectedProperty.id}
-                        isGeneratingEvaluation={generateSellerAnalysisMutation.isLoading}
+                        isGeneratingEvaluation={generateSellerEvaluationMutation.isPending}
                       />
                     )}
 

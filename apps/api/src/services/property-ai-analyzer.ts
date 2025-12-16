@@ -2,22 +2,11 @@
  * AI Property Analyzer Service
  * Uses OpenAI to analyze properties and provide investment ratings
  */
-import OpenAI from 'openai';
 import { ScrapedPropertyData } from './property-scraper.js';
 import { createLogger } from '../utils/logger.js';
+import { getOpenAIClient, buildSystemPrompt } from '../utils/openai.js';
 
 const log = createLogger('property-ai-analyzer');
-
-let openai: OpenAI | null = null;
-
-function getOpenAIClient(): OpenAI {
-  if (!openai) {
-    openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-  }
-  return openai;
-}
 
 export type AIRating = 'top_deal' | 'good' | 'average' | 'poor' | 'avoid';
 
@@ -94,12 +83,13 @@ BEWERTUNGSKRITERIEN:
 - avoid: Finger weg! Gravierende Probleme oder stark überteuert`;
 
     const client = getOpenAIClient();
+    const systemPrompt = buildSystemPrompt('investor');
     const response = await client.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
-          content: 'Du bist ein erfahrener Immobilien-Investment-Analyst, der Immobilien objektiv und kritisch bewertet.',
+          content: systemPrompt,
         },
         {
           role: 'user',

@@ -5,21 +5,7 @@
 
 import { z } from 'zod';
 import { router, protectedProcedure } from '../trpc.js';
-import OpenAI from 'openai';
-
-// Lazy initialization: Create OpenAI client only when needed
-let openai: OpenAI | null = null;
-function getOpenAIClient() {
-  if (!openai) {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      throw new Error('OPENAI_API_KEY environment variable is not set');
-    }
-    console.log('🔑 Initializing OpenAI client with key:', `${apiKey.substring(0, 10)}...`);
-    openai = new OpenAI({ apiKey });
-  }
-  return openai;
-}
+import { getOpenAIClient, buildSystemPrompt } from '../utils/openai.js';
 
 // Property data schema - using nullish() to accept both null and undefined
 const PropertyDataSchema = z.object({
@@ -87,9 +73,9 @@ export const aiChatRouter = router({
             return `- ${field}: ${displayValue}`;
           });
 
-        // Build system prompt - different for edit mode vs create mode
-        const systemPrompt = isEditMode
-          ? `Du bist ein intelligenter Assistent, der beim BEARBEITEN einer bestehenden Immobilie hilft.
+        // Build system prompt with master prompt base - different for edit mode vs create mode
+        const editModeInstructions = `EDIT-MODUS ANWEISUNGEN:
+Du hilfst beim BEARBEITEN einer bestehenden Immobilie.
 
 WICHTIG: Dies ist der EDIT-MODUS. Die Immobilie existiert bereits mit folgenden Daten:
 ${JSON.stringify(currentData, null, 2)}
@@ -143,9 +129,10 @@ Antworte im JSON Format:
 REGELN:
 - Verwende die EXAKTEN Feldnamen (year_built, floor_level, etc.)
 - Aendere NICHT die Beschreibung, wenn der User ein spezifisches Feld meint
-- Wenn User "fertig" oder "speichern" sagt - setze userSaidComplete: true`
+- Wenn User "fertig" oder "speichern" sagt - setze userSaidComplete: true`;
 
-          : `Du bist ein intelligenter Assistent, der Immobiliendaten aus Benutzernachrichten extrahiert.
+        const createModeInstructions = `CREATE-MODUS ANWEISUNGEN:
+Du hilfst beim ERSTELLEN einer neuen Immobilie.
 
 [BEREITS BEKANNTE DATEN - NIEMALS DANACH FRAGEN]:
 ${knownFieldsFormatted.length > 0 ? knownFieldsFormatted.join('\n') : 'Noch keine Daten vorhanden'}
@@ -262,6 +249,10 @@ Antworte im JSON Format:
   "userSaidComplete": false
 }`;
 
+        // Build final system prompt with master prompt base
+        const modeInstructions = isEditMode ? editModeInstructions : createModeInstructions;
+        const systemPrompt = buildSystemPrompt('assistant', modeInstructions);
+
         // Build messages for OpenAI
         const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
           { role: 'system', content: systemPrompt },
@@ -337,10 +328,11 @@ Die Beschreibung sollte:
 - Überzeugend und verkaufsorientiert sein
 - Auf Deutsch verfasst sein`;
 
+        const descriptionSystemPrompt = buildSystemPrompt('seller', 'Erstelle eine professionelle, verkaufsorientierte Immobilienbeschreibung.');
         const completion = await getOpenAIClient().chat.completions.create({
           model: 'gpt-4-turbo-preview',
           messages: [
-            { role: 'system', content: 'Du bist ein professioneller Immobilien-Texter.' },
+            { role: 'system', content: descriptionSystemPrompt },
             { role: 'user', content: prompt },
           ],
           temperature: 0.8,

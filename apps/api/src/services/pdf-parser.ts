@@ -3,24 +3,13 @@
  * Extracts property data from PDF exposés using pdf-parse and OpenAI
  */
 import { createRequire } from 'module';
-import OpenAI from 'openai';
 import { extractImagesFromPdf } from './pdf-image-extractor.js';
 import { createLogger } from '../utils/logger.js';
+import { getOpenAIClient, buildSystemPrompt } from '../utils/openai.js';
 
 const log = createLogger('pdf-parser');
 const require = createRequire(import.meta.url);
 const { PDFParse } = require('pdf-parse');
-
-let openai: OpenAI | null = null;
-
-function getOpenAIClient(): OpenAI {
-  if (!openai) {
-    openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-  }
-  return openai;
-}
 
 export interface ScrapedPropertyData {
   title: string;
@@ -151,12 +140,13 @@ WICHTIG:
 
   try {
     const client = getOpenAIClient();
+    const systemPrompt = buildSystemPrompt('extraction', 'Antworte immer mit gueltigem JSON.');
     const response = await client.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
-          content: 'Du bist ein Experte für das Extrahieren von strukturierten Daten aus Immobilien-Exposés. Antworte immer mit gültigem JSON.',
+          content: systemPrompt,
         },
         {
           role: 'user',

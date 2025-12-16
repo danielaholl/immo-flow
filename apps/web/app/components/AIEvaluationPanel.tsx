@@ -250,8 +250,8 @@ export function AIEvaluationPanel({
         </div>
 
         {/* Key Metrics Cards - always shown */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-            {/* Seller Mode Metrics */}
+        <div className={`grid gap-2 sm:gap-3 ${mode === 'seller' ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4'}`}>
+            {/* Seller Mode Metrics - nur Marktwert und Vermarktungsdauer */}
             {mode === 'seller' && sellerEvaluation && (
               <>
                 <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
@@ -261,18 +261,10 @@ export function AIEvaluationPanel({
                   </div>
                 </div>
                 <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
-                  <div className="text-xs text-gray-500 mb-1">Preis</div>
-                  <div className="text-lg font-bold text-gray-900">{sellerEvaluation.priceAssessment}</div>
-                </div>
-                <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
-                  <div className="text-xs text-gray-500 mb-1">Dauer</div>
+                  <div className="text-xs text-gray-500 mb-1">Vermarktungsdauer</div>
                   <div className="text-lg font-bold text-gray-900">
                     {sellerEvaluation.marketingDurationMin}-{sellerEvaluation.marketingDurationMax} Wo.
                   </div>
-                </div>
-                <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
-                  <div className="text-xs text-gray-500 mb-1">Vergleiche</div>
-                  <div className="text-lg font-bold text-gray-900">{sellerEvaluation.comparableSales}</div>
                 </div>
               </>
             )}

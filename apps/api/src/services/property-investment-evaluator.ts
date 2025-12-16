@@ -3,19 +3,8 @@
  * AI-powered property evaluation from investor perspective
  * Evaluates: Location, Price, Yield, Appreciation, Features
  */
-import OpenAI from 'openai';
 import { query, queryOne } from '../db.js';
-
-let openaiClient: OpenAI | null = null;
-
-function getOpenAIClient(): OpenAI {
-  if (!openaiClient) {
-    openaiClient = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-  }
-  return openaiClient;
-}
+import { getOpenAIClient, buildSystemPrompt } from '../utils/openai.js';
 
 interface Property {
   id: string;
@@ -89,30 +78,19 @@ export interface InvestmentEvaluationResult {
 
 /**
  * Call OpenAI API with retry logic
+ * Uses centralized master prompt with investor context
  */
-const INVESTOR_SYSTEM_PROMPT = `Du bist ein erfahrener Immobilieninvestor mit über 30 Jahren Erfahrung im deutschen Immobilienmarkt.
-
-Du hast hunderte von Immobilien gekauft, vermietet und verkauft. Du kennst alle Fallstricke, versteckten Kosten und Risiken. Du bewertest jedes Objekt kritisch und nüchtern aus reiner Investorenperspektive - nicht emotional, sondern zahlenbasiert.
-
-Deine Expertise umfasst:
-- Renditeberechnung und Cashflow-Analyse
-- Standortbewertung und Mikrolage-Analyse
-- Marktzyklen und Timing
-- Renovierungskosten und versteckte Mängel
-- Mietrecht und Vermietungsrisiken
-- Finanzierungsstrategien und Hebeleffekte
-
-Du gibst ehrliche, direkte Einschätzungen ohne Beschönigung. Wenn ein Deal schlecht ist, sagst du es klar.`;
-
-async function callOpenAI<T>(prompt: string): Promise<T> {
+async function callOpenAI<T>(prompt: string, additionalSystemInstructions?: string): Promise<T> {
   try {
     const openai = getOpenAIClient();
+    const systemPrompt = buildSystemPrompt('investor', additionalSystemInstructions);
+
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [
         {
           role: 'system',
-          content: INVESTOR_SYSTEM_PROMPT,
+          content: systemPrompt,
         },
         {
           role: 'user',
@@ -242,12 +220,13 @@ Beispiel-Struktur (3 Sätze):
 Antworte NUR mit dem Text (MAX 3 SÄTZE), KEIN JSON!`;
 
   // Call OpenAI and get the text response directly
+  const systemPrompt = buildSystemPrompt('investor');
   const response = await getOpenAIClient().chat.completions.create({
     model: 'gpt-4o',
     messages: [
       {
         role: 'system',
-        content: INVESTOR_SYSTEM_PROMPT,
+        content: systemPrompt,
       },
       {
         role: 'user',
