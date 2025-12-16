@@ -31,9 +31,15 @@ export interface ScrapedPropertyData {
   rooms: number;
   images: string[];
   features: string[];
+  propertyType?: 'apartment' | 'house' | 'villa' | 'commercial'; // Type of property
   yearBuilt?: number;
   condition?: string;
   monthlyFee?: number;
+  bathrooms?: number;
+  floorLevel?: string; // For apartments: which floor
+  totalFloors?: number; // For houses: number of floors
+  postalCode?: string;
+  address?: string;
   exposeText?: string; // Full PDF text for detailed AI analysis
   externalSource?: string; // Optional for PDF uploads (required for URL scraping)
 }
@@ -98,27 +104,38 @@ ${text.substring(0, 8000)} // Limit to avoid token limits
 
 AUFGABE:
 Extrahiere die folgenden Informationen und gib sie als JSON zurück:
+- propertyType: Art der Immobilie - MUSS einer dieser Werte sein: "apartment" (Wohnung, Apartment, Eigentumswohnung), "house" (Haus, Einfamilienhaus, Reihenhaus, Doppelhaushälfte), "villa" (Villa, Landhaus), "commercial" (Gewerbe, Büro, Laden)
 - title: Titel/Überschrift der Immobilie
 - description: Beschreibung (max 2000 Zeichen)
 - price: Kaufpreis in Euro (nur Zahl, ohne Währung)
 - location: Ort/Stadt
+- address: Straße und Hausnummer (optional)
+- postalCode: Postleitzahl (optional)
 - sqm: Wohnfläche in Quadratmetern (nur Zahl)
 - rooms: Anzahl der Zimmer (nur Zahl)
+- bathrooms: Anzahl Badezimmer (optional)
+- floorLevel: Bei Wohnungen: Etage (z.B. "3", "EG", "DG") (optional)
+- totalFloors: Bei Häusern: Anzahl Geschosse (optional)
 - features: Array von Ausstattungsmerkmalen (z.B. "Balkon", "Garage", "Einbauküche")
 - yearBuilt: Baujahr (optional, nur wenn vorhanden)
-- condition: Zustand (optional, z.B. "Erstbezug", "Renovierungsbedürftig")
+- condition: Zustand (optional, z.B. "Erstbezug", "Renoviert", "Gepflegt", "Sanierungsbedürftig")
 - monthlyFee: Hausgeld/Nebenkosten pro Monat in Euro (optional, nur wenn vorhanden)
 
 Antworte NUR mit einem gültigen JSON-Objekt, ohne zusätzlichen Text.
 
 BEISPIEL:
 {
+  "propertyType": "apartment",
   "title": "Schöne 3-Zimmer-Wohnung in München",
   "description": "Helle und moderne Wohnung...",
   "price": 450000,
   "location": "München",
+  "address": "Musterstraße 10",
+  "postalCode": "80331",
   "sqm": 75,
   "rooms": 3,
+  "bathrooms": 1,
+  "floorLevel": "3",
   "features": ["Balkon", "Einbauküche", "Parkett"],
   "yearBuilt": 2015,
   "condition": "Erstbezug",
@@ -126,6 +143,7 @@ BEISPIEL:
 }
 
 WICHTIG:
+- propertyType MUSS immer erkannt werden! Hinweise: "Wohnung", "Apt", "Apartment", "ETW", "Zimmer-Wohnung" → "apartment"; "Haus", "EFH", "DHH", "RH" → "house"
 - Wenn ein Wert nicht gefunden wird, verwende sinnvolle Schätzungen basierend auf dem Kontext
 - Preis und Fläche müssen IMMER vorhanden sein (erforderlich)
 - Wenn mehrere Preise genannt werden (z.B. Kaltmiete und Kaufpreis), nimm den Kaufpreis
@@ -161,15 +179,38 @@ WICHTIG:
       throw new Error('Preis und Fläche konnten nicht extrahiert werden');
     }
 
+    // Normalize propertyType
+    let propertyType: 'apartment' | 'house' | 'villa' | 'commercial' | undefined;
+    if (extracted.propertyType) {
+      const pt = extracted.propertyType.toLowerCase();
+      if (['apartment', 'wohnung', 'eigentumswohnung', 'etw'].includes(pt)) {
+        propertyType = 'apartment';
+      } else if (['house', 'haus', 'einfamilienhaus', 'efh', 'reihenhaus', 'doppelhaushälfte', 'dhh'].includes(pt)) {
+        propertyType = 'house';
+      } else if (['villa', 'landhaus'].includes(pt)) {
+        propertyType = 'villa';
+      } else if (['commercial', 'gewerbe', 'büro', 'laden'].includes(pt)) {
+        propertyType = 'commercial';
+      } else if (['apartment', 'house', 'villa', 'commercial'].includes(pt)) {
+        propertyType = pt as 'apartment' | 'house' | 'villa' | 'commercial';
+      }
+    }
+
     return {
       title: extracted.title || 'Immobilie ohne Titel',
       description: extracted.description || '',
       price: parseFloat(extracted.price),
       location: extracted.location || 'Unbekannt',
+      address: extracted.address || undefined,
+      postalCode: extracted.postalCode || undefined,
       sqm: parseFloat(extracted.sqm),
       rooms: parseFloat(extracted.rooms) || 1,
+      bathrooms: extracted.bathrooms ? parseInt(extracted.bathrooms) : undefined,
+      floorLevel: extracted.floorLevel || undefined,
+      totalFloors: extracted.totalFloors ? parseInt(extracted.totalFloors) : undefined,
       images: [], // Images will be added by parsePDFExpose
       features: Array.isArray(extracted.features) ? extracted.features : [],
+      propertyType,
       yearBuilt: extracted.yearBuilt ? parseInt(extracted.yearBuilt) : undefined,
       condition: extracted.condition || undefined,
       monthlyFee: extracted.monthlyFee ? parseFloat(extracted.monthlyFee) : undefined,
@@ -187,6 +228,24 @@ WICHTIG:
  * Used when OpenAI is not available or fails
  */
 function extractPropertyDataWithRegex(text: string): ScrapedPropertyData {
+  const textLower = text.toLowerCase();
+
+  // Detect property type from text
+  let propertyType: 'apartment' | 'house' | 'villa' | 'commercial' | undefined;
+  if (textLower.includes('wohnung') || textLower.includes('apartment') || textLower.includes('etw') ||
+      textLower.includes('eigentumswohnung') || /\d[- ]?zi[- ]?wohnung/i.test(text) ||
+      /\d[- ]?zimmer[- ]?wohnung/i.test(text) || textLower.includes('-zi-apt') || textLower.includes('apt.')) {
+    propertyType = 'apartment';
+  } else if (textLower.includes('villa') || textLower.includes('landhaus')) {
+    propertyType = 'villa';
+  } else if (textLower.includes('haus') || textLower.includes('einfamilienhaus') || textLower.includes('efh') ||
+             textLower.includes('reihenhaus') || textLower.includes('doppelhaushälfte') || textLower.includes('dhh')) {
+    propertyType = 'house';
+  } else if (textLower.includes('gewerbe') || textLower.includes('büro') || textLower.includes('laden') ||
+             textLower.includes('gewerbefläche')) {
+    propertyType = 'commercial';
+  }
+
   // Common patterns in German property listings
   const priceMatch = text.match(/Kaufpreis[:\s]+(?:EUR\s*)?([0-9.,]+)/i) ||
                      text.match(/Preis[:\s]+(?:EUR\s*)?([0-9.,]+)/i);
@@ -231,5 +290,6 @@ function extractPropertyDataWithRegex(text: string): ScrapedPropertyData {
     rooms,
     images: [],
     features,
+    propertyType,
   };
 }

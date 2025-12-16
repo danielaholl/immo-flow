@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { MapPin, Bath, Sparkles, DoorClosed, Square, Layers, Euro, Building2, Clock, Flame, Zap, ChevronDown, MessageCircle, Star, Eye, Heart, Phone } from 'lucide-react';
+import { MapPin, Bath, Sparkles, DoorClosed, Square, Layers, Euro, Building2, Clock, Flame, Zap, ChevronDown, MessageCircle, Star, Eye, Heart, Phone, Mail } from 'lucide-react';
 import { AIEvaluationPanel } from './AIEvaluationPanel';
 // AIInvestmentEvaluation und InvestmentScoreBadge auskommentiert - nur stichpunktartige Bewertung
 // import { AIInvestmentEvaluation, InvestmentScoreBadge } from '@immoflow/ui';
@@ -153,6 +153,7 @@ export interface PropertyPreviewData {
     avatar_url?: string | null;
     user_type?: string;
     phone?: string | null;
+    email?: string | null;
     bio?: string | null;
   };
   // Additional metadata fields
@@ -167,6 +168,7 @@ export interface PropertyPreviewData {
     avatar_url?: string | null;
     user_type?: string;
     phone?: string | null;
+    email?: string | null;
     bio?: string | null;
   };
 }
@@ -1012,28 +1014,29 @@ export function PropertyPreview({
           <div className="mb-6 bg-white rounded-2xl border border-gray-200 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Anbieter</h3>
 
-            {/* Header with Avatar and Name */}
-            <div className="flex items-center justify-between gap-4 mb-4">
+            {/* Main Content - Responsive Layout */}
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+              {/* Left: Avatar + Name + Company */}
               <div className="flex items-center gap-4">
                 {data.owner?.avatar_url ? (
                   <img
                     src={data.owner.avatar_url}
                     alt={`${data.owner.first_name || ''} ${data.owner.last_name || ''}`}
-                    className="w-16 h-16 rounded-full object-cover"
+                    className="w-16 h-16 rounded-full object-cover flex-shrink-0"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.style.display = 'none';
                     }}
                   />
                 ) : (
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center flex-shrink-0">
                     <span className="text-2xl font-bold text-gray-400">
                       {data.owner?.first_name?.charAt(0)?.toUpperCase() || 'P'}
                     </span>
                   </div>
                 )}
                 <div>
-                  <h4 className="font-bold text-gray-900">
+                  <h4 className="text-xl font-bold text-gray-900">
                     {data.owner?.first_name || data.owner?.last_name
                       ? `${data.owner.first_name || ''} ${data.owner.last_name || ''}`.trim()
                       : 'Privater Anbieter'}
@@ -1044,15 +1047,28 @@ export function PropertyPreview({
                 </div>
               </div>
 
-              {/* Chat Button */}
-              {onContactAgent && (
-                <button
-                  onClick={onContactAgent}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg hover:opacity-90 transition-colors font-medium"
-                >
-                  <MessageCircle size={20} />
-                  <span>Anbieter chatten</span>
-                </button>
+              {/* Right: Phone + Email */}
+              {(data.owner?.phone || data.owner_profile?.phone || data.owner?.email || data.owner_profile?.email) && (
+                <div className="flex flex-col gap-2 md:items-end">
+                  {(data.owner?.phone || data.owner_profile?.phone) && (
+                    <a
+                      href={`tel:${data.owner?.phone || data.owner_profile?.phone}`}
+                      className="inline-flex items-center gap-2 text-sm text-gray-700 hover:text-primary transition-colors"
+                    >
+                      <Phone size={16} />
+                      <span>{data.owner?.phone || data.owner_profile?.phone}</span>
+                    </a>
+                  )}
+                  {(data.owner?.email || data.owner_profile?.email) && (
+                    <a
+                      href={`mailto:${data.owner?.email || data.owner_profile?.email}`}
+                      className="inline-flex items-center gap-2 text-sm text-gray-700 hover:text-primary transition-colors"
+                    >
+                      <Mail size={16} />
+                      <span>{data.owner?.email || data.owner_profile?.email}</span>
+                    </a>
+                  )}
+                </div>
               )}
             </div>
 
@@ -1061,15 +1077,15 @@ export function PropertyPreview({
               <p className="text-sm text-gray-600 mb-4">{data.owner.bio}</p>
             )}
 
-            {/* Phone */}
-            {(data.owner?.phone || data.owner_profile?.phone) && (
-              <a
-                href={`tel:${data.owner?.phone || data.owner_profile?.phone}`}
-                className="inline-flex items-center gap-2 text-sm text-gray-700 hover:text-primary transition-colors"
+            {/* Chat Button - Full Width */}
+            {onContactAgent && (
+              <button
+                onClick={onContactAgent}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-white rounded-xl hover:opacity-90 transition-colors font-medium"
               >
-                <Phone size={16} />
-                <span>{data.owner?.phone || data.owner_profile?.phone}</span>
-              </a>
+                <MessageCircle size={20} />
+                <span>Anbieter kontaktieren</span>
+              </button>
             )}
           </div>
         )}

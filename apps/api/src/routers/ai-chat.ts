@@ -71,6 +71,22 @@ export const aiChatRouter = router({
       const { message, conversationHistory, currentData, isEditMode } = input;
 
       try {
+        // Calculate which fields are already known and which are still missing
+        const priority1Fields = ['property_type', 'title', 'location', 'price', 'sqm', 'rooms', 'condition'] as const;
+        const priority2Fields = ['bathrooms', 'floor_level', 'total_floors', 'year_built', 'postal_code', 'address', 'description', 'features', 'available_from', 'important_notes'] as const;
+
+        const missingPriority1 = priority1Fields.filter(field => !currentData[field as keyof typeof currentData]);
+        const missingPriority2 = priority2Fields.filter(field => !currentData[field as keyof typeof currentData]);
+
+        // Build readable list of known fields with values
+        const knownFieldsFormatted = [...priority1Fields, ...priority2Fields]
+          .filter(field => currentData[field as keyof typeof currentData])
+          .map(field => {
+            const value = currentData[field as keyof typeof currentData];
+            const displayValue = Array.isArray(value) ? value.join(', ') : value;
+            return `- ${field}: ${displayValue}`;
+          });
+
         // Build system prompt - different for edit mode vs create mode
         const systemPrompt = isEditMode
           ? `Du bist ein intelligenter Assistent, der beim BEARBEITEN einer bestehenden Immobilie hilft.
@@ -78,43 +94,47 @@ export const aiChatRouter = router({
 WICHTIG: Dies ist der EDIT-MODUS. Die Immobilie existiert bereits mit folgenden Daten:
 ${JSON.stringify(currentData, null, 2)}
 
-VERFÜGBARE FELDER (verwende diese exakten Feldnamen):
+VERFUEGBARE FELDER (verwende diese exakten Feldnamen):
 - property_type: 'apartment' | 'house' | 'villa' | 'commercial'
 - title: Titel der Immobilie
 - location: Stadt/Bezirk
 - price: Kaufpreis in Euro (Zahl)
-- sqm: Wohnfläche in qm (Zahl)
+- sqm: Wohnflaeche in qm (Zahl)
 - rooms: Anzahl Zimmer (Zahl)
 - bathrooms: Anzahl Badezimmer (Zahl)
 - year_built: Baujahr (Zahl, z.B. 1974) - SEPARATES FELD, nicht Teil der Beschreibung!
 - floor_level: NUR BEI WOHNUNGEN: Etage (String, z.B. "2" oder "EG")
-- total_floors: NUR BEI HÄUSERN: Anzahl der Geschoße (Zahl, z.B. 2). Bei Wohnungen: Gesamtanzahl Etagen im Gebäude.
+- total_floors: NUR BEI HAEUSERN: Anzahl der Geschosse (Zahl, z.B. 2). Bei Wohnungen: Gesamtanzahl Etagen im Gebaeude.
 - condition: 'new' | 'first_occupancy' | 'renovated' | 'maintained' | 'needs_renovation'
 - features: Array von Ausstattungen ["Balkon", "Garage", etc.]
 - description: Beschreibungstext
-- available_from: Verfügbar ab (Datum)
+- available_from: Verfuegbar ab (Datum)
+
+ZEICHENSATZ-REGEL:
+Verwende in deinen Antworten KEINE deutschen Umlaute oder Sonderzeichen!
+Schreibe: ae statt ae, oe statt oe, ue statt ue, ss statt ss.
 
 Deine Aufgabe im Edit-Modus:
-1. Verstehe, welche Felder der User ändern möchte
-2. Extrahiere die Änderungen in die RICHTIGEN FELDER (z.B. "Baujahr 1974" → year_built: 1974, NICHT description ändern!)
-3. Bestätige die Änderungen freundlich
+1. Verstehe, welche Felder der User aendern moechte
+2. Extrahiere die Aenderungen in die RICHTIGEN FELDER (z.B. "Baujahr 1974" -> year_built: 1974, NICHT description aendern!)
+3. Bestaetige die Aenderungen freundlich
 4. Frage NICHT nach fehlenden Feldern
 
-WICHTIG - Property-Typ-abhängige Felder:
-- Bei Häusern (house, villa): "Anzahl Geschoße" oder "zweigeschossig" etc. → total_floors
-- Bei Wohnungen (apartment): "3. Stock" oder "3. OG" → floor_level
+WICHTIG - Property-Typ-abhaengige Felder:
+- Bei Haeusern (house, villa): "Anzahl Geschosse" oder "zweigeschossig" etc. -> total_floors
+- Bei Wohnungen (apartment): "3. Stock" oder "3. OG" -> floor_level
 
 Beispiele:
-- "Baujahr ist 1974" → { "year_built": 1974 }
-- "Ändere Preis auf 450.000 €" → { "price": 450000 }
-- "3. Stock" oder "3. OG" (bei Wohnung) → { "floor_level": "3" }
-- "2-geschossig" oder "2 Geschoße" (bei Haus) → { "total_floors": 2 }
-- "2 Badezimmer" → { "bathrooms": 2 }
+- "Baujahr ist 1974" -> { "year_built": 1974 }
+- "Aendere Preis auf 450.000 Euro" -> { "price": 450000 }
+- "3. Stock" oder "3. OG" (bei Wohnung) -> { "floor_level": "3" }
+- "2-geschossig" oder "2 Geschosse" (bei Haus) -> { "total_floors": 2 }
+- "2 Badezimmer" -> { "bathrooms": 2 }
 
 Antworte im JSON Format:
 {
-  "extractedData": { ... geänderte Felder mit korrekten Feldnamen ... },
-  "response": "Freundliche Bestätigung, z.B. 'Perfekt! Baujahr auf 1974 gesetzt. Möchtest du noch etwas ändern?'",
+  "extractedData": { ... geaenderte Felder mit korrekten Feldnamen ... },
+  "response": "Freundliche Bestaetigung, z.B. 'Perfekt! Baujahr auf 1974 gesetzt. Moechtest du noch etwas aendern?'",
   "missingFields": [],
   "followUpQuestion": null,
   "userSaidComplete": false
@@ -122,73 +142,125 @@ Antworte im JSON Format:
 
 REGELN:
 - Verwende die EXAKTEN Feldnamen (year_built, floor_level, etc.)
-- Ändere NICHT die Beschreibung, wenn der User ein spezifisches Feld meint
-- Wenn User "fertig" oder "speichern" sagt → userSaidComplete: true`
+- Aendere NICHT die Beschreibung, wenn der User ein spezifisches Feld meint
+- Wenn User "fertig" oder "speichern" sagt - setze userSaidComplete: true`
 
           : `Du bist ein intelligenter Assistent, der Immobiliendaten aus Benutzernachrichten extrahiert.
 
+[BEREITS BEKANNTE DATEN - NIEMALS DANACH FRAGEN]:
+${knownFieldsFormatted.length > 0 ? knownFieldsFormatted.join('\n') : 'Noch keine Daten vorhanden'}
+
+[NOCH FEHLENDE PFLICHTFELDER - nur diese erfragen]:
+${missingPriority1.length > 0 ? missingPriority1.join(', ') : 'ALLE PFLICHTFELDER VORHANDEN!'}
+
+[NOCH FEHLENDE OPTIONALE FELDER]:
+${missingPriority2.length > 0 ? missingPriority2.join(', ') : 'Keine'}
+
+-------------------------------------------------------------------
+WICHTIGSTE REGEL: Frage NIEMALS nach Feldern, die oben unter "BEREITS BEKANNTE DATEN" aufgefuehrt sind!
+Wenn z.B. property_type bereits bekannt ist (z.B. "apartment"), dann frage NICHT "Um welche Art von Immobilie handelt es sich?"
+-------------------------------------------------------------------
+
 Deine Aufgabe:
 1. Extrahiere strukturierte Daten aus der Nachricht des Benutzers
-2. Gib eine freundliche Antwort und liste die erkannten Werte auf
-3. Frage nach fehlenden Informationen - aber immer nur EINE Frage auf einmal!
-4. Frage systematisch nach ALLEN Feldern, um die Datenbank vollständig zu füllen
+2. Bestaetige die NEU erkannten Werte in einer kurzen Auflistung
+3. WENN alle Pflichtfelder vorhanden sind:
+   - Teile mit, welche optionalen Felder noch ergaenzt werden koennten
+   - Formuliere es als freundlichen Vorschlag, z.B.: "Du koenntest noch folgende Angaben ergaenzen: Baujahr, Etage, Beschreibung"
+   - Frage nach EINEM der fehlenden optionalen Felder
+4. WENN Pflichtfelder fehlen:
+   - Frage nach dem naechsten fehlenden Pflichtfeld
 
-Erforderliche Felder (Priorität 1):
+WICHTIG - DEUTSCHE BEGRIFFE VERWENDEN:
+Verwende in deinen Antworten IMMER deutsche Begriffe, NIEMALS die englischen Feldnamen!
+
+ZEICHENSATZ-REGEL:
+Verwende in deinen Antworten KEINE deutschen Umlaute oder Sonderzeichen!
+Schreibe stattdessen:
+- ae statt ä (z.B. "Baeder" statt "Bäder", "Wohnflaeche" statt "Wohnfläche")
+- oe statt ö (z.B. "koennte" statt "könnte", "moechte" statt "möchte")
+- ue statt ü (z.B. "fuer" statt "für", "Muenchen" statt "München")
+- ss statt ß (z.B. "Strasse" statt "Straße", "Groesse" statt "Größe")
+Dies ist SEHR WICHTIG fuer die korrekte Darstellung!
+
+Uebersetze diese Feldnamen IMMER:
+property_type -> Immobilientyp
+title -> Titel
+location -> Ort
+price -> Preis
+sqm -> Wohnflaeche (oder "qm")
+rooms -> Zimmer
+condition -> Zustand
+bathrooms -> Baeder
+floor_level -> Etage
+total_floors -> Stockwerke
+year_built -> Baujahr
+postal_code -> PLZ
+address -> Adresse
+description -> Beschreibung
+features -> Ausstattung
+available_from -> Einzugstermin
+important_notes -> Besonderheiten
+heating_type -> Heizung
+energy_efficiency_class -> Energieklasse
+
+ANTWORT-FORMAT (NUR DEUTSCHE BEGRIFFE, KEINE UMLAUTE!):
+Beispiel wenn Pflichtfelder fehlen:
+"Ok, ich habe erfasst:
+- Ort: Berlin
+- Preis: 450.000 Euro
+- Wohnflaeche: 85 qm
+
+Wie viele Zimmer hat die Wohnung?"
+
+Beispiel wenn alle Pflichtfelder vorhanden:
+"Super, ich habe erfasst:
+- Adresse: Hauptstr. 1
+- Baujahr: 1985
+
+Optional koenntest du noch ergaenzen: Stockwerke, Einzugstermin, Beschreibung.
+
+Ab wann kann man einziehen?"
+
+Feldtypen (INTERN - nicht in Antworten verwenden!):
 - property_type: 'apartment' | 'house' | 'villa' | 'commercial'
 - title: Kurzer beschreibender Titel
 - location: Stadt/Bezirk
 - price: Preis in Euro (Zahl)
-- sqm: Wohnfläche in qm (Zahl)
+- sqm: Wohnflaeche in qm (Zahl)
 - rooms: Anzahl Zimmer (Zahl)
 - condition: 'new' | 'first_occupancy' | 'renovated' | 'maintained' | 'needs_renovation'
-
-Alle weiteren Felder (Priorität 2 - systematisch erfragen):
 - bathrooms: Anzahl Badezimmer
-- floor_level: NUR BEI WOHNUNGEN (apartment): Etage (z.B. "3" oder "EG") - NICHT bei Häusern fragen!
-- total_floors: NUR BEI HÄUSERN (house, villa): Anzahl der Geschoße (z.B. 2 für ein zweigeschossiges Haus). Bei Wohnungen ist dies die Gesamtzahl der Etagen im Gebäude.
+- floor_level: NUR BEI WOHNUNGEN (apartment): Etage (z.B. "3" oder "EG") - NICHT bei Haeusern fragen!
+- total_floors: NUR BEI HAEUSERN (house, villa): Anzahl der Geschosse
 - year_built: Baujahr
 - postal_code: Postleitzahl
-- street_address: Straße und Hausnummer
+- address: Strasse und Hausnummer
 - description: Detaillierte Beschreibung der Immobilie
-- features: Array von Ausstattungsmerkmalen (z.B. ["Balkon", "Garage", "Einbauküche", "Garten", "Terrasse", "Stellplatz", "Aufzug", "Keller"])
-- available_from: Verfügbar ab (Datum)
-- important_notes: WICHTIGE rechtliche und finanzielle Details (z.B. Erbbaurecht, Nießbrauch, Denkmalschutz, Vorkaufsrecht, Wegerecht, Altlasten, laufende Renovierungen, Mietverträge, etc.)
+- features: Array von Ausstattungsmerkmalen
+- available_from: Verfuegbar ab (Datum)
+- important_notes: WICHTIGE rechtliche und finanzielle Details
 
-WICHTIG - Property-Typ-abhängige Felder:
-- Bei property_type = 'house' oder 'villa': Frage nach "Anzahl der Geschoße" (total_floors), NICHT nach Etage (floor_level)
-- Bei property_type = 'apartment': Frage nach "Etage" (floor_level) und optional nach Gesamtanzahl Etagen im Gebäude (total_floors)
+WICHTIG - Property-Typ-abhaengige Felder:
+- Bei property_type = 'house' oder 'villa': Frage nach "Anzahl der Geschosse" (total_floors), NICHT nach Etage (floor_level)
+- Bei property_type = 'apartment': Frage nach "Etage" (floor_level)
 
-WICHTIG:
-1. In deiner Antwort sollst du die NEU erkannten Werte auflisten:
-"Ok, ich habe folgende Daten verstanden:
-- Preis: [Wert]
-- Zimmer: [Wert]
-..."
-
-2. Stelle immer nur EINE Frage nach einem fehlenden Feld. Reihenfolge:
-   - Zuerst alle erforderlichen Felder (Priorität 1)
-   - Dann systematisch ALLE weiteren Felder (Priorität 2)
-
-3. Stelle niemals mehrere Fragen auf einmal!
-
-4. Frage nach JEDEM fehlenden Feld, bis alle Daten vollständig sind.
-
-5. ERKENNUNG WENN DER USER FERTIG IST:
-   - Wenn der User sagt "ich bin fertig", "das war's", "fertig", "keine weiteren Angaben" oder ähnliches,
-     dann setze "userSaidComplete" auf true
-   - NUR dann ist die Datenerfassung abgeschlossen
-   - Solange der User nicht explizit sagt, dass er fertig ist, frage nach fehlenden Feldern weiter
+REGELN:
+1. Frage NIEMALS nach Feldern, die bereits bekannt sind (oben aufgelistet)!
+2. Stelle immer nur EINE Frage nach einem fehlenden Feld
+3. Priorisiere Pflichtfelder vor optionalen Feldern
+4. Wenn alle Pflichtfelder vorhanden: Erwaehne welche optionalen Felder noch ergaenzt werden koennten
+5. Wenn der User "fertig", "das wars", "keine weiteren Angaben" sagt - setze userSaidComplete: true
 
 Antworte im JSON Format:
 {
   "extractedData": { ... extrahierte Felder ... },
-  "response": "Deine freundliche Antwort mit Auflistung der erkannten Werte",
-  "missingFields": ["field1", "field2"], // Liste der noch fehlenden erforderlichen Felder
-  "followUpQuestion": "Konkrete Frage nach EINEM fehlendem Feld" // Frage nach dem nächsten fehlenden Feld
-  "userSaidComplete": false // true nur wenn User explizit sagt, dass er fertig ist
-}
-
-Aktuell vorhandene Daten: ${JSON.stringify(currentData)}`;
+  "response": "Deine Antwort mit Auflistung der erkannten Werte UND Hinweis auf ergaenzbare Felder",
+  "missingFields": ["field1", "field2"],
+  "optionalFieldsSuggestion": "Baujahr, Etage, Beschreibung", // Liste der optionalen Felder die noch ergaenzt werden koennten (nur wenn alle Pflichtfelder vorhanden)
+  "followUpQuestion": "Frage nach einem fehlenden Feld" // null wenn User fertig ist
+  "userSaidComplete": false
+}`;
 
         // Build messages for OpenAI
         const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [

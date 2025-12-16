@@ -340,6 +340,109 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
     return converted;
   };
 
+  // Übersetzt property_type zu deutschem Begriff
+  const formatPropertyType = (type: string): string => {
+    const typeMap: Record<string, string> = {
+      'apartment': 'Wohnung',
+      'house': 'Haus',
+      'villa': 'Villa',
+      'commercial': 'Gewerbe',
+      'land': 'Grundstück',
+    };
+    return typeMap[type] || type;
+  };
+
+  // Übersetzt condition zu deutschem Begriff
+  const formatCondition = (condition: string): string => {
+    const conditionMap: Record<string, string> = {
+      'new': 'Neu',
+      'first_occupancy': 'Erstbezug',
+      'renovated': 'Renoviert',
+      'maintained': 'Gepflegt',
+      'needs_renovation': 'Sanierungsbedürftig',
+    };
+    return conditionMap[condition] || condition;
+  };
+
+  // Formatiert extrahierte Daten als lesbare Liste (unterstützt beide Formate: camelCase und snake_case)
+  const formatExtractedDataMessage = (data: any): string => {
+    const lines: string[] = [];
+
+    // Helper to get value from either camelCase or snake_case
+    const get = (camel: string, snake: string) => data[camel] || data[snake];
+
+    const propertyType = get('propertyType', 'property_type');
+    const postalCode = get('postalCode', 'postal_code');
+    const yearBuilt = get('yearBuilt', 'year_built');
+    const floorLevel = get('floorLevel', 'floor_level');
+    const totalFloors = get('totalFloors', 'total_floors');
+    const heatingType = get('heatingType', 'heating_type');
+    const energyClass = get('energyClass', 'energy_efficiency_class');
+
+    if (propertyType) lines.push(`• Typ: ${formatPropertyType(propertyType)}`);
+    if (data.title) lines.push(`• Titel: ${data.title}`);
+    if (data.location) lines.push(`• Ort: ${data.location}`);
+    if (data.address) lines.push(`• Adresse: ${data.address}`);
+    if (postalCode) lines.push(`• PLZ: ${postalCode}`);
+    if (data.price) lines.push(`• Preis: ${data.price.toLocaleString('de-DE')} €`);
+    if (data.sqm) lines.push(`• Fläche: ${data.sqm} m²`);
+    if (data.rooms) lines.push(`• Zimmer: ${data.rooms}`);
+    if (data.bathrooms) lines.push(`• Badezimmer: ${data.bathrooms}`);
+    if (yearBuilt) lines.push(`• Baujahr: ${yearBuilt}`);
+    if (data.condition) lines.push(`• Zustand: ${formatCondition(data.condition)}`);
+    if (floorLevel) lines.push(`• Etage: ${floorLevel}`);
+    if (totalFloors) lines.push(`• Geschosse: ${totalFloors}`);
+    if (heatingType) lines.push(`• Heizung: ${heatingType}`);
+    if (energyClass) lines.push(`• Energieklasse: ${energyClass}`);
+    if (data.features?.length) lines.push(`• Ausstattung: ${data.features.join(', ')}`);
+
+    return lines.length > 0 ? lines.join('\n') : 'Keine Daten erkannt';
+  };
+
+  // Ermittelt das nächste fehlende Pflichtfeld für Follow-Up Frage
+  const getNextMissingFieldQuestion = (data: any): string | null => {
+    // Check both camelCase (from backend) and snake_case (from frontend state)
+    const getValue = (camel: string, snake: string) => data[camel] || data[snake];
+
+    const fieldQuestions: Array<{ camel: string; snake: string; question: string }> = [
+      { camel: 'propertyType', snake: 'property_type', question: 'Um welche Art von Immobilie handelt es sich? (Wohnung, Haus, Gewerbe)' },
+      { camel: 'location', snake: 'location', question: 'In welcher Stadt oder Region befindet sich die Immobilie?' },
+      { camel: 'price', snake: 'price', question: 'Wie hoch ist der Kaufpreis?' },
+      { camel: 'sqm', snake: 'sqm', question: 'Wie groß ist die Wohnfläche in Quadratmetern?' },
+      { camel: 'rooms', snake: 'rooms', question: 'Wie viele Zimmer hat die Immobilie?' },
+      { camel: 'condition', snake: 'condition', question: 'In welchem Zustand ist die Immobilie? (Neu, renoviert, gepflegt, sanierungsbedürftig)' },
+    ];
+
+    for (const { camel, snake, question } of fieldQuestions) {
+      if (!getValue(camel, snake)) return question;
+    }
+    return null;
+  };
+
+  // Mappt Backend-Daten (camelCase) zu Frontend-Format (snake_case)
+  const mapBackendToFrontend = (data: any): Partial<ListingData> => {
+    return {
+      property_type: data.propertyType || data.property_type,
+      title: data.title,
+      location: data.location,
+      address: data.address,
+      postal_code: data.postalCode || data.postal_code,
+      price: data.price,
+      sqm: data.sqm,
+      rooms: data.rooms,
+      bathrooms: data.bathrooms,
+      year_built: data.yearBuilt || data.year_built,
+      floor_level: data.floorLevel || data.floor_level,
+      total_floors: data.totalFloors || data.total_floors,
+      condition: data.condition,
+      description: data.description,
+      features: data.features,
+      heating_type: data.heatingType || data.heating_type,
+      energy_efficiency_class: data.energyClass || data.energy_efficiency_class,
+      additional_costs: data.monthlyFee || data.additional_costs,
+    };
+  };
+
   // Handle KI Evaluation trigger
   const handleTriggerKIEvaluation = useCallback(async () => {
     console.log('[KI Evaluation] Starting...', { listingDataId: listingData.id, listingData });
@@ -522,18 +625,22 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
       });
 
       // Update listing data with extracted data only (no KI Bewertung)
+      // Map backend camelCase to frontend snake_case
       setListingData(prev => ({
         ...prev,
-        ...(result.propertyData as any),
+        ...mapBackendToFrontend(result.propertyData),
       }));
 
-      // Update conversation
-      addBotMessage(
-        `Super! Ich habe die Daten aus deinem PDF-Exposé extrahiert. Schau dir die Vorschau an und ergänze bei Bedarf weitere Informationen.`
-      );
+      // Update conversation with detailed extraction info
+      const extractedMessage = `Super! Ich habe folgende Daten aus deinem Exposé extrahiert:\n\n${formatExtractedDataMessage(result.propertyData)}`;
+      const followUpQuestion = getNextMissingFieldQuestion(result.propertyData);
 
-      // Mark as complete
-      setIsComplete(true);
+      if (followUpQuestion) {
+        addBotMessage(`${extractedMessage}\n\n${followUpQuestion}`);
+      } else {
+        addBotMessage(`${extractedMessage}\n\nAlle wichtigen Daten sind vorhanden! Schau dir die Vorschau an.`);
+        setIsComplete(true);
+      }
 
       // Clear PDF files
       setPdfFiles([]);
@@ -735,23 +842,35 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
 
     const fileArray = Array.from(files);
 
-    // Helper function to check file type (with fallback to extension)
+    // Helper functions to check file types (with fallback to extension)
     const isPdf = (file: File) => {
       if (file.type === 'application/pdf') return true;
       const ext = file.name.split('.').pop()?.toLowerCase();
       return ext === 'pdf';
     };
 
-    // Check if we have PDFs
-    const pdfFiles = fileArray.filter(isPdf);
-    const imageFiles = fileArray.filter(f => !isPdf(f));
+    const isImage = (file: File) => {
+      if (file.type.startsWith('image/')) return true;
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(ext || '');
+    };
 
-    // If we have PDFs, trigger PDF analysis workflow
+    const isVideo = (file: File) => {
+      if (file.type.startsWith('video/')) return true;
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      return ['mp4', 'mov', 'webm', 'mpeg'].includes(ext || '');
+    };
+
+    // Categorize files
+    const pdfFiles = fileArray.filter(isPdf);
+    const imageFiles = fileArray.filter(isImage);
+    const videoFiles = fileArray.filter(isVideo);
+
+    // Handle PDFs
     if (pdfFiles.length > 0) {
       setIsAnalyzingPdf(true);
       addBotMessage(`Ich habe ${pdfFiles.length} PDF${pdfFiles.length > 1 ? 's' : ''} erhalten. Lass mich ${pdfFiles.length > 1 ? 'diese' : 'das'} analysieren...`);
 
-      // Trigger the analysis
       try {
         const pdfFile = pdfFiles[0];
         const reader = new FileReader();
@@ -772,12 +891,10 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
           fileName: pdfFile.name,
         });
 
-        // Update listing data with extracted data only (no KI Bewertung)
-        // Also explicitly clear AI rating fields since we're doing data extraction only
+        // Map backend camelCase to frontend snake_case
         setListingData(prev => ({
           ...prev,
-          ...(result.propertyData as any),
-          // Explicitly clear AI rating fields after PDF analysis
+          ...mapBackendToFrontend(result.propertyData),
           ai_rating_explanation: undefined,
           strengths: undefined,
           weaknesses: undefined,
@@ -786,11 +903,17 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
           ai_score: undefined,
         }));
 
-        addBotMessage(
-          `Super! Ich habe die Daten aus deinem PDF-Exposé extrahiert. Schau dir die Vorschau an und ergänze bei Bedarf weitere Informationen.`
-        );
+        // Detailed extraction message with follow-up
+        const extractedMessage = `Super! Ich habe folgende Daten aus deinem Exposé extrahiert:\n\n${formatExtractedDataMessage(result.propertyData)}`;
+        const followUpQuestion = getNextMissingFieldQuestion(result.propertyData);
 
-        setIsComplete(true);
+        if (followUpQuestion) {
+          addBotMessage(`${extractedMessage}\n\n${followUpQuestion}`);
+        } else {
+          addBotMessage(`${extractedMessage}\n\nAlle wichtigen Daten sind vorhanden! Schau dir die Vorschau an.`);
+          setIsComplete(true);
+        }
+
         setPdfFiles([]);
       } catch (error: any) {
         console.error('Error analyzing PDF from drag-drop:', error);
@@ -800,9 +923,57 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
       } finally {
         setIsAnalyzingPdf(false);
       }
-    } else if (imageFiles.length > 0) {
-      // Just images, use the normal image processing
+    }
+
+    // Handle images
+    if (imageFiles.length > 0) {
       processImageFiles(imageFiles as unknown as FileList);
+    }
+
+    // Handle video upload (only first video, max 100MB)
+    if (videoFiles.length > 0) {
+      const videoFile = videoFiles[0];
+      const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100MB
+
+      if (videoFile.size > MAX_VIDEO_SIZE) {
+        addBotMessage('Das Video ist zu groß. Maximale Größe: 100MB');
+        return;
+      }
+
+      addBotMessage(`Video "${videoFile.name}" wird hochgeladen...`);
+
+      try {
+        const formData = new FormData();
+        formData.append('video', videoFile);
+
+        const token = localStorage.getItem('auth_token');
+        if (!token) throw new Error('Keine Authentifizierung gefunden');
+
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+        const response = await fetch(`${apiUrl}/upload/property-video`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Upload fehlgeschlagen mit Status ${response.status}`);
+        }
+
+        const result = await response.json();
+        if (result.success && result.data?.url) {
+          setVideoUrl(result.data.url);
+          addBotMessage('Video erfolgreich hochgeladen! Es wird in der Vorschau angezeigt.');
+        } else {
+          throw new Error(result.message || 'Upload fehlgeschlagen');
+        }
+      } catch (error: any) {
+        console.error('[Upload] Video upload error:', error);
+        addBotMessage(`Video-Upload fehlgeschlagen: ${error.message || 'Unbekannter Fehler'}`);
+      }
     }
   };
 
@@ -898,9 +1069,10 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
         // Update listing data with extracted data only (no KI Bewertung)
         // Even if the backend returns AI fields, we explicitly clear them here
         // because KI evaluation should only happen on-demand after data extraction
+        // Map backend camelCase to frontend snake_case
         setListingData(prev => ({
           ...prev,
-          ...(result.propertyData as any),
+          ...mapBackendToFrontend(result.propertyData),
           // Explicitly clear AI rating fields - they will be generated on-demand
           ai_score: undefined,
           ai_rating_explanation: undefined,
@@ -910,13 +1082,16 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
           risks: undefined,
         }));
 
-        // Update conversation
-        addBotMessage(
-          `Super! Ich habe die Daten aus deinem PDF-Exposé extrahiert. Schau dir die Vorschau an und ergänze bei Bedarf weitere Informationen.`
-        );
+        // Update conversation with detailed extraction info
+        const extractedMessage = `Super! Ich habe folgende Daten aus deinem Exposé extrahiert:\n\n${formatExtractedDataMessage(result.propertyData)}`;
+        const followUpQuestion = getNextMissingFieldQuestion(result.propertyData);
 
-        // Mark as complete
-        setIsComplete(true);
+        if (followUpQuestion) {
+          addBotMessage(`${extractedMessage}\n\n${followUpQuestion}`);
+        } else {
+          addBotMessage(`${extractedMessage}\n\nAlle wichtigen Daten sind vorhanden! Schau dir die Vorschau an.`);
+          setIsComplete(true);
+        }
       } catch (error: any) {
         console.error('[Upload] Error analyzing PDF:', error);
 
@@ -978,35 +1153,42 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
           console.log('[Upload] Updating listing data with extracted data');
           const extractedData = result.propertyData as any;
 
+          // Map backend camelCase to frontend snake_case
           setListingData(prev => ({
             ...prev,
+            property_type: extractedData.propertyType || extractedData.property_type || prev.property_type,
             title: extractedData.title || prev.title,
             description: extractedData.description || prev.description,
             price: extractedData.price || prev.price,
             location: extractedData.location || prev.location,
             address: extractedData.address || prev.address,
-            postal_code: extractedData.postalCode || prev.postal_code,
+            postal_code: extractedData.postalCode || extractedData.postal_code || prev.postal_code,
             sqm: extractedData.sqm || prev.sqm,
             rooms: extractedData.rooms || prev.rooms,
             bathrooms: extractedData.bathrooms || prev.bathrooms,
-            year_built: extractedData.yearBuilt || prev.year_built,
-            floor_level: extractedData.floor || prev.floor_level,
-            heating_type: extractedData.heatingType || prev.heating_type,
-            energy_efficiency_class: extractedData.energyClass || prev.energy_efficiency_class,
+            year_built: extractedData.yearBuilt || extractedData.year_built || prev.year_built,
+            floor_level: extractedData.floorLevel || extractedData.floor || prev.floor_level,
+            heating_type: extractedData.heatingType || extractedData.heating_type || prev.heating_type,
+            energy_efficiency_class: extractedData.energyClass || extractedData.energy_efficiency_class || prev.energy_efficiency_class,
             features: extractedData.features || prev.features,
+            condition: extractedData.condition || prev.condition,
           }));
 
-          // Mark as complete
-          setIsComplete(true);
-
-          // Build info message
-          let message = `🎉 Ich habe ${result.screenshotCount} Screenshot${result.screenshotCount > 1 ? 's' : ''} erkannt und die Immobiliendaten extrahiert!`;
+          // Build detailed info message with extracted data
+          let message = `Super! Ich habe folgende Daten aus deinen Screenshots extrahiert:\n\n${formatExtractedDataMessage(extractedData)}`;
 
           if (result.photoCount > 0) {
             message += `\n\n📸 ${result.photoCount} Foto${result.photoCount > 1 ? 's' : ''} wurde${result.photoCount > 1 ? 'n' : ''} der Galerie hinzugefügt.`;
           }
 
-          message += '\n\nSchau dir die Vorschau an und ergänze bei Bedarf weitere Informationen.';
+          // Check for missing required fields and add follow-up question
+          const followUpQuestion = getNextMissingFieldQuestion(extractedData);
+          if (followUpQuestion) {
+            message += `\n\n${followUpQuestion}`;
+          } else {
+            message += '\n\nAlle wichtigen Daten sind vorhanden! Schau dir die Vorschau an.';
+            setIsComplete(true);
+          }
 
           addBotMessage(message);
         } else if (result.photoCount > 0) {
