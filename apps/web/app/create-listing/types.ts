@@ -8,7 +8,7 @@ export interface ListingData {
   property_type?: 'apartment' | 'house' | 'land' | 'commercial';
   title?: string;
   location?: string; // City/area (e.g., "München")
-  address?: string; // Street address (e.g., "Musterstraße 123")
+  street_address?: string; // Street address (e.g., "Musterstraße 123")
   postal_code?: string; // Postal code (e.g., "80331")
   price?: number;
   sqm?: number;

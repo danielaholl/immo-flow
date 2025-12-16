@@ -162,7 +162,7 @@ Extrahiere folgende Felder (falls vorhanden):
 - description: Vollständige Objektbeschreibung
 - price: Kaufpreis in Euro (nur die Zahl)
 - location: Ort/Stadt
-- address: Vollständige Adresse (falls vorhanden)
+- streetAddress: Strasse und Hausnummer (falls vorhanden)
 - postalCode: Postleitzahl
 - sqm: Wohnfläche in m² (nur die Zahl)
 - rooms: Anzahl Zimmer (Dezimalzahl, z.B. 3.5)

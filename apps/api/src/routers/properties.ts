@@ -187,7 +187,6 @@ export const propertiesRouter = router({
         description: z.string().trim().max(5000).optional(),
         price: z.number().positive().max(1000000000, 'Price too high'),
         location: z.string().trim().min(2).max(200),
-        address: z.string().trim().max(500).optional(),
         sqm: z.number().positive().max(100000, 'Square meters value too high'),
         rooms: z.number().positive().int().max(50, 'Too many rooms'),
         images: z.array(z.string().url().max(1000)).max(50).optional(),
@@ -221,14 +220,14 @@ export const propertiesRouter = router({
     .mutation(async ({ input, ctx }) => {
       const property = await queryOne(
         `INSERT INTO properties (
-          user_id, title, description, price, location, address,
+          user_id, title, description, price, location,
           sqm, rooms, images, video_url, features, highlights, red_flags, status, commission_rate,
           require_address_consent, property_type, postal_code, street_address,
           year_built, floor_level, total_floors, bathrooms, usable_area,
           usable_area_ratio, monthly_fee, condition, heating_type,
           energy_source, energy_certificate, energy_efficiency_class,
           available_from, important_notes
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32)
         RETURNING *`,
         [
           ctx.user.id,
@@ -236,7 +235,6 @@ export const propertiesRouter = router({
           input.description,
           input.price,
           input.location,
-          input.address,
           input.sqm,
           input.rooms,
           input.images || [],
@@ -279,7 +277,6 @@ export const propertiesRouter = router({
         description: z.string().trim().max(5000).optional(),
         price: z.number().positive().max(1000000000).optional(),
         location: z.string().trim().min(2).max(200).optional(),
-        address: z.string().trim().max(500).optional(),
         sqm: z.number().positive().max(100000).optional(),
         rooms: z.number().positive().int().max(50).optional(),
         images: z.array(z.string().url().max(1000)).max(50).optional(),

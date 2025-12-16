@@ -73,7 +73,7 @@ export const aiChatRouter = router({
       try {
         // Calculate which fields are already known and which are still missing
         const priority1Fields = ['property_type', 'title', 'location', 'price', 'sqm', 'rooms', 'condition'] as const;
-        const priority2Fields = ['bathrooms', 'floor_level', 'total_floors', 'year_built', 'postal_code', 'address', 'description', 'features', 'available_from', 'important_notes'] as const;
+        const priority2Fields = ['bathrooms', 'floor_level', 'total_floors', 'year_built', 'postal_code', 'street_address', 'description', 'features', 'available_from', 'important_notes'] as const;
 
         const missingPriority1 = priority1Fields.filter(field => !currentData[field as keyof typeof currentData]);
         const missingPriority2 = priority2Fields.filter(field => !currentData[field as keyof typeof currentData]);
@@ -196,7 +196,7 @@ floor_level -> Etage
 total_floors -> Stockwerke
 year_built -> Baujahr
 postal_code -> PLZ
-address -> Adresse
+street_address -> Strasse
 description -> Beschreibung
 features -> Ausstattung
 available_from -> Einzugstermin
@@ -235,7 +235,7 @@ Feldtypen (INTERN - nicht in Antworten verwenden!):
 - total_floors: NUR BEI HAEUSERN (house, villa): Anzahl der Geschosse
 - year_built: Baujahr
 - postal_code: Postleitzahl
-- address: Strasse und Hausnummer
+- street_address: Strasse und Hausnummer
 - description: Detaillierte Beschreibung der Immobilie
 - features: Array von Ausstattungsmerkmalen
 - available_from: Verfuegbar ab (Datum)

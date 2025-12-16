@@ -127,7 +127,6 @@ export type Database = {
       }
       properties: {
         Row: {
-          address: string | null
           ai_analysis: Json | null
           ai_detailed_evaluation: Json | null
           ai_investment_score: number | null
@@ -178,7 +177,6 @@ export type Database = {
           yield: number | null
         }
         Insert: {
-          address?: string | null
           ai_analysis?: Json | null
           ai_detailed_evaluation?: Json | null
           ai_investment_score?: number | null
@@ -229,7 +227,6 @@ export type Database = {
           yield?: number | null
         }
         Update: {
-          address?: string | null
           ai_analysis?: Json | null
           ai_detailed_evaluation?: Json | null
           ai_investment_score?: number | null

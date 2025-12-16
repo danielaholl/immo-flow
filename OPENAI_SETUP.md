@@ -5,38 +5,7 @@ Diese Anleitung erklärt, wie Sie die OpenAI-Integration für den KI-Chat-Assist
 ## Voraussetzungen
 
 1. **OpenAI API Key**: Holen Sie sich einen API-Schlüssel von [OpenAI](https://platform.openai.com/api-keys)
-2. **Supabase Projekt**: Ein Supabase-Projekt muss eingerichtet sein
 
-## Schritt 1: Supabase CLI Installieren
-
-Falls noch nicht installiert:
-
-```bash
-npm install -g supabase
-```
-
-## Schritt 2: Supabase Login
-
-```bash
-npx supabase login
-```
-
-## Schritt 3: Supabase Projekt Verknüpfen
-
-```bash
-npx supabase link --project-ref your-project-ref
-```
-
-**Projekt-Ref finden:**
-- Gehen Sie zu Ihrem [Supabase Dashboard](https://app.supabase.com)
-- Wählen Sie Ihr Projekt
-- Die Project Ref finden Sie in den Project Settings > General
-
-## Schritt 4: OpenAI API Key als Secret speichern
-
-```bash
-npx supabase secrets set OPENAI_API_KEY=sk-your-openai-api-key-here
-```
 
 **Wichtig:** Ersetzen Sie `sk-your-openai-api-key-here` mit Ihrem echten OpenAI API Key!
 

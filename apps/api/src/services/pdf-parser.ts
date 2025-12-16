@@ -39,7 +39,7 @@ export interface ScrapedPropertyData {
   floorLevel?: string; // For apartments: which floor
   totalFloors?: number; // For houses: number of floors
   postalCode?: string;
-  address?: string;
+  streetAddress?: string;
   exposeText?: string; // Full PDF text for detailed AI analysis
   externalSource?: string; // Optional for PDF uploads (required for URL scraping)
 }
@@ -109,7 +109,7 @@ Extrahiere die folgenden Informationen und gib sie als JSON zurück:
 - description: Beschreibung (max 2000 Zeichen)
 - price: Kaufpreis in Euro (nur Zahl, ohne Währung)
 - location: Ort/Stadt
-- address: Straße und Hausnummer (optional)
+- streetAddress: Strasse und Hausnummer (optional)
 - postalCode: Postleitzahl (optional)
 - sqm: Wohnfläche in Quadratmetern (nur Zahl)
 - rooms: Anzahl der Zimmer (nur Zahl)
@@ -130,7 +130,7 @@ BEISPIEL:
   "description": "Helle und moderne Wohnung...",
   "price": 450000,
   "location": "München",
-  "address": "Musterstraße 10",
+  "streetAddress": "Musterstrasse 10",
   "postalCode": "80331",
   "sqm": 75,
   "rooms": 3,
@@ -201,7 +201,7 @@ WICHTIG:
       description: extracted.description || '',
       price: parseFloat(extracted.price),
       location: extracted.location || 'Unbekannt',
-      address: extracted.address || undefined,
+      streetAddress: extracted.streetAddress || undefined,
       postalCode: extracted.postalCode || undefined,
       sqm: parseFloat(extracted.sqm),
       rooms: parseFloat(extracted.rooms) || 1,

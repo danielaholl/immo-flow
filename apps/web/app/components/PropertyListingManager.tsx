@@ -152,7 +152,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
       property_type: (propertyToEdit as any).property_type,
       title: propertyToEdit.title,
       location: propertyToEdit.location,
-      address: propertyToEdit.address ?? undefined,
+      street_address: (propertyToEdit as any).street_address ?? undefined,
       postal_code: (propertyToEdit as any).postal_code ?? undefined,
       price: typeof propertyToEdit.price === 'string' ? parseFloat(propertyToEdit.price) : propertyToEdit.price,
       sqm: typeof propertyToEdit.sqm === 'string' ? parseFloat(propertyToEdit.sqm) : propertyToEdit.sqm,
@@ -382,7 +382,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
     if (propertyType) lines.push(`• Typ: ${formatPropertyType(propertyType)}`);
     if (data.title) lines.push(`• Titel: ${data.title}`);
     if (data.location) lines.push(`• Ort: ${data.location}`);
-    if (data.address) lines.push(`• Adresse: ${data.address}`);
+    if (data.street_address || data.streetAddress) lines.push(`• Adresse: ${data.street_address || data.streetAddress}`);
     if (postalCode) lines.push(`• PLZ: ${postalCode}`);
     if (data.price) lines.push(`• Preis: ${data.price.toLocaleString('de-DE')} €`);
     if (data.sqm) lines.push(`• Fläche: ${data.sqm} m²`);
@@ -425,7 +425,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
       property_type: data.propertyType || data.property_type,
       title: data.title,
       location: data.location,
-      address: data.address,
+      street_address: data.streetAddress || data.street_address,
       postal_code: data.postalCode || data.postal_code,
       price: data.price,
       sqm: data.sqm,
@@ -740,7 +740,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
         description: result.propertyData.description,
         price: result.propertyData.price,
         location: result.propertyData.location,
-        address: result.propertyData.address,
+        street_address: result.propertyData.streetAddress || result.propertyData.street_address,
         postal_code: result.propertyData.postalCode,
         sqm: result.propertyData.sqm,
         rooms: result.propertyData.rooms,
@@ -1161,7 +1161,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
             description: extractedData.description || prev.description,
             price: extractedData.price || prev.price,
             location: extractedData.location || prev.location,
-            address: extractedData.address || prev.address,
+            street_address: extractedData.streetAddress || extractedData.street_address || prev.street_address,
             postal_code: extractedData.postalCode || extractedData.postal_code || prev.postal_code,
             sqm: extractedData.sqm || prev.sqm,
             rooms: extractedData.rooms || prev.rooms,
@@ -1277,7 +1277,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
     type: listingData.property_type || 'apartment',
     title: listingData.title || 'Deine Immobilie',
     location: listingData.location || '',
-    address: listingData.address || '', // Show street address in location component
+    address: listingData.street_address || '', // Show street address in location component
     price: listingData.price || 0,
     sqm: listingData.sqm || 0,
     rooms: listingData.rooms || 0,
