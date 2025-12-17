@@ -42,7 +42,7 @@ export async function analyzeScreenshot(
 Gib den kompletten Text strukturiert zurueck.`);
 
     const response = await client.chat.completions.create({
-      model: 'gpt-4o', // Unterstützt Vision
+      model: 'gpt-5.2', // Unterstützt Vision
       messages: [
         {
           role: 'system',
@@ -169,7 +169,7 @@ Wenn ein Feld nicht gefunden wird, setze es auf null.`;
 
     const systemPrompt = buildSystemPrompt('extraction', extractionInstructions);
     const response = await client.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'gpt-5.2',
       messages: [
         {
           role: 'system',

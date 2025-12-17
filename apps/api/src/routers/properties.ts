@@ -99,6 +99,7 @@ export const propertiesRouter = router({
       const property = await queryOne(
         `SELECT
           *,
+          NULLIF(CONCAT_WS(', ', street_address, CONCAT_WS(' ', postal_code, location)), '') as full_address,
           EXTRACT(DAY FROM (CURRENT_TIMESTAMP - created_at))::integer as days_online
         FROM properties
         WHERE id = $1`,
@@ -119,6 +120,7 @@ export const propertiesRouter = router({
       const property = await queryOne(
         `SELECT
           p.*,
+          NULLIF(CONCAT_WS(', ', p.street_address, CONCAT_WS(' ', p.postal_code, p.location)), '') as full_address,
           EXTRACT(DAY FROM (CURRENT_TIMESTAMP - p.created_at))::integer as days_online,
           COALESCE(ps.total_views, 0) as total_views,
           COALESCE(ps.favorites_count, 0) as favorites_count,

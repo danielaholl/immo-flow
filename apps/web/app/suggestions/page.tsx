@@ -219,7 +219,7 @@ export default function SuggestionsPage() {
                     onPress={() => {
                       router.push(`/suggestion/${property.id}`);
                     }}
-                    showAddress={shouldShowAddress(property.id)}
+                    showAddress={true}
                   />
                 </div>
               ))}

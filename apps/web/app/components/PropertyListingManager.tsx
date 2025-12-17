@@ -10,6 +10,7 @@ import { useAuthContext } from '@/app/providers/AuthProvider';
 import { PropertyPreview, PropertyPreviewData } from './PropertyPreview';
 import { SlideshowManagerProvider } from './SlideshowManagerContext';
 import { PropertyImageSlideshow } from './PropertyImageSlideshow';
+import { PropertyImagePlaceholder } from '@immoflow/ui';
 import { trpc } from '@/lib/trpc';
 import { MessageSquare, Eye, Images, Loader2, Sparkles } from 'lucide-react';
 import { useConversationalAI } from '../create-listing/hooks/useConversationalAI';
@@ -505,11 +506,6 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
       );
     }
   }, [listingData, user?.id, uploadedImages, convertToEnglishEnums, createPropertyMutation, generateKIEvaluationMutation, addBotMessage]);
-
-  // Get placeholder image - always show house with pool
-  const getPlaceholderImage = () => {
-    return '/placeholders/placeholder_house.png';
-  };
 
   // Submit property
   const handleSubmit = async (skipImageCheck = false) => {
@@ -1495,29 +1491,30 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
             <div className={`w-full lg:w-1/2 h-[60vh] lg:h-full min-h-0 overflow-hidden p-4 lg:p-6 ${mobileView === 'preview' ? 'hidden lg:block' : ''}`}>
               <div className="w-full h-full overflow-hidden flex flex-col rounded-2xl">
                 <div className="flex-1 min-h-0">
-                  <PropertyImageSlideshow
-                    images={uploadedImages.length > 0 ? uploadedImages : [getPlaceholderImage()]}
-                    videoUrl={videoUrl}
-                    title={listingData.title || 'Deine Immobilie'}
-                    duration={3000}
-                    showCounter={uploadedImages.length > 0}
-                    showProgressBars={uploadedImages.length > 0}
-                    rounded="none"
-                    aspectRatio="auto"
-                    className="h-full"
-                    propertyType={listingData.property_type || undefined}
-                    onDeleteImage={uploadedImages.length > 0 ? handleDeleteImage : undefined}
-                    onDeleteVideo={videoUrl ? handleDeleteVideo : undefined}
-                    overlay={uploadedImages.length === 0 && !videoUrl ? (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                        <div className="text-center text-white">
-                          <Images size={48} className="mx-auto mb-3 opacity-80" />
-                          <h3 className="text-xl font-semibold">Noch keine Medien</h3>
-                          <p className="text-sm opacity-80 mt-1">Lade Bilder oder Videos über den Chat hoch</p>
-                        </div>
-                      </div>
-                    ) : undefined}
-                  />
+                  {uploadedImages.length > 0 || videoUrl ? (
+                    <PropertyImageSlideshow
+                      images={uploadedImages}
+                      videoUrl={videoUrl}
+                      title={listingData.title || 'Deine Immobilie'}
+                      duration={3000}
+                      showCounter={uploadedImages.length > 0}
+                      showProgressBars={uploadedImages.length > 0}
+                      rounded="none"
+                      aspectRatio="auto"
+                      className="h-full"
+                      propertyType={listingData.property_type || undefined}
+                      onDeleteImage={uploadedImages.length > 0 ? handleDeleteImage : undefined}
+                      onDeleteVideo={videoUrl ? handleDeleteVideo : undefined}
+                    />
+                  ) : (
+                    <PropertyImagePlaceholder
+                      className="h-full w-full rounded-2xl"
+                      propertyType={listingData.property_type || undefined}
+                      label="Noch keine Medien"
+                      iconSize={48}
+                      blur={3}
+                    />
+                  )}
                 </div>
               </div>
             </div>

@@ -24,7 +24,7 @@ export interface PropertyTeaserFields {
 
 export interface PropertyFullFields extends PropertyTeaserFields {
   // All fields from teaser, plus:
-  address: string | null;
+  full_address: string | null;
   allImages: string[];
   allFeatures: string[];
   highlights: string[];
@@ -131,7 +131,7 @@ export function getPropertyFieldsSQL(isAuthenticated: boolean): string {
 
   const fullFields = `
     ${baseFields},
-    p.address,
+    NULLIF(CONCAT_WS(', ', p.street_address, CONCAT_WS(' ', p.postal_code, p.location)), '') as full_address,
     p.highlights,
     p.red_flags,
     p.buyer_evaluation,

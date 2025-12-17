@@ -12,7 +12,13 @@
  * 3. Uncomment code below
  */
 
-import { StorageProvider, UploadedFile, UploadedFileWithThumbnail, ImageVariant } from './StorageProvider.js';
+import {
+  StorageProvider,
+  UploadedFile,
+  UploadedFileWithThumbnail,
+  ImageVariant,
+  VideoUploadResult,
+} from './StorageProvider.js';
 
 export class CloudflareR2Provider extends StorageProvider {
   constructor() {
@@ -20,24 +26,15 @@ export class CloudflareR2Provider extends StorageProvider {
     throw new Error('CloudflareR2Provider not yet implemented. Use LocalStorageProvider for now.');
   }
 
-  async uploadFile(
-    file: Express.Multer.File,
-    folder: string
-  ): Promise<UploadedFile> {
+  async uploadFile(file: Express.Multer.File, folder: string): Promise<UploadedFile> {
     throw new Error('Not implemented');
   }
 
-  async uploadImage(
-    file: Express.Multer.File,
-    folder: string
-  ): Promise<ImageVariant> {
+  async uploadImage(file: Express.Multer.File, folder: string): Promise<ImageVariant> {
     throw new Error('Not implemented');
   }
 
-  async uploadImages(
-    files: Express.Multer.File[],
-    folder: string
-  ): Promise<ImageVariant[]> {
+  async uploadImages(files: Express.Multer.File[], folder: string): Promise<ImageVariant[]> {
     throw new Error('Not implemented');
   }
 
@@ -58,6 +55,11 @@ export class CloudflareR2Provider extends StorageProvider {
     folder: string
   ): Promise<UploadedFileWithThumbnail> {
     throw new Error('Not implemented');
+  }
+
+  uploadVideo(file: Express.Multer.File, folder: string): Promise<VideoUploadResult> {
+    // @ts-ignore
+    return Promise.resolve({ url: '', fileName: '', size: '', mimeType: '' });
   }
 }
 

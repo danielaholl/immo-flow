@@ -6,7 +6,7 @@ import { TRPCProvider } from './providers/TRPCProvider';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 export const metadata: Metadata = {
-  title: 'NestFlow - Smart investieren. Gemeinsam.',
+  title: 'Nestando - Smart investieren. Gemeinsam.',
   description:
     'Smart investieren. Gemeinsam. Entdecke Immobilien, erhalte AI-Analysen und finde dein perfektes Investment.',
   keywords: ['Immobilien', 'Investment', 'Deutschland', 'Wohnung kaufen', 'Haus kaufen'],

@@ -565,7 +565,7 @@ export default function HomePage() {
                   isActive={index === activeCardIndex && !isSlideshowPaused}
                   onSlideshowComplete={() => handleSlideshowComplete(index, filteredProperties.length)}
                   slideshowDuration={3000}
-                  showAddress={shouldShowAddress(property.id)}
+                  showAddress={true}
                 />
               </div>
             );
@@ -637,7 +637,7 @@ export default function HomePage() {
                         }}
                         isActive={false}
                         slideshowDuration={3000}
-                        showAddress={shouldShowAddress(property.id)}
+                        showAddress={true}
                       />
                       {/* Undismiss Button Overlay */}
                       <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-xl pointer-events-none">
@@ -665,7 +665,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div>
-              <h4 className="text-lg font-bold mb-4">NestFlow</h4>
+              <h4 className="text-lg font-bold mb-4">Nestando</h4>
               <p className="text-sm opacity-80">
                 Die moderne Plattform für Immobilien-Investment in Deutschland
               </p>
@@ -707,7 +707,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="mt-8 pt-8 border-t border-white/20 text-center text-sm opacity-80">
-            © {new Date().getFullYear()} NestFlow. Alle Rechte vorbehalten.
+            © {new Date().getFullYear()} Nestando. Alle Rechte vorbehalten.
           </div>
         </div>
       </footer>

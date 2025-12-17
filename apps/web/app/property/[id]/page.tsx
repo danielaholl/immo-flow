@@ -381,12 +381,21 @@ export default function PropertyPage() {
   // Extract detailed evaluation data from JSONB field
   const detailedEval = property.ai_detailed_evaluation as any;
 
+  // Debug: Log address fields from API
+  console.log('[PropertyPage] Address debug:', {
+    full_address: (property as any).full_address,
+    street_address: (property as any).street_address,
+    postal_code: (property as any).postal_code,
+    location: property.location,
+  });
+
   const propertyPreviewData: PropertyPreviewData = {
     images: property.images || [],
     price: property.price || 0,
     commission_rate: property.commission_rate ?? undefined,
     location: property.location || '',
-    address: property.address ?? undefined,
+    address: (property as any).street_address ?? undefined,
+    postal_code: (property as any).postal_code ?? undefined,
     title: property.title || '',
     type: property.property_type ?? undefined,
     sqm: property.sqm || 0,
@@ -490,7 +499,7 @@ export default function PropertyPage() {
             {/* Property Preview Component */}
             <PropertyPreview
               data={propertyPreviewData}
-              showAddress={Boolean(!(property.require_address_consent ?? false) || hasCommissionConsent || isOwner)}
+              showAddress={true}
               onRequestAddress={handleShowAddress}
               showInvestmentScore={true}
               isGeneratingEvaluation={isEvaluating}

@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { useAuthContext } from '@/app/providers/AuthProvider';
 import type { Property } from '@immoflow/database';
 import { Header } from '../components/Header';
-import { PropertyImageSlideshow } from '../components/PropertyImageSlideshow';
 import { FavoriteButton } from '../components/FavoriteButton';
 import { PropertyPreview, PropertyPreviewData } from '../components/PropertyPreview';
 import { PropertyActionButtons } from '../components/PropertyActionButtons';
@@ -16,8 +15,7 @@ import { MapPin, Home, Heart, X, Plus } from 'lucide-react';
 import { PropertyListThumbnail } from '../components/PropertyListThumbnail';
 import { trpc } from '@/lib/trpc';
 import { useMasterDetailNavigation } from '@/app/hooks/useMasterDetailNavigation';
-import { MobileDetailHeader } from '../components/MobileDetailHeader';
-import { PageContainer } from '../components/PageContainer';
+import { MasterDetailLayout, PropertyDetailLayout } from '../components/layouts/MasterDetailLayout';
 
 export default function FavoritesPage() {
   const { user, profile, loading: authLoading } = useAuthContext();
@@ -242,7 +240,8 @@ export default function FavoritesPage() {
     price: selectedProperty.price || 0,
     commission_rate: selectedProperty.commission_rate ?? undefined,
     location: selectedProperty.location || '',
-    address: selectedProperty.address ?? undefined,
+    address: (selectedProperty as any).street_address ?? undefined,
+    postal_code: (selectedProperty as any).postal_code ?? undefined,
     title: selectedProperty.title || '',
     type: selectedProperty.property_type ?? undefined,
     sqm: selectedProperty.sqm || 0,
@@ -297,58 +296,69 @@ export default function FavoritesPage() {
     <main className="min-h-screen bg-white">
       <Header />
 
-      {favorites.length === 0 ? (
-        <PageContainer className="py-12">
-          <div className="text-center py-20">
-            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Heart size={48} className="text-gray-300" />
-            </div>
-            <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-              Noch keine Favoriten
-            </h2>
-            <p className="text-gray-500 mb-6">
-              Speichern Sie Immobilien, die Ihnen gefallen, oder importieren Sie Inserate von anderen Portalen
-            </p>
-            <div className="flex items-center justify-center gap-4">
-              <Link href="/">
-                <button className="bg-primary text-white px-6 py-3 rounded-xl font-medium hover:opacity-90 transition-opacity">
-                  Immobilien entdecken
-                </button>
-              </Link>
-              <Link href="/import-listing">
-                <button className="bg-white text-primary border-2 border-primary px-6 py-3 rounded-xl font-medium hover:bg-primary/5 transition-colors flex items-center gap-2">
-                  <Plus size={20} />
-                  Inserat importieren
-                </button>
-              </Link>
-            </div>
-          </div>
-        </PageContainer>
-      ) : (
-        <>
-          {/* Mobile Header - Only visible on small screens when no detail is shown */}
-          <PageContainer noPaddingY className={`${selectedPropertyId ? 'hidden' : 'block'} lg:hidden bg-white border-b border-gray-200 py-4`}>
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">Meine Favoriten</h1>
-                <p className="text-gray-500 text-sm">{favorites.length} gespeicherte Immobilien</p>
-              </div>
-              <Link href="/import-listing">
-                <button className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors">
-                  <Plus size={16} />
-                  <span>Importieren</span>
-                </button>
-              </Link>
-            </div>
-          </PageContainer>
+      {/* Action Buttons - reused in mobile and desktop */}
+      {(() => {
+        const ActionButtons = selectedProperty ? (
+          <PropertyActionButtons
+            isOwner={false}
+            isFavorite={true}
+            onToggleFavorite={() => handleRemoveFavorite(selectedProperty.id)}
+            onDismiss={handleDismiss}
+            onStartMessage={handleStartMessage}
+            onOpenFeedback={() => setIsPropertyFeedbackModalOpen(true)}
+            isDismissLoading={dismissMutation.isLoading}
+            isMessageLoading={getOrCreateConversationMutation.isLoading}
+            favoriteButtonLabel="Favorit entfernen"
+          />
+        ) : null;
 
-          <PageContainer noPaddingY height="calc(100vh - 100px)">
-            <div className="flex flex-col lg:flex-row overflow-hidden h-full">
-            {/* Left Column - Favorites List */}
-            <div className={`${selectedPropertyId ? 'hidden' : 'block'} lg:block lg:w-[480px] lg:min-w-[25%] lg:flex-shrink-0 border-r border-gray-200 overflow-y-auto`}>
-              <div className="py-4 pr-4">
-                {/* Desktop Header - Hidden on mobile */}
-                <div className="hidden lg:flex items-center justify-between mb-1">
+        return (
+          <MasterDetailLayout
+            hasItems={favorites.length > 0}
+            showDetail={!!selectedPropertyId}
+            emptyState={
+              <div className="text-center py-20">
+                <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Heart size={48} className="text-gray-300" />
+                </div>
+                <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+                  Noch keine Favoriten
+                </h2>
+                <p className="text-gray-500 mb-6">
+                  Speichern Sie Immobilien, die Ihnen gefallen, oder importieren Sie Inserate von anderen Portalen
+                </p>
+                <div className="flex items-center justify-center gap-4">
+                  <Link href="/">
+                    <button className="bg-primary text-white px-6 py-3 rounded-xl font-medium hover:opacity-90 transition-opacity">
+                      Immobilien entdecken
+                    </button>
+                  </Link>
+                  <Link href="/import-listing">
+                    <button className="bg-white text-primary border-2 border-primary px-6 py-3 rounded-xl font-medium hover:bg-primary/5 transition-colors flex items-center gap-2">
+                      <Plus size={20} />
+                      Inserat importieren
+                    </button>
+                  </Link>
+                </div>
+              </div>
+            }
+            mobileHeader={
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <h1 className="text-xl font-bold text-gray-900">Meine Favoriten</h1>
+                  <p className="text-gray-500 text-sm">{favorites.length} gespeicherte Immobilien</p>
+                </div>
+                <Link href="/import-listing">
+                  <button className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors">
+                    <Plus size={16} />
+                    <span>Importieren</span>
+                  </button>
+                </Link>
+              </div>
+            }
+            desktopHeader={
+              <>
+                <div className="flex items-center justify-between mb-1">
                   <h1 className="text-2xl font-bold text-gray-900">Meine Favoriten</h1>
                   <Link href="/import-listing">
                     <button className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors">
@@ -357,14 +367,15 @@ export default function FavoritesPage() {
                     </button>
                   </Link>
                 </div>
-                <p className="hidden lg:block text-gray-500 text-sm mb-4">{favorites.length} gespeicherte Immobilien</p>
-
+                <p className="text-gray-500 text-sm mb-4">{favorites.length} gespeicherte Immobilien</p>
+              </>
+            }
+            masterContent={
               <div className="space-y-3">
-                {favorites.map((favorite, index) => {
+                {favorites.map((favorite) => {
                   const property = favorite.property;
                   if (!property) return null;
 
-                  // Show selection: current selected OR last selected (for mobile when back to list)
                   const isSelected = property.id === selectedPropertyId ||
                                    (!selectedPropertyId && property.id === lastSelectedId);
 
@@ -378,6 +389,7 @@ export default function FavoritesPage() {
                       image={property.images?.[0]}
                       price={property.price}
                       location={property.location}
+                      postalCode={(property as any).postal_code}
                       rooms={property.rooms}
                       sqm={property.sqm}
                       aiScore={property.ai_score || undefined}
@@ -390,88 +402,48 @@ export default function FavoritesPage() {
                   );
                 })}
               </div>
-            </div>
-          </div>
-
-          {/* Right Column - Property Details (same as detail page) */}
-          <div className={`${selectedPropertyId ? 'block' : 'hidden'} lg:block lg:flex-1 flex flex-col lg:h-[calc(100vh-100px)]`}>
-            {selectedProperty ? (
-              <>
-                {/* Mobile Detail Header - Only shown on mobile when detail is open */}
-                {selectedPropertyId && (
-                  <MobileDetailHeader
-                    title="Zurück"
-                    subtitle=""
-                    onBack={goBack}
-                  />
-                )}
-
-                <div className="flex flex-col-reverse lg:flex-row flex-1">
-                  {/* Left - Property Details (Scrollable) */}
-                  <div className="w-full lg:w-1/2 flex flex-col lg:h-[calc(100vh-100px)]">
-                  {/* Scrollable Content */}
-                  <div className="flex-1 overflow-y-auto p-4 lg:p-8 pb-20 lg:pb-8">
-                    {propertyPreviewData && (
-                      <PropertyPreview
-                        data={propertyPreviewData}
-                        showAddress={shouldShowAddress(selectedProperty.id)}
-                        className="!shadow-none !rounded-none !bg-transparent"
-                        hasConsent={shouldShowAddress(selectedProperty.id)}
-                        isOwner={false}
-                        consentLoading={consentLoading}
-                        isUserLoggedIn={Boolean(user)}
-                        onGrantConsent={() => handleGrantConsent(selectedProperty.id)}
-                        showInvestmentScore={true}
-                        showEvaluationButton={!selectedProperty.ai_score || selectedProperty.ai_score === 0}
-                        onTriggerEvaluation={handleTriggerEvaluation}
-                        isGeneratingEvaluation={isEvaluating}
-                        evaluationViewType="buyer"
-                        propertyId={selectedProperty.id}
-                      />
-                    )}
-                  </div>
-
-                  {/* Bottom Bar */}
-                  <div className="bg-white border-t border-gray-100 mb-20 lg:mb-0">
-                    <PropertyActionButtons
+            }
+            detailContent={
+              selectedProperty ? (
+                <PropertyDetailLayout
+                  images={selectedProperty.images || []}
+                  videoUrl={selectedProperty.video_url || undefined}
+                  propertyTitle={selectedProperty.title}
+                  propertyId={selectedProperty.id}
+                  propertyType={selectedProperty.property_type || undefined}
+                  onBack={goBack}
+                  showMobileHeader={!!selectedPropertyId}
+                  desktopActionButtons={ActionButtons}
+                  mobileActionButtons={ActionButtons}
+                >
+                  {propertyPreviewData && (
+                    <PropertyPreview
+                      data={propertyPreviewData}
+                      showAddress={true}
+                      className="!shadow-none !rounded-none !bg-transparent"
+                      hasConsent={shouldShowAddress(selectedProperty.id)}
                       isOwner={false}
-                      isFavorite={true}
-                      onToggleFavorite={() => handleRemoveFavorite(selectedProperty.id)}
-                      onDismiss={handleDismiss}
-                      onStartMessage={handleStartMessage}
-                      onOpenFeedback={() => setIsPropertyFeedbackModalOpen(true)}
-                      isDismissLoading={dismissMutation.isLoading}
-                      isMessageLoading={getOrCreateConversationMutation.isLoading}
-                      favoriteButtonLabel="Favorit entfernen"
+                      consentLoading={consentLoading}
+                      isUserLoggedIn={Boolean(user)}
+                      onGrantConsent={() => handleGrantConsent(selectedProperty.id)}
+                      showInvestmentScore={true}
+                      showEvaluationButton={!selectedProperty.ai_score || selectedProperty.ai_score === 0}
+                      onTriggerEvaluation={handleTriggerEvaluation}
+                      isGeneratingEvaluation={isEvaluating}
+                      evaluationViewType="buyer"
+                      propertyId={selectedProperty.id}
                     />
-                  </div>
+                  )}
+                </PropertyDetailLayout>
+              ) : (
+                <div className="flex-1 flex items-center justify-center text-gray-500">
+                  Wählen Sie einen Favoriten aus der Liste
                 </div>
-
-                  {/* Right - Image Slideshow */}
-                  <div className="w-full lg:w-1/2 lg:sticky lg:top-0 h-[60vh] lg:h-[calc(100vh-100px)] p-4 lg:p-6">
-                    <PropertyImageSlideshow
-                      images={selectedProperty.images}
-                      videoUrl={selectedProperty.video_url || undefined}
-                      title={selectedProperty.title}
-                      className="h-full"
-                      showCounter={true}
-                      showProgressBars={true}
-                      slideshowId={`favorites-${selectedProperty.id}`}
-                      propertyType={selectedProperty.property_type || undefined}
-                    />
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="flex-1 flex items-center justify-center text-gray-500">
-                Wählen Sie einen Favoriten aus der Liste
-              </div>
-            )}
-          </div>
-          </div>
-        </PageContainer>
-        </>
-      )}
+              )
+            }
+          />
+        );
+      })()}
 
       {/* Property Feedback Modal */}
       {/* {selectedProperty && (

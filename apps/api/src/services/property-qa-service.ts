@@ -39,6 +39,7 @@ export async function answerPropertyQuestion(
     const property = await db.query(
       `SELECT
         p.*,
+        NULLIF(CONCAT_WS(', ', p.street_address, CONCAT_WS(' ', p.postal_code, p.location)), '') as full_address,
         up.first_name as owner_first_name,
         up.last_name as owner_last_name,
         up.company as owner_company
@@ -170,7 +171,7 @@ function buildPropertyContext(property: any): string {
   // Location
   sections.push('LAGE:');
   sections.push(`- Ort: ${property.location || 'Keine Angabe'}`);
-  if (property.address) sections.push(`- Adresse: ${property.address}`);
+  if (property.full_address) sections.push(`- Adresse: ${property.full_address}`);
   sections.push('');
 
   // Property Details

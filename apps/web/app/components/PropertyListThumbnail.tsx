@@ -11,7 +11,12 @@ export interface PropertyListThumbnailProps {
   // Optional property data
   image?: string;
   price?: number;
+  /** Stadt/Ort */
   location?: string;
+  /** Straße mit Hausnummer */
+  address?: string;
+  /** Postleitzahl */
+  postalCode?: string;
   rooms?: number;
   sqm?: number;
 
@@ -34,6 +39,13 @@ export interface PropertyListThumbnailProps {
   deleteTooltip?: string;
 }
 
+// Build display location from address, postalCode and location
+function buildDisplayLocation(props: { address?: string; postalCode?: string; location?: string }): string {
+  // For thumbnails, show abbreviated format: "PLZ Ort" or just "Ort"
+  const cityPart = [props.postalCode, props.location].filter(Boolean).join(' ');
+  return cityPart || props.location || '';
+}
+
 export function PropertyListThumbnail({
   id,
   title,
@@ -42,6 +54,8 @@ export function PropertyListThumbnail({
   image,
   price,
   location,
+  address,
+  postalCode,
   rooms,
   sqm,
   aiScore,
@@ -57,6 +71,9 @@ export function PropertyListThumbnail({
 }: PropertyListThumbnailProps) {
   const [imageError, setImageError] = useState(false);
 
+  // Build display location with postal code if available
+  const displayLocation = buildDisplayLocation({ address, postalCode, location });
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('de-DE', {
       style: 'currency',
@@ -68,7 +85,7 @@ export function PropertyListThumbnail({
 
   return (
     <div
-      className={`group relative bg-white border rounded-xl overflow-hidden transition-all h-44 min-w-[400px] ${
+      className={`group relative bg-white border rounded-xl overflow-hidden transition-all h-44 ${
         isSelected
           ? 'border-primary ring-2 ring-primary/20'
           : 'border-gray-200 hover:border-gray-300'
@@ -147,10 +164,10 @@ export function PropertyListThumbnail({
           <h3 className="font-medium text-gray-900 text-base truncate mt-0.5">{title}</h3>
 
           {/* Location */}
-          {location && (
+          {displayLocation && (
             <p className="text-sm text-gray-500 mt-1 flex items-center gap-1 truncate">
               <MapPin size={12} className="flex-shrink-0" />
-              <span className="truncate">{location}</span>
+              <span className="truncate">{displayLocation}</span>
             </p>
           )}
 

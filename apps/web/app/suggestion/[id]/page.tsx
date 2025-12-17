@@ -5,9 +5,9 @@ import { useParams, useRouter } from 'next/navigation';
 import { ChatModal } from '@immoflow/ui';
 import type { Property } from '@immoflow/database';
 import { useAuthContext } from '@/app/providers/AuthProvider';
-import { MapPin } from 'lucide-react';
 import { PropertyImageSlideshow } from '@/app/components/PropertyImageSlideshow';
 import { FavoriteButton } from '@/app/components/FavoriteButton';
+import { LocationDisplay } from '@/app/components/LocationDisplay';
 import { trpc } from '@/app/providers/TRPCProvider';
 
 export default function SuggestionPage() {
@@ -106,7 +106,7 @@ export default function SuggestionPage() {
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50" style={{ height: '100px' }}>
         <div className="container mx-auto px-4 h-full flex items-center justify-between">
           <a href="/" className="font-bold text-gray-900" style={{ fontSize: '29px' }}>
-            ← NestFlow
+            ← Nestando
           </a>
           <span className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-1 rounded-full text-sm font-medium">
             KI-Vorschlag
@@ -163,9 +163,14 @@ export default function SuggestionPage() {
             </h1>
 
             {/* Location */}
-            <div className="flex items-center gap-2 text-gray-600 mb-4" style={{ fontSize: '18px' }}>
-              <MapPin size={20} />
-              <span>{property.location}{(hasGlobalConsent || hasConsent) && property.address ? ` • ${property.address}` : ''}</span>
+            <div className="mb-4">
+              <LocationDisplay
+                location={property.location}
+                address={(property as any).street_address}
+                postalCode={(property as any).postal_code}
+                showAddress={true}
+                iconSize={20}
+              />
             </div>
 
             {/* Title */}

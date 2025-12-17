@@ -83,7 +83,7 @@ const NEW_PROFILE_QUESTIONS: Omit<Message, 'id'>[] = [
     type: 'bot',
     content: 'Für welche Firma arbeiten Sie? (Optional)',
     inputType: 'text',
-    placeholder: 'z.B. NestFlow GmbH',
+    placeholder: 'z.B. Nestando GmbH',
     field: 'company',
   },
   {
@@ -143,7 +143,7 @@ const generateEditQuestions = (profile: any): Omit<Message, 'id'>[] => {
       type: 'bot',
       content: `Ihre aktuelle Firma: ${profile?.company || 'Nicht angegeben'}. Ändern oder bestätigen Sie:`,
       inputType: 'text',
-      placeholder: 'z.B. NestFlow GmbH',
+      placeholder: 'z.B. Nestando GmbH',
       field: 'company',
     },
     {

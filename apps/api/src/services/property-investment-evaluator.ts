@@ -120,7 +120,7 @@ async function analyzeLocation(property: Property): Promise<LocationAnalysis> {
   const locationPrompt = `Du bist ein Immobilien-Investitions-Experte. Analysiere die LAGE dieser Immobilie aus Investorensicht.
 
 Immobilie: ${property.title}
-Adresse: ${property.address || 'Nicht angegeben'}
+Adresse: ${(property as any).full_address || 'Nicht angegeben'}
 Lage: ${property.location}
 Beschreibung: ${property.description}
 
@@ -151,7 +151,7 @@ WICHTIG: Verwende AKTUELLE Immobilienpreise aus Dezember 2025 für diese spezifi
 
 Immobilie: ${property.title}
 Lage: ${property.location}
-Adresse: ${property.address || 'Nicht angegeben'}
+Adresse: ${(property as any).full_address || 'Nicht angegeben'}
 Objekttyp: Wohnung
 Größe: ${property.sqm} m²
 Zimmer: ${property.rooms}
@@ -196,7 +196,7 @@ Erstelle eine umfassende MARKTANALYSE für diese Immobilie, die sowohl die Mietp
 
 Immobilie: ${property.title}
 Lage: ${property.location}
-Adresse: ${property.address || 'Nicht angegeben'}
+Adresse: ${(property as any).full_address || 'Nicht angegeben'}
 Größe: ${property.sqm} m²
 Zimmer: ${property.rooms}
 Baujahr: ${property.year_built || 'Unbekannt'}
@@ -324,7 +324,7 @@ WICHTIG: Verwende AKTUELLE Mietpreise aus 2025, NICHT veraltete Daten!
 
 Immobilie: ${property.title}
 Lage: ${property.location}
-Adresse: ${property.address || 'Nicht angegeben'}
+Adresse: ${(property as any).full_address || 'Nicht angegeben'}
 Größe: ${property.sqm} m²
 Zimmer: ${property.rooms}
 Baujahr: ${property.year_built || 'Unbekannt'}
@@ -464,7 +464,9 @@ export async function evaluatePropertyInvestment(
 ): Promise<InvestmentEvaluationResult> {
   // Fetch property data
   const property = await queryOne<Property>(
-    `SELECT id, title, description, location, address, price, rooms, sqm, features, year_built
+    `SELECT id, title, description, location,
+     NULLIF(CONCAT_WS(', ', street_address, CONCAT_WS(' ', postal_code, location)), '') as full_address,
+     price, rooms, sqm, features, year_built
      FROM properties WHERE id = $1`,
     [propertyId]
   );

@@ -13,8 +13,12 @@ export type PropertyType =
 export interface Property {
   id: string;
   title: string;
+  /** Stadt/Ort */
   location: string;
+  /** Straße mit Hausnummer */
   address?: string;
+  /** Postleitzahl */
+  postal_code?: string;
   price: number;
   sqm: number;
   rooms: number;

@@ -50,8 +50,7 @@ export function PropertyActionButtons({
   if (isOwner) {
     // Owner Mode: Bearbeiten + Deaktivieren
     return (
-      <div className={`bg-white p-4 lg:p-8 pt-4 border-t border-gray-100 ${className}`}>
-        <div className="flex flex-col sm:flex-row gap-3">
+      <div className={`flex flex-col sm:flex-row gap-3 ${className}`}>
           <button
             onClick={onEdit}
             className="flex-1 bg-primary text-white font-semibold py-4 px-6 rounded-xl hover:opacity-90 transition-colors flex items-center justify-center gap-2"
@@ -76,15 +75,13 @@ export function PropertyActionButtons({
               </>
             )}
           </button>
-        </div>
       </div>
     );
   }
 
   // Buyer Mode: 3 Buttons in einer Reihe (responsiv)
   return (
-    <div className={`bg-white p-4 lg:p-8 pt-4 border-t border-gray-100 ${className}`}>
-      <div className="flex flex-col sm:flex-row gap-3">
+    <div className={`flex flex-col sm:flex-row gap-3 ${className}`}>
         <button
           onClick={onToggleFavorite}
           className={`flex-1 font-semibold py-4 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 ${
@@ -130,7 +127,6 @@ export function PropertyActionButtons({
             </>
           )}
         </button>
-      </div>
     </div>
   );
 }

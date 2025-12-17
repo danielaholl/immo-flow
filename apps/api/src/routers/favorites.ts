@@ -17,7 +17,7 @@ export const favoritesRouter = router({
           'title', p.title,
           'price', p.price,
           'location', p.location,
-          'address', NULLIF(CONCAT_WS(', ', p.street_address, CONCAT_WS(' ', p.postal_code, p.location)), ''),
+          'full_address', NULLIF(CONCAT_WS(', ', p.street_address, CONCAT_WS(' ', p.postal_code, p.location)), ''),
           'sqm', p.sqm,
           'rooms', p.rooms,
           'images', p.images,

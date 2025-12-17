@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { MapPin, Bath, Sparkles, DoorClosed, Square, Layers, Euro, Building2, Clock, Flame, Zap, ChevronDown, MessageCircle, Star, Eye, Heart, Phone, Mail } from 'lucide-react';
+import { Bath, Sparkles, DoorClosed, Square, Layers, Euro, Building2, Clock, Flame, Zap, ChevronDown, MessageCircle, Star, Eye, Heart, Phone, Mail, Hourglass } from 'lucide-react';
 import { AIEvaluationPanel } from './AIEvaluationPanel';
+import { LocationDisplay } from './LocationDisplay';
 // AIInvestmentEvaluation und InvestmentScoreBadge auskommentiert - nur stichpunktartige Bewertung
 // import { AIInvestmentEvaluation, InvestmentScoreBadge } from '@immoflow/ui';
 
@@ -281,7 +282,7 @@ const AVAILABLE_FROM_LABELS: Record<string, string> = {
 export function PropertyPreview({
   data,
   className = '',
-  showAddress = false,
+  showAddress = true,
   onRequestAddress,
   showInvestmentScore = true,
   isGeneratingEvaluation = false,
@@ -418,20 +419,8 @@ export function PropertyPreview({
   return (
     <div className={`${className} relative`}>
       {/* Sticky Badges - Top Right */}
-      {(statusBadge || data.days_online !== undefined || data.total_views !== undefined || data.favorites_count !== undefined || data.avg_rating !== undefined) ? (
+      {(statusBadge || data.total_views !== undefined || data.favorites_count !== undefined || data.avg_rating !== undefined) ? (
         <div className="sticky top-4 z-10 flex flex-wrap justify-end gap-2 mb-4">
-          {/* Days Online Badge */}
-          {data.days_online !== undefined && (
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-              <Clock size={16} />
-              {data.days_online === 0 ? 'Heute online' :
-               data.days_online === 1 ? 'Seit 1 Tag online' :
-               data.days_online < 7 ? `Seit ${data.days_online} Tagen online` :
-               data.days_online < 30 ? `Seit ${Math.floor(data.days_online / 7)} ${Math.floor(data.days_online / 7) === 1 ? 'Woche' : 'Wochen'} online` :
-               `Seit ${Math.floor(data.days_online / 30)} ${Math.floor(data.days_online / 30) === 1 ? 'Monat' : 'Monaten'} online`}
-            </span>
-          )}
-
           {/* Views Badge */}
           {data.total_views !== undefined && data.total_views > 0 && (
             <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-gray-100 text-gray-700">
@@ -478,44 +467,34 @@ export function PropertyPreview({
       <div>
         {/* Property Title and Type Badge */}
         <div className="mb-4">
-          <div className="flex items-center gap-3 mb-2">
-            {/* Property Type Badge - Sky Background */}
-            <span className="inline-flex px-3 py-1 rounded-full text-sm font-medium bg-accent-sky text-gray-700 border border-blue-200">
+          <div className="flex items-center justify-between gap-3 mb-2">
+            {/* Property Type Badge - Glass Style Rose */}
+            <span className="inline-flex px-3 py-1 rounded-full text-sm font-medium bg-rose-100/60 text-rose-700 backdrop-blur-sm border border-rose-200 shadow-sm">
               {getPropertyTypeLabel(data.type)}
             </span>
+            {/* Days Online Badge - Glass Style Türkis */}
+            {data.days_online !== undefined && (
+              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-lg font-bold bg-accent-aqua/20 text-teal-700 backdrop-blur-sm border border-accent-aqua/40 shadow-sm">
+                <Hourglass size={20} />
+                <span>{data.days_online} {data.days_online === 1 ? 'Tag' : 'Tage'}</span>
+              </span>
+            )}
           </div>
           <h2 className="font-semibold text-gray-900" style={{ fontSize: '22px' }}>
             {getPropertyTitle()}
           </h2>
         </div>
 
-        {/* Location - Full Address */}
+        {/* Location - Full Address (Straße, PLZ Ort) or just Location */}
         <div className="mb-6">
-          {(() => {
-            // Build full address for display and Google Maps
-            const addressParts = [];
-            if (data.postal_code) addressParts.push(data.postal_code);
-            if (data.location) addressParts.push(data.location);
-            if (data.address) addressParts.push(data.address);
-
-            const fullAddressDisplay = addressParts.join(' • ');
-            const fullAddress = addressParts.join(', ');
-            const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`;
-
-            return (
-              <a
-                href={googleMapsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 text-gray-600 hover:text-primary transition-colors cursor-pointer w-fit"
-              >
-                <MapPin size={18} />
-                <span style={{ fontSize: '18px' }}>
-                  {fullAddressDisplay || '-'}
-                </span>
-              </a>
-            );
-          })()}
+          <LocationDisplay
+            location={data.location}
+            address={data.address}
+            postalCode={data.postal_code}
+            showAddress={shouldShowAddress}
+            onRequestAddress={onRequestAddress}
+            linkToMaps={true}
+          />
         </div>
 
         {/* Price Card - Premium Gradient */}

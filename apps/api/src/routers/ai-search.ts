@@ -75,7 +75,7 @@ async function extractSearchCriteria(searchQuery: string): Promise<SearchCriteri
   try {
     const systemPrompt = buildSystemPrompt('search', SEARCH_EXTRACTION_INSTRUCTIONS);
     const completion = await getOpenAIClient().chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-5.2',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: searchQuery },

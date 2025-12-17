@@ -14,7 +14,7 @@ import { SlideshowManagerProvider } from '../components/SlideshowManagerContext'
 import { joinConversation, leaveConversation, onNewMessage, offNewMessage, sendTypingIndicator, onTypingIndicator, offTypingIndicator, onTypingStop, offTypingStop } from '@/lib/socket';
 import { UniversalChat } from '../components/UniversalChat';
 import type { ChatMessage } from '../components/UniversalChat/types';
-import { PageContainer } from '../components/PageContainer';
+import { MasterDetailLayout } from '../components/layouts/MasterDetailLayout';
 
 export default function MessagesPage() {
   const { user, profile, loading: authLoading } = useAuthContext();
@@ -346,12 +346,13 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <main className="min-h-screen bg-white">
       <Header />
 
-      {/* Show full-width empty state if no conversations */}
-      {!conversations || conversations.length === 0 ? (
-        <PageContainer className="py-12">
+      <MasterDetailLayout
+        hasItems={!!conversations && conversations.length > 0}
+        showDetail={!!selectedConversationId}
+        emptyState={
           <div className="text-center py-20">
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <MessageSquare size={48} className="text-gray-400" />
@@ -368,248 +369,273 @@ export default function MessagesPage() {
               </button>
             </Link>
           </div>
-        </PageContainer>
-      ) : (
-        /* Main Content - 2 Column Layout */
-        <PageContainer noPaddingX noPaddingY height="calc(100vh - 80px)">
-          <div className="flex overflow-hidden h-full">
-            {/* Left Column - Conversations List */}
-            <div className={`${selectedConversationId ? 'hidden' : 'block'} lg:block w-full lg:w-[25%] lg:flex-shrink-0 bg-white border-r border-gray-200 overflow-y-auto`}>
-              <div className="py-4 pr-4 pl-4 lg:pl-6">
-                {/* Header with Filter */}
-                <div className="flex items-center justify-between mb-4">
-                  <h1 className="text-2xl font-bold text-gray-900">Nachrichten</h1>
-                </div>
-
-                {/* Filter Buttons */}
-                <div className="flex gap-2 mb-4">
-                  <button
-                    onClick={() => setConversationFilter('all')}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                      conversationFilter === 'all'
-                        ? 'bg-gray-900 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Alle ({conversations?.length || 0})
-                  </button>
-                  <button
-                    onClick={() => setConversationFilter('unread')}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                      conversationFilter === 'unread'
-                        ? 'bg-gray-900 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Ungelesen ({unreadConversationsCount})
-                  </button>
-                </div>
-
-                {/* Conversations List */}
-                <div className="space-y-3">
-                  {filteredConversations.map((conversation) => {
-                    // Show selection: current selected OR last selected (for mobile when back to list)
-                    const isSelected = conversation.id === selectedConversationId ||
-                                     (!selectedConversationId && conversation.id === lastSelectedId);
-                    const convIsBuyer = conversation.role === 'buyer';
-                    const convOtherPerson = conversation.otherParticipant;
-                    const convDisplayName = convOtherPerson.company ||
-                                           `${convOtherPerson.firstName || ''} ${convOtherPerson.lastName || ''}`.trim() ||
-                                           'Unbekannt';
-
-                    return (
-                      <PropertyListThumbnail
-                        key={conversation.id}
-                        id={conversation.id}
-                        title={conversation.propertyTitle || 'Immobilie'}
-                        isSelected={isSelected}
-                        onClick={() => setSelectedConversationId(conversation.id)}
-                        image={conversation.propertyImages?.[0]}
-                        price={conversation.propertyPrice}
-                        roleLabel={convIsBuyer ? 'Verkäufer' : 'Interessent'}
-                        roleValue={convDisplayName}
-                        lastMessageDate={conversation.lastMessageAt ? new Date(conversation.lastMessageAt) : undefined}
-                        unreadCount={conversation.unreadCount}
-                        onDelete={(e) => handleDeleteConversation(conversation.id, e)}
-                        deleteTooltip="Konversation löschen"
-                      />
-                    );
-                  })}
-                </div>
-              </div>
+        }
+        desktopHeader={
+          <>
+            <div className="flex items-center justify-between mb-4">
+              <h1 className="text-2xl font-bold text-gray-900">Nachrichten</h1>
             </div>
 
-          {/* Middle Column - Conversation View */}
-          <div className={`${selectedConversationId ? 'flex' : 'hidden'} lg:flex w-full lg:w-[35%] lg:flex-shrink-0 h-full flex-col bg-gray-50 overflow-hidden`}>
-            {selectedConversationId && selectedConversation ? (
-              (() => {
-                const isBuyer = selectedConversation.role === 'buyer';
-                const otherPerson = selectedConversation.otherParticipant;
-                const displayName = otherPerson?.company ||
-                                   `${otherPerson?.firstName || ''} ${otherPerson?.lastName || ''}`.trim() ||
-                                   'Unbekannt';
+            {/* Filter Buttons */}
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setConversationFilter('all')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  conversationFilter === 'all'
+                    ? 'bg-gray-900 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Alle ({conversations?.length || 0})
+              </button>
+              <button
+                onClick={() => setConversationFilter('unread')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  conversationFilter === 'unread'
+                    ? 'bg-gray-900 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Ungelesen ({unreadConversationsCount})
+              </button>
+            </div>
+          </>
+        }
+        mobileHeader={
+          <div className="flex items-center justify-between mb-2">
+            <h1 className="text-xl font-bold text-gray-900">Nachrichten</h1>
+          </div>
+        }
+        masterContent={
+          <>
+            {/* Filter Buttons - Mobile */}
+            <div className="lg:hidden flex gap-2 mb-4">
+              <button
+                onClick={() => setConversationFilter('all')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  conversationFilter === 'all'
+                    ? 'bg-gray-900 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Alle ({conversations?.length || 0})
+              </button>
+              <button
+                onClick={() => setConversationFilter('unread')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  conversationFilter === 'unread'
+                    ? 'bg-gray-900 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Ungelesen ({unreadConversationsCount})
+              </button>
+            </div>
+
+            {/* Conversations List */}
+            <div className="space-y-3">
+              {filteredConversations.map((conversation) => {
+                const isSelected = conversation.id === selectedConversationId ||
+                                 (!selectedConversationId && conversation.id === lastSelectedId);
+                const convIsBuyer = conversation.role === 'buyer';
+                const convOtherPerson = conversation.otherParticipant;
+                const convDisplayName = convOtherPerson.company ||
+                                       `${convOtherPerson.firstName || ''} ${convOtherPerson.lastName || ''}`.trim() ||
+                                       'Unbekannt';
 
                 return (
-                  <UniversalChat
-                    messages={convertedMessages}
-                    header={{
-                      title: selectedConversation.propertyTitle,
-                      subtitle: `${isBuyer ? 'Verkäufer' : 'Interessent'}: ${displayName}`,
-                      icon: <MessageSquare size={20} className="text-gray-600" />,
-                      showBackButton: true,
-                      backButtonMobileOnly: true,
-                      onBackClick: () => setSelectedConversationId(null),
-                    }}
-                    input={{
-                      placeholder: "Nachricht schreiben...",
-                      disabled: sendMessageMutation.isLoading || isUploadingFiles,
-                      showFileUpload: true,
-                      acceptedFileTypes: "image/jpeg,image/png,image/webp,application/pdf",
-                      multipleFiles: true,
-                    }}
-                    inputValue={message}
-                    onInputChange={(value) => {
-                      setMessage(value);
-                      handleTyping();
-                    }}
-                    onSendMessage={() => handleSendMessage()}
-                    onFileUpload={handleFileUpload}
-                    isTyping={!!typingUser}
-                    isSending={sendMessageMutation.isLoading}
-                    isUploading={isUploadingFiles}
-                    fileInputRef={fileInputRef}
-                    messagesEndRef={messagesEndRef}
-                    showTimestamps={true}
-                    showSenderNames={true}
-                    className="h-full"
+                  <PropertyListThumbnail
+                    key={conversation.id}
+                    id={conversation.id}
+                    title={conversation.propertyTitle || 'Immobilie'}
+                    isSelected={isSelected}
+                    onClick={() => setSelectedConversationId(conversation.id)}
+                    image={conversation.propertyImages?.[0]}
+                    price={conversation.propertyPrice}
+                    roleLabel={convIsBuyer ? 'Verkäufer' : 'Interessent'}
+                    roleValue={convDisplayName}
+                    lastMessageDate={conversation.lastMessageAt ? new Date(conversation.lastMessageAt) : undefined}
+                    unreadCount={conversation.unreadCount}
+                    onDelete={(e) => handleDeleteConversation(conversation.id, e)}
+                    deleteTooltip="Konversation löschen"
                   />
                 );
-              })()
-            ) : (
-              // No conversation selected - empty state
-              <div className="h-full flex items-center justify-center px-6">
-                <div className="text-center">
-                  <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <MessageSquare size={48} className="text-gray-400" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                    Keine Konversation ausgewählt
-                  </h3>
-                  <p className="text-gray-600 text-base">
-                    Wählen Sie eine Konversation aus der Liste links aus, um Ihre Nachrichten zu sehen.
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Right Column - Property Preview (Desktop only) */}
-          <SlideshowManagerProvider>
-            <div className="hidden lg:flex lg:w-[40%] lg:flex-shrink-0 h-full flex-col bg-white border-l border-gray-200 overflow-hidden">
+              })}
+            </div>
+          </>
+        }
+        detailContent={
+          <div className="flex h-full overflow-hidden">
+            {/* Chat Column */}
+            <div className="w-full lg:w-1/2 h-full flex flex-col bg-gray-50 overflow-hidden pb-8 lg:pb-0">
               {selectedConversationId && selectedConversation ? (
-                <div className="h-full flex flex-col min-h-0 overflow-hidden">
-                  {/* Image Slideshow - Fixed at top */}
-                  <div className="flex-shrink-0 w-full">
-                    <div className="w-full aspect-[4/3] rounded-none overflow-hidden">
-                      <PropertyImageSlideshow
-                        images={selectedConversation.propertyImages}
-                        title={selectedConversation.propertyTitle}
-                        duration={4000}
-                        showCounter={true}
-                        showProgressBars={true}
-                        aspectRatio="auto"
-                        rounded="none"
-                        className="h-full"
-                        slideshowId={`messages-property-${selectedConversation.propertyId}`}
-                        propertyType={propertyDetails?.property_type || undefined}
-                      />
-                    </div>
-                  </div>
+                (() => {
+                  const isBuyer = selectedConversation.role === 'buyer';
+                  const otherPerson = selectedConversation.otherParticipant;
+                  const displayName = otherPerson?.company ||
+                                     `${otherPerson?.firstName || ''} ${otherPerson?.lastName || ''}`.trim() ||
+                                     'Unbekannt';
 
-                  {/* Property Preview - Scrollable */}
-                  <div className="flex-1 min-h-0 overflow-y-auto">
-                    <div className="p-4">
-                      {propertyDetails ? (
-                        <PropertyPreview
-                          data={{
-                            id: propertyDetails.id,
-                            images: propertyDetails.images || [],
-                            price: propertyDetails.price || 0,
-                            location: propertyDetails.location || '',
-                            address: propertyDetails.address,
-                            postal_code: propertyDetails.postal_code,
-                            title: propertyDetails.title || '',
-                            type: propertyDetails.property_type,
-                            sqm: propertyDetails.sqm || 0,
-                            rooms: propertyDetails.rooms || 0,
-                            plot_size: propertyDetails.plot_size,
-                            description: propertyDetails.description || '',
-                            features: propertyDetails.features,
-                            highlights: propertyDetails.highlights,
-                            year_built: propertyDetails.year_built,
-                            bathrooms: propertyDetails.bathrooms,
-                            floor_level: propertyDetails.floor_level,
-                            total_floors: propertyDetails.total_floors,
-                            heating_type: propertyDetails.heating_type,
-                            energy_efficiency_class: propertyDetails.energy_efficiency_class,
-                            condition: propertyDetails.condition,
-                            available_from: propertyDetails.available_from,
-                            monthly_fee: propertyDetails.monthly_fee,
-                            commission_rate: propertyDetails.commission_rate,
-                            owner: propertyDetails.owner,
-                          }}
-                          showConsentSection={false}
-                        />
-                      ) : (
-                        <div className="space-y-4">
-                          {/* Quick Property Info from conversation data */}
-                          <div>
-                            <h3 className="font-semibold text-gray-900 text-lg mb-2">
-                              {selectedConversation.propertyTitle}
-                            </h3>
-                            <div className="flex items-center gap-2 text-gray-600 text-sm mb-3">
-                              <MapPin size={16} />
-                              <span>{selectedConversation.propertyCity}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-primary font-bold text-xl">
-                              <Euro size={20} />
-                              <span>
-                                {new Intl.NumberFormat('de-DE', {
-                                  style: 'currency',
-                                  currency: 'EUR',
-                                  maximumFractionDigits: 0,
-                                }).format(selectedConversation.propertyPrice || 0)}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Loading skeleton */}
-                          <div className="animate-pulse space-y-3">
-                            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                            <div className="h-20 bg-gray-200 rounded"></div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                  return (
+                    <UniversalChat
+                      messages={convertedMessages}
+                      header={{
+                        title: selectedConversation.propertyTitle,
+                        subtitle: `${isBuyer ? 'Verkäufer' : 'Interessent'}: ${displayName}`,
+                        icon: <MessageSquare size={20} className="text-gray-600" />,
+                        showBackButton: true,
+                        backButtonMobileOnly: true,
+                        onBackClick: () => setSelectedConversationId(null),
+                      }}
+                      input={{
+                        placeholder: "Nachricht schreiben...",
+                        disabled: sendMessageMutation.isLoading || isUploadingFiles,
+                        showFileUpload: true,
+                        acceptedFileTypes: "image/jpeg,image/png,image/webp,application/pdf",
+                        multipleFiles: true,
+                      }}
+                      inputValue={message}
+                      onInputChange={(value) => {
+                        setMessage(value);
+                        handleTyping();
+                      }}
+                      onSendMessage={() => handleSendMessage()}
+                      onFileUpload={handleFileUpload}
+                      isTyping={!!typingUser}
+                      isSending={sendMessageMutation.isLoading}
+                      isUploading={isUploadingFiles}
+                      fileInputRef={fileInputRef}
+                      messagesEndRef={messagesEndRef}
+                      showTimestamps={true}
+                      showSenderNames={true}
+                      className="h-full"
+                    />
+                  );
+                })()
               ) : (
-                // No conversation selected
-                <div className="flex-1 flex items-center justify-center p-6">
+                <div className="h-full flex items-center justify-center px-6">
                   <div className="text-center">
-                    <Home size={64} className="text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-500 text-base">
-                      Wählen Sie eine Konversation, um das Inserat zu sehen
+                    <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <MessageSquare size={48} className="text-gray-400" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                      Keine Konversation ausgewählt
+                    </h3>
+                    <p className="text-gray-600 text-base">
+                      Wählen Sie eine Konversation aus der Liste links aus, um Ihre Nachrichten zu sehen.
                     </p>
                   </div>
                 </div>
               )}
             </div>
-          </SlideshowManagerProvider>
+
+            {/* Property Preview Column (Desktop only) */}
+            <SlideshowManagerProvider>
+              <div className="hidden lg:flex lg:w-1/2 h-full flex-col bg-white border-l border-gray-200 overflow-hidden">
+                {selectedConversationId && selectedConversation ? (
+                  <div className="h-full flex flex-col min-h-0 overflow-hidden">
+                    {/* Image Slideshow - Fixed at top */}
+                    <div className="flex-shrink-0 w-full">
+                      <div className="w-full aspect-[4/3] rounded-none overflow-hidden">
+                        <PropertyImageSlideshow
+                          images={selectedConversation.propertyImages}
+                          title={selectedConversation.propertyTitle}
+                          duration={4000}
+                          showCounter={true}
+                          showProgressBars={true}
+                          aspectRatio="auto"
+                          rounded="none"
+                          className="h-full"
+                          slideshowId={`messages-property-${selectedConversation.propertyId}`}
+                          propertyType={propertyDetails?.property_type || undefined}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Property Preview - Scrollable */}
+                    <div className="flex-1 min-h-0 overflow-y-auto">
+                      <div className="p-4">
+                        {propertyDetails ? (
+                          <PropertyPreview
+                            data={{
+                              id: propertyDetails.id,
+                              images: propertyDetails.images || [],
+                              price: propertyDetails.price || 0,
+                              location: propertyDetails.location || '',
+                              address: propertyDetails.address,
+                              postal_code: propertyDetails.postal_code,
+                              title: propertyDetails.title || '',
+                              type: propertyDetails.property_type,
+                              sqm: propertyDetails.sqm || 0,
+                              rooms: propertyDetails.rooms || 0,
+                              plot_size: propertyDetails.plot_size,
+                              description: propertyDetails.description || '',
+                              features: propertyDetails.features,
+                              highlights: propertyDetails.highlights,
+                              year_built: propertyDetails.year_built,
+                              bathrooms: propertyDetails.bathrooms,
+                              floor_level: propertyDetails.floor_level,
+                              total_floors: propertyDetails.total_floors,
+                              heating_type: propertyDetails.heating_type,
+                              energy_efficiency_class: propertyDetails.energy_efficiency_class,
+                              condition: propertyDetails.condition,
+                              available_from: propertyDetails.available_from,
+                              monthly_fee: propertyDetails.monthly_fee,
+                              commission_rate: propertyDetails.commission_rate,
+                              owner: propertyDetails.owner,
+                            }}
+                            showConsentSection={false}
+                          />
+                        ) : (
+                          <div className="space-y-4">
+                            {/* Quick Property Info from conversation data */}
+                            <div>
+                              <h3 className="font-semibold text-gray-900 text-lg mb-2">
+                                {selectedConversation.propertyTitle}
+                              </h3>
+                              <div className="flex items-center gap-2 text-gray-600 text-sm mb-3">
+                                <MapPin size={16} />
+                                <span>{selectedConversation.propertyCity}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-primary font-bold text-xl">
+                                <Euro size={20} />
+                                <span>
+                                  {new Intl.NumberFormat('de-DE', {
+                                    style: 'currency',
+                                    currency: 'EUR',
+                                    maximumFractionDigits: 0,
+                                  }).format(selectedConversation.propertyPrice || 0)}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Loading skeleton */}
+                            <div className="animate-pulse space-y-3">
+                              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                              <div className="h-20 bg-gray-200 rounded"></div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center p-6">
+                    <div className="text-center">
+                      <Home size={64} className="text-gray-300 mx-auto mb-3" />
+                      <p className="text-gray-500 text-base">
+                        Wählen Sie eine Konversation, um das Inserat zu sehen
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </SlideshowManagerProvider>
           </div>
-        </PageContainer>
-      )}
-    </div>
+        }
+        height="calc(100vh - 80px)"
+      />
+    </main>
   );
 }

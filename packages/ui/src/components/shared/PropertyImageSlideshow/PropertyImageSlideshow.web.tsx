@@ -27,7 +27,6 @@ export function PropertyImageSlideshow({
   isActive: externalIsActive,
   onSlideshowComplete,
   onVideoEnd,
-  showGradient = false,
   onDeleteImage,
   onDeleteVideo,
 }: PropertyImageSlideshowProps) {
@@ -288,7 +287,7 @@ export function PropertyImageSlideshow({
 
       {/* Video Player */}
       {showVideo && (
-        <div className="relative w-full h-full" onClick={handleVideoClick}>
+        <div className="relative w-full h-full">
           <video
             ref={videoRef}
             src={videoUrl}
@@ -300,6 +299,15 @@ export function PropertyImageSlideshow({
             onEnded={handleVideoEnd}
             onTimeUpdate={handleVideoTimeUpdate}
           />
+          {/* Clickable area for navigation */}
+          {onClick && (
+            <button
+              onClick={onClick}
+              className="absolute inset-0 top-10 cursor-pointer"
+              style={{ zIndex: 5 }}
+              aria-label="View property details"
+            />
+          )}
           {/* Mute/Unmute Glass Badge - Top Left (same style as GlassButton) */}
           <div
             className="absolute top-12 left-3 z-20 w-[52px] h-[52px] rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-95"
@@ -309,6 +317,7 @@ export function PropertyImageSlideshow({
               border: '1px solid rgba(255, 255, 255, 0.5)',
               background: 'transparent',
             }}
+            onClick={handleVideoClick}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
             }}
@@ -376,16 +385,6 @@ export function PropertyImageSlideshow({
             </div>
           )}
         </div>
-      )}
-
-      {/* Gradient Overlay - only show when explicitly enabled and not during video */}
-      {showGradient && !showVideo && (
-        <div
-          className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none"
-          style={{
-            background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%)'
-          }}
-        />
       )}
 
       {/* Custom Overlay */}

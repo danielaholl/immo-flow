@@ -265,7 +265,7 @@ Antworte im JSON Format:
 
         // Call OpenAI
         const completion = await getOpenAIClient().chat.completions.create({
-          model: 'gpt-4-turbo-preview',
+          model: 'gpt-5.2',
           messages,
           response_format: { type: 'json_object' },
           temperature: 0.7,
@@ -330,7 +330,7 @@ Die Beschreibung sollte:
 
         const descriptionSystemPrompt = buildSystemPrompt('seller', 'Erstelle eine professionelle, verkaufsorientierte Immobilienbeschreibung.');
         const completion = await getOpenAIClient().chat.completions.create({
-          model: 'gpt-4-turbo-preview',
+          model: 'gpt-5.2',
           messages: [
             { role: 'system', content: descriptionSystemPrompt },
             { role: 'user', content: prompt },

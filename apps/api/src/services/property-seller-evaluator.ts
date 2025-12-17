@@ -29,8 +29,12 @@ export async function evaluatePropertyForSeller(propertyId: string): Promise<Sel
   try {
     log.info('Starting seller evaluation for property:', { propertyId });
 
-    // Get property from database
-    const property = await queryOne('SELECT * FROM properties WHERE id = $1', [propertyId]);
+    // Get property from database (include computed full_address)
+    const property = await queryOne(
+      `SELECT *, NULLIF(CONCAT_WS(', ', street_address, CONCAT_WS(' ', postal_code, location)), '') as full_address
+       FROM properties WHERE id = $1`,
+      [propertyId]
+    );
 
     if (!property) {
       throw new Error('Property not found');
@@ -55,7 +59,7 @@ IMMOBILIE:
 - Preis/m²: ${pricePerSqm.toFixed(0)} €/m²
 - Zimmer: ${property.rooms}
 - Ort: ${property.location}
-${property.address ? `- Adresse: ${property.address}` : ''}
+${property.full_address ? `- Adresse: ${property.full_address}` : ''}
 ${property.year_built ? `- Baujahr: ${property.year_built}` : ''}
 ${property.condition ? `- Zustand: ${property.condition}` : ''}
 ${property.features && property.features.length > 0 ? `- Ausstattung: ${property.features.slice(0, 10).join(', ')}` : ''}
