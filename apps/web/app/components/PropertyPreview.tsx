@@ -474,9 +474,8 @@ export function PropertyPreview({
             </span>
             {/* Days Online Badge - Glass Style Türkis */}
             {data.days_online !== undefined && (
-              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-lg font-bold bg-accent-aqua/20 text-teal-700 backdrop-blur-sm border border-accent-aqua/40 shadow-sm">
-                <Hourglass size={20} />
-                <span>{data.days_online} {data.days_online === 1 ? 'Tag' : 'Tage'}</span>
+              <span className="inline-flex items-center px-4 py-1.5 rounded-full text-lg font-bold bg-accent-aqua/20 text-teal-700 backdrop-blur-sm border border-accent-aqua/40 shadow-sm">
+                {data.days_online === 0 ? 'Neu' : `${data.days_online} ${data.days_online === 1 ? 'Tag' : 'Tage'} online`}
               </span>
             )}
           </div>

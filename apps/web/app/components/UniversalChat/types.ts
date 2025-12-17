@@ -106,4 +106,6 @@ export interface UniversalChatProps {
   emptyState?: React.ReactNode;
   /** External file input ref for advanced control */
   fileInputRef?: React.RefObject<HTMLInputElement>;
+  /** Ref to expose scrollToBottom function for external triggering */
+  scrollToBottomRef?: React.MutableRefObject<((animate?: boolean) => void) | null>;
 }

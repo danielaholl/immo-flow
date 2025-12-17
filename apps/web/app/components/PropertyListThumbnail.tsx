@@ -1,5 +1,21 @@
 import { useState } from 'react';
-import { Home, MapPin, Eye, Heart, Clock, X } from 'lucide-react';
+import { MapPin, Eye, Heart, Clock, X, Download } from 'lucide-react';
+import { PropertyImagePlaceholder } from '@immoflow/ui';
+
+// Score von 0-100 auf 1-5 konvertieren
+function toDisplayScore(score: number): number {
+  if (score >= 80) return 5;
+  if (score >= 60) return 4;
+  if (score >= 40) return 3;
+  if (score >= 20) return 2;
+  return 1;
+}
+
+function getScoreColor(displayScore: number): string {
+  if (displayScore >= 4) return '#22C55E'; // grün
+  if (displayScore === 3) return '#F59E0B'; // gelb
+  return '#EF4444'; // rot
+}
 
 export interface PropertyListThumbnailProps {
   // Required
@@ -10,6 +26,8 @@ export interface PropertyListThumbnailProps {
 
   // Optional property data
   image?: string;
+  videoUrl?: string;
+  propertyType?: string;
   price?: number;
   /** Stadt/Ort */
   location?: string;
@@ -24,6 +42,9 @@ export interface PropertyListThumbnailProps {
   aiScore?: number;
   statusOnline?: boolean;
   unreadCount?: number;
+
+  // Import indicator
+  isImported?: boolean;
 
   // Stats (for my-properties)
   viewCount?: number;
@@ -52,6 +73,8 @@ export function PropertyListThumbnail({
   isSelected,
   onClick,
   image,
+  videoUrl,
+  propertyType,
   price,
   location,
   address,
@@ -61,6 +84,7 @@ export function PropertyListThumbnail({
   aiScore,
   statusOnline,
   unreadCount,
+  isImported,
   viewCount,
   favoriteCount,
   roleLabel,
@@ -119,22 +143,49 @@ export function PropertyListThumbnail({
               className="w-full h-full object-cover"
               onError={() => setImageError(true)}
             />
+          ) : videoUrl ? (
+            <video
+              src={videoUrl}
+              className="w-full h-full object-cover"
+              muted
+              playsInline
+              preload="metadata"
+            />
           ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <Home size={32} className="text-gray-300" />
-            </div>
+            <PropertyImagePlaceholder
+              className="w-full h-full"
+              propertyType={propertyType}
+              iconSize={24}
+              showLabel={false}
+              blur={2}
+            />
           )}
 
-          {/* Badge - AI Score, Status, etc. */}
+          {/* Badge - AI Score (1-5 Skala) - oben rechts */}
           {aiScore !== undefined && aiScore > 0 && (
-            <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-md bg-black/75 shadow-md">
+            <div
+              className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-lg"
+              style={{
+                backdropFilter: 'blur(2px)',
+                WebkitBackdropFilter: 'blur(2px)',
+                border: '1px solid rgba(255, 255, 255, 0.5)',
+              }}
+            >
               <div
-                className="w-2 h-2 rounded-full"
+                className="w-3 h-3 rounded-full flex-shrink-0"
                 style={{
-                  backgroundColor: aiScore >= 70 ? '#22C55E' : aiScore >= 40 ? '#F59E0B' : '#EF4444'
+                  backgroundColor: getScoreColor(toDisplayScore(aiScore)),
                 }}
               />
-              <span className="text-white text-xs font-semibold">{aiScore}</span>
+              <span
+                className="text-base font-bold leading-none"
+                style={{
+                  color: 'rgba(255, 255, 255, 0.95)',
+                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+                }}
+              >
+                {toDisplayScore(aiScore)}
+              </span>
             </div>
           )}
 
@@ -149,6 +200,21 @@ export function PropertyListThumbnail({
               <span className="text-white text-xs font-semibold">
                 {statusOnline ? 'Online' : 'Offline'}
               </span>
+            </div>
+          )}
+
+          {/* Import Badge - oben links */}
+          {isImported && (
+            <div
+              className="absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center"
+              style={{
+                backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                backdropFilter: 'blur(2px)',
+                WebkitBackdropFilter: 'blur(2px)',
+              }}
+              title="Importiert"
+            >
+              <Download size={14} className="text-white" />
             </div>
           )}
         </div>

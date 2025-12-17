@@ -68,7 +68,7 @@ export function ChatInterface({
             <Sparkles size={20} className="lg:w-6 lg:h-6" />
           </div>
           <div>
-            <h2 className="text-lg lg:text-xl font-bold">Ela - Deine KI-Assistentin</h2>
+            <h2 className="text-lg lg:text-xl font-bold">Deine KI-Assistentin</h2>
             <p className="text-xs lg:text-sm text-white/80">Powered by GPT-4</p>
           </div>
         </div>

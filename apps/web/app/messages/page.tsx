@@ -478,6 +478,7 @@ export default function MessagesPage() {
 
                   return (
                     <UniversalChat
+                      key={selectedConversationId}
                       messages={convertedMessages}
                       header={{
                         title: selectedConversation.propertyTitle,

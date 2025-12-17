@@ -387,12 +387,15 @@ export default function FavoritesPage() {
                       isSelected={isSelected}
                       onClick={() => selectItem(property.id)}
                       image={property.images?.[0]}
+                      videoUrl={property.video_url || undefined}
+                      propertyType={property.property_type || undefined}
                       price={property.price}
                       location={property.location}
                       postalCode={(property as any).postal_code}
                       rooms={property.rooms}
                       sqm={property.sqm}
                       aiScore={property.ai_score || undefined}
+                      isImported={(property as any).is_external || false}
                       onDelete={(e) => {
                         e.stopPropagation();
                         handleRemoveFavorite(property.id);

@@ -50,6 +50,7 @@ export const favoritesRouter = router({
           'condition', p.condition,
           'important_notes', p.important_notes,
           'actual_monthly_rent', p.actual_monthly_rent,
+          'is_external', p.is_external,
           'user_id', p.user_id,
           'owner', (
             SELECT json_build_object(

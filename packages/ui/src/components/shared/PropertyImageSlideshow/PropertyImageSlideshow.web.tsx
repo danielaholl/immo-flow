@@ -45,8 +45,10 @@ export function PropertyImageSlideshow({
   // Track if we've completed for this activation
   const hasCompletedRef = useRef(false);
 
-  // Show video if we have a URL and video hasn't ended
-  const showVideo = videoUrl && !videoEnded;
+  // Show video if we have a URL
+  // Keep showing video even after it ends if there are no images (otherwise would show placeholder)
+  const hasAnyImages = images && images.length > 0;
+  const showVideo = videoUrl && (!videoEnded || !hasAnyImages);
 
   // Determine if the card is externally active
   const isCardActive = externalIsActive !== undefined
@@ -127,8 +129,8 @@ export function PropertyImageSlideshow({
       if (videoRef.current) {
         videoRef.current.currentTime = 0;
         videoRef.current.play().catch(() => {
-          // Autoplay blocked - skip video
-          setVideoEnded(true);
+          // Autoplay blocked - keep video visible but paused
+          // User can click to unmute and play
         });
       }
     } else if (isCardActive && !videoUrl) {

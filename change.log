@@ -151,11 +151,6 @@ const userIds = [...new Set(
     .filter((id: string | undefined | null) => id !== undefined && id !== null)
 )] as string[];
 
-// Batch fetch profiles
-const { data: profiles } = await supabase
-  .from('user_profiles')
-  .select('id, user_id, first_name, last_name, company, avatar_url')
-  .in('user_id', userIds);
 
 // Create lookup map
 const profilesMap = new Map(ownerProfiles.map(p => [p.user_id, p]));
@@ -234,17 +229,6 @@ packages/api/src/favorites.ts                      # Added owner profile loading
   - Create listing page preview
   - Profile page property/favorite cards
 
-#### 2. Address Consent Requirement Feature
-- **New database field**: `require_address_consent` (boolean) in properties table
-- **Database migration**: `supabase/migrations/20241129200000_add_require_address_consent.sql`
-- **Create listing flow update**:
-  - New question (index 7): "Soll die Adresse erst nach Provisionsvereinbarung angezeigt werden?"
-  - Two options: "Ja, erst nach Vereinbarung" or "Nein, Adresse direkt anzeigen"
-  - Field only shown if commission is selected
-- **Property detail page logic**:
-  - Address shown immediately if `require_address_consent = false`
-  - Address requires consent dialog if `require_address_consent = true`
-  - Address always shown to property owner
 
 #### 3. Commission-Based Listing Flow
 - **Removed agent/private person question** from create listing
@@ -294,16 +278,6 @@ packages/api/src/favorites.ts                      # Added owner profile loading
 - Uses `imageError` state to track and display fallback
 
 ### Technical Details
-
-#### Database Migration
-```sql
--- supabase/migrations/20241129200000_add_require_address_consent.sql
-ALTER TABLE properties
-ADD COLUMN require_address_consent BOOLEAN DEFAULT false;
-
-COMMENT ON COLUMN properties.require_address_consent IS
-  'Whether address should only be shown after consent/commission agreement';
-```
 
 #### Address Visibility Logic
 ```typescript
@@ -363,7 +337,6 @@ apps/web/app/create-listing/page.tsx                     # Commission flow, plac
 apps/web/app/property/[id]/page.tsx                      # Address consent logic
 apps/web/app/profile/page.tsx                            # Major redesign
 packages/database/src/database.types.ts                  # Updated with require_address_consent
-supabase/migrations/20241129200000_add_require_address_consent.sql  # NEW migration
 ```
 
 ### UI/UX Improvements
@@ -519,17 +492,6 @@ const observer = new IntersectionObserver(callback, {
 - Price per sqm calculation in preview and bottom bar
 - Progress bar in primary color
 
-#### 2. Database Migration for Property Publishing
-- **New migration**: `supabase/migrations/20241128120000_fix_properties_rls.sql`
-- Added `seller_id` column to properties table (references auth.users)
-- Fixed RLS policy: "Authenticated users can create properties"
-- Allows any authenticated user to insert new properties
-
-#### 3. Property Publishing Feature
-- "Veröffentlichen" button saves property to Supabase database
-- Automatically sets `seller_id` to current user
-- Navigates to property detail page after successful creation
-- Error handling with user-friendly alerts
 
 ### Changed
 
@@ -594,7 +556,6 @@ useEffect(() => {
 apps/web/app/create-listing/page.tsx           # Major feature: listing creation with AI
 packages/database/src/database.types.ts        # Added seller_id type
 packages/ui/src/components/PropertyCard.tsx    # Fixed favorite button clickability
-supabase/migrations/20241128120000_fix_properties_rls.sql  # New migration
 ```
 
 ### Technical Details
@@ -844,7 +805,6 @@ apps/web/app/property/[id]/page.tsx               # Major redesign with new sect
 
 #### AI Search Flow
 1. User enters query in chat interface
-2. Query sent to OpenAI via Supabase Edge Function
 3. AI responds with property recommendations
 4. Frontend filters properties based on user query
 5. Property grid updates automatically
@@ -883,7 +843,7 @@ const handleSearch = (query: string) => {
 - TypeScript 5.3.0
 - Tailwind CSS (utility classes)
 - OpenAI gpt-4o-mini
-- Supabase Edge Functions
+
 
 ### Files Modified
 ```
@@ -915,21 +875,10 @@ apps/web/app/page.tsx                             # Major refactor for AI search
 
 ## Previous Changes (From Earlier Sessions)
 
-### OpenAI Integration
-- Created Supabase Edge Function: `supabase/functions/ai-chat/index.ts`
-- Implemented real OpenAI API integration with gpt-4o-mini model
-- Created API wrapper: `packages/api/src/chat.ts`
-- Deployed Edge Function with OpenAI API key
-
 ### Environment Configuration
 - Created `.env.local` files for web and admin apps
 - Created `.env` file for mobile app
-- Configured Supabase credentials across all apps
 
-### Supabase Setup
-- Fixed `config.toml` validation errors
-- Deployed Edge Functions to production
-- Set up secrets management for API keys
 
 ### Repository Initialization
 - Created GitHub repository: danielaholl/immo-flow

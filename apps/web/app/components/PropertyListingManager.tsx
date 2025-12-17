@@ -42,6 +42,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
   const [isLoadingProperty, setIsLoadingProperty] = useState(isEditMode);
   const [pdfFiles, setPdfFiles] = useState<File[]>([]);
   const [isAnalyzingPdf, setIsAnalyzingPdf] = useState(false);
+  const [slideshowResetKey, setSlideshowResetKey] = useState(0); // Counter to force slideshow remount
   const [imageUrl, setImageUrl] = useState('');
   const [isImportingFromUrl, setIsImportingFromUrl] = useState(false);
   const [urlImportError, setUrlImportError] = useState<string | null>(null);
@@ -105,13 +106,27 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
     }
   }, [uploadedImages]);
 
-  // Sync video URL with listing data
+  // Sync video URL with listing data (bidirectional)
   useEffect(() => {
+    console.log('[PropertyListingManager] videoUrl changed:', videoUrl);
     setListingData((prev) => ({
       ...prev,
       video_url: videoUrl
     }));
   }, [videoUrl]);
+
+  // Restore video URL from listing data if it was lost
+  useEffect(() => {
+    if (!videoUrl && listingData.video_url) {
+      console.log('[PropertyListingManager] Restoring videoUrl from listingData:', listingData.video_url);
+      setVideoUrl(listingData.video_url);
+    }
+  }, [videoUrl, listingData.video_url, setVideoUrl]);
+
+  // Debug: Track uploadedImages changes
+  useEffect(() => {
+    console.log('[PropertyListingManager] uploadedImages changed:', uploadedImages.length, 'images');
+  }, [uploadedImages]);
 
   // Delete handlers for images and video
   const handleDeleteImage = useCallback((index: number) => {
@@ -136,6 +151,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
   const analyzePdfMutation = trpc.properties.analyzePdfExpose.useMutation();
   const analyzeExternalUrlMutation = trpc.properties.analyzeExternalUrl.useMutation();
   const classifyAndAnalyzeImagesMutation = trpc.properties.classifyAndAnalyzeImages.useMutation();
+  const addFavoriteMutation = trpc.favorites.add.useMutation();
 
   // Fetch property data if in edit mode
   const { data: propertyToEdit } = trpc.properties.getById.useQuery(
@@ -234,28 +250,39 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
 
     try {
       // Call AI extraction (conversation history does NOT include the new user message yet)
+      // Use isEditMode for edit mode, OR isImportMode when modifying imported data
       const result = await extractDataMutation.mutateAsync({
         message: userMessage,
         conversationHistory: conversationHistory || [],
         currentData: convertToEnglishEnums(listingData || {}),
-        isEditMode: isEditMode,
+        isEditMode: isEditMode || isImportMode,
       });
 
       // Update listing data and convert German enums to English
       // In edit mode: MERGE changes with existing data (keep all existing fields)
       // In create mode: Replace with new data
       const newData = convertToEnglishEnums(result.extractedData);
-      setListingData(prev => ({
-        ...prev, // Keep all existing data (important for edit mode!)
-        ...newData, // Merge in the changes
-        // Explicitly clear AI rating fields after data extraction
-        ai_rating_explanation: undefined,
-        strengths: undefined,
-        weaknesses: undefined,
-        opportunities: undefined,
-        risks: undefined,
-        ai_score: undefined,
-      }));
+      console.log('[PropertyListingManager] AI extraction result:', result);
+      console.log('[PropertyListingManager] newData after conversion:', newData);
+      console.log('[PropertyListingManager] Current listingData.price:', listingData.price);
+      console.log('[PropertyListingManager] New price from AI:', newData.price);
+
+      setListingData(prev => {
+        const updated = {
+          ...prev, // Keep all existing data (important for edit mode!)
+          ...newData, // Merge in the changes
+          // Explicitly clear AI rating fields after data extraction
+          ai_rating_explanation: undefined,
+          strengths: undefined,
+          weaknesses: undefined,
+          opportunities: undefined,
+          risks: undefined,
+          ai_score: undefined,
+        };
+        console.log('[PropertyListingManager] Updated listingData:', updated);
+        console.log('[PropertyListingManager] Updated price:', updated.price);
+        return updated;
+      });
 
       // Add both user message and assistant response to conversation history
       updateConversationHistory([
@@ -293,7 +320,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
         'Entschuldigung, da ist etwas schiefgegangen. Kannst du es bitte nochmal versuchen?'
       );
     }
-  }, [textInput, extractDataMutation, listingData, conversationHistory, addUserMessage, setTextInput, updateConversationHistory, addBotMessage, setIsComplete, textInputRef, isEditMode]);
+  }, [textInput, extractDataMutation, listingData, conversationHistory, addUserMessage, setTextInput, updateConversationHistory, addBotMessage, setIsComplete, textInputRef, isEditMode, isImportMode]);
 
   // Convert German enum values to English
   const convertToEnglishEnums = (data: any) => {
@@ -505,7 +532,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
         'Entschuldigung, da ist etwas schiefgegangen. Kannst du es bitte nochmal versuchen?'
       );
     }
-  }, [listingData, user?.id, uploadedImages, convertToEnglishEnums, createPropertyMutation, generateKIEvaluationMutation, addBotMessage]);
+  }, [listingData, user?.id, uploadedImages, videoUrl, convertToEnglishEnums, createPropertyMutation, generateKIEvaluationMutation, addBotMessage]);
 
   // Submit property
   const handleSubmit = async (skipImageCheck = false) => {
@@ -514,8 +541,9 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
       return;
     }
 
-    // Check if images are uploaded (only for create mode, not edit or import)
-    if (!skipImageCheck && !isEditMode && uploadedImages.length === 0) {
+    // Check if media is uploaded (only for create mode, not edit or import)
+    // Allow submission if either images OR video is present
+    if (!skipImageCheck && !isEditMode && !isImportMode && uploadedImages.length === 0 && !videoUrl) {
       setShowImageDialog(true);
       return;
     }
@@ -553,14 +581,13 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
         // Success
         addBotMessage('Dein Inserat wurde erfolgreich aktualisiert! Ich leite dich zur Übersicht weiter...');
       } else if (isImportMode) {
-        // Import mode: Save as favorite and mark as imported
-        // These properties will only be visible to the user who imported them
-        await createPropertyMutation.mutateAsync({
-          ...cleanData,
-          is_favorite: true, // Mark as favorite
-          is_imported: true, // Mark as imported (only visible to importing user)
-          share_with_community: false, // Don't share with community
-        });
+        // Import mode: Create property and add to favorites
+        const createdProperty = await createPropertyMutation.mutateAsync(cleanData);
+
+        // Add to favorites
+        if (createdProperty?.id) {
+          await addFavoriteMutation.mutateAsync({ propertyId: createdProperty.id });
+        }
 
         // Success
         addBotMessage('Die Immobilie wurde erfolgreich in deine Favoriten übernommen! Ich leite dich zu deinen Favoriten weiter...');
@@ -638,6 +665,8 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
         setIsComplete(true);
       }
 
+      // Reset slideshow to show video from beginning
+      setSlideshowResetKey(prev => prev + 1);
       // Clear PDF files
       setPdfFiles([]);
     } catch (error: any) {
@@ -910,6 +939,8 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
           setIsComplete(true);
         }
 
+        // Reset slideshow to show video from beginning
+        setSlideshowResetKey(prev => prev + 1);
         setPdfFiles([]);
       } catch (error: any) {
         console.error('Error analyzing PDF from drag-drop:', error);
@@ -1088,6 +1119,9 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
           addBotMessage(`${extractedMessage}\n\nAlle wichtigen Daten sind vorhanden! Schau dir die Vorschau an.`);
           setIsComplete(true);
         }
+
+        // Reset slideshow to show video from beginning
+        setSlideshowResetKey(prev => prev + 1);
       } catch (error: any) {
         console.error('[Upload] Error analyzing PDF:', error);
 
@@ -1491,14 +1525,16 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
             <div className={`w-full lg:w-1/2 h-[60vh] lg:h-full min-h-0 overflow-hidden p-4 lg:p-6 ${mobileView === 'preview' ? 'hidden lg:block' : ''}`}>
               <div className="w-full h-full overflow-hidden flex flex-col rounded-2xl">
                 <div className="flex-1 min-h-0">
+                  {console.log('[RENDER] Slideshow condition:', { uploadedImagesLength: uploadedImages.length, videoUrl, showSlideshow: uploadedImages.length > 0 || !!videoUrl })}
                   {uploadedImages.length > 0 || videoUrl ? (
                     <PropertyImageSlideshow
+                      key={`slideshow-${slideshowResetKey}-${uploadedImages.length}-${videoUrl || 'no-video'}`}
                       images={uploadedImages}
                       videoUrl={videoUrl}
                       title={listingData.title || 'Deine Immobilie'}
                       duration={3000}
                       showCounter={uploadedImages.length > 0}
-                      showProgressBars={uploadedImages.length > 0}
+                      showProgressBars={uploadedImages.length > 0 || !!videoUrl}
                       rounded="none"
                       aspectRatio="auto"
                       className="h-full"

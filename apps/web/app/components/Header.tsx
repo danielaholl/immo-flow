@@ -57,8 +57,7 @@ export function Header() {
             <Link href="/" className="flex items-center gap-2">
               <HouseHeart className="text-primary lg:w-7 lg:h-7" size={24} strokeWidth={2} />
               <h1 className="cursor-pointer text-xl lg:text-2xl flex items-center">
-                <span className="font-bold text-black">Nest</span>
-                <span className="font-bold text-primary">Flow</span>
+                <span className="font-bold text-primary">Nestando</span>
               </h1>
             </Link>
 

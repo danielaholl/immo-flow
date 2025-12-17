@@ -31,6 +31,7 @@ export function UniversalChat({
   messagesEndRef: externalMessagesEndRef,
   emptyState,
   fileInputRef: externalFileInputRef,
+  scrollToBottomRef,
 }: UniversalChatProps) {
   const internalMessagesEndRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = externalMessagesEndRef || internalMessagesEndRef;
@@ -94,10 +95,39 @@ export function UniversalChat({
     });
   }, [allImageAttachments]);
 
+  // Track if this is the initial render for scroll behavior
+  const isInitialScrollRef = useRef(true);
+
+  // Scroll to bottom function with conditional animation
+  const scrollToBottom = useCallback((animate: boolean = true) => {
+    messagesEndRef.current?.scrollIntoView({
+      behavior: animate ? 'smooth' : 'instant'
+    });
+  }, []);
+
+  // Expose scrollToBottom function via ref for external triggering
+  useEffect(() => {
+    if (scrollToBottomRef) {
+      scrollToBottomRef.current = scrollToBottom;
+    }
+    return () => {
+      if (scrollToBottomRef) {
+        scrollToBottomRef.current = null;
+      }
+    };
+  }, [scrollToBottom, scrollToBottomRef]);
+
   // Auto-scroll to bottom on new messages
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping]);
+    if (isInitialScrollRef.current) {
+      // First render: scroll without animation
+      scrollToBottom(false);
+      isInitialScrollRef.current = false;
+    } else {
+      // Subsequent updates: scroll with animation
+      scrollToBottom(true);
+    }
+  }, [messages, isTyping, scrollToBottom]);
 
   // Keep focus on textarea after messages update or typing stops
   useEffect(() => {
