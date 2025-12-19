@@ -162,7 +162,7 @@ export function Header() {
             className="absolute right-0 top-16 bottom-0 w-4/5 max-w-sm bg-white shadow-2xl overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <nav className="flex flex-col p-4 space-y-3">
+            <nav className="flex flex-col p-6 space-y-4">
               {loading ? (
                 <div className="space-y-4">
                   <div className="w-full h-12 bg-gray-200 rounded animate-pulse"></div>
@@ -172,19 +172,19 @@ export function Header() {
                 <>
                   <Link
                     href="/auth/login"
-                    className="flex items-center gap-2.5 p-2.5 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    <LogIn size={18} className="text-primary" />
-                    <span className="font-medium text-gray-900" style={{ fontSize: '14px' }}>Anmelden</span>
+                    <LogIn size={24} className="text-primary" />
+                    <span className="text-lg font-medium text-gray-900">Anmelden</span>
                   </Link>
 
                   <Link
                     href="/auth/signup"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    <button className="w-full bg-primary text-white px-3 py-2 rounded-lg hover:opacity-90 transition-opacity font-medium flex items-center justify-center gap-2" style={{ fontSize: '14px' }}>
-                      <UserPlus size={18} />
+                    <button className="w-full bg-primary text-white px-4 py-3 rounded-lg hover:opacity-90 transition-opacity text-lg font-medium flex items-center justify-center gap-2">
+                      <UserPlus size={24} />
                       <span>Registrieren</span>
                     </button>
                   </Link>

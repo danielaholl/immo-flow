@@ -90,10 +90,13 @@ export default function PropertyPage() {
   // Check if this is teaser mode (non-authenticated user)
   const isTeaserMode = property?.requiresAuth ?? false;
 
-  // Fetch favorite status
+  // Check if current user is the owner of this property (early check for query optimization)
+  const isOwner = user && property && property.user_id === user.id;
+
+  // Fetch favorite status - only for non-owners (owners can't favorite their own properties)
   const { data: isFavoriteData } = trpc.favorites.isFavorite.useQuery(
     { propertyId: params.id as string },
-    { enabled: !!user && !!params.id }
+    { enabled: !!user && !!params.id && !isOwner }
   );
   const isFavorite = isFavoriteData?.isFavorite ?? false;
 
@@ -301,9 +304,6 @@ export default function PropertyPage() {
     },
   });
 
-  // Check if current user is the owner of this property
-  const isOwner = user && property && property.user_id === user.id;
-
   const handleProtectedAction = (action: () => void) => {
     if (!user) {
       router.push(`/auth/login?redirectTo=/property/${params.id}`);
@@ -374,6 +374,9 @@ export default function PropertyPage() {
   };
 
   const handleToggleFavorite = async () => {
+    // Owners can't favorite their own properties
+    if (isOwner) return;
+
     if (!user) {
       setShowLoginModal(true);
       return;
@@ -409,6 +412,9 @@ export default function PropertyPage() {
 
   const handleFavoriteToggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
+
+    // Owners can't favorite their own properties
+    if (isOwner) return;
 
     if (!user) {
       setShowLoginModal(true);
@@ -505,30 +511,30 @@ export default function PropertyPage() {
       <Header />
 
       {/* Mobile Detail Header - Only shown on mobile */}
-      <div className="lg:hidden">
-        <MobileDetailHeader
-          title="Zurück"
-          subtitle=""
-          onBack={() => router.back()}
-        />
-      </div>
+      <MobileDetailHeader
+        title="Zurück"
+        subtitle=""
+        onBack={() => router.back()}
+      />
 
       {/* Two Column Layout - Full Height, Centered - aligned with Header */}
       <PageContainer noPaddingY height="calc(100vh - 80px)">
         <div className="flex flex-col lg:flex-row h-full">
         {/* Left Column - Property Details (Scrollable) */}
-        <div className="w-full lg:w-1/2 flex flex-col lg:h-[calc(100vh-80px)] order-2 lg:order-1">
-          {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto py-4 lg:py-8 pr-0 lg:pr-6">
-            {/* Back Button - Only shown on desktop */}
+        <div className="w-full lg:w-1/2 flex flex-col lg:h-[calc(100vh-80px)] order-2 lg:order-1 relative">
+          {/* Sticky Back Button Header - Only shown on desktop */}
+          <div className="hidden lg:flex items-center sticky top-0 bg-white/70 backdrop-blur-xl z-40 py-4 pr-6 -mb-16">
             <button
               onClick={() => router.back()}
-              className="hidden lg:flex items-center gap-2 p-2 mb-4 hover:bg-gray-100 rounded-lg transition-colors"
+              className="flex items-center gap-2 p-2 hover:bg-gray-100/80 rounded-lg transition-colors"
               aria-label="Zurück"
             >
               <ArrowLeft size={24} className="text-gray-900" />
               <span className="text-gray-900 font-medium">Zurück</span>
             </button>
+          </div>
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto py-4 lg:pt-16 lg:pb-4 pr-0 lg:pr-6">
 
             {/* Property Preview Component */}
             <PropertyPreview
@@ -545,7 +551,7 @@ export default function PropertyPage() {
               onGrantConsent={handleGrantConsent}
               showConsentSection={false}
               propertyId={property.id}
-              evaluationViewType="buyer"
+              evaluationViewType={isOwner ? "seller" : "buyer"}
               onTriggerEvaluation={handleTriggerEvaluation}
               showEvaluationButton={true}
               showCTAs={false}
