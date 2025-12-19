@@ -525,29 +525,39 @@ export function KeyMetricsPanel({
         </div>
 
         {/* Key Metrics Cards - always shown */}
-        <div className="grid gap-2 sm:gap-3 grid-cols-3">
+        <div className="grid gap-2 sm:gap-3 grid-cols-4">
           {/* Rendite */}
-          <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
+          <div className="bg-gray-50 rounded-xl p-2 sm:p-3 text-center border border-gray-100">
             <span className="text-xs text-gray-500">Rendite</span>
-            <div className={`text-lg font-bold ${effectiveGrossYield !== undefined ? getYieldColor(Number(effectiveGrossYield)) : 'text-gray-400'}`}>
+            <div className={`text-base sm:text-lg font-bold ${effectiveGrossYield !== undefined ? getYieldColor(Number(effectiveGrossYield)) : 'text-gray-400'}`}>
               {effectiveGrossYield !== undefined ? `${Number(effectiveGrossYield).toFixed(1)}%` : '—'}
             </div>
           </div>
 
           {/* Faktor */}
-          <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
+          <div className="bg-gray-50 rounded-xl p-2 sm:p-3 text-center border border-gray-100">
             <span className="text-xs text-gray-500">Faktor</span>
-            <div className="text-lg font-bold text-gray-900">
+            <div className="text-base sm:text-lg font-bold text-gray-900">
               {effectiveRentMultiplier !== undefined ? `${Number(effectiveRentMultiplier).toFixed(1)}x` : '—'}
             </div>
           </div>
 
           {/* Cashflow */}
-          <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
+          <div className="bg-gray-50 rounded-xl p-2 sm:p-3 text-center border border-gray-100">
             <span className="text-xs text-gray-500">Cashflow</span>
-            <div className={`text-lg font-bold ${monthlyCashflow !== undefined ? getCashflowColor(Number(monthlyCashflow)) : 'text-gray-400'}`}>
+            <div className={`text-base sm:text-lg font-bold ${monthlyCashflow !== undefined ? getCashflowColor(Number(monthlyCashflow)) : 'text-gray-400'}`}>
               {monthlyCashflow !== undefined
                 ? `${Number(monthlyCashflow) >= 0 ? '+' : ''}${Number(monthlyCashflow).toLocaleString('de-DE')}€`
+                : '—'}
+            </div>
+          </div>
+
+          {/* Cash on Cash */}
+          <div className="bg-gray-50 rounded-xl p-2 sm:p-3 text-center border border-gray-100">
+            <span className="text-xs text-gray-500 leading-tight block">Cash on Cash</span>
+            <div className={`text-base sm:text-lg font-bold ${monthlyCashflow !== undefined && eigenkapital > 0 ? getCashflowColor(monthlyCashflow) : 'text-gray-400'}`}>
+              {monthlyCashflow !== undefined && eigenkapital > 0
+                ? `${((monthlyCashflow * 12 / eigenkapital) * 100).toFixed(1)}%`
                 : '—'}
             </div>
           </div>
@@ -847,6 +857,19 @@ export function KeyMetricsPanel({
                 <span className="text-gray-900 font-bold">Cashflow / Monat</span>
                 <span className={`text-lg font-bold ${monthlyCashflow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {monthlyCashflow >= 0 ? '+' : '-'}{formatCashflowValue(monthlyCashflow)}
+                </span>
+              </div>
+            )}
+
+            {/* Cashflow auf EK (Eigenkapitalrendite) */}
+            {monthlyCashflow !== undefined && eigenkapital > 0 && (
+              <div className="flex justify-between items-center pt-2">
+                <span className="text-gray-600">
+                  Cashflow auf EK
+                  <span className="text-xs text-gray-400 ml-1">(p.a.)</span>
+                </span>
+                <span className={`text-base font-semibold ${(monthlyCashflow * 12 / eigenkapital * 100) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {((monthlyCashflow * 12 / eigenkapital) * 100).toFixed(2)}%
                 </span>
               </div>
             )}
