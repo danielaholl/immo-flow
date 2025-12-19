@@ -56,7 +56,7 @@ export interface PropertyFromAPI {
   opportunities?: string[] | null;
   risks?: string[] | null;
   buyer_evaluation?: any;
-  seller_analysis?: any;
+  seller_evaluation?: any;
   is_external?: boolean | null;
   user_id?: string;
   created_at?: string;
@@ -199,7 +199,7 @@ export function mapToPropertyPreviewData(
 
     // Buyer/Seller Evaluations
     buyer_evaluation: buyerEvaluation ?? property.buyer_evaluation ?? undefined,
-    seller_evaluation: property.seller_analysis ?? undefined,
+    seller_evaluation: property.seller_evaluation ?? undefined,
 
     // Statistics (für Verkäufer-Ansicht)
     total_views: property.total_views ?? undefined,

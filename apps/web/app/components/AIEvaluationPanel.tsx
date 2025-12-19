@@ -33,7 +33,7 @@ const formatPrice = (price: number): string => {
 
 // Types for evaluations
 export interface SellerEvaluation {
-  viewType: 'seller';
+  viewType?: 'seller';
   marketValueMin: number;
   marketValueMax: number;
   recommendedPrice: number;

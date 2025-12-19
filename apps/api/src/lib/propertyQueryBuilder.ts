@@ -205,7 +205,7 @@ export const PROPERTY_JSON_FIELDS = `
   'ai_investment_score', p.ai_investment_score,
   'ai_detailed_evaluation', p.ai_detailed_evaluation,
   'buyer_evaluation', p.buyer_evaluation,
-  'seller_analysis', p.seller_analysis,
+  'seller_evaluation', p.seller_evaluation,
   'is_external', p.is_external,
   'user_id', p.user_id,
   'created_at', p.created_at,
