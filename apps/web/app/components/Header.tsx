@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { Heart, HouseHeart, MessageSquare, Compass, Home, User, LogIn, UserPlus, Menu, X } from 'lucide-react';
 import { useAuthContext } from '../providers/AuthProvider';
 import { useEffect, useState } from 'react';
 import { trpc } from '@/lib/trpc';
-import { onUnreadCountUpdate } from '@/lib/socket';
+import { useUnreadCountListener } from '@/lib/socket';
 
 export function Header() {
   const { user, profile, loading } = useAuthContext();
@@ -27,20 +28,12 @@ export function Header() {
     }
   }, [unreadData]);
 
-  // Listen for real-time unread count updates
-  useEffect(() => {
-    if (!user) return;
-
-    const handleUnreadUpdate = (data: { unreadCount: number }) => {
+  // Listen for real-time unread count updates using the safe hook
+  useUnreadCountListener((data) => {
+    if (user) {
       setUnreadCount(data.unreadCount);
-    };
-
-    onUnreadCountUpdate(handleUnreadUpdate);
-
-    return () => {
-      // Cleanup listener handled by socket disconnect
-    };
-  }, [user]);
+    }
+  });
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -75,7 +68,7 @@ export function Header() {
                   <div className="w-20 h-4 bg-gray-200 rounded animate-pulse"></div>
                   <div className="w-24 h-4 bg-gray-200 rounded animate-pulse"></div>
                   <div className="w-16 h-4 bg-gray-200 rounded animate-pulse"></div>
-                  <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse"></div>
+                  <div className="w-14 h-14 bg-gray-200 rounded-full animate-pulse"></div>
                 </div>
               ) : (
                 <>
@@ -106,13 +99,15 @@ export function Header() {
                       </Link>
                       <Link href="/profile" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                         {profile?.avatar_url ? (
-                          <img
+                          <Image
                             src={profile.avatar_url}
                             alt={`${profile.first_name} ${profile.last_name}`}
-                            className="w-10 h-10 rounded-full object-cover border-2 border-primary"
+                            width={56}
+                            height={56}
+                            className="w-14 h-14 rounded-full object-cover border-2 border-primary"
                           />
                         ) : (
-                          <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center text-sm font-semibold border-2 border-primary">
+                          <div className="w-14 h-14 rounded-full bg-primary text-white flex items-center justify-center text-lg font-semibold border-2 border-primary">
                             {profile?.first_name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
                           </div>
                         )}
@@ -256,10 +251,12 @@ export function Header() {
               }`}
             >
               {profile?.avatar_url ? (
-                <img
+                <Image
                   src={profile.avatar_url}
                   alt="Profile"
-                  className={`w-5 h-5 rounded-full object-cover ${
+                  width={20}
+                  height={20}
+                  className={`rounded-full object-cover ${
                     pathname === '/profile' ? 'ring-2 ring-primary' : ''
                   }`}
                 />

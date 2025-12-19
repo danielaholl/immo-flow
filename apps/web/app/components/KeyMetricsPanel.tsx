@@ -444,8 +444,29 @@ export function KeyMetricsPanel({
     setIsEditMode(false);
   };
 
-  // No data state - show CTA to trigger AI evaluation
-  if (!hasData && !isLoading) {
+  // No data state - show CTA to trigger AI evaluation OR loading state
+  if (!hasData) {
+    // Loading state (only when no data yet)
+    if (isLoading) {
+      return (
+        <div className={`bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200 rounded-2xl border p-4 sm:p-6 ${className}`}>
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="relative flex-shrink-0">
+              <div className="w-10 h-10 border-4 border-blue-200 rounded-full"></div>
+              <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin absolute top-0 left-0"></div>
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900 text-sm sm:text-base">Kennzahlen werden berechnet...</p>
+              <p className="text-xs sm:text-sm text-gray-600">
+                KI-Analyse läuft
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // CTA state (no data, not loading)
     return (
       <div className={`bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200 rounded-2xl border p-4 sm:p-6 ${className}`}>
         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
@@ -474,27 +495,7 @@ export function KeyMetricsPanel({
     );
   }
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className={`bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200 rounded-2xl border p-4 sm:p-6 ${className}`}>
-        <div className="flex items-center gap-3 sm:gap-4">
-          <div className="relative flex-shrink-0">
-            <div className="w-10 h-10 border-4 border-blue-200 rounded-full"></div>
-            <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin absolute top-0 left-0"></div>
-          </div>
-          <div>
-            <p className="font-semibold text-gray-900 text-sm sm:text-base">Kennzahlen werden berechnet...</p>
-            <p className="text-xs sm:text-sm text-gray-600">
-              KI-Analyse läuft
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Results view - collapsible accordion
+  // Results view - collapsible accordion (has data)
   return (
     <div className={`bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden ${className}`}>
       {/* Accordion Header */}

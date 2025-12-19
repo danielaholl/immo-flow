@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
+import Image from 'next/image';
 import { FileText, Layout, Zap, File, ChevronRight, ChevronDown, Loader2, Lock, LockOpen, FileCheck, MapPin, BookOpen, Eye, Clock, UserCheck } from 'lucide-react';
 import type { PropertyDocument, DocumentCategory, DocumentVisibility } from '../create-listing/types';
 import { truncateFilename } from '../create-listing/utils/documentUtils';
@@ -228,145 +229,81 @@ export function PropertyDocumentsList({
         )
       ) : isExpanded ? (
         <div className="px-6 pb-6">
-          {isOwner ? (
-            // OWNER: Gruppiert nach Sichtbarkeit
-            <div className="space-y-4">
-              {VISIBILITY_ORDER.map(visibility => {
-                const config = VISIBILITY_CONFIG[visibility];
-                const groupDocs = documents.filter(d => d.visibility === visibility);
+          {/* Einheitliches Design für Owner und Käufer - flache Liste */}
+          <div className="divide-y divide-gray-200">
+            {[...documents]
+              .sort((a, b) => {
+                const order = { public: 0, auto_approved: 1, manual_approval: 2 };
+                return (order[a.visibility] ?? 3) - (order[b.visibility] ?? 3);
+              })
+              .map(doc => {
+                const thumbnailSrc = doc.thumbnailUrl || (doc.mimetype?.startsWith('image/') ? doc.url : null);
+                const isAccessible = isDocumentAccessible(doc);
 
-                if (groupDocs.length === 0) return null;
+                // Untertitel basierend auf Zugriffsstatus
+                const getAccessInfo = () => {
+                  if (isOwner) {
+                    // Für Owner: Sichtbarkeit anzeigen
+                    const config = VISIBILITY_CONFIG[doc.visibility];
+                    return { text: config.label, color: config.color };
+                  }
+                  if (isAccessible) {
+                    return { text: 'Verfügbar', color: 'text-green-600' };
+                  }
+                  if (doc.visibility === 'auto_approved') {
+                    return { text: 'Wird nach Zustimmung freigegeben', color: 'text-blue-600' };
+                  }
+                  if (doc.visibility === 'manual_approval') {
+                    return { text: 'Wird vom Anbieter freigeschaltet', color: 'text-orange-600' };
+                  }
+                  return { text: 'Nicht verfügbar', color: 'text-gray-500' };
+                };
+
+                const accessInfo = getAccessInfo();
 
                 return (
-                  <div key={visibility}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className={config.color}>{config.icon}</span>
-                      <span className={`text-xs uppercase tracking-wide font-medium ${config.color}`}>
-                        {config.label}
-                      </span>
-                      <span className="text-xs text-gray-400">({groupDocs.length})</span>
+                  <button
+                    key={doc.id}
+                    onClick={() => isAccessible && onDocumentClick(doc)}
+                    disabled={!isAccessible}
+                    className={`w-full flex items-center gap-3 py-2 px-2 transition-all bg-white ${
+                      !isAccessible
+                        ? 'cursor-not-allowed opacity-75'
+                        : selectedDocumentId === doc.id
+                          ? 'bg-gray-100'
+                          : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="w-12 h-12 overflow-hidden flex-shrink-0 relative">
+                      {thumbnailSrc && isAccessible ? (
+                        <Image src={thumbnailSrc} alt={doc.filename} fill sizes="48px" className="object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                          {!isAccessible ? (
+                            <Lock size={24} className="text-gray-400" />
+                          ) : (
+                            categoryIcons[doc.category]
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <div className="space-y-2">
-                      {groupDocs.map(doc => {
-                        const thumbnailSrc = doc.thumbnailUrl || (doc.mimetype?.startsWith('image/') ? doc.url : null);
-                        const fileType = doc.mimetype === 'application/pdf' ? 'PDF-Dokument' : 'Bild';
-
-                        return (
-                          <button
-                            key={doc.id}
-                            onClick={() => onDocumentClick(doc)}
-                            className={`w-full flex items-center gap-3 p-2 rounded-xl transition-all ${
-                              selectedDocumentId === doc.id
-                                ? 'bg-gray-900 text-white'
-                                : 'bg-gray-50 hover:bg-gray-100 text-gray-900'
-                            }`}
-                          >
-                            <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-gray-200">
-                              {thumbnailSrc ? (
-                                <img src={thumbnailSrc} alt={doc.filename} className="w-full h-full object-cover" />
-                              ) : (
-                                <div className={`w-full h-full flex items-center justify-center ${
-                                  selectedDocumentId === doc.id ? 'bg-gray-700' : 'bg-gray-100'
-                                }`}>
-                                  {categoryIcons[doc.category]}
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex-1 text-left min-w-0">
-                              <p className={`text-sm font-medium ${
-                                selectedDocumentId === doc.id ? 'text-white' : 'text-gray-900'
-                              }`}>
-                                {categoryLabels[doc.category]}
-                              </p>
-                              <p className={`text-xs ${
-                                selectedDocumentId === doc.id ? 'text-gray-300' : 'text-gray-500'
-                              }`}>
-                                {fileType}
-                              </p>
-                            </div>
-                            <ChevronRight size={16} className={
-                              selectedDocumentId === doc.id ? 'text-white' : 'text-gray-400'
-                            } />
-                          </button>
-                        );
-                      })}
+                    <div className="flex-1 text-left min-w-0">
+                      <p className={`text-sm font-medium ${
+                        !isAccessible ? 'text-gray-500' : 'text-gray-900'
+                      }`}>
+                        {isAccessible ? truncateFilename(doc.filename.replace(/\.[^/.]+$/, ''), 10) : categoryLabels[doc.category]}
+                      </p>
+                      <p className={`text-xs ${accessInfo.color}`}>
+                        {accessInfo.text}
+                      </p>
                     </div>
-                  </div>
+                    {isAccessible && (
+                      <ChevronRight size={16} className="text-gray-400" />
+                    )}
+                  </button>
                 );
               })}
-            </div>
-          ) : (
-            // KÄUFER: Sortierte Liste (public → auto_approved → manual_approval)
-            <div className="divide-y divide-gray-200">
-              {[...documents]
-                .sort((a, b) => {
-                  const order = { public: 0, auto_approved: 1, manual_approval: 2 };
-                  return (order[a.visibility] ?? 3) - (order[b.visibility] ?? 3);
-                })
-                .map(doc => {
-                  const thumbnailSrc = doc.thumbnailUrl || (doc.mimetype?.startsWith('image/') ? doc.url : null);
-                  const isAccessible = isDocumentAccessible(doc);
-
-                  // Untertitel basierend auf Zugriffsstatus
-                  const getAccessInfo = () => {
-                    if (isAccessible) {
-                      return { text: 'Verfügbar', color: 'text-green-600' };
-                    }
-                    if (doc.visibility === 'auto_approved') {
-                      return { text: 'Wird nach Zustimmung freigegeben', color: 'text-blue-600' };
-                    }
-                    if (doc.visibility === 'manual_approval') {
-                      return { text: 'Wird vom Anbieter freigeschaltet', color: 'text-orange-600' };
-                    }
-                    return { text: 'Nicht verfügbar', color: 'text-gray-500' };
-                  };
-
-                  const accessInfo = getAccessInfo();
-
-                  return (
-                    <button
-                      key={doc.id}
-                      onClick={() => isAccessible && onDocumentClick(doc)}
-                      disabled={!isAccessible}
-                      className={`w-full flex items-center gap-3 py-2 px-2 transition-all bg-white ${
-                        !isAccessible
-                          ? 'cursor-not-allowed opacity-75'
-                          : selectedDocumentId === doc.id
-                            ? 'bg-gray-100'
-                            : 'hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="w-12 h-12 overflow-hidden flex-shrink-0">
-                        {thumbnailSrc && isAccessible ? (
-                          <img src={thumbnailSrc} alt={doc.filename} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                            {!isAccessible ? (
-                              <Lock size={24} className="text-gray-400" />
-                            ) : (
-                              categoryIcons[doc.category]
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 text-left min-w-0">
-                        <p className={`text-sm font-medium ${
-                          !isAccessible ? 'text-gray-500' : 'text-gray-900'
-                        }`}>
-                          {isAccessible ? truncateFilename(doc.filename.replace(/\.[^/.]+$/, ''), 10) : categoryLabels[doc.category]}
-                        </p>
-                        <p className={`text-xs ${accessInfo.color}`}>
-                          {accessInfo.text}
-                        </p>
-                      </div>
-                      {isAccessible && (
-                        <ChevronRight size={16} className="text-gray-400" />
-                      )}
-                    </button>
-                  );
-                })}
-            </div>
-          )}
+          </div>
         </div>
       ) : null}
     </div>

@@ -1,10 +1,20 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Bath, Sparkles, DoorClosed, Square, Layers, Euro, Building2, Clock, Flame, Zap, ChevronDown, Star, Eye, Heart, Mail, FileText } from 'lucide-react';
-import { AIEvaluationPanel } from './AIEvaluationPanel';
-import { KeyMetricsPanel } from './KeyMetricsPanel';
+import React, { useState, useCallback, useMemo } from 'react';
+import dynamic from 'next/dynamic';
+import { Bath, Sparkles, DoorClosed, Square, Layers, Euro, Building2, Clock, Flame, Zap, ChevronDown, Star, Eye, Heart, Mail, FileText, Loader2 } from 'lucide-react';
 import { LocationDisplay } from './LocationDisplay';
+
+// Dynamic imports for heavy components - reduces initial bundle size
+const AIEvaluationPanel = dynamic(() => import('./AIEvaluationPanel').then(mod => ({ default: mod.AIEvaluationPanel })), {
+  loading: () => <div className="flex items-center justify-center p-8"><Loader2 className="animate-spin text-gray-400" size={24} /></div>,
+  ssr: false,
+});
+
+const KeyMetricsPanel = dynamic(() => import('./KeyMetricsPanel').then(mod => ({ default: mod.KeyMetricsPanel })), {
+  loading: () => <div className="flex items-center justify-center p-8"><Loader2 className="animate-spin text-gray-400" size={24} /></div>,
+  ssr: false,
+});
 // AIInvestmentEvaluation und InvestmentScoreBadge auskommentiert - nur stichpunktartige Bewertung
 // import { AIInvestmentEvaluation, InvestmentScoreBadge } from '@immoflow/ui';
 
@@ -368,11 +378,11 @@ export function PropertyPreview({
   // State for selected document
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | undefined>();
 
-  // Handle document click
-  const handleDocumentClick = (document: PropertyDocument) => {
+  // Handle document click - memoized to prevent re-renders
+  const handleDocumentClick = useCallback((document: PropertyDocument) => {
     setSelectedDocumentId(document.id);
     onDocumentSelect?.(document);
-  };
+  }, [onDocumentSelect]);
 
   // State for rental income accordion
   const [isRentalIncomeExpanded, setIsRentalIncomeExpanded] = useState(false);
@@ -388,7 +398,8 @@ export function PropertyPreview({
   const [isHighlightsExpanded, setIsHighlightsExpanded] = useState(false);
   // buyerTabSelected state entfernt - beide Scores werden jetzt untereinander angezeigt
 
-  const formatPrice = (price: number) => {
+  // Memoized price formatter to avoid recreation on every render
+  const formatPrice = useCallback((price: number) => {
     if (!price || price === 0) return '€ 0';
     return new Intl.NumberFormat('de-DE', {
       style: 'currency',
@@ -396,9 +407,12 @@ export function PropertyPreview({
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(price);
-  };
+  }, []);
 
-  const pricePerSqm = data.sqm > 0 ? Math.round(data.price / data.sqm) : 0;
+  // Memoized price per sqm calculation
+  const pricePerSqm = useMemo(() =>
+    data.sqm > 0 ? Math.round(data.price / data.sqm) : 0
+  , [data.sqm, data.price]);
 
   // Helper to get German property type label
   const getPropertyTypeLabel = (type?: string): string => {

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { MapPin, Eye, Heart, Clock, X, Download } from 'lucide-react';
 import { PropertyImagePlaceholder } from '@immoflow/ui';
+import Image from 'next/image';
 
 // Score von 0-100 auf 1-5 konvertieren
 function toDisplayScore(score: number): number {
@@ -68,7 +69,8 @@ function buildDisplayLocation(props: { address?: string; postalCode?: string; lo
   return cityPart || props.location || '';
 }
 
-export function PropertyListThumbnail({
+// Memoized component to prevent unnecessary re-renders in lists
+export const PropertyListThumbnail = memo(function PropertyListThumbnail({
   id,
   title,
   isSelected,
@@ -141,10 +143,12 @@ export function PropertyListThumbnail({
         {/* Thumbnail - Full height */}
         <div className="relative w-28 flex-shrink-0 bg-gray-100">
           {image && !imageError ? (
-            <img
+            <Image
               src={image}
               alt={title}
-              className="w-full h-full object-cover"
+              fill
+              sizes="112px"
+              className="object-cover"
               onError={() => setImageError(true)}
             />
           ) : videoUrl ? (
@@ -302,4 +306,7 @@ export function PropertyListThumbnail({
       </div>
     </div>
   );
-}
+});
+
+// Display name for debugging
+PropertyListThumbnail.displayName = 'PropertyListThumbnail';
