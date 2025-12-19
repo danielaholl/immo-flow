@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { House, Heart, X } from 'lucide-react';
+import { House, Heart, X, Share2 } from 'lucide-react';
 import { colors } from '../../../theme';
 import type { PropertyCardProps } from './PropertyCard.types';
 import { usePropertyCardLogic } from './PropertyCard.logic';
@@ -16,6 +16,7 @@ export function PropertyCard({
   onPress,
   onFavorite,
   onDismiss,
+  onShare,
   isFavorite = false,
   variant: _variant = 'story',
   isActive = false,
@@ -59,6 +60,15 @@ export function PropertyCard({
                 onClick={(e) => onDismiss?.(e as any)}
                 tooltip="Nicht interessiert"
                 ariaLabel="Nicht interessiert"
+              />
+              <GlassButton
+                variant="default"
+                iconOnly
+                subtleBorder
+                iconLeft={<Share2 strokeWidth={2} />}
+                onClick={(e) => onShare?.(e as any)}
+                tooltip="Teilen"
+                ariaLabel="Teilen"
               />
               <GlassButton
                 variant="favorite"

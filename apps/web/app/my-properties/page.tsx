@@ -8,8 +8,11 @@ import type { Property } from '@immoflow/database';
 import { Header } from '../components/Header';
 import { PropertyPreview, PropertyPreviewData } from '../components/PropertyPreview';
 import { AIEvaluationPanel, type SellerEvaluation } from '../components/AIEvaluationPanel';
+import type { PropertyDocument } from '../create-listing/types';
 import { DeletePropertyModal } from '../components/DeletePropertyModal';
-import { Home, Plus, Pencil, Power, Trash2, Phone } from 'lucide-react';
+import { InterestedPartiesList } from '../components/InterestedPartiesList';
+import { ShareLinkModal } from '../components/ShareLinkModal';
+import { Home, Plus, Pencil, Power, Trash2, Share2 } from 'lucide-react';
 import { PropertyListThumbnail } from '../components/PropertyListThumbnail';
 import { trpc } from '@/lib/trpc';
 import { useMasterDetailNavigation } from '@/app/hooks/useMasterDetailNavigation';
@@ -70,6 +73,9 @@ export default function MyPropertiesPage() {
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
+  // Document preview state
+  const [selectedDocument, setSelectedDocument] = useState<PropertyDocument | null>(null);
+
   // Delete modal state
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [propertyToDelete, setPropertyToDelete] = useState<{ id: string; title: string; price: number } | null>(null);
@@ -77,6 +83,9 @@ export default function MyPropertiesPage() {
   // Deactivate modal state
   const [deactivateModalOpen, setDeactivateModalOpen] = useState(false);
   const [propertyToDeactivate, setPropertyToDeactivate] = useState<{ id: string; title: string; price: number } | null>(null);
+
+  // Share modal state
+  const [shareModalOpen, setShareModalOpen] = useState(false);
 
   // Performance tracking
   const pageLoadStartTimeRef = useRef(performance.now());
@@ -230,6 +239,9 @@ export default function MyPropertiesPage() {
   const { selectedItem: selectedProperty, selectedPropertyId, selectItem, goBack } =
     useMasterDetailNavigation(sortedProperties, '/my-properties');
 
+  // Get the actual selected property ID for use in effects
+  const selectedPropertyActualId = selectedProperty?.id;
+
   // Track last selected ID for visual indication on mobile
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
 
@@ -238,6 +250,11 @@ export default function MyPropertiesPage() {
       setLastSelectedId(selectedPropertyId);
     }
   }, [selectedPropertyId]);
+
+  // Reset document preview when the ACTUAL displayed property changes
+  useEffect(() => {
+    setSelectedDocument(null);
+  }, [selectedPropertyActualId]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('de-DE', {
@@ -319,6 +336,15 @@ export default function MyPropertiesPage() {
     avg_suggested_price: selectedProperty.avg_suggested_price ?? undefined,
     // Seller evaluation from seller_evaluation JSONB field
     seller_evaluation: sellerEval,
+    // Documents from documents JSONB field
+    documents: (selectedProperty.documents as unknown as PropertyDocument[]) || [],
+    documents_count: (selectedProperty as any).documents_count ?? 0,
+    // Owner info from profile
+    owner: {
+      first_name: profile?.first_name ?? undefined,
+      last_name: profile?.last_name ?? undefined,
+      email: user?.email ?? undefined,
+    },
   } : null;
 
   return (
@@ -328,22 +354,31 @@ export default function MyPropertiesPage() {
       {/* Action Buttons - reused in mobile and desktop */}
       {(() => {
         const ActionButtons = selectedProperty ? (
-          <div className="flex flex-wrap gap-2 lg:gap-3">
-            {/* Bearbeiten Button */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {/* 1. Bearbeiten Button */}
             <button
               onClick={() => router.push(`/edit-listing/${selectedProperty.id}`)}
-              className="flex-1 min-w-[200px] bg-primary text-white font-semibold py-3 px-4 rounded-xl hover:opacity-90 transition-colors inline-flex items-center justify-center gap-2 text-sm"
+              className="bg-primary text-white font-semibold py-3 px-3 rounded-xl hover:opacity-90 transition-colors inline-flex items-center justify-center gap-2 text-sm"
             >
               <Pencil size={16} />
               <span>Bearbeiten</span>
             </button>
 
-            {/* Aktivieren/Deaktivieren Button */}
-            {selectedProperty.status === 'archived' ? (
+            {/* 2. Veröffentlichen/Aktivieren/Deaktivieren Button */}
+            {selectedProperty.status === 'pending' ? (
               <button
                 onClick={() => handleActivate(selectedProperty.id)}
                 disabled={activateMutation.isLoading}
-                className="flex-1 min-w-[200px] bg-green-500 text-white font-semibold py-3 px-4 rounded-xl hover:bg-green-600 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
+                className="bg-green-500 text-white font-semibold py-3 px-3 rounded-xl hover:bg-green-600 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
+              >
+                <Power size={16} />
+                <span>{activateMutation.isLoading ? '...' : 'Veröffentlichen'}</span>
+              </button>
+            ) : selectedProperty.status === 'archived' ? (
+              <button
+                onClick={() => handleActivate(selectedProperty.id)}
+                disabled={activateMutation.isLoading}
+                className="bg-green-500 text-white font-semibold py-3 px-3 rounded-xl hover:bg-green-600 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
               >
                 <Power size={16} />
                 <span>{activateMutation.isLoading ? '...' : 'Aktivieren'}</span>
@@ -356,14 +391,14 @@ export default function MyPropertiesPage() {
                   price: selectedProperty.price,
                 })}
                 disabled={deactivateMutation.isLoading}
-                className="flex-1 min-w-[200px] bg-white border-2 border-gray-300 text-gray-700 font-semibold py-3 px-4 rounded-xl hover:border-gray-400 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
+                className="bg-white border-2 border-gray-300 text-gray-700 font-semibold py-3 px-3 rounded-xl hover:border-gray-400 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
               >
                 <Power size={16} />
                 <span>{deactivateMutation.isLoading ? '...' : 'Deaktivieren'}</span>
               </button>
             )}
 
-            {/* Löschen Button */}
+            {/* 3. Löschen Button */}
             <button
               onClick={() => handleDeleteClick({
                 id: selectedProperty.id,
@@ -371,10 +406,19 @@ export default function MyPropertiesPage() {
                 price: selectedProperty.price,
               })}
               disabled={deleteMutation.isLoading}
-              className="flex-1 min-w-[200px] bg-white border-2 border-red-300 text-red-600 font-semibold py-3 px-4 rounded-xl hover:bg-red-50 hover:border-red-400 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
+              className="bg-white border-2 border-red-300 text-red-600 font-semibold py-3 px-3 rounded-xl hover:bg-red-50 hover:border-red-400 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
             >
               <Trash2 size={16} />
               <span>{deleteMutation.isLoading ? '...' : 'Löschen'}</span>
+            </button>
+
+            {/* 4. Teilen Button */}
+            <button
+              onClick={() => setShareModalOpen(true)}
+              className="bg-white border-2 border-gray-300 text-gray-700 font-semibold py-3 px-3 rounded-xl hover:border-gray-400 transition-colors inline-flex items-center justify-center gap-2 text-sm"
+            >
+              <Share2 size={16} />
+              <span>Teilen</span>
             </button>
           </div>
         ) : null;
@@ -442,6 +486,16 @@ export default function MyPropertiesPage() {
                     Alle ({properties.length})
                   </button>
                   <button
+                    onClick={() => setStatusFilter('pending')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                      statusFilter === 'pending'
+                        ? 'bg-gray-900 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Entwürfe ({properties.filter(p => p.status === 'pending').length})
+                  </button>
+                  <button
                     onClick={() => setStatusFilter('active')}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                       statusFilter === 'active'
@@ -477,6 +531,16 @@ export default function MyPropertiesPage() {
                     }`}
                   >
                     Alle ({properties.length})
+                  </button>
+                  <button
+                    onClick={() => setStatusFilter('pending')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                      statusFilter === 'pending'
+                        ? 'bg-gray-900 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Entwürfe ({properties.filter(p => p.status === 'pending').length})
                   </button>
                   <button
                     onClick={() => setStatusFilter('active')}
@@ -517,6 +581,7 @@ export default function MyPropertiesPage() {
                         location={property.location}
                         postalCode={(property as any).postal_code}
                         statusOnline={property.status === 'active'}
+                        statusPending={property.status === 'pending'}
                         viewCount={property.unique_viewers || 0}
                         favoriteCount={property.favorites_count || 0}
                         onDelete={(e) => {
@@ -545,10 +610,13 @@ export default function MyPropertiesPage() {
                   showMobileHeader={!!selectedPropertyId}
                   desktopActionButtons={ActionButtons}
                   mobileActionButtons={ActionButtons}
+                  selectedDocument={selectedDocument}
+                  onDocumentClose={() => setSelectedDocument(null)}
                 >
                   {/* PropertyPreview Component */}
                   {propertyPreviewData && (
                     <PropertyPreview
+                      key={selectedProperty.id}
                       data={propertyPreviewData}
                       showAddress={true}
                       className="!shadow-none !rounded-none !bg-transparent"
@@ -560,50 +628,16 @@ export default function MyPropertiesPage() {
                       onTriggerEvaluation={(viewType) => handleGenerateSellerEvaluation(selectedProperty.id)}
                       propertyId={selectedProperty.id}
                       isGeneratingEvaluation={generateSellerEvaluationMutation.isPending}
+                      onDocumentSelect={setSelectedDocument}
                     />
                   )}
 
-                  {/* Anbieter Info */}
-                  <div className="mt-6 bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Anbieter</h3>
-                    <div className="flex items-center gap-4">
-                      {profile?.avatar_url ? (
-                        <img
-                          src={profile.avatar_url}
-                          alt={`${profile?.first_name || ''} ${profile?.last_name || ''}`}
-                          className="w-16 h-16 rounded-full object-cover"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                          }}
-                        />
-                      ) : (
-                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                          <span className="text-2xl font-bold text-gray-400">
-                            {profile?.first_name?.charAt(0)?.toUpperCase() || 'P'}
-                          </span>
-                        </div>
-                      )}
-                      <div>
-                        <h4 className="font-bold text-gray-900 text-base">
-                          {profile?.first_name || profile?.last_name
-                            ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
-                            : 'Privater Anbieter'}
-                        </h4>
-                        {profile?.company && (
-                          <p className="text-base text-gray-600">{profile.company}</p>
-                        )}
-                        {profile?.phone && (
-                          <a
-                            href={`tel:${profile.phone}`}
-                            className="text-base text-gray-600 hover:text-primary transition-colors flex items-center gap-1 mt-1"
-                          >
-                            <Phone size={16} />
-                            <span>{profile.phone}</span>
-                          </a>
-                        )}
-                      </div>
-                    </div>
+                  {/* Interessenten - Dokumentzugriff-Anfragen */}
+                  <div className="mt-6">
+                    <InterestedPartiesList
+                      propertyId={selectedProperty.id}
+                      defaultExpanded={true}
+                    />
                   </div>
                 </PropertyDetailLayout>
               ) : (
@@ -657,6 +691,17 @@ export default function MyPropertiesPage() {
           propertyTitle={propertyToDeactivate.title}
           originalPrice={propertyToDeactivate.price}
           mode="deactivate"
+        />
+      )}
+
+      {/* Share Link Modal */}
+      {selectedProperty && (
+        <ShareLinkModal
+          isOpen={shareModalOpen}
+          onClose={() => setShareModalOpen(false)}
+          propertyId={selectedProperty.id}
+          propertyTitle={selectedProperty.title}
+          documentsCount={(selectedProperty as PropertyWithStats & { documents_count?: number }).documents_count || 0}
         />
       )}
     </main>

@@ -1,6 +1,7 @@
 'use client';
 
-import { Heart, X, MessageSquare, Pencil, Power } from 'lucide-react';
+import { useState } from 'react';
+import { Heart, X, MessageSquare, Pencil, Power, Share2 } from 'lucide-react';
 
 interface PropertyActionButtonsProps {
   // Mode
@@ -16,6 +17,7 @@ interface PropertyActionButtonsProps {
   // Owner mode props
   onEdit?: () => void;
   onDeactivate?: () => void;
+  onShare?: () => void;
 
   // Loading states
   isDismissLoading?: boolean;
@@ -27,6 +29,9 @@ interface PropertyActionButtonsProps {
 
   // Styling
   className?: string;
+
+  // Property URL for buyer share
+  propertyUrl?: string;
 }
 
 export function PropertyActionButtons({
@@ -38,17 +43,33 @@ export function PropertyActionButtons({
   onOpenFeedback,
   onEdit,
   onDeactivate,
+  onShare,
   isDismissLoading = false,
   isMessageLoading = false,
   isDeactivateLoading = false,
   favoriteButtonLabel,
   className = '',
+  propertyUrl,
 }: PropertyActionButtonsProps) {
+  const [showCopiedToast, setShowCopiedToast] = useState(false);
+
+  // Handler for buyer share (copy URL)
+  const handleBuyerShare = async () => {
+    if (!propertyUrl) return;
+    try {
+      await navigator.clipboard.writeText(propertyUrl);
+      setShowCopiedToast(true);
+      setTimeout(() => setShowCopiedToast(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy URL:', error);
+    }
+  };
+
   // Default favorite button label
   const defaultFavoriteLabel = isFavorite ? 'Favorit' : 'Favorit';
   const finalFavoriteLabel = favoriteButtonLabel || defaultFavoriteLabel;
   if (isOwner) {
-    // Owner Mode: Bearbeiten + Deaktivieren
+    // Owner Mode: Bearbeiten + Teilen + Deaktivieren
     return (
       <div className={`flex flex-col sm:flex-row gap-3 ${className}`}>
           <button
@@ -57,6 +78,13 @@ export function PropertyActionButtons({
           >
             <Pencil size={20} />
             Bearbeiten
+          </button>
+          <button
+            onClick={onShare}
+            className="flex-1 bg-white border-2 border-gray-300 text-gray-700 font-semibold py-4 px-6 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+          >
+            <Share2 size={20} />
+            Teilen
           </button>
           <button
             onClick={onDeactivate}
@@ -79,54 +107,71 @@ export function PropertyActionButtons({
     );
   }
 
-  // Buyer Mode: 3 Buttons in einer Reihe (responsiv)
+  // Buyer Mode: 4 Buttons (Favorit, Teilen, Kein Interesse, Nachricht)
   return (
-    <div className={`flex flex-col sm:flex-row gap-3 ${className}`}>
-        <button
-          onClick={onToggleFavorite}
-          className={`flex-1 font-semibold py-4 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 ${
-            isFavorite
-              ? 'bg-primary text-white hover:opacity-90'
-              : 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50'
-          }`}
-        >
-          <Heart size={20} fill={isFavorite ? 'currentColor' : 'none'} />
-          {finalFavoriteLabel}
-        </button>
-        <button
-          onClick={onDismiss}
-          disabled={isDismissLoading}
-          className="flex-1 bg-white border-2 border-gray-300 text-gray-700 font-semibold py-4 px-6 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isDismissLoading ? (
-            <>
-              <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-              Wird verarbeitet...
-            </>
-          ) : (
-            <>
-              <X size={20} />
-              Kein Interesse
-            </>
-          )}
-        </button>
-        <button
-          onClick={onStartMessage}
-          disabled={isMessageLoading}
-          className="flex-1 bg-green-600 text-white font-semibold py-4 px-6 rounded-xl hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isMessageLoading ? (
-            <>
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              Wird gestartet...
-            </>
-          ) : (
-            <>
-              <MessageSquare size={20} />
-              Nachricht senden
-            </>
-          )}
-        </button>
-    </div>
+    <>
+      <div className={`flex flex-col sm:flex-row gap-3 ${className}`}>
+          <button
+            onClick={onToggleFavorite}
+            className={`flex-1 font-semibold py-4 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 ${
+              isFavorite
+                ? 'bg-primary text-white hover:opacity-90'
+                : 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <Heart size={20} fill={isFavorite ? 'currentColor' : 'none'} />
+            {finalFavoriteLabel}
+          </button>
+          <button
+            onClick={handleBuyerShare}
+            disabled={!propertyUrl}
+            className="flex-1 bg-white border-2 border-gray-300 text-gray-700 font-semibold py-4 px-6 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Share2 size={20} />
+            Teilen
+          </button>
+          <button
+            onClick={onDismiss}
+            disabled={isDismissLoading}
+            className="flex-1 bg-white border-2 border-gray-300 text-gray-700 font-semibold py-4 px-6 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isDismissLoading ? (
+              <>
+                <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                Wird verarbeitet...
+              </>
+            ) : (
+              <>
+                <X size={20} />
+                Kein Interesse
+              </>
+            )}
+          </button>
+          <button
+            onClick={onStartMessage}
+            disabled={isMessageLoading}
+            className="flex-1 bg-green-600 text-white font-semibold py-4 px-6 rounded-xl hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isMessageLoading ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Wird gestartet...
+              </>
+            ) : (
+              <>
+                <MessageSquare size={20} />
+                Nachricht senden
+              </>
+            )}
+          </button>
+      </div>
+
+      {/* Copied Toast */}
+      {showCopiedToast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg animate-fade-in">
+          Link kopiert!
+        </div>
+      )}
+    </>
   );
 }

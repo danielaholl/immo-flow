@@ -5,8 +5,13 @@
 
 import express, { Request, Response, Router } from 'express';
 import multer from 'multer';
+import { v4 as uuidv4 } from 'uuid';
 import { getStorageProvider } from '../storage/index.js';
 import { authenticateToken } from '../middleware/auth.js';
+
+// Valid document categories
+const VALID_DOCUMENT_CATEGORIES = ['grundriss', 'energieausweis', 'expose', 'sonstiges'] as const;
+type DocumentCategory = typeof VALID_DOCUMENT_CATEGORIES[number];
 
 const router: Router = express.Router();
 
@@ -198,8 +203,10 @@ router.post(
 
 /**
  * POST /upload/property-document
- * Upload a single property document (PDF, etc.)
+ * Upload a single property document (PDF, images) with optional category
+ * Query param: ?category=grundriss|energieausweis|expose|sonstiges
  * For PDFs, generates a thumbnail from the first page
+ * For images, generates image variants
  */
 router.post(
   '/property-document',
@@ -211,14 +218,49 @@ router.post(
         return res.status(400).json({ error: 'No document file provided' });
       }
 
+      // Get and validate category from query parameter
+      const categoryParam = req.query.category as string | undefined;
+      const category: DocumentCategory = categoryParam && VALID_DOCUMENT_CATEGORIES.includes(categoryParam as DocumentCategory)
+        ? (categoryParam as DocumentCategory)
+        : 'sonstiges';
+
       const storage = getStorageProvider();
+      const documentId = uuidv4();
+      const uploadedAt = new Date().toISOString();
 
       // For PDFs, use uploadPdfWithThumbnail to generate first-page preview
       if (req.file.mimetype === 'application/pdf') {
         const uploadedFile = await storage.uploadPdfWithThumbnail(req.file, 'documents');
         return res.status(200).json({
           success: true,
-          data: uploadedFile,
+          data: {
+            id: documentId,
+            url: uploadedFile.url,
+            thumbnailUrl: uploadedFile.thumbnailUrl,
+            filename: req.file.originalname,
+            category,
+            mimetype: req.file.mimetype,
+            size: req.file.size,
+            uploadedAt,
+          },
+        });
+      }
+
+      // For images, generate variants and use thumbnail
+      if (req.file.mimetype.startsWith('image/')) {
+        const imageVariants = await storage.uploadImage(req.file, 'documents');
+        return res.status(200).json({
+          success: true,
+          data: {
+            id: documentId,
+            url: imageVariants.original,
+            thumbnailUrl: imageVariants.thumbnail,
+            filename: req.file.originalname,
+            category,
+            mimetype: req.file.mimetype,
+            size: req.file.size,
+            uploadedAt,
+          },
         });
       }
 
@@ -227,7 +269,16 @@ router.post(
 
       return res.status(200).json({
         success: true,
-        data: uploadedFile,
+        data: {
+          id: documentId,
+          url: uploadedFile.url,
+          thumbnailUrl: null,
+          filename: req.file.originalname,
+          category,
+          mimetype: req.file.mimetype,
+          size: req.file.size,
+          uploadedAt,
+        },
       });
     } catch (error) {
       console.error('Error uploading document:', error);

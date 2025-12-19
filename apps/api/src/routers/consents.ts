@@ -19,6 +19,51 @@ export const consentsRouter = router({
         [ctx.user.id, input.propertyId]
       );
 
+      // Also create document access request (auto-approve if release mode is automatic)
+      // Get user profile for data snapshot
+      const profile = await queryOne(
+        'SELECT first_name, last_name, phone FROM user_profiles WHERE user_id = $1',
+        [ctx.user.id]
+      );
+
+      // Get property to check release mode
+      const property = await queryOne(
+        'SELECT document_release_mode, user_id FROM properties WHERE id = $1',
+        [input.propertyId]
+      );
+
+      // Only create document access if user is not the owner
+      if (property && property.user_id !== ctx.user.id) {
+        const initialStatus = property.document_release_mode === 'automatic' ? 'approved' : 'pending';
+
+        await queryOne(
+          `INSERT INTO document_access_requests
+           (property_id, user_id, status, user_first_name, user_last_name, user_email, user_phone, responded_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           ON CONFLICT (property_id, user_id)
+           DO UPDATE SET
+             status = CASE
+               WHEN document_access_requests.status = 'denied' THEN $3
+               ELSE document_access_requests.status
+             END,
+             user_first_name = EXCLUDED.user_first_name,
+             user_last_name = EXCLUDED.user_last_name,
+             user_email = EXCLUDED.user_email,
+             user_phone = EXCLUDED.user_phone
+           RETURNING *`,
+          [
+            input.propertyId,
+            ctx.user.id,
+            initialStatus,
+            profile?.first_name || null,
+            profile?.last_name || null,
+            ctx.user.email,
+            profile?.phone || null,
+            initialStatus === 'approved' ? new Date() : null
+          ]
+        );
+      }
+
       return consent;
     }),
 

@@ -6,10 +6,13 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuthContext } from '@/app/providers/AuthProvider';
 import { Header } from '@/app/components/Header';
 import { PropertyImageSlideshow } from '@/app/components/PropertyImageSlideshow';
+import { DocumentViewer } from '@/app/components/DocumentViewer';
 import { FavoriteButton } from '@/app/components/FavoriteButton';
 import { CommissionConsentDialog } from '@/app/components/CommissionConsentDialog';
 import { PropertyPreview, PropertyPreviewData } from '@/app/components/PropertyPreview';
+import type { PropertyDocument } from '@/app/create-listing/types';
 import { PropertyActionButtons } from '@/app/components/PropertyActionButtons';
+import { ShareLinkModal } from '@/app/components/ShareLinkModal';
 import { MobileDetailHeader } from '@/app/components/MobileDetailHeader';
 import { PageContainer } from '@/app/components/PageContainer';
 import { ArrowLeft, Heart, X } from 'lucide-react';
@@ -41,6 +44,8 @@ export default function PropertyPage() {
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [isPropertyFeedbackModalOpen, setIsPropertyFeedbackModalOpen] = useState(false);
   const [buyerEvaluation, setBuyerEvaluation] = useState<any>(null);
+  const [selectedDocument, setSelectedDocument] = useState<PropertyDocument | null>(null);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   // Initialize auth guard for protected actions
   const {
@@ -50,6 +55,10 @@ export default function PropertyPage() {
   } = useAuthGuard({
     returnUrl: `/property/${params.id}`,
   });
+
+  // Document access state
+  const [hasDocumentAccess, setHasDocumentAccess] = useState(false);
+  const [hasManualApproval, setHasManualApproval] = useState(false);
 
   // Fetch property with owner using tRPC
   // Uses getByIdWithOwner which includes owner profile data (name, phone, avatar, etc.)
@@ -92,6 +101,53 @@ export default function PropertyPage() {
     { propertyId: params.id as string },
     { enabled: !!params.id }
   );
+
+  // Fetch document access status
+  const { data: accessStatus, refetch: refetchAccessStatus } = trpc.documentAccess.getAccessStatus.useQuery(
+    { propertyId: params.id as string },
+    {
+      enabled: !!user && !!params.id,
+      onSuccess: (data) => {
+        setHasDocumentAccess(data.hasAccess || data.isOwner);
+        setHasManualApproval(data.hasManualApproval || data.isOwner);
+      },
+    }
+  );
+
+  // Fetch pending manual approval count (for owner only)
+  const { data: pendingManualData, refetch: refetchPendingManual } = trpc.documentAccess.getPendingManualApprovalCount.useQuery(
+    { propertyId: params.id as string },
+    {
+      enabled: !!user && !!params.id && !!property && property.user_id === user.id,
+    }
+  );
+
+  // Update hasDocumentAccess when accessStatus changes
+  useEffect(() => {
+    if (accessStatus) {
+      setHasDocumentAccess(accessStatus.hasAccess || accessStatus.isOwner);
+      setHasManualApproval(accessStatus.hasManualApproval || accessStatus.isOwner);
+    }
+  }, [accessStatus]);
+
+  // Callback when document access is granted
+  const handleDocumentAccessGranted = () => {
+    setHasDocumentAccess(true);
+    refetchAccessStatus();
+  };
+
+  // Mutation to approve manual documents
+  const approveManualDocsMutation = trpc.documentAccess.approveManualDocuments.useMutation({
+    onSuccess: () => {
+      refetchPendingManual();
+    },
+  });
+
+  // Handler for approving manual documents (owner only)
+  const handleApproveManualDocs = async () => {
+    if (!property || !isOwner) return;
+    await approveManualDocsMutation.mutateAsync({ propertyId: property.id });
+  };
 
   // Get tRPC utils for cache invalidation
   const utils = trpc.useContext();
@@ -169,6 +225,8 @@ export default function PropertyPage() {
       console.log('📊 Updated buyer evaluation:', newEvaluation);
       setBuyerEvaluation(newEvaluation);
 
+      // Invalidate and refetch AI evaluation to get market_average_price_per_sqm
+      utils.evaluations.getAIEvaluation.invalidate({ propertyId: params.id as string });
       // Invalidate and refetch property data to update the badge
       utils.properties.getByIdWithOwner.invalidate({ id: params.id as string });
 
@@ -242,6 +300,8 @@ export default function PropertyPage() {
       setHasCommissionConsent(true);
       setHasConsent(true);
       setIsConsentDialogOpen(false);
+      // Also update document access status since consent grants document access too
+      refetchAccessStatus();
     } catch (error) {
       console.error('Error granting consent:', error);
     } finally {
@@ -315,8 +375,12 @@ export default function PropertyPage() {
   };
 
   const handleTriggerEvaluation = async (viewType?: 'seller' | 'buyer_selfuse' | 'buyer_investor') => {
+    console.log('🚀 handleTriggerEvaluation called with viewType:', viewType);
     // Guard: prevent double-clicking and concurrent evaluations
-    if (!property || isEvaluating) return;
+    if (!property || isEvaluating) {
+      console.log('⚠️ Blocked: property=', !!property, 'isEvaluating=', isEvaluating);
+      return;
+    }
 
     // Check if user is authenticated - require login for AI evaluation
     if (!user) {
@@ -457,12 +521,16 @@ export default function PropertyPage() {
     risks: (property as any).risks ?? undefined,
     // Buyer evaluation (from state, fetched on-demand)
     buyer_evaluation: buyerEvaluation ?? (property as any).buyer_evaluation ?? undefined,
+    // Documents
+    documents: (property.documents as unknown as PropertyDocument[]) || [],
     owner: property.owner && !isOwner ? {
       first_name: property.owner.first_name,
       last_name: property.owner.last_name,
       company: property.owner.company,
       avatar_url: property.owner.avatar_url,
       phone: property.owner.phone,
+      bio: property.owner.bio,
+      email: property.owner.email,
     } : undefined,
   };
 
@@ -499,7 +567,7 @@ export default function PropertyPage() {
             {/* Property Preview Component */}
             <PropertyPreview
               data={propertyPreviewData}
-              showAddress={true}
+              showAddress={!property.require_address_consent || hasConsent || Boolean(isOwner)}
               onRequestAddress={handleShowAddress}
               showInvestmentScore={true}
               isGeneratingEvaluation={isEvaluating}
@@ -517,11 +585,17 @@ export default function PropertyPage() {
               showCTAs={false}
               onAddToFavorites={handleToggleFavorite}
               isFavorite={isFavorite}
+              onDocumentSelect={setSelectedDocument}
+              hasDocumentAccess={hasDocumentAccess}
+              hasManualApproval={hasManualApproval}
+              onDocumentAccessGranted={handleDocumentAccessGranted}
+              pendingManualApprovalCount={pendingManualData?.count ?? 0}
+              onApproveManualDocs={handleApproveManualDocs}
             />
           </div>
 
           {/* CTA Buttons */}
-          <div className="mb-20 lg:mb-0">
+          <div className="p-4 mb-20 lg:mb-0">
             <PropertyActionButtons
             isOwner={Boolean(isOwner)}
             isFavorite={isFavorite}
@@ -531,65 +605,74 @@ export default function PropertyPage() {
             onOpenFeedback={() => setIsPropertyFeedbackModalOpen(true)}
             onEdit={() => router.push(`/property/${property.id}/edit`)}
             onDeactivate={handleDeactivate}
+            onShare={() => setIsShareModalOpen(true)}
             isDismissLoading={dismissMutation.isLoading}
             isMessageLoading={getOrCreateConversationMutation.isLoading}
             isDeactivateLoading={deactivateMutation.isLoading}
+            propertyUrl={typeof window !== 'undefined' ? `${window.location.origin}/property/${property.id}` : ''}
           />
           </div>
         </div>
 
-        {/* Right Column - Property Card with Slideshow */}
+        {/* Right Column - Property Card with Slideshow or Document Viewer */}
         <div className="w-full lg:w-1/2 lg:sticky lg:top-20 h-[50vh] lg:h-[calc(100vh-80px)] py-4 lg:py-6 pl-0 lg:pl-6 order-1 lg:order-2">
-          <PropertyImageSlideshow
-            images={property.images}
-            videoUrl={property.video_url}
-            title={property.title}
-            className="h-full"
-            showCounter={true}
-            showProgressBars={true}
-            propertyType={property.property_type || undefined}
-            overlay={
-              <>
-                {/* AI-Score Badge - Top Right (PropertyScoreBadge Component) */}
-                {(() => {
-                  const aiScore = property.ai_investment_score ?? property.ai_score;
-                  if (!aiScore) return null;
+          {selectedDocument ? (
+            <DocumentViewer
+              document={selectedDocument}
+              onClose={() => setSelectedDocument(null)}
+            />
+          ) : (
+            <PropertyImageSlideshow
+              images={property.images}
+              videoUrl={property.video_url}
+              title={property.title}
+              className="h-full"
+              showCounter={true}
+              showProgressBars={true}
+              propertyType={property.property_type || undefined}
+              overlay={
+                <>
+                  {/* AI-Score Badge - Top Right (PropertyScoreBadge Component) */}
+                  {(() => {
+                    const aiScore = property.ai_investment_score ?? property.ai_score;
+                    if (!aiScore) return null;
 
-                  return (
-                    <div className="absolute top-14 right-6 z-20">
-                      <PropertyScoreBadge score={aiScore} variant="overlay" />
-                    </div>
-                  );
-                })()}
+                    return (
+                      <div className="absolute top-14 right-6 z-20">
+                        <PropertyScoreBadge score={aiScore} variant="overlay" />
+                      </div>
+                    );
+                  })()}
 
-                {/* Action Buttons - Bottom Right - Reusable Components */}
-                {!isOwner && (
-                  <div className="absolute bottom-6 right-4 z-20 flex flex-row gap-3">
-                    <GlassButton
-                      variant="default"
-                      iconOnly
-                      subtleBorder
-                      iconLeft={<X strokeWidth={2.5} />}
-                      onClick={() => router.push('/')}
-                      tooltip="Nicht interessiert"
-                      ariaLabel="Nicht interessiert"
-                    />
-                    {user && (
+                  {/* Action Buttons - Bottom Right - Reusable Components */}
+                  {!isOwner && (
+                    <div className="absolute bottom-6 right-4 z-20 flex flex-row gap-3">
                       <GlassButton
-                        variant="favorite"
+                        variant="default"
                         iconOnly
                         subtleBorder
-                        iconLeft={<Heart fill={isFavorite ? '#FF385C' : 'none'} strokeWidth={2} />}
-                        onClick={handleFavoriteToggle}
-                        tooltip={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-                        ariaLabel={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                        iconLeft={<X strokeWidth={2.5} />}
+                        onClick={() => router.push('/')}
+                        tooltip="Nicht interessiert"
+                        ariaLabel="Nicht interessiert"
                       />
-                    )}
-                  </div>
-                )}
-              </>
-            }
-          />
+                      {user && (
+                        <GlassButton
+                          variant="favorite"
+                          iconOnly
+                          subtleBorder
+                          iconLeft={<Heart fill={isFavorite ? '#FF385C' : 'none'} strokeWidth={2} />}
+                          onClick={handleFavoriteToggle}
+                          tooltip={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                          ariaLabel={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                        />
+                      )}
+                    </div>
+                  )}
+                </>
+              }
+            />
+          )}
         </div>
         </div>
       </PageContainer>
@@ -602,6 +685,15 @@ export default function PropertyPage() {
         commissionRate={property.commission_rate || undefined}
         propertyPrice={property.price}
         propertyTitle={property.title}
+      />
+
+      {/* Share Link Modal */}
+      <ShareLinkModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        propertyId={property.id}
+        propertyTitle={property.title}
+        documentsCount={((property.documents as unknown as PropertyDocument[]) || []).length}
       />
 
       {/* Login Prompt Modal - Progressive Disclosure */}

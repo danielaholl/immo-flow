@@ -41,6 +41,7 @@ export interface PropertyListThumbnailProps {
   // Badge variants (only one should be used)
   aiScore?: number;
   statusOnline?: boolean;
+  statusPending?: boolean;
   unreadCount?: number;
 
   // Import indicator
@@ -83,6 +84,7 @@ export function PropertyListThumbnail({
   sqm,
   aiScore,
   statusOnline,
+  statusPending,
   unreadCount,
   isImported,
   viewCount,
@@ -189,16 +191,29 @@ export function PropertyListThumbnail({
             </div>
           )}
 
-          {statusOnline !== undefined && (
-            <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-md bg-black/75 shadow-md">
+          {(statusOnline !== undefined || statusPending) && (
+            <div
+              className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-1 rounded-lg"
+              style={{
+                backdropFilter: 'blur(2px)',
+                WebkitBackdropFilter: 'blur(2px)',
+                border: '1px solid rgba(255, 255, 255, 0.5)',
+              }}
+            >
               <div
-                className="w-2 h-2 rounded-full"
+                className="w-3 h-3 rounded-full flex-shrink-0"
                 style={{
-                  backgroundColor: statusOnline ? '#22C55E' : '#9CA3AF'
+                  backgroundColor: statusPending ? '#F59E0B' : (statusOnline ? '#22C55E' : '#9CA3AF')
                 }}
               />
-              <span className="text-white text-xs font-semibold">
-                {statusOnline ? 'Online' : 'Offline'}
+              <span
+                className="text-sm font-bold leading-none"
+                style={{
+                  color: 'rgba(255, 255, 255, 0.95)',
+                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+                }}
+              >
+                {statusPending ? 'Entwurf' : (statusOnline ? 'Online' : 'Offline')}
               </span>
             </div>
           )}

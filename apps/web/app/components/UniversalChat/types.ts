@@ -94,6 +94,8 @@ export interface UniversalChatProps {
   isSending?: boolean;
   /** Whether file upload is in progress */
   isUploading?: boolean;
+  /** Upload progress (0-100) */
+  uploadProgress?: number;
   /** Custom class name for the container */
   className?: string;
   /** Show timestamps on messages */

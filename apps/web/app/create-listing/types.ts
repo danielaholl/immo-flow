@@ -19,6 +19,7 @@ export interface ListingData {
   features?: string[];
   images?: string[];
   video_url?: string | null;
+  documents?: PropertyDocument[];
   important_notes?: string;
   year_built?: number;
   floor_level?: string; // For apartments (e.g., "3", "EG")
@@ -128,3 +129,77 @@ export interface ImageUploadResult {
   data: UploadedImageResponse[];
   message?: string;
 }
+
+// Document types for property documents (Objektunterlagen)
+export type DocumentCategory =
+  | 'grundriss'
+  | 'energieausweis'
+  | 'expose'
+  | 'sonstiges'
+  | 'lageplan'
+  | 'mietvertrag'
+  | 'etw_protokoll'
+  | 'kaufvertrag'
+  | 'grundbuchauszug';
+
+// Document visibility levels for access control
+export type DocumentVisibility =
+  | 'public'           // Immer sichtbar - Always visible to everyone
+  | 'auto_approved'    // Automatisch nach Anfrage - Auto-approved when user requests
+  | 'manual_approval'; // Nur manuell freigeben - Requires owner approval
+
+export interface PropertyDocument {
+  id: string;
+  url: string;
+  thumbnailUrl?: string | null;
+  filename: string;
+  category: DocumentCategory;
+  visibility: DocumentVisibility;
+  mimetype: string;
+  size: number;
+  uploadedAt: string;
+}
+
+// Mapping: Category -> Default Visibility (for AI auto-categorization)
+export const CATEGORY_TO_DEFAULT_VISIBILITY: Record<DocumentCategory, DocumentVisibility> = {
+  grundriss: 'public',
+  energieausweis: 'public',
+  expose: 'public',
+  lageplan: 'public',
+  sonstiges: 'public',
+  etw_protokoll: 'auto_approved',
+  mietvertrag: 'manual_approval',
+  kaufvertrag: 'manual_approval',
+  grundbuchauszug: 'manual_approval',
+};
+
+// Visibility labels for UI
+export const VISIBILITY_LABELS: Record<DocumentVisibility, string> = {
+  public: 'Immer sichtbar',
+  auto_approved: 'Automatisch nach Anfrage',
+  manual_approval: 'Nur manuell freigeben',
+};
+
+// Visibility colors for UI
+export const VISIBILITY_COLORS: Record<DocumentVisibility, { bg: string; text: string; border: string }> = {
+  public: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200' },
+  auto_approved: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
+  manual_approval: { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
+};
+
+// Helper function to check if document requires access request
+export const requiresAccessRequest = (visibility: DocumentVisibility): boolean => {
+  return visibility !== 'public';
+};
+
+export const DOCUMENT_CATEGORIES: { value: DocumentCategory; label: string; defaultVisibility: DocumentVisibility }[] = [
+  { value: 'grundriss', label: 'Grundriss', defaultVisibility: 'public' },
+  { value: 'energieausweis', label: 'Energieausweis', defaultVisibility: 'public' },
+  { value: 'expose', label: 'Exposé', defaultVisibility: 'public' },
+  { value: 'lageplan', label: 'Lageplan', defaultVisibility: 'public' },
+  { value: 'sonstiges', label: 'Sonstiges', defaultVisibility: 'public' },
+  { value: 'etw_protokoll', label: 'ETW Protokoll', defaultVisibility: 'auto_approved' },
+  { value: 'mietvertrag', label: 'Mietvertrag', defaultVisibility: 'manual_approval' },
+  { value: 'kaufvertrag', label: 'Kaufvertrag', defaultVisibility: 'manual_approval' },
+  { value: 'grundbuchauszug', label: 'Grundbuchauszug', defaultVisibility: 'manual_approval' },
+];

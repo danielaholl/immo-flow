@@ -25,6 +25,7 @@ export function UniversalChat({
   isTyping = false,
   isSending = false,
   isUploading = false,
+  uploadProgress = 0,
   className = '',
   showTimestamps = true,
   showSenderNames = true,
@@ -119,9 +120,17 @@ export function UniversalChat({
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
+    // Only scroll if there are messages
+    if (messages.length === 0) return;
+
     if (isInitialScrollRef.current) {
-      // First render: scroll without animation
-      scrollToBottom(false);
+      // First render: scroll without animation after DOM is fully rendered
+      // Use double requestAnimationFrame to ensure layout is complete
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          scrollToBottom(false);
+        });
+      });
       isInitialScrollRef.current = false;
     } else {
       // Subsequent updates: scroll with animation
@@ -343,12 +352,24 @@ export function UniversalChat({
               </div>
             )}
 
-            {/* Upload indicator */}
+            {/* Upload indicator with progress bar */}
             {isUploading && (
               <div className="flex justify-end">
-                <div className="bg-primary/10 rounded-xl px-4 py-3 flex items-center gap-2">
-                  <Loader2 size={16} className="animate-spin text-primary" />
-                  <p className="text-sm text-primary">Dateien werden verarbeitet...</p>
+                <div className="bg-primary/10 rounded-xl px-4 py-3 min-w-[200px]">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Loader2 size={16} className="animate-spin text-primary" />
+                    <p className="text-sm text-primary">
+                      {uploadProgress > 0 ? `Hochladen... ${uploadProgress}%` : 'Dateien werden verarbeitet...'}
+                    </p>
+                  </div>
+                  {uploadProgress > 0 && (
+                    <div className="w-full bg-primary/20 rounded-full h-1.5">
+                      <div
+                        className="bg-primary h-1.5 rounded-full transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             )}

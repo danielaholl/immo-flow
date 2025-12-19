@@ -105,7 +105,6 @@ export default function MessagesPage() {
       setMessage('');
       refetchMessages();
       refetchConversations();
-      scrollToBottom();
     },
   });
 
@@ -172,7 +171,6 @@ export default function MessagesPage() {
       if (data.conversationId === selectedConversationId) {
         refetchMessages();
         refetchConversations();
-        scrollToBottom();
       }
     };
 
@@ -207,15 +205,6 @@ export default function MessagesPage() {
       offTypingStop(handleTypingStop);
     };
   }, [selectedConversationId, user?.id]);
-
-  // Auto-scroll to bottom on new messages
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
 
   // Handle typing indicator
   const handleTyping = () => {
@@ -534,9 +523,9 @@ export default function MessagesPage() {
             <SlideshowManagerProvider>
               <div className="hidden lg:flex lg:w-1/2 h-full flex-col bg-white border-l border-gray-200 overflow-hidden">
                 {selectedConversationId && selectedConversation ? (
-                  <div className="h-full flex flex-col min-h-0 overflow-hidden">
-                    {/* Image Slideshow - Fixed at top */}
-                    <div className="flex-shrink-0 w-full">
+                  <div className="h-full overflow-y-auto">
+                    {/* Image Slideshow - Scrolls with content */}
+                    <div className="w-full">
                       <div className="w-full aspect-[4/3] rounded-none overflow-hidden">
                         <PropertyImageSlideshow
                           images={selectedConversation.propertyImages}
@@ -553,9 +542,8 @@ export default function MessagesPage() {
                       </div>
                     </div>
 
-                    {/* Property Preview - Scrollable */}
-                    <div className="flex-1 min-h-0 overflow-y-auto">
-                      <div className="p-4">
+                    {/* Property Preview */}
+                    <div className="p-4">
                         {propertyDetails ? (
                           <PropertyPreview
                             data={{
@@ -584,6 +572,7 @@ export default function MessagesPage() {
                               monthly_fee: propertyDetails.monthly_fee,
                               commission_rate: propertyDetails.commission_rate,
                               owner: propertyDetails.owner,
+                              days_online: (propertyDetails as any).days_online,
                             }}
                             showConsentSection={false}
                           />
@@ -619,7 +608,6 @@ export default function MessagesPage() {
                           </div>
                         )}
                       </div>
-                    </div>
                   </div>
                 ) : (
                   <div className="flex-1 flex items-center justify-center p-6">

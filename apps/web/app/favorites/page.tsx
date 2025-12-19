@@ -8,6 +8,7 @@ import type { Property } from '@immoflow/database';
 import { Header } from '../components/Header';
 import { FavoriteButton } from '../components/FavoriteButton';
 import { PropertyPreview, PropertyPreviewData } from '../components/PropertyPreview';
+import type { PropertyDocument } from '../create-listing/types';
 import { PropertyActionButtons } from '../components/PropertyActionButtons';
 import { InvestmentScoreBadge } from '@immoflow/ui';
 // import { PropertyFeedbackModal } from '@immoflow/ui'; // Component doesn't exist
@@ -26,6 +27,7 @@ export default function FavoritesPage() {
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [isPropertyFeedbackModalOpen, setIsPropertyFeedbackModalOpen] = useState(false);
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
+  const [selectedDocument, setSelectedDocument] = useState<PropertyDocument | null>(null);
   const hasCheckedAuth = useRef(false);
 
   // Performance tracking
@@ -46,8 +48,13 @@ export default function FavoritesPage() {
   });
 
   // Mobile master-detail navigation
+  // Use property.id for URL matching since selectItem uses property.id
   const { selectedItem: selectedFavorite, selectedPropertyId, selectItem, goBack } =
-    useMasterDetailNavigation(favorites, '/favorites');
+    useMasterDetailNavigation(favorites, '/favorites', (fav) => fav.property?.id || fav.id);
+
+  // Get the actual selected property for use in effects
+  const selectedProperty = selectedFavorite?.property;
+  const selectedPropertyActualId = selectedProperty?.id;
 
   // Track last selected ID for visual indication on mobile
   useEffect(() => {
@@ -55,6 +62,11 @@ export default function FavoritesPage() {
       setLastSelectedId(selectedPropertyId);
     }
   }, [selectedPropertyId]);
+
+  // Reset selected document when the ACTUAL displayed property changes
+  useEffect(() => {
+    setSelectedDocument(null);
+  }, [selectedPropertyActualId]);
 
   // Get utils for cache invalidation
   const utils = trpc.useContext();
@@ -229,8 +241,6 @@ export default function FavoritesPage() {
     );
   }
 
-  const selectedProperty = selectedFavorite?.property;
-
   // Convert property data to PropertyPreview format
   // Extract detailed evaluation data from JSONB field
   const detailedEval = selectedProperty?.ai_detailed_evaluation as any;
@@ -267,6 +277,7 @@ export default function FavoritesPage() {
     energy_efficiency_class: selectedProperty.energy_efficiency_class ?? undefined,
     condition: selectedProperty.condition ?? undefined,
     important_notes: selectedProperty.important_notes ?? undefined,
+    days_online: (selectedProperty as any).days_online ?? undefined,
     // Extract AI analysis data from ai_detailed_evaluation JSONB
     yield_metrics: detailedEval?.yield_metrics ?? undefined,
     rental_income: detailedEval?.rental_income ?? undefined,
@@ -287,9 +298,15 @@ export default function FavoritesPage() {
       last_name: selectedProperty.owner.last_name,
       company: selectedProperty.owner.company,
       avatar_url: selectedProperty.owner.avatar_url,
+      phone: selectedProperty.owner.phone,
+      bio: selectedProperty.owner.bio,
+      email: selectedProperty.owner.email,
     } : undefined,
     // Buyer evaluation from JSONB field
     buyer_evaluation: selectedProperty.buyer_evaluation as any ?? undefined,
+    // Documents
+    documents: (selectedProperty.documents as unknown as PropertyDocument[]) || [],
+    documents_count: (selectedProperty as any).documents_count ?? 0,
   } : null;
 
   return (
@@ -418,9 +435,12 @@ export default function FavoritesPage() {
                   showMobileHeader={!!selectedPropertyId}
                   desktopActionButtons={ActionButtons}
                   mobileActionButtons={ActionButtons}
+                  selectedDocument={selectedDocument}
+                  onDocumentClose={() => setSelectedDocument(null)}
                 >
                   {propertyPreviewData && (
                     <PropertyPreview
+                      key={selectedProperty.id}
                       data={propertyPreviewData}
                       showAddress={true}
                       className="!shadow-none !rounded-none !bg-transparent"
@@ -435,6 +455,7 @@ export default function FavoritesPage() {
                       isGeneratingEvaluation={isEvaluating}
                       evaluationViewType="buyer"
                       propertyId={selectedProperty.id}
+                      onDocumentSelect={setSelectedDocument}
                     />
                   )}
                 </PropertyDetailLayout>

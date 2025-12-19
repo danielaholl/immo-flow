@@ -16,6 +16,7 @@ import { recommendationsRouter } from './routers/recommendations.js';
 import { searchHistoryRouter } from './routers/search-history.js';
 import { userPreferencesRouter } from './routers/user-preferences.js';
 import { aiSearchRouter } from './routers/ai-search.js';
+import { documentAccessRouter } from './routers/document-access.js';
 
 export const appRouter = router({
   auth: authRouter,
@@ -31,6 +32,7 @@ export const appRouter = router({
   searchHistory: searchHistoryRouter,
   userPreferences: userPreferencesRouter,
   aiSearch: aiSearchRouter,
+  documentAccess: documentAccessRouter,
 });
 
 // Export type definition of API

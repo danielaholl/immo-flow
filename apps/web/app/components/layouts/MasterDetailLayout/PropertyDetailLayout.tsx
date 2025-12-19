@@ -3,6 +3,8 @@
 import { ReactNode } from 'react';
 import { PropertyImageSlideshow } from '../../PropertyImageSlideshow';
 import { MobileDetailHeader } from '../../MobileDetailHeader';
+import { DocumentViewer } from '../../DocumentViewer';
+import type { PropertyDocument } from '../../../create-listing/types';
 
 export interface PropertyDetailLayoutProps {
   /** Property images for slideshow */
@@ -27,6 +29,10 @@ export interface PropertyDetailLayoutProps {
   backTitle?: string;
   /** Whether to show the mobile header */
   showMobileHeader?: boolean;
+  /** Selected document to display instead of slideshow */
+  selectedDocument?: PropertyDocument | null;
+  /** Callback when document viewer is closed */
+  onDocumentClose?: () => void;
 }
 
 /**
@@ -48,6 +54,8 @@ export function PropertyDetailLayout({
   onBack,
   backTitle = 'Zurück',
   showMobileHeader = true,
+  selectedDocument,
+  onDocumentClose,
 }: PropertyDetailLayoutProps) {
   return (
     <>
@@ -100,18 +108,25 @@ export function PropertyDetailLayout({
           )}
         </div>
 
-        {/* Right - Image Slideshow (Desktop only) */}
+        {/* Right - Image Slideshow or Document Viewer (Desktop only) */}
         <div className="hidden lg:block lg:w-1/2 lg:sticky lg:top-0 lg:h-[calc(100vh-100px)] p-6">
-          <PropertyImageSlideshow
-            images={images}
-            videoUrl={videoUrl}
-            title={propertyTitle}
-            className="h-full"
-            showCounter={true}
-            showProgressBars={true}
-            slideshowId={`detail-desktop-${propertyId}`}
-            propertyType={propertyType}
-          />
+          {selectedDocument ? (
+            <DocumentViewer
+              document={selectedDocument}
+              onClose={onDocumentClose || (() => {})}
+            />
+          ) : (
+            <PropertyImageSlideshow
+              images={images}
+              videoUrl={videoUrl}
+              title={propertyTitle}
+              className="h-full"
+              showCounter={true}
+              showProgressBars={true}
+              slideshowId={`detail-desktop-${propertyId}`}
+              propertyType={propertyType}
+            />
+          )}
         </div>
       </div>
     </>

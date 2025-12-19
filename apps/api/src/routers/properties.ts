@@ -5,6 +5,24 @@
 import { z } from 'zod';
 import { router, publicProcedure, protectedProcedure } from '../trpc.js';
 import { query, queryOne } from '../db.js';
+import { deleteCached, invalidatePattern } from '../cache/redis.js';
+import { feedCache, trendingCache } from '../cache/memory.js';
+
+// Helper to invalidate feed caches when properties change
+async function invalidateFeedCaches(): Promise<void> {
+  try {
+    // Clear L1 (in-memory) caches
+    feedCache.clear();
+    trendingCache.clear();
+    // Invalidate L2 (Redis) trending cache
+    await deleteCached('trending');
+    // Invalidate all personalized feed caches in Redis
+    await invalidatePattern('feed:*');
+    console.log('🗑️  Feed caches invalidated (L1 + L2)');
+  } catch (error) {
+    console.warn('Failed to invalidate feed caches:', error);
+  }
+}
 
 export const propertiesRouter = router({
   // Get all properties with filters
@@ -92,6 +110,22 @@ export const propertiesRouter = router({
       return properties;
     }),
 
+  // Get documents for a property (lazy loaded)
+  getDocuments: publicProcedure
+    .input(z.object({ propertyId: z.string().uuid() }))
+    .query(async ({ input }) => {
+      const result = await queryOne(
+        `SELECT documents FROM properties WHERE id = $1`,
+        [input.propertyId]
+      );
+
+      if (!result) {
+        return [];
+      }
+
+      return result.documents || [];
+    }),
+
   // Get property by ID
   getById: publicProcedure
     .input(z.object({ id: z.string().uuid() }))
@@ -135,10 +169,12 @@ export const propertiesRouter = router({
             'phone', up.phone,
             'company', up.company,
             'avatar_url', up.avatar_url,
-            'bio', up.bio
+            'bio', up.bio,
+            'email', u.email
           ) as owner
         FROM properties p
         LEFT JOIN user_profiles up ON p.user_id = up.user_id
+        LEFT JOIN users u ON p.user_id = u.id
         LEFT JOIN property_statistics ps ON p.id = ps.property_id
         WHERE p.id = $1`,
         [input.id]
@@ -170,7 +206,8 @@ export const propertiesRouter = router({
           ps.positive_feedback_count,
           ps.neutral_feedback_count,
           ps.negative_feedback_count,
-          EXTRACT(DAY FROM (CURRENT_TIMESTAMP - p.created_at))::integer as days_online
+          EXTRACT(DAY FROM (CURRENT_TIMESTAMP - p.created_at))::integer as days_online,
+          COALESCE(jsonb_array_length(p.documents), 0) as documents_count
         FROM properties p
         LEFT JOIN property_statistics ps ON p.id = ps.property_id
         WHERE p.user_id = $1
@@ -193,10 +230,21 @@ export const propertiesRouter = router({
         rooms: z.number().positive().int().max(50, 'Too many rooms'),
         images: z.array(z.string()).max(50).optional(),
         video_url: z.string().url().max(2000).optional().nullable(),
+        documents: z.array(z.object({
+          id: z.string().uuid(),
+          url: z.string().url(),
+          thumbnailUrl: z.string().url().nullable().optional(),
+          filename: z.string().max(255),
+          category: z.enum(['grundriss', 'energieausweis', 'expose', 'sonstiges', 'lageplan', 'mietvertrag', 'etw_protokoll', 'kaufvertrag', 'grundbuchauszug']),
+          visibility: z.enum(['public', 'auto_approved', 'manual_approval']).default('public'),
+          mimetype: z.string().max(100),
+          size: z.number().nonnegative(),
+          uploadedAt: z.string(),
+        })).max(20).optional(),
         features: z.array(z.string().trim().max(100)).max(100).optional(),
         highlights: z.array(z.string().trim().max(100)).max(100).optional(),
         red_flags: z.array(z.string().trim().max(100)).max(100).optional(),
-        status: z.enum(['active', 'pending', 'archived', 'sold']).default('active'),
+        status: z.enum(['active', 'pending', 'archived', 'sold']).default('pending'),
         commission_rate: z.number().nonnegative().max(100).optional(),
         require_address_consent: z.boolean().optional(),
         // New fields added
@@ -217,19 +265,20 @@ export const propertiesRouter = router({
         energy_efficiency_class: z.enum(['A+', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']).optional(),
         available_from: z.string().trim().max(50).optional(),
         important_notes: z.string().trim().max(2000).optional(),
+        is_external: z.boolean().optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
       const property = await queryOne(
         `INSERT INTO properties (
           user_id, title, description, price, location,
-          sqm, rooms, images, video_url, features, highlights, red_flags, status, commission_rate,
+          sqm, rooms, images, video_url, documents, features, highlights, red_flags, status, commission_rate,
           require_address_consent, property_type, postal_code, street_address,
           year_built, floor_level, total_floors, bathrooms, usable_area,
           usable_area_ratio, monthly_fee, condition, heating_type,
           energy_source, energy_certificate, energy_efficiency_class,
-          available_from, important_notes
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32)
+          available_from, important_notes, is_external
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34)
         RETURNING *`,
         [
           ctx.user.id,
@@ -241,6 +290,7 @@ export const propertiesRouter = router({
           input.rooms,
           input.images || [],
           input.video_url || null,
+          JSON.stringify(input.documents || []),
           input.features || [],
           input.highlights || [],
           input.red_flags || [],
@@ -264,8 +314,14 @@ export const propertiesRouter = router({
           input.energy_efficiency_class,
           input.available_from,
           input.important_notes,
+          input.is_external || false,
         ]
       );
+
+      // Invalidate feed caches when a new active property is created
+      if (input.status === 'active') {
+        await invalidateFeedCaches();
+      }
 
       return property;
     }),
@@ -283,6 +339,17 @@ export const propertiesRouter = router({
         rooms: z.number().positive().int().max(50).optional(),
         images: z.array(z.string()).max(50).optional(),
         video_url: z.string().url().max(1000).nullish(),
+        documents: z.array(z.object({
+          id: z.string().uuid(),
+          url: z.string().url(),
+          thumbnailUrl: z.string().url().nullable().optional(),
+          filename: z.string().max(255),
+          category: z.enum(['grundriss', 'energieausweis', 'expose', 'sonstiges', 'lageplan', 'mietvertrag', 'etw_protokoll', 'kaufvertrag', 'grundbuchauszug']),
+          visibility: z.enum(['public', 'auto_approved', 'manual_approval']).default('public'),
+          mimetype: z.string().max(100),
+          size: z.number().nonnegative(),
+          uploadedAt: z.string(),
+        })).max(20).nullish(),
         features: z.array(z.string().trim().max(100)).max(100).optional(),
         highlights: z.array(z.string().trim().max(100)).max(100).optional(),
         red_flags: z.array(z.string().trim().max(100)).max(100).optional(),
@@ -326,7 +393,12 @@ export const propertiesRouter = router({
       Object.entries(input).forEach(([key, value]) => {
         if (key !== 'id' && value !== undefined) {
           updates.push(`${key} = $${paramCount}`);
-          values.push(value);
+          // JSONB fields need to be stringified
+          if (key === 'documents') {
+            values.push(JSON.stringify(value));
+          } else {
+            values.push(value);
+          }
           paramCount++;
         }
       });
@@ -341,6 +413,11 @@ export const propertiesRouter = router({
         `UPDATE properties SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING *`,
         values
       );
+
+      // Invalidate feed caches when status changes
+      if (input.status !== undefined) {
+        await invalidateFeedCaches();
+      }
 
       return property;
     }),
@@ -402,6 +479,9 @@ export const propertiesRouter = router({
 
       await query('DELETE FROM properties WHERE id = $1', [input.id]);
 
+      // Invalidate feed caches when property is deleted
+      await invalidateFeedCaches();
+
       return { success: true };
     }),
 
@@ -422,6 +502,9 @@ export const propertiesRouter = router({
         [input.id]
       );
 
+      // Invalidate feed caches when property is activated
+      await invalidateFeedCaches();
+
       return property;
     }),
 
@@ -441,6 +524,9 @@ export const propertiesRouter = router({
         `UPDATE properties SET status = 'archived' WHERE id = $1 RETURNING *`,
         [input.id]
       );
+
+      // Invalidate feed caches when property is deactivated
+      await invalidateFeedCaches();
 
       return property;
     }),
@@ -1037,5 +1123,122 @@ export const propertiesRouter = router({
         const evaluation = await evaluatePropertyInvestment(input.propertyId);
         return evaluation;
       }
+    }),
+
+  // Generate full access share token (owner only)
+  generateFullAccessToken: protectedProcedure
+    .input(z.object({
+      propertyId: z.string().uuid(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      // Check ownership
+      const property = await queryOne(
+        'SELECT user_id, full_access_token FROM properties WHERE id = $1',
+        [input.propertyId]
+      );
+
+      if (!property) {
+        throw new Error('Immobilie nicht gefunden');
+      }
+
+      if (property.user_id !== ctx.user.id) {
+        throw new Error('Keine Berechtigung');
+      }
+
+      // If token already exists, return it
+      if (property.full_access_token) {
+        return {
+          token: property.full_access_token,
+          isNew: false,
+        };
+      }
+
+      // Generate new token (21 chars, URL-safe)
+      const { randomBytes } = await import('crypto');
+      const token = randomBytes(16).toString('base64url').slice(0, 21);
+
+      // Save token to database
+      await query(
+        'UPDATE properties SET full_access_token = $1, updated_at = NOW() WHERE id = $2',
+        [token, input.propertyId]
+      );
+
+      return {
+        token,
+        isNew: true,
+      };
+    }),
+
+  // Get property by full access token (public - for share page)
+  getByFullAccessToken: publicProcedure
+    .input(z.object({
+      token: z.string().min(10).max(32),
+    }))
+    .query(async ({ input }) => {
+      const property = await queryOne(
+        `SELECT
+          p.*,
+          NULLIF(CONCAT_WS(', ', p.street_address, CONCAT_WS(' ', p.postal_code, p.location)), '') as full_address,
+          EXTRACT(DAY FROM (CURRENT_TIMESTAMP - p.created_at))::integer as days_online,
+          COALESCE(ps.total_views, 0) as total_views,
+          COALESCE(ps.favorites_count, 0) as favorites_count,
+          COALESCE(ps.rating_count, 0) as rating_count,
+          ps.avg_rating,
+          ps.avg_suggested_price,
+          json_build_object(
+            'id', up.id,
+            'user_id', up.user_id,
+            'first_name', up.first_name,
+            'last_name', up.last_name,
+            'phone', up.phone,
+            'company', up.company,
+            'avatar_url', up.avatar_url,
+            'bio', up.bio
+          ) as owner
+        FROM properties p
+        LEFT JOIN user_profiles up ON p.user_id = up.user_id
+        LEFT JOIN property_statistics ps ON p.id = ps.property_id
+        WHERE p.full_access_token = $1`,
+        [input.token]
+      );
+
+      if (!property) {
+        throw new Error('Link ungültig oder abgelaufen');
+      }
+
+      // Return property with full access (address + documents visible)
+      return {
+        ...property,
+        hasFullAccess: true,
+      };
+    }),
+
+  // Revoke full access token (owner only)
+  revokeFullAccessToken: protectedProcedure
+    .input(z.object({
+      propertyId: z.string().uuid(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      // Check ownership
+      const property = await queryOne(
+        'SELECT user_id FROM properties WHERE id = $1',
+        [input.propertyId]
+      );
+
+      if (!property) {
+        throw new Error('Immobilie nicht gefunden');
+      }
+
+      if (property.user_id !== ctx.user.id) {
+        throw new Error('Keine Berechtigung');
+      }
+
+      // Remove token
+      await query(
+        'UPDATE properties SET full_access_token = NULL, updated_at = NOW() WHERE id = $1',
+        [input.propertyId]
+      );
+
+      return { success: true };
     }),
 });

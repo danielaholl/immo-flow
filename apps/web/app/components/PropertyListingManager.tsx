@@ -16,7 +16,11 @@ import { MessageSquare, Eye, Images, Loader2, Sparkles } from 'lucide-react';
 import { useConversationalAI } from '../create-listing/hooks/useConversationalAI';
 import { useImageUpload } from '../create-listing/hooks/useImageUpload';
 import { useVideoUpload } from '../create-listing/hooks/useVideoUpload';
-import type { ListingData } from '../create-listing/types';
+import { useDocumentUpload } from '../create-listing/hooks/useDocumentUpload';
+import type { ListingData, PropertyDocument } from '../create-listing/types';
+import { DOCUMENT_CATEGORIES } from '../create-listing/types';
+import { detectDocumentCategory, truncateFilename } from '../create-listing/utils/documentUtils';
+import { DocumentViewer } from './DocumentViewer';
 import { UniversalChat } from './UniversalChat';
 import type { ChatMessage } from './UniversalChat/types';
 
@@ -54,6 +58,9 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
 
   // Image upload dialog state
   const [showImageDialog, setShowImageDialog] = useState(false);
+
+  // Document viewer state
+  const [selectedDocument, setSelectedDocument] = useState<PropertyDocument | null>(null);
 
   // Custom hooks
   const {
@@ -96,6 +103,18 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
     setVideoUrl,
   } = useVideoUpload();
 
+  const {
+    documents,
+    isUploadingDocument,
+    uploadProgress: documentUploadProgress,
+    uploadDocument,
+    removeDocument,
+    updateDocumentCategory,
+    setDocuments,
+  } = useDocumentUpload((doc) => {
+    addBotMessage(`Dokument "${doc.filename}" wurde erfolgreich hochgeladen (${doc.category}).`);
+  });
+
   // Sync uploaded images with listing data
   useEffect(() => {
     if (uploadedImages.length > 0) {
@@ -105,6 +124,14 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
       }));
     }
   }, [uploadedImages]);
+
+  // Sync documents with listing data
+  useEffect(() => {
+    setListingData((prev) => ({
+      ...prev,
+      documents,
+    }));
+  }, [documents]);
 
   // Sync video URL with listing data (bidirectional)
   useEffect(() => {
@@ -208,8 +235,13 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
       setVideoUrl((propertyToEdit as any).video_url);
     }
 
+    // Load documents
+    if ((propertyToEdit as any).documents && Array.isArray((propertyToEdit as any).documents)) {
+      setDocuments((propertyToEdit as any).documents);
+    }
+
     setIsLoadingProperty(false);
-  }, [isEditMode, propertyToEdit, setUploadedImages, setVideoUrl]);
+  }, [isEditMode, propertyToEdit, setUploadedImages, setVideoUrl, setDocuments]);
 
   // Track if welcome message was shown
   const welcomeShownRef = useRef(false);
@@ -582,7 +614,10 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
         addBotMessage('Dein Inserat wurde erfolgreich aktualisiert! Ich leite dich zur Übersicht weiter...');
       } else if (isImportMode) {
         // Import mode: Create property and add to favorites
-        const createdProperty = await createPropertyMutation.mutateAsync(cleanData);
+        const createdProperty = await createPropertyMutation.mutateAsync({
+          ...cleanData,
+          is_external: true,
+        });
 
         // Add to favorites
         if (createdProperty?.id) {
@@ -592,11 +627,11 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
         // Success
         addBotMessage('Die Immobilie wurde erfolgreich in deine Favoriten übernommen! Ich leite dich zu deinen Favoriten weiter...');
       } else {
-        // Create new property
+        // Create new property as draft (default status is 'pending')
         await createPropertyMutation.mutateAsync(cleanData);
 
         // Success
-        addBotMessage('Dein Inserat wurde erfolgreich erstellt! Ich leite dich zur Übersicht weiter...');
+        addBotMessage('Dein Inserat wurde als Entwurf gespeichert! Du kannst es jetzt in "Meine Inserate" veröffentlichen.');
       }
 
       setTimeout(() => {
@@ -605,6 +640,50 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
     } catch (error) {
       console.error('Error saving property:', error);
       alert(`Fehler beim ${isImportMode ? 'Importieren' : isEditMode ? 'Aktualisieren' : 'Erstellen'} des Inserats. Bitte versuche es erneut.`);
+      setIsSubmitting(false);
+    }
+  };
+
+  // Submit and publish property directly (status: 'active')
+  const handleSubmitAndPublish = async (skipImageCheck = false) => {
+    if (!isComplete && !isEditMode && !isImportMode) {
+      alert('Bitte fülle alle erforderlichen Felder aus.');
+      return;
+    }
+
+    // Check if media is uploaded (only for create mode)
+    if (!skipImageCheck && !isEditMode && !isImportMode && uploadedImages.length === 0 && !videoUrl) {
+      setShowImageDialog(true);
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const propertyData = convertToEnglishEnums({
+        ...listingData,
+        user_id: user?.id,
+        images: uploadedImages.length > 0 ? uploadedImages : [],
+        video_url: videoUrl || undefined,
+        status: 'active', // Override default 'pending' to publish immediately
+      });
+
+      const cleanData = Object.fromEntries(
+        Object.entries(propertyData).filter(([_, value]) => value !== null)
+      );
+
+      // Create and publish
+      await createPropertyMutation.mutateAsync(cleanData);
+
+      // Success
+      addBotMessage('Dein Inserat ist jetzt online! Ich leite dich zur Übersicht weiter...');
+
+      setTimeout(() => {
+        router.push('/my-properties');
+      }, 2000);
+    } catch (error) {
+      console.error('Error publishing property:', error);
+      alert('Fehler beim Veröffentlichen des Inserats. Bitte versuche es erneut.');
       setIsSubmitting(false);
     }
   };
@@ -891,13 +970,51 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
     const imageFiles = fileArray.filter(isImage);
     const videoFiles = fileArray.filter(isVideo);
 
-    // Handle PDFs
-    if (pdfFiles.length > 0) {
+    // Helper: Check if PDF is an expose (for data extraction) based on filename
+    const isExposeForExtraction = (file: File) => {
+      const name = file.name.toLowerCase();
+      return name.includes('expose') || name.includes('exposé');
+    };
+
+    // Separate PDFs: exposes for data extraction vs object documents
+    const exposePdfs = pdfFiles.filter(isExposeForExtraction);
+    const objectDocuments = pdfFiles.filter(f => !isExposeForExtraction(f));
+
+    // Handle object documents (Grundriss, Energieausweis, etc.) - upload without analysis
+    if (objectDocuments.length > 0) {
+      const uploadedDocs: PropertyDocument[] = [];
+
+      for (const file of objectDocuments) {
+        const category = detectDocumentCategory(file.name);
+
+        try {
+          const doc = await uploadDocument(file, category);
+          if (doc) {
+            uploadedDocs.push(doc);
+          }
+        } catch (error) {
+          console.error('[Upload] Error uploading document:', file.name, error);
+        }
+      }
+
+      if (uploadedDocs.length > 0) {
+        const docList = uploadedDocs.map(doc => {
+          const shortName = truncateFilename(doc.filename, 10);
+          const categoryLabel = DOCUMENT_CATEGORIES.find(c => c.value === doc.category)?.label || 'Sonstiges';
+          return `• ${shortName} (${categoryLabel})`;
+        }).join('\n');
+
+        addBotMessage(`Objektunterlage${uploadedDocs.length > 1 ? 'n' : ''} hochgeladen:\n${docList}`);
+      }
+    }
+
+    // Handle PDFs for data extraction (only exposes)
+    if (exposePdfs.length > 0) {
       setIsAnalyzingPdf(true);
-      addBotMessage(`Ich habe ${pdfFiles.length} PDF${pdfFiles.length > 1 ? 's' : ''} erhalten. Lass mich ${pdfFiles.length > 1 ? 'diese' : 'das'} analysieren...`);
+      const pdfFile = exposePdfs[0];
+      addBotMessage(`Ich habe dein PDF-Exposé "${pdfFile.name}" erhalten. Ich analysiere es jetzt...`);
 
       try {
-        const pdfFile = pdfFiles[0];
         const reader = new FileReader();
         const base64Promise = new Promise<string>((resolve, reject) => {
           reader.onload = () => {
@@ -937,6 +1054,16 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
         } else {
           addBotMessage(`${extractedMessage}\n\nAlle wichtigen Daten sind vorhanden! Schau dir die Vorschau an.`);
           setIsComplete(true);
+        }
+
+        // Also save the expose as a document (Objektunterlage)
+        try {
+          const exposeDoc = await uploadDocument(pdfFile, 'expose');
+          if (exposeDoc) {
+            addBotMessage(`Das Exposé wurde auch als Objektunterlage gespeichert.`);
+          }
+        } catch (docError) {
+          console.error('[Upload] Error saving expose as document:', docError);
         }
 
         // Reset slideshow to show video from beginning
@@ -1059,9 +1186,49 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
 
     console.log('[Upload] PDFs:', pdfFiles.length, 'Images:', imageFiles.length, 'Videos:', videoFiles.length);
 
-    // Handle PDFs (in import mode, automatically analyze)
-    if (pdfFiles.length > 0) {
-      const pdfFile = pdfFiles[0]; // Use first PDF
+    // Helper: Check if file is an expose (for data extraction) based on filename
+    const isExposeForExtraction = (file: File) => {
+      const name = file.name.toLowerCase();
+      // Only PDFs with "expose" in the name are used for data extraction
+      return name.includes('expose') || name.includes('exposé');
+    };
+
+    // Separate PDFs: exposes for data extraction vs object documents (Grundriss, Energieausweis, etc.)
+    const exposePdfs = pdfFiles.filter(isExposeForExtraction);
+    const objectDocuments = pdfFiles.filter(f => !isExposeForExtraction(f));
+
+    // Handle object documents (Grundriss, Energieausweis, etc.)
+    if (objectDocuments.length > 0) {
+      const uploadedDocs: PropertyDocument[] = [];
+
+      for (const file of objectDocuments) {
+        const category = detectDocumentCategory(file.name);
+        const categoryLabel = DOCUMENT_CATEGORIES.find(c => c.value === category)?.label || 'Sonstiges';
+
+        try {
+          const doc = await uploadDocument(file, category);
+          if (doc) {
+            uploadedDocs.push(doc);
+          }
+        } catch (error) {
+          console.error('[Upload] Error uploading document:', file.name, error);
+        }
+      }
+
+      if (uploadedDocs.length > 0) {
+        const docList = uploadedDocs.map(doc => {
+          const shortName = truncateFilename(doc.filename, 10);
+          const categoryLabel = DOCUMENT_CATEGORIES.find(c => c.value === doc.category)?.label || 'Sonstiges';
+          return `• ${shortName} (${categoryLabel})`;
+        }).join('\n');
+
+        addBotMessage(`Objektunterlage${uploadedDocs.length > 1 ? 'n' : ''} hochgeladen:\n${docList}`);
+      }
+    }
+
+    // Handle PDFs for data extraction (exposes)
+    if (exposePdfs.length > 0) {
+      const pdfFile = exposePdfs[0]; // Use first PDF
       console.log('[Upload] Processing PDF:', pdfFile.name);
 
       addBotMessage(`Ich habe dein PDF-Exposé "${pdfFile.name}" erhalten. Ich analysiere es jetzt...`);
@@ -1118,6 +1285,16 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
         } else {
           addBotMessage(`${extractedMessage}\n\nAlle wichtigen Daten sind vorhanden! Schau dir die Vorschau an.`);
           setIsComplete(true);
+        }
+
+        // Also save the expose as a document (Objektunterlage)
+        try {
+          const exposeDoc = await uploadDocument(pdfFile, 'expose');
+          if (exposeDoc) {
+            addBotMessage(`Das Exposé wurde auch als Objektunterlage gespeichert.`);
+          }
+        } catch (docError) {
+          console.error('[Upload] Error saving expose as document:', docError);
         }
 
         // Reset slideshow to show video from beginning
@@ -1315,6 +1492,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
     condition: listingData.condition || 'maintained',
     images: uploadedImages.length > 0 ? uploadedImages : ['https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800'],
     video_url: videoUrl,
+    documents: documents,
     description: listingData.description || '',
     features: listingData.features || [],
     important_notes: listingData.important_notes || undefined,
@@ -1349,7 +1527,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
       phone: profile?.phone || null,
     } : undefined,
     // Note: Seller evaluation is shown separately via SellerAnalysis component
-  }), [listingData, uploadedImages, videoUrl, user, profile, isComplete]);
+  }), [listingData, uploadedImages, videoUrl, documents, user, profile, isComplete]);
 
   // Convert messages from Message format to ChatMessage format for UniversalChat
   const convertedMessages: ChatMessage[] = useMemo(() => {
@@ -1442,7 +1620,8 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
               onInputChange={setTextInput}
               onSendMessage={() => handleSendMessage()}
               isTyping={extractDataMutation.isLoading || isAnalyzingPdf || classifyAndAnalyzeImagesMutation.isPending}
-              isUploading={isUploadingImages}
+              isUploading={isUploadingImages || isUploadingDocument}
+              uploadProgress={documentUploadProgress}
               fileInputRef={fileInputRef}
               onFileInputChange={handleFileUploadWithExtraction}
               messagesEndRef={messagesEndRef}
@@ -1459,37 +1638,73 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
               <div className="bg-white h-full max-h-full overflow-hidden relative flex flex-col">
                 {(listingData.location || listingData.price || listingData.property_type) ? (
                   <>
-                    <div className="flex-1 min-h-0 overflow-y-auto p-4 lg:p-8">
+                    <div className="flex-1 min-h-0 overflow-y-auto p-4 lg:p-8 space-y-6">
                       <PropertyPreview
                         data={previewData}
                         showConsentSection={false}
-                        hideProviderInfo={isImportMode}
+                        hideProviderInfo={true}
                         evaluationViewType="seller"
                         propertyId={listingData.id}
                         onTriggerEvaluation={handleTriggerKIEvaluation}
                         isGeneratingEvaluation={createPropertyMutation.isPending || generateKIEvaluationMutation.isPending}
+                        onDocumentSelect={setSelectedDocument}
+                        onDocumentsChange={(updatedDocs) => setDocuments(updatedDocs)}
+                        onDocumentRemove={removeDocument}
                       />
                     </div>
 
-                    {/* Fixed Submit Button */}
+                    {/* Fixed Submit Button(s) */}
                     {(isComplete || isEditMode || isImportMode) && (
                       <div className="flex-shrink-0 bg-white border-t border-gray-200 p-4 lg:p-6">
-                        <button
-                          onClick={() => handleSubmit()}
-                          disabled={isSubmitting}
-                          className="w-full bg-green-600 hover:bg-green-700 text-white py-3 lg:py-4 rounded-xl text-base lg:text-lg font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg"
-                        >
-                          {isSubmitting ? (
-                            <>
-                              <Loader2 size={20} className="lg:w-6 lg:h-6 animate-spin" />
-                              <span>{isImportMode ? 'Wird gespeichert...' : isEditMode ? 'Wird aktualisiert...' : 'Wird erstellt...'}</span>
-                            </>
-                          ) : (
-                            <>
-                              <span>{isImportMode ? 'In den Favoriten übernehmen' : isEditMode ? 'Änderungen speichern' : 'Inserat erstellen'}</span>
-                            </>
-                          )}
-                        </button>
+                        {/* For Edit and Import mode: Single button */}
+                        {(isEditMode || isImportMode) ? (
+                          <button
+                            onClick={() => handleSubmit()}
+                            disabled={isSubmitting}
+                            className="w-full bg-green-600 hover:bg-green-700 text-white py-3 lg:py-4 rounded-xl text-base lg:text-lg font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg"
+                          >
+                            {isSubmitting ? (
+                              <>
+                                <Loader2 size={20} className="lg:w-6 lg:h-6 animate-spin" />
+                                <span>{isImportMode ? 'Wird gespeichert...' : 'Wird aktualisiert...'}</span>
+                              </>
+                            ) : (
+                              <span>{isImportMode ? 'In den Favoriten übernehmen' : 'Änderungen speichern'}</span>
+                            )}
+                          </button>
+                        ) : (
+                          /* For Create mode: Two buttons */
+                          <div className="flex flex-col gap-3">
+                            <button
+                              onClick={() => handleSubmitAndPublish()}
+                              disabled={isSubmitting}
+                              className="w-full bg-green-600 hover:bg-green-700 text-white py-3 lg:py-4 rounded-xl text-base lg:text-lg font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg"
+                            >
+                              {isSubmitting ? (
+                                <>
+                                  <Loader2 size={20} className="lg:w-6 lg:h-6 animate-spin" />
+                                  <span>Wird veröffentlicht...</span>
+                                </>
+                              ) : (
+                                <span>Speichern und Veröffentlichen</span>
+                              )}
+                            </button>
+                            <button
+                              onClick={() => handleSubmit()}
+                              disabled={isSubmitting}
+                              className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 lg:py-4 rounded-xl text-base lg:text-lg font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                              {isSubmitting ? (
+                                <>
+                                  <Loader2 size={20} className="lg:w-6 lg:h-6 animate-spin" />
+                                  <span>Wird gespeichert...</span>
+                                </>
+                              ) : (
+                                <span>Als Entwurf speichern</span>
+                              )}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </>
@@ -1525,8 +1740,13 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
             <div className={`w-full lg:w-1/2 h-[60vh] lg:h-full min-h-0 overflow-hidden p-4 lg:p-6 ${mobileView === 'preview' ? 'hidden lg:block' : ''}`}>
               <div className="w-full h-full overflow-hidden flex flex-col rounded-2xl">
                 <div className="flex-1 min-h-0">
-                  {console.log('[RENDER] Slideshow condition:', { uploadedImagesLength: uploadedImages.length, videoUrl, showSlideshow: uploadedImages.length > 0 || !!videoUrl })}
-                  {uploadedImages.length > 0 || videoUrl ? (
+                  {/* Document Preview - replaces slideshow when a document is selected */}
+                  {selectedDocument ? (
+                    <DocumentViewer
+                      document={selectedDocument}
+                      onClose={() => setSelectedDocument(null)}
+                    />
+                  ) : uploadedImages.length > 0 || videoUrl ? (
                     <PropertyImageSlideshow
                       key={`slideshow-${slideshowResetKey}-${uploadedImages.length}-${videoUrl || 'no-video'}`}
                       images={uploadedImages}
@@ -1597,6 +1817,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
           </div>
         </div>
       )}
+
     </SlideshowManagerProvider>
   );
 }

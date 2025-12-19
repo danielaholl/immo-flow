@@ -40,6 +40,7 @@ export default function HomePage() {
   const [searchResults, setSearchResults] = useState<any[] | null>(null);
   const [searchCriteria, setSearchCriteria] = useState<any | null>(null);
   const [searchTotal, setSearchTotal] = useState<number>(0);
+  const [showShareToast, setShowShareToast] = useState(false);
 
   // Initialize auth guard for protected actions
   const {
@@ -228,6 +229,18 @@ export default function HomePage() {
       console.error('Error un-dismissing property:', error);
     }
   }, [user, undismissMutation]);
+
+  // Share handler - copies URL to clipboard
+  const handleShare = useCallback(async (propertyId: string) => {
+    const url = `${window.location.origin}/property/${propertyId}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setShowShareToast(true);
+      setTimeout(() => setShowShareToast(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy URL:', error);
+    }
+  }, []);
 
   // Handle slideshow completion - move to next card
   const handleSlideshowComplete = useCallback((cardIndex: number, totalProperties: number) => {
@@ -559,6 +572,11 @@ export default function HomePage() {
                     e?.stopPropagation?.();
                     handleDismiss(property.id);
                   } : undefined}
+                  onShare={(e: React.MouseEvent) => {
+                    e?.preventDefault?.();
+                    e?.stopPropagation?.();
+                    handleShare(property.id);
+                  }}
                   onPress={() => {
                     window.location.href = `/property/${property.id}`;
                   }}
@@ -719,6 +737,13 @@ export default function HomePage() {
         action={pendingActionDescription}
         returnUrl="/"
       />
+
+      {/* Share Toast */}
+      {showShareToast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg animate-fade-in">
+          Link kopiert!
+        </div>
+      )}
     </main>
   );
 }

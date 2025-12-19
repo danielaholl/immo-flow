@@ -96,6 +96,56 @@ export type Database = {
           },
         ]
       }
+      document_access_requests: {
+        Row: {
+          id: string
+          property_id: string
+          user_id: string
+          status: string
+          user_first_name: string | null
+          user_last_name: string | null
+          user_email: string
+          user_phone: string | null
+          requested_at: string | null
+          responded_at: string | null
+          broker_response_message: string | null
+        }
+        Insert: {
+          id?: string
+          property_id: string
+          user_id: string
+          status?: string
+          user_first_name?: string | null
+          user_last_name?: string | null
+          user_email: string
+          user_phone?: string | null
+          requested_at?: string | null
+          responded_at?: string | null
+          broker_response_message?: string | null
+        }
+        Update: {
+          id?: string
+          property_id?: string
+          user_id?: string
+          status?: string
+          user_first_name?: string | null
+          user_last_name?: string | null
+          user_email?: string
+          user_phone?: string | null
+          requested_at?: string | null
+          responded_at?: string | null
+          broker_response_message?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_access_requests_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       favorites: {
         Row: {
           created_at: string | null
@@ -139,6 +189,8 @@ export type Database = {
           condition: string | null
           created_at: string | null
           description: string | null
+          document_release_mode: string | null
+          documents: Json | null
           energy_certificate: string | null
           energy_efficiency_class: string | null
           energy_source: string | null
@@ -147,6 +199,7 @@ export type Database = {
           external_url: string | null
           features: string[] | null
           floor_level: string | null
+          full_access_token: string | null
           heating_type: string | null
           highlights: string[] | null
           id: string
@@ -189,6 +242,8 @@ export type Database = {
           condition?: string | null
           created_at?: string | null
           description?: string | null
+          document_release_mode?: string | null
+          documents?: Json | null
           energy_certificate?: string | null
           energy_efficiency_class?: string | null
           energy_source?: string | null
@@ -197,6 +252,7 @@ export type Database = {
           external_url?: string | null
           features?: string[] | null
           floor_level?: string | null
+          full_access_token?: string | null
           heating_type?: string | null
           highlights?: string[] | null
           id?: string
@@ -239,6 +295,8 @@ export type Database = {
           condition?: string | null
           created_at?: string | null
           description?: string | null
+          document_release_mode?: string | null
+          documents?: Json | null
           energy_certificate?: string | null
           energy_efficiency_class?: string | null
           energy_source?: string | null
@@ -247,6 +305,7 @@ export type Database = {
           external_url?: string | null
           features?: string[] | null
           floor_level?: string | null
+          full_access_token?: string | null
           heating_type?: string | null
           highlights?: string[] | null
           id?: string

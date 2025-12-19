@@ -38,6 +38,7 @@ export interface PropertyCardProps {
   onPress?: () => void;
   onFavorite?: (e?: any) => void;
   onDismiss?: (e?: any) => void;
+  onShare?: (e?: any) => void;
   isFavorite?: boolean;
   variant?: 'default' | 'compact' | 'story';
   isActive?: boolean;

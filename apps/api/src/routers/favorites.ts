@@ -52,14 +52,20 @@ export const favoritesRouter = router({
           'actual_monthly_rent', p.actual_monthly_rent,
           'is_external', p.is_external,
           'user_id', p.user_id,
+          'days_online', EXTRACT(DAY FROM (CURRENT_TIMESTAMP - p.created_at))::integer,
+          'documents_count', COALESCE(jsonb_array_length(p.documents), 0),
           'owner', (
             SELECT json_build_object(
               'first_name', up.first_name,
               'last_name', up.last_name,
               'company', up.company,
-              'avatar_url', up.avatar_url
+              'avatar_url', up.avatar_url,
+              'phone', up.phone,
+              'bio', up.bio,
+              'email', u.email
             )
             FROM user_profiles up
+            LEFT JOIN users u ON up.user_id = u.id
             WHERE up.user_id = p.user_id
           )
         ) as property

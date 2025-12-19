@@ -1,16 +1,22 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Bath, Sparkles, DoorClosed, Square, Layers, Euro, Building2, Clock, Flame, Zap, ChevronDown, MessageCircle, Star, Eye, Heart, Phone, Mail, Hourglass } from 'lucide-react';
+import { Bath, Sparkles, DoorClosed, Square, Layers, Euro, Building2, Clock, Flame, Zap, ChevronDown, Star, Eye, Heart, Mail, FileText } from 'lucide-react';
 import { AIEvaluationPanel } from './AIEvaluationPanel';
 import { LocationDisplay } from './LocationDisplay';
 // AIInvestmentEvaluation und InvestmentScoreBadge auskommentiert - nur stichpunktartige Bewertung
 // import { AIInvestmentEvaluation, InvestmentScoreBadge } from '@immoflow/ui';
 
+import type { PropertyDocument } from '../create-listing/types';
+import { PropertyDocumentsList } from './PropertyDocumentsList';
+import { DocumentVisibilityManager } from './DocumentVisibilityManager';
+
 export interface PropertyPreviewData {
   id?: string;
   images: string[];
   video_url?: string | null;
+  documents?: PropertyDocument[];
+  documents_count?: number;
   price: number;
   commission_rate?: number;
   location: string;
@@ -212,6 +218,18 @@ export interface PropertyPreviewProps {
   hideProviderInfo?: boolean;
   // Seller analysis market average (for my-properties)
   sellerAnalysisMarketAverage?: number;
+  // Document selection callback
+  onDocumentSelect?: (document: PropertyDocument | null) => void;
+  // Document access control
+  hasDocumentAccess?: boolean;
+  hasManualApproval?: boolean;
+  onDocumentAccessGranted?: () => void;
+  // Manual document approval (for owner)
+  pendingManualApprovalCount?: number;
+  onApproveManualDocs?: () => void;
+  // Document management (for create-listing)
+  onDocumentsChange?: (documents: PropertyDocument[]) => void;
+  onDocumentRemove?: (id: string) => void;
 }
 
 /**
@@ -306,7 +324,24 @@ export function PropertyPreview({
   statusBadge,
   hideProviderInfo = false,
   sellerAnalysisMarketAverage,
+  onDocumentSelect,
+  hasDocumentAccess = false,
+  hasManualApproval = false,
+  onDocumentAccessGranted,
+  pendingManualApprovalCount = 0,
+  onApproveManualDocs,
+  onDocumentsChange,
+  onDocumentRemove,
 }: PropertyPreviewProps) {
+  // State for selected document
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string | undefined>();
+
+  // Handle document click
+  const handleDocumentClick = (document: PropertyDocument) => {
+    setSelectedDocumentId(document.id);
+    onDocumentSelect?.(document);
+  };
+
   // State for rental income accordion
   const [isRentalIncomeExpanded, setIsRentalIncomeExpanded] = useState(false);
   // State for cashflow accordion
@@ -493,6 +528,7 @@ export function PropertyPreview({
             showAddress={shouldShowAddress}
             onRequestAddress={onRequestAddress}
             linkToMaps={true}
+            isOwner={isOwner}
           />
         </div>
 
@@ -907,22 +943,21 @@ export function PropertyPreview({
 
           return (
             <div className="mb-6 bg-white rounded-2xl border border-gray-200 overflow-hidden">
-              <div className="p-6">
-                <div className="flex items-start justify-between gap-4 mb-3">
-                  <h3 className="text-lg font-semibold text-gray-900">Beschreibung</h3>
-                  {isLongDescription && (
-                    <button
-                      onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
-                      className="flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors flex-shrink-0"
-                    >
-                      {isDescriptionExpanded ? 'Weniger' : 'Mehr'} anzeigen
-                      <ChevronDown
-                        className={`w-4 h-4 transition-transform duration-200 ${isDescriptionExpanded ? 'rotate-180' : ''}`}
-                      />
-                    </button>
-                  )}
-                </div>
+              {/* Header - Clickable */}
+              <div
+                className={`p-6 flex items-center justify-between gap-4 ${isLongDescription ? 'cursor-pointer' : ''}`}
+                onClick={() => isLongDescription && setIsDescriptionExpanded(!isDescriptionExpanded)}
+              >
+                <h3 className="text-lg font-semibold text-gray-900">Beschreibung</h3>
+                {isLongDescription && (
+                  <ChevronDown
+                    className={`w-5 h-5 text-gray-400 transition-transform duration-200 flex-shrink-0 ${isDescriptionExpanded ? 'rotate-180' : ''}`}
+                  />
+                )}
+              </div>
 
+              {/* Content */}
+              <div className={`px-6 pb-6 ${isLongDescription ? '-mt-2' : '-mt-4'}`}>
                 {/* Important Notes as Header - Show if exists */}
                 {data.important_notes && (
                   <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl mb-4">
@@ -979,84 +1014,109 @@ export function PropertyPreview({
           </div>
         )}
 
+        {/* Objektunterlagen - Documents Management */}
+        {(() => {
+          const hasDocuments = data.documents && data.documents.length > 0;
+          const showVisibilityManager = onDocumentsChange && hasDocuments;
+          const showEmptyState = onDocumentsChange && !hasDocuments;
+
+          return (
+            <>
+              {/* Document Visibility Manager - Show in create-listing for owner to manage visibility */}
+              {showVisibilityManager && (
+                <DocumentVisibilityManager
+                  documents={data.documents || []}
+                  onDocumentsChange={onDocumentsChange}
+                  onDocumentRemove={onDocumentRemove}
+                  onDocumentClick={handleDocumentClick}
+                />
+              )}
+
+              {/* Empty State - Show in edit mode when no documents */}
+              {showEmptyState && (
+                <div className="mb-6 bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                  <div className="p-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <FileText size={20} className="text-gray-700" />
+                      <h3 className="text-lg font-semibold text-gray-900">Objektunterlagen</h3>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-6 text-center">
+                      <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
+                        <FileText size={24} className="text-gray-400" />
+                      </div>
+                      <p className="text-gray-600 mb-2">Noch keine Unterlagen hochgeladen</p>
+                      <p className="text-sm text-gray-500">
+                        Lade PDFs, Grundrisse oder Energieausweise über das Chat-Feld hoch.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Document List - Show for viewers (non-owners) or when no visibility manager */}
+              {/* Access request form is now integrated inside PropertyDocumentsList */}
+              {!showVisibilityManager && !showEmptyState && (
+                <PropertyDocumentsList
+                  key={propertyId}
+                  documents={data.documents}
+                  propertyId={propertyId}
+                  documentsCount={data.documents_count ?? data.documents?.length}
+                  onDocumentClick={handleDocumentClick}
+                  selectedDocumentId={selectedDocumentId}
+                  hasDocumentAccess={hasDocumentAccess}
+                  hasManualApproval={hasManualApproval}
+                  isOwner={isOwner}
+                  onAccessGranted={onDocumentAccessGranted}
+                  pendingManualApprovalCount={pendingManualApprovalCount}
+                  onApproveManualDocs={onApproveManualDocs}
+                />
+              )}
+            </>
+          );
+        })()}
+
         {/* Anbieter Info - Only show when owner data exists */}
         {!hideProviderInfo && data.owner && (
           <div className="mb-6 bg-white rounded-2xl border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Anbieter</h3>
-
-            {/* Main Content - Responsive Layout */}
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-              {/* Left: Avatar + Name + Company */}
-              <div className="flex items-center gap-4">
+            <div className="flex items-start gap-4">
+              {/* Avatar */}
+              <div className="w-14 h-14 rounded-full overflow-hidden flex-shrink-0 bg-gray-100">
                 {data.owner?.avatar_url ? (
                   <img
                     src={data.owner.avatar_url}
-                    alt={`${data.owner.first_name || ''} ${data.owner.last_name || ''}`}
-                    className="w-16 h-16 rounded-full object-cover flex-shrink-0"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                    }}
+                    alt={`${data.owner.first_name || ''} ${data.owner.last_name || ''}`.trim() || 'Anbieter'}
+                    className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center flex-shrink-0">
-                    <span className="text-2xl font-bold text-gray-400">
-                      {data.owner?.first_name?.charAt(0)?.toUpperCase() || 'P'}
-                    </span>
+                  <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-500 text-lg font-semibold">
+                    {(data.owner?.first_name?.[0] || data.owner?.last_name?.[0] || 'A').toUpperCase()}
                   </div>
                 )}
-                <div>
-                  <h4 className="text-xl font-bold text-gray-900">
-                    {data.owner?.first_name || data.owner?.last_name
-                      ? `${data.owner.first_name || ''} ${data.owner.last_name || ''}`.trim()
-                      : 'Privater Anbieter'}
-                  </h4>
-                  {data.owner?.company && (
-                    <p className="text-sm text-gray-600">{data.owner.company}</p>
-                  )}
-                </div>
               </div>
 
-              {/* Right: Phone + Email */}
-              {(data.owner?.phone || data.owner_profile?.phone || data.owner?.email || data.owner_profile?.email) && (
-                <div className="flex flex-col gap-2 md:items-end">
-                  {(data.owner?.phone || data.owner_profile?.phone) && (
-                    <a
-                      href={`tel:${data.owner?.phone || data.owner_profile?.phone}`}
-                      className="inline-flex items-center gap-2 text-sm text-gray-700 hover:text-primary transition-colors"
-                    >
-                      <Phone size={16} />
-                      <span>{data.owner?.phone || data.owner_profile?.phone}</span>
-                    </a>
-                  )}
-                  {(data.owner?.email || data.owner_profile?.email) && (
-                    <a
-                      href={`mailto:${data.owner?.email || data.owner_profile?.email}`}
-                      className="inline-flex items-center gap-2 text-sm text-gray-700 hover:text-primary transition-colors"
-                    >
-                      <Mail size={16} />
-                      <span>{data.owner?.email || data.owner_profile?.email}</span>
-                    </a>
-                  )}
-                </div>
-              )}
+              {/* Name, Bio und E-Mail */}
+              <div className="flex flex-col gap-1 min-w-0 flex-1">
+                <p className="text-base font-semibold text-gray-900">
+                  {data.owner?.first_name || data.owner?.last_name
+                    ? `${data.owner.first_name || ''} ${data.owner.last_name || ''}`.trim()
+                    : 'Privater Anbieter'}
+                </p>
+                {data.owner?.bio && (
+                  <p className="text-sm text-gray-600 line-clamp-2">
+                    {data.owner.bio}
+                  </p>
+                )}
+                {(data.owner?.email || data.owner_profile?.email) && (
+                  <a
+                    href={`mailto:${data.owner?.email || data.owner_profile?.email}`}
+                    className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-primary transition-colors mt-1"
+                  >
+                    <Mail size={14} />
+                    <span>{data.owner?.email || data.owner_profile?.email}</span>
+                  </a>
+                )}
+              </div>
             </div>
-
-            {/* Bio */}
-            {data.owner?.bio && (
-              <p className="text-sm text-gray-600 mb-4">{data.owner.bio}</p>
-            )}
-
-            {/* Chat Button - Full Width */}
-            {onContactAgent && (
-              <button
-                onClick={onContactAgent}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-white rounded-xl hover:opacity-90 transition-colors font-medium"
-              >
-                <MessageCircle size={20} />
-                <span>Anbieter kontaktieren</span>
-              </button>
-            )}
           </div>
         )}
 
