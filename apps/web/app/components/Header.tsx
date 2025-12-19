@@ -198,51 +198,51 @@ export function Header() {
       {/* Bottom Navigation Bar - Only for logged-in mobile users */}
       {user && (
         <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-[100] bg-white border-t border-gray-200 shadow-lg safe-area-inset-bottom">
-          <div className="grid grid-cols-5 h-16">
+          <div className="grid grid-cols-5 h-14">
             {/* Entdecken */}
             <Link
               href="/"
-              className={`flex flex-col items-center justify-center gap-1 transition-colors ${
+              className={`flex flex-col items-center justify-center gap-0.5 transition-colors ${
                 pathname === '/' ? 'text-primary' : 'text-gray-600'
               }`}
             >
-              <Compass size={24} strokeWidth={pathname === '/' ? 2.5 : 2} />
-              <span className="text-xs font-medium">Entdecken</span>
+              <Compass size={20} strokeWidth={pathname === '/' ? 2.5 : 2} />
+              <span className="font-medium" style={{ fontSize: '10px' }}>Entdecken</span>
             </Link>
 
             {/* Favoriten */}
             <Link
               href="/favorites"
-              className={`flex flex-col items-center justify-center gap-1 transition-colors ${
+              className={`flex flex-col items-center justify-center gap-0.5 transition-colors ${
                 pathname === '/favorites' ? 'text-primary' : 'text-gray-600'
               }`}
             >
-              <Heart size={24} strokeWidth={pathname === '/favorites' ? 2.5 : 2} />
-              <span className="text-xs font-medium">Favoriten</span>
+              <Heart size={20} strokeWidth={pathname === '/favorites' ? 2.5 : 2} />
+              <span className="font-medium" style={{ fontSize: '10px' }}>Favoriten</span>
             </Link>
 
             {/* Inserate */}
             <Link
               href="/my-properties"
-              className={`flex flex-col items-center justify-center gap-1 transition-colors ${
+              className={`flex flex-col items-center justify-center gap-0.5 transition-colors ${
                 pathname === '/my-properties' ? 'text-primary' : 'text-gray-600'
               }`}
             >
-              <Home size={24} strokeWidth={pathname === '/my-properties' ? 2.5 : 2} />
-              <span className="text-xs font-medium">Inserate</span>
+              <Home size={20} strokeWidth={pathname === '/my-properties' ? 2.5 : 2} />
+              <span className="font-medium" style={{ fontSize: '10px' }}>Inserate</span>
             </Link>
 
             {/* Nachrichten */}
             <Link
               href="/messages"
-              className={`flex flex-col items-center justify-center gap-1 transition-colors relative ${
+              className={`flex flex-col items-center justify-center gap-0.5 transition-colors relative ${
                 pathname?.startsWith('/messages') ? 'text-primary' : 'text-gray-600'
               }`}
             >
-              <MessageSquare size={24} strokeWidth={pathname?.startsWith('/messages') ? 2.5 : 2} />
-              <span className="text-xs font-medium">Nachrichten</span>
+              <MessageSquare size={20} strokeWidth={pathname?.startsWith('/messages') ? 2.5 : 2} />
+              <span className="font-medium" style={{ fontSize: '10px' }}>Nachrichten</span>
               {unreadCount > 0 && (
-                <span className="absolute top-1 right-1/4 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                <span className="absolute top-1 right-1/4 bg-red-500 text-white font-bold rounded-full w-4 h-4 flex items-center justify-center" style={{ fontSize: '9px' }}>
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
@@ -251,7 +251,7 @@ export function Header() {
             {/* Profil */}
             <Link
               href="/profile"
-              className={`flex flex-col items-center justify-center gap-1 transition-colors ${
+              className={`flex flex-col items-center justify-center gap-0.5 transition-colors ${
                 pathname === '/profile' ? 'text-primary' : 'text-gray-600'
               }`}
             >
@@ -259,14 +259,14 @@ export function Header() {
                 <img
                   src={profile.avatar_url}
                   alt="Profile"
-                  className={`w-6 h-6 rounded-full object-cover ${
+                  className={`w-5 h-5 rounded-full object-cover ${
                     pathname === '/profile' ? 'ring-2 ring-primary' : ''
                   }`}
                 />
               ) : (
-                <User size={24} strokeWidth={pathname === '/profile' ? 2.5 : 2} />
+                <User size={20} strokeWidth={pathname === '/profile' ? 2.5 : 2} />
               )}
-              <span className="text-xs font-medium">Profil</span>
+              <span className="font-medium" style={{ fontSize: '10px' }}>Profil</span>
             </Link>
           </div>
         </nav>
