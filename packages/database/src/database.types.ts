@@ -562,6 +562,63 @@ export type Database = {
         }
         Relationships: []
       }
+      user_property_parameters: {
+        Row: {
+          id: string
+          user_id: string
+          property_id: string
+          equity_percentage: number | null
+          interest_rate: number | null
+          amortization_rate: number | null
+          broker_commission: number | null
+          monthly_rent: number | null
+          monthly_fee: number | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          property_id: string
+          equity_percentage?: number | null
+          interest_rate?: number | null
+          amortization_rate?: number | null
+          broker_commission?: number | null
+          monthly_rent?: number | null
+          monthly_fee?: number | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          property_id?: string
+          equity_percentage?: number | null
+          interest_rate?: number | null
+          amortization_rate?: number | null
+          broker_commission?: number | null
+          monthly_rent?: number | null
+          monthly_fee?: number | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_property_parameters_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_property_parameters_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_profiles: {
         Row: {
           address: string | null

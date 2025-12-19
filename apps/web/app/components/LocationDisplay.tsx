@@ -18,6 +18,8 @@ interface LocationDisplayProps {
   linkToMaps?: boolean;
   /** Ob der aktuelle User der Owner ist (Schloss wird nicht angezeigt) */
   isOwner?: boolean;
+  /** Ob das Schloss-Icon angezeigt werden soll (default: false - wird extern angezeigt) */
+  showLockIcon?: boolean;
   className?: string;
   iconSize?: number;
   fontSize?: number;
@@ -36,6 +38,7 @@ export function LocationDisplay({
   onRequestAddress,
   linkToMaps = true,
   isOwner = false,
+  showLockIcon = false,
   className = '',
   iconSize = 18,
   fontSize = 18,
@@ -78,21 +81,23 @@ export function LocationDisplay({
         <span style={{ fontSize }}>
           {[postalCode, location].filter(Boolean).join(' ') || '-'}
         </span>
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onRequestAddress();
-          }}
-          className="ml-3 p-3 rounded-xl bg-amber-50 hover:bg-amber-100 border-2 border-amber-300 hover:border-amber-400 transition-all group shadow-sm hover:shadow-md cursor-pointer z-10"
-          title="Adresse freischalten"
-          type="button"
-        >
-          <Lock
-            size={28}
-            className="text-amber-600 group-hover:text-amber-700 transition-colors"
-          />
-        </button>
+        {showLockIcon && (
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onRequestAddress();
+            }}
+            className="ml-3 p-3 rounded-xl bg-amber-50 hover:bg-amber-100 border-2 border-amber-300 hover:border-amber-400 transition-all group shadow-sm hover:shadow-md cursor-pointer z-10"
+            title="Adresse freischalten"
+            type="button"
+          >
+            <Lock
+              size={28}
+              className="text-amber-600 group-hover:text-amber-700 transition-colors"
+            />
+          </button>
+        )}
       </div>
     );
   }
@@ -110,7 +115,7 @@ export function LocationDisplay({
           {content}
         </a>
         {/* Show unlocked icon if address was protected (consent given) - only for non-owners */}
-        {!isOwner && address && (
+        {showLockIcon && !isOwner && address && (
           <span
             className="ml-3 p-3 rounded-xl bg-green-50 border-2 border-green-200 shadow-sm"
             title="Adresse freigeschaltet"
@@ -127,7 +132,7 @@ export function LocationDisplay({
     <div className={`flex items-center gap-2 text-gray-600 ${className}`} style={style}>
       {content}
       {/* Show unlocked icon if address is visible and was protected - only for non-owners */}
-      {!isOwner && showAddress && address && (
+      {showLockIcon && !isOwner && showAddress && address && (
         <span
           className="ml-3 p-3 rounded-xl bg-green-50 border-2 border-green-200 shadow-sm"
           title="Adresse freigeschaltet"

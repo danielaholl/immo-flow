@@ -7,12 +7,15 @@ import { useAuthContext } from '@/app/providers/AuthProvider';
 import type { Property } from '@immoflow/database';
 import { Header } from '../components/Header';
 import { FavoriteButton } from '../components/FavoriteButton';
-import { PropertyPreview, PropertyPreviewData } from '../components/PropertyPreview';
+import { PropertyPreview } from '../components/PropertyPreview';
+import { CommissionConsentDialog } from '../components/CommissionConsentDialog';
+import { ShareLinkModal } from '../components/ShareLinkModal';
 import type { PropertyDocument } from '../create-listing/types';
+import { mapToPropertyPreviewData } from '../utils/propertyMapper';
 import { PropertyActionButtons } from '../components/PropertyActionButtons';
-import { InvestmentScoreBadge } from '@immoflow/ui';
+import { InvestmentScoreBadge, GlassButton, PropertyScoreBadge } from '@immoflow/ui';
 // import { PropertyFeedbackModal } from '@immoflow/ui'; // Component doesn't exist
-import { MapPin, Home, Heart, X, Plus } from 'lucide-react';
+import { MapPin, Home, Heart, X, Plus, Share2, MessageSquare } from 'lucide-react';
 import { PropertyListThumbnail } from '../components/PropertyListThumbnail';
 import { trpc } from '@/lib/trpc';
 import { useMasterDetailNavigation } from '@/app/hooks/useMasterDetailNavigation';
@@ -28,6 +31,9 @@ export default function FavoritesPage() {
   const [isPropertyFeedbackModalOpen, setIsPropertyFeedbackModalOpen] = useState(false);
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
   const [selectedDocument, setSelectedDocument] = useState<PropertyDocument | null>(null);
+  const [isConsentDialogOpen, setIsConsentDialogOpen] = useState(false);
+  const [hasDocumentAccess, setHasDocumentAccess] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const hasCheckedAuth = useRef(false);
 
   // Performance tracking
@@ -63,9 +69,10 @@ export default function FavoritesPage() {
     }
   }, [selectedPropertyId]);
 
-  // Reset selected document when the ACTUAL displayed property changes
+  // Reset selected document and access state when the ACTUAL displayed property changes
   useEffect(() => {
     setSelectedDocument(null);
+    setHasDocumentAccess(false);
   }, [selectedPropertyActualId]);
 
   // Get utils for cache invalidation
@@ -125,6 +132,43 @@ export default function FavoritesPage() {
       }
     },
   });
+
+  // User Property Parameters - Query für die aktuell ausgewählte Property
+  const { data: userPropertyParams } = trpc.userPropertyParameters.get.useQuery(
+    { propertyId: selectedProperty?.id || '' },
+    {
+      enabled: !!selectedProperty?.id && !!user,
+    }
+  );
+
+  // User Property Parameters - Mutation zum Speichern
+  const saveUserPropertyParamsMutation = trpc.userPropertyParameters.upsert.useMutation({
+    onSuccess: () => {
+      // Invalidate query to refresh data
+      utils.userPropertyParameters.get.invalidate({ propertyId: selectedProperty?.id || '' });
+    },
+    onError: (error) => {
+      console.error('Error saving user property parameters:', error);
+      alert('Fehler beim Speichern der Parameter. Bitte versuchen Sie es erneut.');
+    },
+  });
+
+  // Handler for saving user property parameters
+  const handleSaveUserPropertyParams = (params: {
+    equityPercentage?: number | null;
+    interestRate?: number | null;
+    amortizationRate?: number | null;
+    brokerCommission?: number | null;
+    monthlyRent?: number | null;
+    monthlyFee?: number | null;
+    purchasePrice?: number | null;
+  }) => {
+    if (!selectedProperty?.id) return;
+    saveUserPropertyParamsMutation.mutate({
+      propertyId: selectedProperty.id,
+      ...params,
+    });
+  };
 
   // Log page fully loaded
   useEffect(() => {
@@ -193,6 +237,29 @@ export default function FavoritesPage() {
     }
   };
 
+  // Handler for lock icon click - opens consent dialog
+  const handleRequestDocumentAccess = () => {
+    if (!user) {
+      router.push('/auth/login?redirectTo=/favorites');
+      return;
+    }
+    setIsConsentDialogOpen(true);
+  };
+
+  // Handler for consent dialog accept
+  const handleConsentAccept = async () => {
+    if (!selectedProperty) return;
+    setConsentLoading(true);
+    try {
+      await grantConsentMutation.mutateAsync({ propertyId: selectedProperty.id });
+      setHasDocumentAccess(true);
+      setIsConsentDialogOpen(false);
+    } catch (error) {
+      console.error('Error granting consent:', error);
+    }
+    setConsentLoading(false);
+  };
+
   const handleTriggerEvaluation = async (viewType?: 'seller' | 'buyer_selfuse' | 'buyer_investor') => {
     if (!selectedProperty || isEvaluating) return;
 
@@ -241,73 +308,10 @@ export default function FavoritesPage() {
     );
   }
 
-  // Convert property data to PropertyPreview format
-  // Extract detailed evaluation data from JSONB field
-  const detailedEval = selectedProperty?.ai_detailed_evaluation as any;
-
-  const propertyPreviewData: PropertyPreviewData | null = selectedProperty ? {
-    images: selectedProperty.images || [],
-    price: selectedProperty.price || 0,
-    commission_rate: selectedProperty.commission_rate ?? undefined,
-    location: selectedProperty.location || '',
-    address: (selectedProperty as any).street_address ?? undefined,
-    postal_code: (selectedProperty as any).postal_code ?? undefined,
-    title: selectedProperty.title || '',
-    type: selectedProperty.property_type ?? undefined,
-    sqm: selectedProperty.sqm || 0,
-    rooms: selectedProperty.rooms || 0,
-    description: selectedProperty.description || '',
-    features: selectedProperty.features ?? undefined,
-    yield: selectedProperty.yield ?? undefined,
-    highlights: selectedProperty.highlights ?? undefined,
-    red_flags: selectedProperty.red_flags ?? undefined,
-    ai_investment_score: selectedProperty.ai_score ?? undefined,
-    require_address_consent: selectedProperty.require_address_consent ?? undefined,
-    monthly_fee: selectedProperty.monthly_fee ?? undefined,
-    usable_area: selectedProperty.usable_area ?? undefined,
-    usable_area_ratio: selectedProperty.usable_area_ratio ?? undefined,
-    bathrooms: selectedProperty.bathrooms ?? undefined,
-    total_floors: selectedProperty.total_floors ?? undefined,
-    floor_level: selectedProperty.floor_level ?? undefined,
-    available_from: selectedProperty.available_from ?? undefined,
-    year_built: selectedProperty.year_built ?? undefined,
-    heating_type: selectedProperty.heating_type ?? undefined,
-    energy_source: selectedProperty.energy_source ?? undefined,
-    energy_certificate: selectedProperty.energy_certificate ?? undefined,
-    energy_efficiency_class: selectedProperty.energy_efficiency_class ?? undefined,
-    condition: selectedProperty.condition ?? undefined,
-    important_notes: selectedProperty.important_notes ?? undefined,
-    days_online: (selectedProperty as any).days_online ?? undefined,
-    // Extract AI analysis data from ai_detailed_evaluation JSONB
-    yield_metrics: detailedEval?.yield_metrics ?? undefined,
-    rental_income: detailedEval?.rental_income ?? undefined,
-    cashflow_calculation: detailedEval?.cashflow_calculation ?? undefined,
-    evaluation: detailedEval?.evaluation ?? undefined,
-    // AI Rating fields
-    ai_rating_explanation: selectedProperty.ai_rating_explanation ?? undefined,
-    strengths: selectedProperty.strengths ?? undefined,
-    weaknesses: selectedProperty.weaknesses ?? undefined,
-    opportunities: selectedProperty.opportunities ?? undefined,
-    risks: selectedProperty.risks ?? undefined,
-    owner: selectedProperty.owner && (
-      selectedProperty.owner.first_name ||
-      selectedProperty.owner.last_name ||
-      selectedProperty.owner.company
-    ) ? {
-      first_name: selectedProperty.owner.first_name,
-      last_name: selectedProperty.owner.last_name,
-      company: selectedProperty.owner.company,
-      avatar_url: selectedProperty.owner.avatar_url,
-      phone: selectedProperty.owner.phone,
-      bio: selectedProperty.owner.bio,
-      email: selectedProperty.owner.email,
-    } : undefined,
-    // Buyer evaluation from JSONB field
-    buyer_evaluation: selectedProperty.buyer_evaluation as any ?? undefined,
-    // Documents
-    documents: (selectedProperty.documents as unknown as PropertyDocument[]) || [],
-    documents_count: (selectedProperty as any).documents_count ?? 0,
-  } : null;
+  // Convert property data to PropertyPreview format using central mapper
+  const propertyPreviewData = selectedProperty
+    ? mapToPropertyPreviewData(selectedProperty as any, { isOwner: false })
+    : null;
 
   return (
     <main className="min-h-screen bg-white">
@@ -326,6 +330,7 @@ export default function FavoritesPage() {
             isDismissLoading={dismissMutation.isLoading}
             isMessageLoading={getOrCreateConversationMutation.isLoading}
             favoriteButtonLabel="Favorit entfernen"
+            propertyUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/property/${selectedProperty.id}`}
           />
         ) : null;
 
@@ -437,6 +442,57 @@ export default function FavoritesPage() {
                   mobileActionButtons={ActionButtons}
                   selectedDocument={selectedDocument}
                   onDocumentClose={() => setSelectedDocument(null)}
+                  scrollActionButtons={true}
+                  imageOverlay={
+                    <>
+                      {/* AI Score Badge */}
+                      {selectedProperty.ai_score && selectedProperty.ai_score > 0 && (
+                        <div className="absolute top-8 right-3 z-10 pointer-events-none">
+                          <PropertyScoreBadge score={selectedProperty.ai_score} variant="overlay" />
+                        </div>
+                      )}
+
+                      {/* Action Buttons - Bottom Right */}
+                      <div className="absolute bottom-5 right-3 z-20 flex flex-col gap-2">
+                        <GlassButton
+                          variant="default"
+                          iconOnly
+                          subtleBorder
+                          iconLeft={<Share2 strokeWidth={2} />}
+                          onClick={() => setIsShareModalOpen(true)}
+                          tooltip="Teilen"
+                          ariaLabel="Teilen"
+                        />
+                        <GlassButton
+                          variant="default"
+                          iconOnly
+                          subtleBorder
+                          iconLeft={<MessageSquare strokeWidth={2} />}
+                          onClick={handleStartMessage}
+                          tooltip="Nachricht senden"
+                          ariaLabel="Nachricht senden"
+                        />
+                        <GlassButton
+                          variant="default"
+                          iconOnly
+                          subtleBorder
+                          iconLeft={<X strokeWidth={2.5} />}
+                          onClick={handleDismiss}
+                          tooltip="Nicht interessiert"
+                          ariaLabel="Nicht interessiert"
+                        />
+                        <GlassButton
+                          variant="favorite"
+                          iconOnly
+                          subtleBorder
+                          iconLeft={<Heart fill="#FF385C" strokeWidth={2} />}
+                          onClick={() => handleRemoveFavorite(selectedProperty.id)}
+                          tooltip="Favorit entfernen"
+                          ariaLabel="Favorit entfernen"
+                        />
+                      </div>
+                    </>
+                  }
                 >
                   {propertyPreviewData && (
                     <PropertyPreview
@@ -456,6 +512,12 @@ export default function FavoritesPage() {
                       evaluationViewType="buyer"
                       propertyId={selectedProperty.id}
                       onDocumentSelect={setSelectedDocument}
+                      onRequestDocumentAccess={handleRequestDocumentAccess}
+                      hasDocumentAccess={hasDocumentAccess}
+                      hasManualApproval={hasDocumentAccess}
+                      userPropertyParams={userPropertyParams}
+                      onSaveUserPropertyParams={handleSaveUserPropertyParams}
+                      isSavingUserPropertyParams={saveUserPropertyParamsMutation.isLoading}
                     />
                   )}
                 </PropertyDetailLayout>
@@ -484,6 +546,28 @@ export default function FavoritesPage() {
         />
       )} */}
       {/* TODO: PropertyFeedbackModal component doesn't exist - need to create or remove this feature */}
+
+      {/* Commission Consent Dialog */}
+      {selectedProperty && (
+        <CommissionConsentDialog
+          isOpen={isConsentDialogOpen}
+          onClose={() => setIsConsentDialogOpen(false)}
+          onAccept={handleConsentAccept}
+          commissionRate={selectedProperty.commission_rate || undefined}
+          propertyPrice={selectedProperty.price}
+        />
+      )}
+
+      {/* Share Link Modal */}
+      {selectedProperty && (
+        <ShareLinkModal
+          isOpen={isShareModalOpen}
+          onClose={() => setIsShareModalOpen(false)}
+          propertyId={selectedProperty.id}
+          propertyTitle={selectedProperty.title}
+          documentsCount={((selectedProperty as any).documents || []).length}
+        />
+      )}
     </main>
   );
 }

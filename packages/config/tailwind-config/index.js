@@ -92,6 +92,9 @@ module.exports = {
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
       fontSize: {
+        'mobile-xs': '0.75rem',   // 12px - mobile menu small
+        'mobile-sm': '0.875rem',  // 14px - mobile menu
+        'mobile-base': '1rem',    // 16px - mobile body
         'xs': '1rem',         // 16px
         'sm': '1.125rem',     // 18px
         'base': '1.25rem',    // 20px

@@ -9,13 +9,14 @@ import { PropertyImageSlideshow } from '@/app/components/PropertyImageSlideshow'
 import { DocumentViewer } from '@/app/components/DocumentViewer';
 import { FavoriteButton } from '@/app/components/FavoriteButton';
 import { CommissionConsentDialog } from '@/app/components/CommissionConsentDialog';
-import { PropertyPreview, PropertyPreviewData } from '@/app/components/PropertyPreview';
+import { PropertyPreview } from '@/app/components/PropertyPreview';
 import type { PropertyDocument } from '@/app/create-listing/types';
+import { mapToPropertyPreviewData } from '@/app/utils/propertyMapper';
 import { PropertyActionButtons } from '@/app/components/PropertyActionButtons';
 import { ShareLinkModal } from '@/app/components/ShareLinkModal';
 import { MobileDetailHeader } from '@/app/components/MobileDetailHeader';
 import { PageContainer } from '@/app/components/PageContainer';
-import { ArrowLeft, Heart, X } from 'lucide-react';
+import { ArrowLeft, Heart, X, Share2, MessageSquare } from 'lucide-react';
 import { InvestmentScoreBadge, PropertyScoreBadge, GlassButton } from '@immoflow/ui';
 import { trpc } from '@/lib/trpc';
 import { useAuthGuard } from '@/app/hooks/useAuthGuard';
@@ -122,6 +123,45 @@ export default function PropertyPage() {
     }
   );
 
+  // User Property Parameters - Query für die aktuelle Property
+  const { data: userPropertyParams } = trpc.userPropertyParameters.get.useQuery(
+    { propertyId: params.id as string },
+    {
+      enabled: !!params.id && !!user,
+    }
+  );
+
+  // User Property Parameters - Mutation zum Speichern
+  const saveUserPropertyParamsMutation = trpc.userPropertyParameters.upsert.useMutation({
+    onSuccess: () => {
+      utils.userPropertyParameters.get.invalidate({ propertyId: params.id as string });
+    },
+    onError: (error) => {
+      console.error('Error saving user property parameters:', error);
+      alert('Fehler beim Speichern der Parameter. Bitte versuchen Sie es erneut.');
+    },
+  });
+
+  // Handler for saving user property parameters
+  const handleSaveUserPropertyParams = (params: {
+    equityPercentage?: number | null;
+    interestRate?: number | null;
+    amortizationRate?: number | null;
+    brokerCommission?: number | null;
+    monthlyRent?: number | null;
+    monthlyFee?: number | null;
+    purchasePrice?: number | null;
+    // Berechnete Kennzahlen
+    calculatedGrossYield?: number | null;
+    calculatedRentMultiplier?: number | null;
+    calculatedMonthlyCashflow?: number | null;
+  }) => {
+    saveUserPropertyParamsMutation.mutate({
+      propertyId: property?.id as string,
+      ...params,
+    });
+  };
+
   // Update hasDocumentAccess when accessStatus changes
   useEffect(() => {
     if (accessStatus) {
@@ -134,6 +174,16 @@ export default function PropertyPage() {
   const handleDocumentAccessGranted = () => {
     setHasDocumentAccess(true);
     refetchAccessStatus();
+  };
+
+  // Callback when user clicks lock icon to request document access
+  const handleRequestDocumentAccess = () => {
+    if (!user) {
+      setShowLoginModal(true);
+      return;
+    }
+    // Open consent dialog
+    setIsConsentDialogOpen(true);
   };
 
   // Mutation to approve manual documents
@@ -299,6 +349,8 @@ export default function PropertyPage() {
       await grantConsentMutation.mutateAsync({ propertyId: property.id });
       setHasCommissionConsent(true);
       setHasConsent(true);
+      setHasDocumentAccess(true);
+      setHasManualApproval(true);
       setIsConsentDialogOpen(false);
       // Also update document access status since consent grants document access too
       refetchAccessStatus();
@@ -441,98 +493,12 @@ export default function PropertyPage() {
     return null;
   }
 
-  // Convert property data to PropertyPreview format
-  // Extract detailed evaluation data from JSONB field
-  const detailedEval = property.ai_detailed_evaluation as any;
-
-  // Debug: Log address fields from API
-  console.log('[PropertyPage] Address debug:', {
-    full_address: (property as any).full_address,
-    street_address: (property as any).street_address,
-    postal_code: (property as any).postal_code,
-    location: property.location,
+  // Convert property data to PropertyPreview format using central mapper
+  const propertyPreviewData = mapToPropertyPreviewData(property as any, {
+    isOwner: Boolean(isOwner),
+    aiEvaluation: aiEvaluation ?? undefined,
+    buyerEvaluation: buyerEvaluation,
   });
-
-  const propertyPreviewData: PropertyPreviewData = {
-    images: property.images || [],
-    price: property.price || 0,
-    commission_rate: property.commission_rate ?? undefined,
-    location: property.location || '',
-    address: (property as any).street_address ?? undefined,
-    postal_code: (property as any).postal_code ?? undefined,
-    title: property.title || '',
-    type: property.property_type ?? undefined,
-    sqm: property.sqm || 0,
-    rooms: property.rooms || 0,
-    description: property.description || '',
-    features: property.features ?? undefined,
-    yield: property.yield ?? undefined,
-    highlights: property.highlights ?? undefined,
-    red_flags: property.red_flags ?? undefined,
-    ai_investment_score: property.ai_investment_score ?? property.ai_score ?? undefined,
-    require_address_consent: property.require_address_consent ?? undefined,
-    // New fields from database migration
-    monthly_fee: property.monthly_fee ?? undefined,
-    usable_area: property.usable_area ?? undefined,
-    usable_area_ratio: property.usable_area_ratio ?? undefined,
-    bathrooms: property.bathrooms ?? undefined,
-    total_floors: property.total_floors ?? undefined,
-    floor_level: property.floor_level ?? undefined,
-    available_from: property.available_from ?? undefined,
-    year_built: property.year_built ?? undefined,
-    heating_type: property.heating_type ?? undefined,
-    energy_source: property.energy_source ?? undefined,
-    energy_certificate: property.energy_certificate ?? undefined,
-    energy_efficiency_class: property.energy_efficiency_class ?? undefined,
-    condition: property.condition ?? undefined,
-    important_notes: property.important_notes ?? undefined,
-    days_online: (property as any).days_online ?? undefined,
-    // Extract AI analysis data from ai_detailed_evaluation JSONB
-    actual_monthly_rent: property.actual_monthly_rent ?? undefined,
-    yield_metrics: detailedEval?.yield_metrics ?? undefined,
-    rental_income: detailedEval?.rental_income ?? undefined,
-    cashflow_calculation: detailedEval?.cashflow_calculation ?? undefined,
-    // Merge evaluation data: prefer aiEvaluation from property_ai_evaluations table, fallback to JSONB
-    evaluation: aiEvaluation ? {
-      location_score: aiEvaluation.location_score,
-      price_score: aiEvaluation.price_score,
-      yield_score: aiEvaluation.yield_score,
-      appreciation_score: aiEvaluation.appreciation_score,
-      features_score: aiEvaluation.features_score,
-      price_per_sqm: aiEvaluation.price_per_sqm ?? detailedEval?.evaluation?.price_per_sqm,
-      market_average_price_per_sqm: aiEvaluation.market_average_price_per_sqm,
-      estimated_monthly_rent: aiEvaluation.estimated_monthly_rent,
-      gross_yield_percentage: aiEvaluation.gross_yield_percentage,
-      // AI Analysis texts - only from aiEvaluation
-      location_analysis: aiEvaluation.location_analysis,
-      market_analysis: aiEvaluation.market_analysis,
-      rent_analysis: aiEvaluation.rent_analysis,
-      financing_analysis: aiEvaluation.financing_analysis,
-      // Interest rates
-      interest_rate_90: aiEvaluation.interest_rate_90,
-      interest_rate_80: aiEvaluation.interest_rate_80,
-    } : detailedEval?.evaluation ?? undefined,
-    ai_recommendation: detailedEval?.ai_recommendation ?? undefined,
-    // AI Rating fields
-    ai_rating_explanation: (property as any).ai_rating_explanation ?? undefined,
-    strengths: (property as any).strengths ?? undefined,
-    weaknesses: (property as any).weaknesses ?? undefined,
-    opportunities: (property as any).opportunities ?? undefined,
-    risks: (property as any).risks ?? undefined,
-    // Buyer evaluation (from state, fetched on-demand)
-    buyer_evaluation: buyerEvaluation ?? (property as any).buyer_evaluation ?? undefined,
-    // Documents
-    documents: (property.documents as unknown as PropertyDocument[]) || [],
-    owner: property.owner && !isOwner ? {
-      first_name: property.owner.first_name,
-      last_name: property.owner.last_name,
-      company: property.owner.company,
-      avatar_url: property.owner.avatar_url,
-      phone: property.owner.phone,
-      bio: property.owner.bio,
-      email: property.owner.email,
-    } : undefined,
-  };
 
   return (
     <main className="min-h-screen bg-white">
@@ -553,7 +519,7 @@ export default function PropertyPage() {
         {/* Left Column - Property Details (Scrollable) */}
         <div className="w-full lg:w-1/2 flex flex-col lg:h-[calc(100vh-80px)] order-2 lg:order-1">
           {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto py-4 lg:py-8 pr-0 lg:pr-6 pb-20 lg:pb-8">
+          <div className="flex-1 overflow-y-auto py-4 lg:py-8 pr-0 lg:pr-6">
             {/* Back Button - Only shown on desktop */}
             <button
               onClick={() => router.back()}
@@ -589,28 +555,32 @@ export default function PropertyPage() {
               hasDocumentAccess={hasDocumentAccess}
               hasManualApproval={hasManualApproval}
               onDocumentAccessGranted={handleDocumentAccessGranted}
+              onRequestDocumentAccess={handleRequestDocumentAccess}
               pendingManualApprovalCount={pendingManualData?.count ?? 0}
               onApproveManualDocs={handleApproveManualDocs}
+              userPropertyParams={userPropertyParams}
+              onSaveUserPropertyParams={handleSaveUserPropertyParams}
+              isSavingUserPropertyParams={saveUserPropertyParamsMutation.isLoading}
             />
-          </div>
 
-          {/* CTA Buttons */}
-          <div className="p-4 mb-20 lg:mb-0">
-            <PropertyActionButtons
-            isOwner={Boolean(isOwner)}
-            isFavorite={isFavorite}
-            onToggleFavorite={handleToggleFavorite}
-            onDismiss={handleDismiss}
-            onStartMessage={handleStartMessage}
-            onOpenFeedback={() => setIsPropertyFeedbackModalOpen(true)}
-            onEdit={() => router.push(`/property/${property.id}/edit`)}
-            onDeactivate={handleDeactivate}
-            onShare={() => setIsShareModalOpen(true)}
-            isDismissLoading={dismissMutation.isLoading}
-            isMessageLoading={getOrCreateConversationMutation.isLoading}
-            isDeactivateLoading={deactivateMutation.isLoading}
-            propertyUrl={typeof window !== 'undefined' ? `${window.location.origin}/property/${property.id}` : ''}
-          />
+            {/* CTA Buttons - scrolls with content */}
+            <div className="mt-6 pb-8">
+              <PropertyActionButtons
+                isOwner={Boolean(isOwner)}
+                isFavorite={isFavorite}
+                onToggleFavorite={handleToggleFavorite}
+                onDismiss={handleDismiss}
+                onStartMessage={handleStartMessage}
+                onOpenFeedback={() => setIsPropertyFeedbackModalOpen(true)}
+                onEdit={() => router.push(`/edit-listing/${property.id}`)}
+                onDeactivate={handleDeactivate}
+                onShare={() => setIsShareModalOpen(true)}
+                isDismissLoading={dismissMutation.isLoading}
+                isMessageLoading={getOrCreateConversationMutation.isLoading}
+                isDeactivateLoading={deactivateMutation.isLoading}
+                propertyUrl={typeof window !== 'undefined' ? `${window.location.origin}/property/${property.id}` : ''}
+              />
+            </div>
           </div>
         </div>
 
@@ -646,27 +616,43 @@ export default function PropertyPage() {
 
                   {/* Action Buttons - Bottom Right - Reusable Components */}
                   {!isOwner && (
-                    <div className="absolute bottom-6 right-4 z-20 flex flex-row gap-3">
+                    <div className="absolute bottom-5 right-3 z-20 flex flex-col gap-2">
+                      <GlassButton
+                        variant="default"
+                        iconOnly
+                        subtleBorder
+                        iconLeft={<Share2 strokeWidth={2} />}
+                        onClick={() => setIsShareModalOpen(true)}
+                        tooltip="Teilen"
+                        ariaLabel="Teilen"
+                      />
+                      <GlassButton
+                        variant="default"
+                        iconOnly
+                        subtleBorder
+                        iconLeft={<MessageSquare strokeWidth={2} />}
+                        onClick={handleStartMessage}
+                        tooltip="Nachricht senden"
+                        ariaLabel="Nachricht senden"
+                      />
                       <GlassButton
                         variant="default"
                         iconOnly
                         subtleBorder
                         iconLeft={<X strokeWidth={2.5} />}
-                        onClick={() => router.push('/')}
+                        onClick={handleDismiss}
                         tooltip="Nicht interessiert"
                         ariaLabel="Nicht interessiert"
                       />
-                      {user && (
-                        <GlassButton
-                          variant="favorite"
-                          iconOnly
-                          subtleBorder
-                          iconLeft={<Heart fill={isFavorite ? '#FF385C' : 'none'} strokeWidth={2} />}
-                          onClick={handleFavoriteToggle}
-                          tooltip={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-                          ariaLabel={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-                        />
-                      )}
+                      <GlassButton
+                        variant="favorite"
+                        iconOnly
+                        subtleBorder
+                        iconLeft={<Heart fill={isFavorite ? '#FF385C' : 'none'} strokeWidth={2} />}
+                        onClick={handleFavoriteToggle}
+                        tooltip={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                        ariaLabel={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                      />
                     </div>
                   )}
                 </>

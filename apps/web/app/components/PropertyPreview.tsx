@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Bath, Sparkles, DoorClosed, Square, Layers, Euro, Building2, Clock, Flame, Zap, ChevronDown, Star, Eye, Heart, Mail, FileText } from 'lucide-react';
 import { AIEvaluationPanel } from './AIEvaluationPanel';
+import { KeyMetricsPanel } from './KeyMetricsPanel';
 import { LocationDisplay } from './LocationDisplay';
 // AIInvestmentEvaluation und InvestmentScoreBadge auskommentiert - nur stichpunktartige Bewertung
 // import { AIInvestmentEvaluation, InvestmentScoreBadge } from '@immoflow/ui';
@@ -76,6 +77,14 @@ export interface PropertyPreviewData {
     loan_payment?: number;
     loan_details?: string;
     monthly_cashflow?: number;
+  };
+  financing_terms?: {
+    interest_rate?: number;
+    interest_rate_90?: number;
+    interest_rate_80?: number;
+    loan_to_value?: number;
+    amortization_rate?: number;
+    loan_term_years?: number;
   };
   evaluation?: {
     location_score: number;
@@ -224,12 +233,31 @@ export interface PropertyPreviewProps {
   hasDocumentAccess?: boolean;
   hasManualApproval?: boolean;
   onDocumentAccessGranted?: () => void;
+  onRequestDocumentAccess?: () => void;
   // Manual document approval (for owner)
   pendingManualApprovalCount?: number;
   onApproveManualDocs?: () => void;
   // Document management (for create-listing)
   onDocumentsChange?: (documents: PropertyDocument[]) => void;
   onDocumentRemove?: (id: string) => void;
+  // User Property Parameters (for KeyMetricsPanel edit mode)
+  userPropertyParams?: {
+    equity_percentage?: number | null;
+    interest_rate?: number | null;
+    amortization_rate?: number | null;
+    broker_commission?: number | null;
+    monthly_rent?: number | null;
+    monthly_fee?: number | null;
+  } | null;
+  onSaveUserPropertyParams?: (params: {
+    equityPercentage?: number | null;
+    interestRate?: number | null;
+    amortizationRate?: number | null;
+    brokerCommission?: number | null;
+    monthlyRent?: number | null;
+    monthlyFee?: number | null;
+  }) => void;
+  isSavingUserPropertyParams?: boolean;
 }
 
 /**
@@ -328,10 +356,14 @@ export function PropertyPreview({
   hasDocumentAccess = false,
   hasManualApproval = false,
   onDocumentAccessGranted,
+  onRequestDocumentAccess,
   pendingManualApprovalCount = 0,
   onApproveManualDocs,
   onDocumentsChange,
   onDocumentRemove,
+  userPropertyParams,
+  onSaveUserPropertyParams,
+  isSavingUserPropertyParams = false,
 }: PropertyPreviewProps) {
   // State for selected document
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | undefined>();
@@ -507,12 +539,15 @@ export function PropertyPreview({
             <span className="inline-flex px-3 py-1 rounded-full text-sm font-medium bg-rose-100/60 text-rose-700 backdrop-blur-sm border border-rose-200 shadow-sm">
               {getPropertyTypeLabel(data.type)}
             </span>
-            {/* Days Online Badge - Glass Style Türkis */}
-            {data.days_online !== undefined && (
-              <span className="inline-flex items-center px-4 py-1.5 rounded-full text-lg font-bold bg-accent-aqua/20 text-teal-700 backdrop-blur-sm border border-accent-aqua/40 shadow-sm">
-                {data.days_online === 0 ? 'Neu' : `${data.days_online} ${data.days_online === 1 ? 'Tag' : 'Tage'} online`}
-              </span>
-            )}
+            {/* Right side: Days Online Badge */}
+            <div className="flex items-center gap-2">
+              {/* Days Online Badge */}
+              {data.days_online !== undefined && (
+                <span className="inline-flex items-center justify-center h-10 px-3 rounded-full text-sm font-semibold bg-teal-50 text-teal-700 border border-teal-200 shadow-sm">
+                  {data.days_online === 0 ? 'Neu' : `+${data.days_online}T`}
+                </span>
+              )}
+            </div>
           </div>
           <h2 className="font-semibold text-gray-900" style={{ fontSize: '22px' }}>
             {getPropertyTitle()}
@@ -665,28 +700,6 @@ export function PropertyPreview({
             );
           })()}
         </div>
-
-        {/* BUYER VIEW: KI-Bewertung mit wiederverwendbarer Komponente */}
-        {evaluationViewType === 'buyer' && onTriggerEvaluation && propertyId && (
-          <AIEvaluationPanel
-            mode="buyer"
-            buyerEvaluation={data.buyer_evaluation}
-            isLoading={isGeneratingEvaluation}
-            onTriggerEvaluation={onTriggerEvaluation}
-            className="mb-6"
-          />
-        )}
-
-        {/* SELLER VIEW: KI-Bewertung mit wiederverwendbarer Komponente */}
-        {evaluationViewType === 'seller' && onTriggerEvaluation && propertyId && (
-          <AIEvaluationPanel
-            mode="seller"
-            sellerEvaluation={data.seller_evaluation}
-            isLoading={isGeneratingEvaluation}
-            onTriggerEvaluation={onTriggerEvaluation}
-            className="mb-6"
-          />
-        )}
 
         {/* Weitere Details Section - Compact Accordion */}
         {(data.sqm || data.rooms || energyEfficiencyClass || data.available_from || data.year_built || data.bathrooms || data.monthly_fee || data.floor_level || data.total_floors || data.heating_type || data.energy_source || data.energy_certificate || data.usable_area || condition) && (
@@ -933,9 +946,60 @@ export function PropertyPreview({
           </div>
         )}
 
+        {/* Kennzahlen auf einen Blick - nur für Buyer View */}
+        {evaluationViewType === 'buyer' && (
+          <KeyMetricsPanel
+            grossYield={data.buyer_evaluation?.buyer_investor?.grossYield}
+            rentMultiplier={data.buyer_evaluation?.buyer_investor?.rentMultiplier}
+            purchasePrice={data.price}
+            commissionRate={data.commission_rate}
+            location={data.location}
+            financingTerms={data.financing_terms ? {
+              interestRate: data.financing_terms.interest_rate_90 ?? data.financing_terms.interest_rate,
+              amortizationRate: data.financing_terms.amortization_rate,
+              loanToValue: data.financing_terms.loan_to_value,
+            } : undefined}
+            sqm={data.sqm}
+            estimatedRentPerSqm={data.rental_income?.rent_per_sqm}
+            monthlyFee={data.monthly_fee}
+            yearBuilt={data.year_built}
+            estimatedRent={data.rental_income?.estimated_market_rent || data.evaluation?.estimated_monthly_rent || data.actual_monthly_rent}
+            estimatedOperatingCosts={data.cashflow_calculation?.non_transferable_fee}
+            onTriggerEvaluation={onTriggerEvaluation ? () => onTriggerEvaluation('buyer_investor') : undefined}
+            isLoading={isGeneratingEvaluation}
+            propertyId={propertyId}
+            userParams={userPropertyParams}
+            onSaveParams={onSaveUserPropertyParams}
+            isSavingParams={isSavingUserPropertyParams}
+            className="mb-6"
+          />
+        )}
+
+        {/* BUYER VIEW: KI-Bewertung mit wiederverwendbarer Komponente */}
+        {evaluationViewType === 'buyer' && onTriggerEvaluation && propertyId && (
+          <AIEvaluationPanel
+            mode="buyer"
+            buyerEvaluation={data.buyer_evaluation}
+            isLoading={isGeneratingEvaluation}
+            onTriggerEvaluation={onTriggerEvaluation}
+            className="mb-6"
+          />
+        )}
+
+        {/* SELLER VIEW: KI-Bewertung mit wiederverwendbarer Komponente */}
+        {evaluationViewType === 'seller' && onTriggerEvaluation && propertyId && (
+          <AIEvaluationPanel
+            mode="seller"
+            sellerEvaluation={data.seller_evaluation}
+            isLoading={isGeneratingEvaluation}
+            onTriggerEvaluation={onTriggerEvaluation}
+            className="mb-6"
+          />
+        )}
+
         {/* Description - Collapsible */}
         {data.description && (() => {
-          const maxPreviewLength = 150;
+          const maxPreviewLength = 80;
           const isLongDescription = data.description.length > maxPreviewLength;
           const previewText = isLongDescription
             ? data.description.slice(0, maxPreviewLength) + '...'
@@ -1067,6 +1131,7 @@ export function PropertyPreview({
                   hasManualApproval={hasManualApproval}
                   isOwner={isOwner}
                   onAccessGranted={onDocumentAccessGranted}
+                  onRequestDocumentAccess={onRequestDocumentAccess}
                   pendingManualApprovalCount={pendingManualApprovalCount}
                   onApproveManualDocs={onApproveManualDocs}
                 />

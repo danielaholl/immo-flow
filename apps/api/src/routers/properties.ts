@@ -7,6 +7,12 @@ import { router, publicProcedure, protectedProcedure } from '../trpc.js';
 import { query, queryOne } from '../db.js';
 import { deleteCached, invalidatePattern } from '../cache/redis.js';
 import { feedCache, trendingCache } from '../cache/memory.js';
+import {
+  buildPropertyQuery,
+  PROPERTY_BASE_FIELDS,
+  STATISTICS_EXTENDED,
+  JOIN_STATISTICS,
+} from '../lib/propertyQueryBuilder.js';
 
 // Helper to invalidate feed caches when properties change
 async function invalidateFeedCaches(): Promise<void> {
@@ -152,31 +158,11 @@ export const propertiesRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ input }) => {
       const property = await queryOne(
-        `SELECT
-          p.*,
-          NULLIF(CONCAT_WS(', ', p.street_address, CONCAT_WS(' ', p.postal_code, p.location)), '') as full_address,
-          EXTRACT(DAY FROM (CURRENT_TIMESTAMP - p.created_at))::integer as days_online,
-          COALESCE(ps.total_views, 0) as total_views,
-          COALESCE(ps.favorites_count, 0) as favorites_count,
-          COALESCE(ps.rating_count, 0) as rating_count,
-          ps.avg_rating,
-          ps.avg_suggested_price,
-          json_build_object(
-            'id', up.id,
-            'user_id', up.user_id,
-            'first_name', up.first_name,
-            'last_name', up.last_name,
-            'phone', up.phone,
-            'company', up.company,
-            'avatar_url', up.avatar_url,
-            'bio', up.bio,
-            'email', u.email
-          ) as owner
-        FROM properties p
-        LEFT JOIN user_profiles up ON p.user_id = up.user_id
-        LEFT JOIN users u ON p.user_id = u.id
-        LEFT JOIN property_statistics ps ON p.id = ps.property_id
-        WHERE p.id = $1`,
+        buildPropertyQuery({
+          includeOwner: true,
+          includeStats: 'base',
+          whereClause: 'p.id = $1',
+        }),
         [input.id]
       );
 
@@ -190,28 +176,14 @@ export const propertiesRouter = router({
   // Get properties by user ID
   getByUserId: protectedProcedure
     .query(async ({ ctx }) => {
-      // Get properties for the authenticated user with statistics
+      // Get properties for the authenticated user with extended statistics
       const properties = await query(
-        `SELECT
-          p.*,
-          COALESCE(ps.total_views, 0) as total_views,
-          COALESCE(ps.unique_viewers, 0) as unique_viewers,
-          COALESCE(ps.favorites_count, 0) as favorites_count,
-          COALESCE(ps.rating_count, 0) as rating_count,
-          COALESCE(ps.views_last_7_days, 0) as views_last_7_days,
-          COALESCE(ps.views_last_30_days, 0) as views_last_30_days,
-          COALESCE(ps.feedback_count, 0) as feedback_count,
-          ps.avg_rating,
-          ps.avg_suggested_price,
-          ps.positive_feedback_count,
-          ps.neutral_feedback_count,
-          ps.negative_feedback_count,
-          EXTRACT(DAY FROM (CURRENT_TIMESTAMP - p.created_at))::integer as days_online,
-          COALESCE(jsonb_array_length(p.documents), 0) as documents_count
-        FROM properties p
-        LEFT JOIN property_statistics ps ON p.id = ps.property_id
-        WHERE p.user_id = $1
-        ORDER BY p.created_at DESC`,
+        buildPropertyQuery({
+          includeOwner: false,
+          includeStats: 'extended',
+          whereClause: 'p.user_id = $1',
+          orderBy: 'p.created_at DESC',
+        }),
         [ctx.user.id]
       );
 
@@ -266,6 +238,7 @@ export const propertiesRouter = router({
         available_from: z.string().trim().max(50).optional(),
         important_notes: z.string().trim().max(2000).optional(),
         is_external: z.boolean().optional(),
+        monthly_rent: z.number().int().nonnegative().max(1000000).optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -277,8 +250,8 @@ export const propertiesRouter = router({
           year_built, floor_level, total_floors, bathrooms, usable_area,
           usable_area_ratio, monthly_fee, condition, heating_type,
           energy_source, energy_certificate, energy_efficiency_class,
-          available_from, important_notes, is_external
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34)
+          available_from, important_notes, is_external, monthly_rent
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35)
         RETURNING *`,
         [
           ctx.user.id,
@@ -315,6 +288,7 @@ export const propertiesRouter = router({
           input.available_from,
           input.important_notes,
           input.is_external || false,
+          input.monthly_rent,
         ]
       );
 

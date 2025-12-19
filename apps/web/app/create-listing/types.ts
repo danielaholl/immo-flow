@@ -33,7 +33,10 @@ export interface ListingData {
   heating_type?: 'central' | 'floor' | 'gas' | 'heat_pump' | 'district' | 'other';
   energy_efficiency_class?: string; // e.g., 'A+', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'
   commission?: number;
+  commission_rate?: number; // Maklergebühren in %
   additional_costs?: number;
+  monthly_fee?: number; // Hausgeld pro Monat in EUR
+  monthly_rent?: number; // Mieteinnahme pro Monat in EUR
   // AI Rating fields (legacy)
   ai_score?: number;
   ai_rating_explanation?: string;

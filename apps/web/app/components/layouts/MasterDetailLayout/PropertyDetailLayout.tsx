@@ -33,6 +33,10 @@ export interface PropertyDetailLayoutProps {
   selectedDocument?: PropertyDocument | null;
   /** Callback when document viewer is closed */
   onDocumentClose?: () => void;
+  /** Overlay content for image slideshow (e.g., GlassButtons) */
+  imageOverlay?: ReactNode;
+  /** Whether action buttons should scroll with content (default: false for desktop) */
+  scrollActionButtons?: boolean;
 }
 
 /**
@@ -56,6 +60,8 @@ export function PropertyDetailLayout({
   showMobileHeader = true,
   selectedDocument,
   onDocumentClose,
+  imageOverlay,
+  scrollActionButtons = false,
 }: PropertyDetailLayoutProps) {
   return (
     <>
@@ -85,6 +91,7 @@ export function PropertyDetailLayout({
                   showProgressBars={true}
                   slideshowId={`detail-mobile-${propertyId}`}
                   propertyType={propertyType}
+                  overlay={imageOverlay}
                 />
               </div>
             </div>
@@ -98,10 +105,17 @@ export function PropertyDetailLayout({
                 {mobileActionButtons}
               </div>
             )}
+
+            {/* Desktop: Action Buttons - scrolls with content (when scrollActionButtons is true) */}
+            {scrollActionButtons && desktopActionButtons && (
+              <div className="hidden lg:block mt-6 pb-8">
+                {desktopActionButtons}
+              </div>
+            )}
           </div>
 
-          {/* Desktop: Action Buttons - Fixed at bottom with gradient blur */}
-          {desktopActionButtons && (
+          {/* Desktop: Action Buttons - Fixed at bottom with gradient blur (default) */}
+          {!scrollActionButtons && desktopActionButtons && (
             <div className="hidden lg:block flex-shrink-0 bg-gradient-to-t from-white to-transparent backdrop-blur-[2px] p-4">
               {desktopActionButtons}
             </div>
@@ -125,6 +139,7 @@ export function PropertyDetailLayout({
               showProgressBars={true}
               slideshowId={`detail-desktop-${propertyId}`}
               propertyType={propertyType}
+              overlay={imageOverlay}
             />
           )}
         </div>

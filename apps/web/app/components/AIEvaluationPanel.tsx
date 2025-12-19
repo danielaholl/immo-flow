@@ -198,12 +198,43 @@ export function AIEvaluationPanel({
         className="w-full p-4 sm:p-5 cursor-pointer"
       >
         <div className="flex items-center justify-between mb-3">
+          {/* Links: Titel */}
           <div className="flex items-center gap-2 min-w-0">
             <Sparkles size={18} className={`flex-shrink-0 ${mode === 'seller' ? 'text-emerald-600' : 'text-purple-600'}`} />
             <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">
               AI-Score
             </h3>
           </div>
+
+          {/* Mitte: Score Badge (nur Buyer Mode) */}
+          {mode === 'buyer' && buyerEvaluation?.buyer_investor && (() => {
+            const scoreInfo = getScoreColor(buyerEvaluation.buyer_investor.investmentScore);
+            return (
+              <div
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl"
+                style={{ backgroundColor: `${scoreInfo.color}15` }}
+              >
+                <div
+                  className="w-3 h-3 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: scoreInfo.color }}
+                />
+                <span
+                  className="text-base font-bold"
+                  style={{ color: scoreInfo.color }}
+                >
+                  {toDisplayScore(buyerEvaluation.buyer_investor.investmentScore)}/5
+                </span>
+                <span
+                  className="text-sm font-medium hidden sm:inline"
+                  style={{ color: scoreInfo.color }}
+                >
+                  {scoreInfo.label}
+                </span>
+              </div>
+            );
+          })()}
+
+          {/* Rechts: Buttons */}
           <div className="flex items-center gap-2 flex-shrink-0">
             {/* Neu bewerten Button */}
             <button
@@ -224,71 +255,23 @@ export function AIEvaluationPanel({
           </div>
         </div>
 
-        {/* Key Metrics Cards - always shown */}
-        <div className={`grid gap-2 sm:gap-3 ${mode === 'seller' ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4'}`}>
-            {/* Seller Mode Metrics - nur Marktwert und Vermarktungsdauer */}
-            {mode === 'seller' && sellerEvaluation && (
-              <>
-                <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
-                  <div className="text-xs text-gray-500 mb-1">Marktwert</div>
-                  <div className="text-lg font-bold text-gray-900">
-                    {formatPrice(sellerEvaluation.recommendedPrice)}
-                  </div>
-                </div>
-                <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
-                  <div className="text-xs text-gray-500 mb-1">Vermarktungsdauer</div>
-                  <div className="text-lg font-bold text-gray-900">
-                    {sellerEvaluation.marketingDurationMin}-{sellerEvaluation.marketingDurationMax} Wo.
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Buyer Investor Mode Metrics */}
-            {mode === 'buyer' && buyerEvaluation?.buyer_investor && (() => {
-              const scoreInfo = getScoreColor(buyerEvaluation.buyer_investor.investmentScore);
-              return (
-              <>
-                <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
-                  <div
-                    className="text-xs font-medium mb-1"
-                    style={{ color: scoreInfo.color }}
-                  >
-                    {scoreInfo.label}
-                  </div>
-                  <div className="flex items-center justify-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: scoreInfo.color }}
-                    />
-                    <span className="text-lg font-bold text-gray-900">
-                      {toDisplayScore(buyerEvaluation.buyer_investor.investmentScore)}/5
-                    </span>
-                  </div>
-                </div>
-                <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
-                  <div className="text-xs text-gray-500 mb-1">Rendite</div>
-                  <div className="text-lg font-bold text-gray-900">
-                    {buyerEvaluation.buyer_investor.grossYield?.toFixed(1) || '—'}%
-                  </div>
-                </div>
-                <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
-                  <div className="text-xs text-gray-500 mb-1">Cashflow</div>
-                  <div className={`text-lg font-bold ${(buyerEvaluation.buyer_investor.monthlyBudget || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {(buyerEvaluation.buyer_investor.monthlyBudget || 0) >= 0 ? '+' : ''}
-                    {(buyerEvaluation.buyer_investor.monthlyBudget || 0).toLocaleString('de-DE')}€
-                  </div>
-                </div>
-                <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
-                  <div className="text-xs text-gray-500 mb-1">Faktor</div>
-                  <div className="text-lg font-bold text-gray-900">
-                    {buyerEvaluation.buyer_investor.rentMultiplier?.toFixed(1) || '—'}x
-                  </div>
-                </div>
-              </>
-              );
-            })()}
+        {/* Key Metrics Cards - nur für Seller Mode */}
+        {mode === 'seller' && sellerEvaluation && (
+          <div className="grid gap-2 sm:gap-3 grid-cols-2">
+            <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
+              <div className="text-xs text-gray-500 mb-1">Marktwert</div>
+              <div className="text-lg font-bold text-gray-900">
+                {formatPrice(sellerEvaluation.recommendedPrice)}
+              </div>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
+              <div className="text-xs text-gray-500 mb-1">Vermarktungsdauer</div>
+              <div className="text-lg font-bold text-gray-900">
+                {sellerEvaluation.marketingDurationMin}-{sellerEvaluation.marketingDurationMax} Wo.
+              </div>
+            </div>
           </div>
+        )}
       </div>
 
       {/* Collapsible Content */}

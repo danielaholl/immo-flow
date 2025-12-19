@@ -466,9 +466,14 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
 
     const fieldQuestions: Array<{ camel: string; snake: string; question: string }> = [
       { camel: 'propertyType', snake: 'property_type', question: 'Um welche Art von Immobilie handelt es sich? (Wohnung, Haus, Gewerbe)' },
-      { camel: 'location', snake: 'location', question: 'In welcher Stadt oder Region befindet sich die Immobilie?' },
+      { camel: 'streetAddress', snake: 'street_address', question: 'Wie lautet die Straße und Hausnummer?' },
+      { camel: 'postalCode', snake: 'postal_code', question: 'Wie lautet die Postleitzahl?' },
+      { camel: 'location', snake: 'location', question: 'In welcher Stadt befindet sich die Immobilie?' },
       { camel: 'price', snake: 'price', question: 'Wie hoch ist der Kaufpreis?' },
-      { camel: 'sqm', snake: 'sqm', question: 'Wie groß ist die Wohnfläche in Quadratmetern?' },
+      { camel: 'sqm', snake: 'sqm', question: 'Wie groß ist die Wohnfläche in m²?' },
+      { camel: 'commissionRate', snake: 'commission_rate', question: 'Wie hoch sind die Maklergebühren in %?' },
+      { camel: 'monthlyFee', snake: 'monthly_fee', question: 'Wie hoch ist das monatliche Hausgeld in EUR?' },
+      { camel: 'monthlyRent', snake: 'monthly_rent', question: 'Wie hoch sind die monatlichen Mieteinnahmen in EUR?' },
       { camel: 'rooms', snake: 'rooms', question: 'Wie viele Zimmer hat die Immobilie?' },
       { camel: 'condition', snake: 'condition', question: 'In welchem Zustand ist die Immobilie? (Neu, renoviert, gepflegt, sanierungsbedürftig)' },
     ];
@@ -500,6 +505,9 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
       heating_type: data.heatingType || data.heating_type,
       energy_efficiency_class: data.energyClass || data.energy_efficiency_class,
       additional_costs: data.monthlyFee || data.additional_costs,
+      commission_rate: data.commissionRate || data.commission_rate,
+      monthly_fee: data.monthlyFee || data.monthly_fee,
+      monthly_rent: data.monthlyRent || data.monthly_rent,
     };
   };
 

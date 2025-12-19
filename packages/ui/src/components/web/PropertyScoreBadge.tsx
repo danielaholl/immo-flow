@@ -64,25 +64,18 @@ export function PropertyScoreBadge({ score, variant = 'overlay' }: PropertyScore
 
   return (
     <div
-      className="px-4 py-2.5 rounded-xl flex items-center justify-center gap-2"
+      className="w-[52px] h-[52px] rounded-full flex items-center justify-center"
       style={{
-        backdropFilter: 'blur(2px)',
-        WebkitBackdropFilter: 'blur(2px)',
-        border: '1px solid rgba(255, 255, 255, 0.5)',
+        backdropFilter: 'blur(4px)',
+        WebkitBackdropFilter: 'blur(4px)',
+        border: `1px solid ${dotColor}`,
       }}
     >
-      {/* Dot */}
-      <div
-        className="w-5 h-5 rounded-full flex-shrink-0"
-        style={{
-          backgroundColor: dotColor,
-        }}
-      />
       {/* Score */}
       <div
         className="text-[28px] font-bold leading-none"
         style={{
-          color: 'rgba(255, 255, 255, 0.95)',
+          color: dotColor,
           textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
         }}
       >

@@ -5,6 +5,7 @@
 import { z } from 'zod';
 import { router, protectedProcedure } from '../trpc.js';
 import { query, queryOne } from '../db.js';
+import { PROPERTY_JSON_FIELDS, OWNER_JSON_SUBQUERY } from '../lib/propertyQueryBuilder.js';
 
 export const favoritesRouter = router({
   // Get user favorites
@@ -13,61 +14,8 @@ export const favoritesRouter = router({
       `SELECT
         f.*,
         json_build_object(
-          'id', p.id,
-          'title', p.title,
-          'price', p.price,
-          'location', p.location,
-          'full_address', NULLIF(CONCAT_WS(', ', p.street_address, CONCAT_WS(' ', p.postal_code, p.location)), ''),
-          'sqm', p.sqm,
-          'rooms', p.rooms,
-          'images', p.images,
-          'video_url', p.video_url,
-          'features', p.features,
-          'ai_score', COALESCE(p.ai_investment_score, p.ai_score),
-          'commission_rate', p.commission_rate,
-          'require_address_consent', p.require_address_consent,
-          'description', p.description,
-          'yield', p.yield,
-          'highlights', p.highlights,
-          'red_flags', p.red_flags,
-          'status', p.status,
-          'created_at', p.created_at,
-          'property_type', p.property_type,
-          'ai_detailed_evaluation', p.ai_detailed_evaluation,
-          'buyer_evaluation', p.buyer_evaluation,
-          'monthly_fee', p.monthly_fee,
-          'usable_area', p.usable_area,
-          'usable_area_ratio', p.usable_area_ratio,
-          'bathrooms', p.bathrooms,
-          'total_floors', p.total_floors,
-          'floor_level', p.floor_level,
-          'available_from', p.available_from,
-          'year_built', p.year_built,
-          'heating_type', p.heating_type,
-          'energy_source', p.energy_source,
-          'energy_certificate', p.energy_certificate,
-          'energy_efficiency_class', p.energy_efficiency_class,
-          'condition', p.condition,
-          'important_notes', p.important_notes,
-          'actual_monthly_rent', p.actual_monthly_rent,
-          'is_external', p.is_external,
-          'user_id', p.user_id,
-          'days_online', EXTRACT(DAY FROM (CURRENT_TIMESTAMP - p.created_at))::integer,
-          'documents_count', COALESCE(jsonb_array_length(p.documents), 0),
-          'owner', (
-            SELECT json_build_object(
-              'first_name', up.first_name,
-              'last_name', up.last_name,
-              'company', up.company,
-              'avatar_url', up.avatar_url,
-              'phone', up.phone,
-              'bio', up.bio,
-              'email', u.email
-            )
-            FROM user_profiles up
-            LEFT JOIN users u ON up.user_id = u.id
-            WHERE up.user_id = p.user_id
-          )
+          ${PROPERTY_JSON_FIELDS},
+          ${OWNER_JSON_SUBQUERY}
         ) as property
        FROM favorites f
        JOIN properties p ON f.property_id = p.id

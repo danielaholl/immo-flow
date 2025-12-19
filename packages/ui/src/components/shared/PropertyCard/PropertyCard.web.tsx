@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { House, Heart, X, Share2 } from 'lucide-react';
+import { House, Heart, X, Share2, MessageSquare } from 'lucide-react';
 import { colors } from '../../../theme';
 import type { PropertyCardProps } from './PropertyCard.types';
 import { usePropertyCardLogic } from './PropertyCard.logic';
@@ -17,6 +17,7 @@ export function PropertyCard({
   onFavorite,
   onDismiss,
   onShare,
+  onMessage,
   isFavorite = false,
   variant: _variant = 'story',
   isActive = false,
@@ -45,22 +46,13 @@ export function PropertyCard({
           <>
             {/* AI Score Badge - Reusable Component */}
             {logic.score !== undefined && logic.score !== null && (
-              <div className="absolute top-12 right-3 z-10 pointer-events-none">
+              <div className="absolute top-8 right-3 z-10 pointer-events-none">
                 <PropertyScoreBadge score={logic.score} variant="overlay" />
               </div>
             )}
 
             {/* Action Buttons - Reusable Components */}
-            <div className="absolute bottom-5 right-3 flex flex-row gap-2 z-20">
-              <GlassButton
-                variant="default"
-                iconOnly
-                subtleBorder
-                iconLeft={<X strokeWidth={2.5} />}
-                onClick={(e) => onDismiss?.(e as any)}
-                tooltip="Nicht interessiert"
-                ariaLabel="Nicht interessiert"
-              />
+            <div className="absolute bottom-5 right-3 flex flex-col gap-2 z-20">
               <GlassButton
                 variant="default"
                 iconOnly
@@ -69,6 +61,24 @@ export function PropertyCard({
                 onClick={(e) => onShare?.(e as any)}
                 tooltip="Teilen"
                 ariaLabel="Teilen"
+              />
+              <GlassButton
+                variant="default"
+                iconOnly
+                subtleBorder
+                iconLeft={<MessageSquare strokeWidth={2} />}
+                onClick={(e) => onMessage?.(e as any)}
+                tooltip="Nachricht senden"
+                ariaLabel="Nachricht senden"
+              />
+              <GlassButton
+                variant="default"
+                iconOnly
+                subtleBorder
+                iconLeft={<X strokeWidth={2.5} />}
+                onClick={(e) => onDismiss?.(e as any)}
+                tooltip="Nicht interessiert"
+                ariaLabel="Nicht interessiert"
               />
               <GlassButton
                 variant="favorite"

@@ -132,7 +132,7 @@ export function GlassButton({
   const sizeStyles = sizeConfig[size];
   const isDisabled = disabled || loading;
   const currentIconSize = iconOnly ? sizeStyles.iconSizeIconOnly : sizeStyles.iconSize;
-  const borderColor = subtleBorder ? 'rgba(255, 255, 255, 0.15)' : color;
+  const borderColor = subtleBorder ? 'rgba(255, 255, 255, 0.5)' : color;
 
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
@@ -216,8 +216,8 @@ export function GlassButton({
             : { padding: sizeStyles.padding, minHeight: sizeStyles.minHeight }
           ),
           gap: sizeStyles.gap,
-          backdropFilter: 'blur(2px)',
-          WebkitBackdropFilter: 'blur(2px)',
+          backdropFilter: 'blur(4px)',
+          WebkitBackdropFilter: 'blur(4px)',
           border: `1px solid ${borderColor}`,
           background: 'transparent',
         }}

@@ -6,9 +6,10 @@ import { useRouter } from 'next/navigation';
 import { useAuthContext } from '@/app/providers/AuthProvider';
 import type { Property } from '@immoflow/database';
 import { Header } from '../components/Header';
-import { PropertyPreview, PropertyPreviewData } from '../components/PropertyPreview';
+import { PropertyPreview } from '../components/PropertyPreview';
 import { AIEvaluationPanel, type SellerEvaluation } from '../components/AIEvaluationPanel';
 import type { PropertyDocument } from '../create-listing/types';
+import { mapToPropertyPreviewData } from '../utils/propertyMapper';
 import { DeletePropertyModal } from '../components/DeletePropertyModal';
 import { InterestedPartiesList } from '../components/InterestedPartiesList';
 import { ShareLinkModal } from '../components/ShareLinkModal';
@@ -276,76 +277,10 @@ export default function MyPropertiesPage() {
     );
   }
 
-  // Convert property data to PropertyPreview format
-  // Extract detailed evaluation data from JSONB field
-  const detailedEval = selectedProperty?.ai_detailed_evaluation;
-  // Use seller_evaluation directly (from property-seller-evaluator with validated market values)
-  const sellerEval = selectedProperty?.seller_evaluation as SellerEvaluation | undefined;
-
-  const propertyPreviewData: PropertyPreviewData | null = selectedProperty ? {
-    images: selectedProperty.images || [],
-    price: selectedProperty.price || 0,
-    commission_rate: selectedProperty.commission_rate ?? undefined,
-    location: selectedProperty.location || '',
-    address: (selectedProperty as any).street_address ?? undefined,
-    postal_code: (selectedProperty as any).postal_code ?? undefined,
-    title: selectedProperty.title || '',
-    type: selectedProperty.property_type ?? undefined,
-    sqm: selectedProperty.sqm || 0,
-    rooms: selectedProperty.rooms || 0,
-    description: selectedProperty.description || '',
-    features: selectedProperty.features ?? undefined,
-    yield: selectedProperty.yield ?? undefined,
-    highlights: selectedProperty.highlights ?? undefined,
-    red_flags: selectedProperty.red_flags ?? undefined,
-    ai_investment_score: selectedProperty.ai_investment_score ?? selectedProperty.ai_score ?? undefined,
-    require_address_consent: false,
-    monthly_fee: selectedProperty.monthly_fee ?? undefined,
-    usable_area: selectedProperty.usable_area ?? undefined,
-    usable_area_ratio: selectedProperty.usable_area_ratio ?? undefined,
-    bathrooms: selectedProperty.bathrooms ?? undefined,
-    total_floors: selectedProperty.total_floors ?? undefined,
-    floor_level: selectedProperty.floor_level ?? undefined,
-    available_from: selectedProperty.available_from ?? undefined,
-    year_built: selectedProperty.year_built ?? undefined,
-    heating_type: selectedProperty.heating_type ?? undefined,
-    energy_source: selectedProperty.energy_source ?? undefined,
-    energy_certificate: selectedProperty.energy_certificate ?? undefined,
-    energy_efficiency_class: selectedProperty.energy_efficiency_class ?? undefined,
-    condition: selectedProperty.condition ?? undefined,
-    important_notes: selectedProperty.important_notes ?? undefined,
-    // Extract AI analysis data from ai_detailed_evaluation JSONB
-    actual_monthly_rent: selectedProperty.actual_monthly_rent ?? undefined,
-    yield_metrics: detailedEval?.yield_metrics ?? undefined,
-    rental_income: detailedEval?.rental_income ?? undefined,
-    cashflow_calculation: detailedEval?.cashflow_calculation ?? undefined,
-    evaluation: detailedEval?.evaluation ?? undefined,
-    // AI Rating fields
-    ai_rating_explanation: selectedProperty.ai_rating_explanation ?? undefined,
-    strengths: selectedProperty.strengths ?? undefined,
-    weaknesses: selectedProperty.weaknesses ?? undefined,
-    opportunities: selectedProperty.opportunities ?? undefined,
-    risks: selectedProperty.risks ?? undefined,
-    // Days online
-    days_online: selectedProperty.days_online ?? undefined,
-    // Aggregated feedback stats (only for seller view)
-    total_views: selectedProperty.total_views ?? undefined,
-    favorites_count: selectedProperty.favorites_count ?? undefined,
-    rating_count: selectedProperty.rating_count ?? undefined,
-    avg_rating: selectedProperty.avg_rating ?? undefined,
-    avg_suggested_price: selectedProperty.avg_suggested_price ?? undefined,
-    // Seller evaluation from seller_evaluation JSONB field
-    seller_evaluation: sellerEval,
-    // Documents from documents JSONB field
-    documents: (selectedProperty.documents as unknown as PropertyDocument[]) || [],
-    documents_count: (selectedProperty as any).documents_count ?? 0,
-    // Owner info from profile
-    owner: {
-      first_name: profile?.first_name ?? undefined,
-      last_name: profile?.last_name ?? undefined,
-      email: user?.email ?? undefined,
-    },
-  } : null;
+  // Convert property data to PropertyPreview format using central mapper
+  const propertyPreviewData = selectedProperty
+    ? mapToPropertyPreviewData(selectedProperty as any, { isOwner: true })
+    : null;
 
   return (
     <main className="min-h-screen bg-white">

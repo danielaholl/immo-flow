@@ -107,62 +107,62 @@ export function PropertyActionButtons({
     );
   }
 
-  // Buyer Mode: 4 Buttons (Favorit, Teilen, Kein Interesse, Nachricht)
+  // Buyer Mode: 4 Buttons (Favorit, Kein Interesse, Nachricht senden, Teilen)
   return (
     <>
-      <div className={`flex flex-col sm:flex-row gap-3 ${className}`}>
+      <div className={`flex flex-wrap gap-3 ${className}`}>
           <button
             onClick={onToggleFavorite}
-            className={`flex-1 font-semibold py-4 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 ${
+            className={`flex-1 min-w-[140px] font-semibold py-4 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 ${
               isFavorite
                 ? 'bg-primary text-white hover:opacity-90'
                 : 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50'
             }`}
           >
             <Heart size={20} fill={isFavorite ? 'currentColor' : 'none'} />
-            {finalFavoriteLabel}
-          </button>
-          <button
-            onClick={handleBuyerShare}
-            disabled={!propertyUrl}
-            className="flex-1 bg-white border-2 border-gray-300 text-gray-700 font-semibold py-4 px-6 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Share2 size={20} />
-            Teilen
+            <span className="truncate">{finalFavoriteLabel}</span>
           </button>
           <button
             onClick={onDismiss}
             disabled={isDismissLoading}
-            className="flex-1 bg-white border-2 border-gray-300 text-gray-700 font-semibold py-4 px-6 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 min-w-[140px] bg-white border-2 border-gray-300 text-gray-700 font-semibold py-4 px-4 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isDismissLoading ? (
               <>
                 <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                Wird verarbeitet...
+                <span className="truncate">Wird verarbeitet...</span>
               </>
             ) : (
               <>
                 <X size={20} />
-                Kein Interesse
+                <span className="truncate">Kein Interesse</span>
               </>
             )}
           </button>
           <button
             onClick={onStartMessage}
             disabled={isMessageLoading}
-            className="flex-1 bg-green-600 text-white font-semibold py-4 px-6 rounded-xl hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 min-w-[140px] bg-green-600 text-white font-semibold py-4 px-4 rounded-xl hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isMessageLoading ? (
               <>
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Wird gestartet...
+                <span className="truncate">Wird gestartet...</span>
               </>
             ) : (
               <>
                 <MessageSquare size={20} />
-                Nachricht senden
+                <span className="truncate">Nachricht</span>
               </>
             )}
+          </button>
+          <button
+            onClick={handleBuyerShare}
+            disabled={!propertyUrl}
+            className="flex-1 min-w-[140px] bg-white border-2 border-gray-300 text-gray-700 font-semibold py-4 px-4 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Share2 size={20} />
+            <span className="truncate">Teilen</span>
           </button>
       </div>
 

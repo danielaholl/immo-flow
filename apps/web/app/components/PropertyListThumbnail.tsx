@@ -111,29 +111,31 @@ export function PropertyListThumbnail({
 
   return (
     <div
-      className={`group relative bg-white border rounded-xl overflow-hidden transition-all h-44 ${
+      className={`group relative bg-white border rounded-xl overflow-hidden transition-all h-36 ${
         isSelected
           ? 'border-primary ring-2 ring-primary/20'
           : 'border-gray-200 hover:border-gray-300'
       }`}
     >
-      {/* Delete Button (X) - Always visible if onDelete provided */}
-      {onDelete && (
-        <button
-          onClick={onDelete}
-          className="absolute top-2 right-2 z-20 w-8 h-8 text-gray-500 hover:text-gray-700 rounded-full flex items-center justify-center transition-all"
-          title={deleteTooltip}
-        >
-          <X size={20} />
-        </button>
-      )}
-
-      {/* Unread Badge - Below delete button */}
-      {unreadCount !== undefined && unreadCount > 0 && (
-        <div className="absolute top-10 right-2 z-20 bg-blue-500 text-white text-xs font-bold rounded-full px-2 py-1 shadow-md">
-          {unreadCount}
-        </div>
-      )}
+      {/* Action Buttons - Bottom right, vertical stack */}
+      <div className="absolute bottom-2 right-2 z-20 flex flex-col-reverse gap-1.5">
+        {/* Delete Button (X) - bottom */}
+        {onDelete && (
+          <button
+            onClick={onDelete}
+            className="w-8 h-8 bg-white/80 backdrop-blur-sm text-gray-500 hover:text-gray-700 hover:bg-white rounded-full flex items-center justify-center transition-all shadow-md"
+            title={deleteTooltip}
+          >
+            <X size={18} />
+          </button>
+        )}
+        {/* Unread Badge - above delete */}
+        {unreadCount !== undefined && unreadCount > 0 && (
+          <div className="w-8 h-8 bg-blue-500 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-md">
+            {unreadCount}
+          </div>
+        )}
+      </div>
 
       <div className="flex h-full cursor-pointer" onClick={onClick}>
         {/* Thumbnail - Full height */}
@@ -238,15 +240,15 @@ export function PropertyListThumbnail({
         <div className="flex-1 p-3 min-w-0 flex flex-col justify-start">
           {/* Price */}
           {price !== undefined && (
-            <p className="text-primary font-bold text-base">{formatPrice(price)}</p>
+            <p className="text-primary font-bold text-sm">{formatPrice(price)}</p>
           )}
 
           {/* Title */}
-          <h3 className="font-medium text-gray-900 text-base truncate mt-0.5">{title}</h3>
+          <h3 className="font-medium text-gray-900 text-sm truncate mt-0.5">{title}</h3>
 
           {/* Location */}
           {displayLocation && (
-            <p className="text-sm text-gray-500 mt-1 flex items-center gap-1 truncate">
+            <p className="text-xs text-gray-500 mt-1 flex items-center gap-1 truncate">
               <MapPin size={12} className="flex-shrink-0" />
               <span className="truncate">{displayLocation}</span>
             </p>
@@ -254,14 +256,14 @@ export function PropertyListThumbnail({
 
           {/* Role Info (for messages) */}
           {roleLabel && roleValue && (
-            <div className="text-sm text-gray-600 mt-1">
+            <div className="text-xs text-gray-600 mt-1">
               <span className="font-medium">{roleLabel}:</span>{' '}
               <span className="truncate">{roleValue}</span>
             </div>
           )}
 
           {/* Bottom Row - Property Stats or Date */}
-          <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
+          <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
             {/* Property details */}
             {rooms !== undefined && sqm !== undefined && price !== undefined && (
               <>
