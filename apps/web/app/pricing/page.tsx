@@ -23,16 +23,22 @@ export default function PricingPage() {
           ? verkaufPlans
           : maklerPlans;
 
-  const handleSelectPlan = (planName: string) => {
+  const handleSelectPlan = (plan: PricingPlan) => {
+    // Teaser-Karte: Wechsle zum entsprechenden Tab
+    if (plan.isTeaser && plan.teaserLink) {
+      setUserType(plan.teaserLink as UserType);
+      return;
+    }
+
     // TODO: Implement Stripe checkout or signup flow
-    if (planName === 'Free') {
+    if (plan.name === 'Free') {
       router.push('/auth/signup');
-    } else if (planName === 'Agentur') {
+    } else if (plan.name === 'Agentur') {
       // Contact form for enterprise
       window.location.href = 'mailto:kontakt@nestando.de?subject=Agentur-Plan%20Anfrage';
     } else {
       // For now, redirect to signup with plan parameter
-      router.push(`/auth/signup?plan=${planName.toLowerCase()}`);
+      router.push(`/auth/signup?plan=${plan.name.toLowerCase()}`);
     }
   };
 
@@ -60,7 +66,7 @@ export default function PricingPage() {
             <PricingCard
               key={plan.name}
               {...plan}
-              onSelect={() => handleSelectPlan(plan.name)}
+              onSelect={() => handleSelectPlan(plan)}
             />
           ))}
         </div>

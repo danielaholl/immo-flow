@@ -5,6 +5,8 @@ export interface PricingPlan {
   description: string;
   features: string[];
   isPopular?: boolean;
+  isTeaser?: boolean;
+  teaserLink?: string;
   ctaText: string;
 }
 
@@ -25,35 +27,20 @@ export const investorPlans: PricingPlan[] = [
     ctaText: 'Kostenlos starten',
   },
   {
-    name: 'Starter',
-    price: 19,
-    period: 'Monat',
-    description: 'Für aktive Investoren',
-    features: [
-      'Alles aus Free',
-      '50 Favoriten speichern',
-      '5 detaillierte KI-Analysen/Monat',
-      '5x Rendite-Kalkulator',
-      '5x Finanzierungsrechner',
-      '5x Cashflow-Projektion',
-      'Email-Alerts für neue Objekte',
-    ],
-    ctaText: 'Starter wählen',
-  },
-  {
     name: 'Investor',
-    price: 39,
+    price: 29,
     period: 'Monat',
     description: 'Vollzugriff auf alle Analysen',
     isPopular: true,
     features: [
-      'Alles aus Starter',
+      'Alles aus Free',
       'Unbegrenzte Favoriten',
       'Unbegrenzte KI-Analysen',
       'SWOT-Analyse',
       'Rendite-Kalkulator',
       'Finanzierungsrechner',
       'Cashflow-Projektion',
+      'Email-Alerts für neue Objekte',
     ],
     ctaText: 'Investor wählen',
   },
@@ -77,47 +64,35 @@ export const investorPlans: PricingPlan[] = [
 
 export const maklerPlans: PricingPlan[] = [
   {
-    name: 'Basic',
-    price: 79,
+    name: 'Pro',
+    price: 99,
     period: 'Monat',
     description: 'Für Einzelmakler',
     features: [
-      '20 Objekte verwalten',
+      '50 Objekte verwalten',
       'KI-Chat Objekterstellung',
-      '5 PDF-Imports/Monat',
+      '20 PDF-Imports/Monat',
       'Video-Upload',
       'Online-Exposé mit QR-Code',
       'Dokument-Management',
       'Interessenten-Nachrichten',
-      'Basic Analytics',
-    ],
-    ctaText: 'Basic wählen',
-  },
-  {
-    name: 'Pro',
-    price: 149,
-    period: 'Monat',
-    description: 'Für wachsende Makler',
-    isPopular: true,
-    features: [
-      '100 Objekte verwalten',
-      '50 PDF-Imports/Monat',
-      '20 Screenshot-Analysen',
       'Lead-Dashboard',
-      'Conversion-Tracking',
       'Email Support',
     ],
     ctaText: 'Pro wählen',
   },
   {
     name: 'Enterprise',
-    price: 299,
+    price: 249,
     period: 'Monat',
     description: 'Für Maklerbüros',
+    isPopular: true,
     features: [
+      'Alles aus Pro',
       'Unbegrenzte Objekte',
       'Unbegrenzte Imports',
       'KI-Auto-Antworten',
+      'Conversion-Tracking',
       'Monatliche Reports',
       '3 Team-Seats',
       'Chat Support',
@@ -175,20 +150,20 @@ export const sucherPlans: PricingPlan[] = [
     ctaText: 'Sucher wählen',
   },
   {
-    name: 'Sucher Plus',
-    price: 19,
+    name: 'Investor werden?',
+    price: 29,
     period: 'Monat',
-    description: 'Mit Finanzierungs-Check',
+    description: 'Du überlegst, in Immobilien zu investieren?',
+    isTeaser: true,
+    teaserLink: 'investor',
     features: [
-      'Alles aus Sucher',
-      'Finanzierungs-Rechner',
-      'Monatliche Rate berechnen',
-      'Verhandlungsspielraum-Analyse',
-      'Versteckte Kosten aufdecken',
-      'Wertstabilität-Prognose',
-      'Priority Support',
+      'Rendite-Kalkulator',
+      'SWOT-Analyse',
+      'Cashflow-Projektion',
+      'Finanzierungsrechner',
+      'Portfolio-Übersicht',
     ],
-    ctaText: 'Sucher Plus wählen',
+    ctaText: 'Investor-Plan ansehen →',
   },
 ];
 
@@ -361,17 +336,12 @@ export const maklerFAQs = [
   {
     question: 'Wie viele Team-Mitglieder kann ich hinzufügen?',
     answer:
-      'Basic und Pro sind Einzellizenzen. Enterprise enthält 3 Seats, Agentur 10+ Seats. Weitere Seats können hinzugebucht werden.',
+      'Pro ist eine Einzellizenz. Enterprise enthält 3 Seats, Agentur 10+ Seats. Weitere Seats können hinzugebucht werden.',
   },
   {
     question: 'Kann ich Objekte von anderen Portalen importieren?',
     answer:
       'Ja! Mit Pro und höher kannst du Objekte per URL, PDF-Exposé oder Screenshot importieren. Unsere KI extrahiert automatisch alle Daten.',
-  },
-  {
-    question: 'Gibt es eine API für mein CRM?',
-    answer:
-      'Ja, ab dem Enterprise-Plan erhältst du vollen API-Zugang inkl. Webhooks für die Integration mit deinem bestehenden CRM.',
   },
   {
     question: 'Welche Zahlungsmethoden werden akzeptiert?',
