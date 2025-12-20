@@ -5,20 +5,33 @@
 import { z } from 'zod';
 import { router, protectedProcedure } from '../trpc.js';
 import { query, queryOne } from '../db.js';
-import { PROPERTY_JSON_FIELDS, OWNER_JSON_SUBQUERY } from '../lib/propertyQueryBuilder.js';
+import { PROPERTY_LIST_FIELDS } from '../lib/propertyQueryBuilder.js';
 
 export const favoritesRouter = router({
-  // Get user favorites
+  // Get user favorites - optimized with JOINs and lightweight fields
+  // Uses PROPERTY_LIST_FIELDS to reduce payload size (excludes documents, detailed evaluations)
   getAll: protectedProcedure.query(async ({ ctx }) => {
     const favorites = await query(
       `SELECT
         f.*,
         json_build_object(
-          ${PROPERTY_JSON_FIELDS},
-          ${OWNER_JSON_SUBQUERY}
+          ${PROPERTY_LIST_FIELDS},
+          'owner', json_build_object(
+            'id', up.id,
+            'user_id', up.user_id,
+            'first_name', up.first_name,
+            'last_name', up.last_name,
+            'phone', up.phone,
+            'company', up.company,
+            'avatar_url', up.avatar_url,
+            'bio', up.bio,
+            'email', u.email
+          )
         ) as property
        FROM favorites f
        JOIN properties p ON f.property_id = p.id
+       LEFT JOIN user_profiles up ON p.user_id = up.user_id
+       LEFT JOIN users u ON p.user_id = u.id
        WHERE f.user_id = $1 AND p.status = 'active'
        ORDER BY f.created_at DESC`,
       [ctx.user.id]

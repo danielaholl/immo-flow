@@ -196,3 +196,120 @@ export function removeAllListeners(): void {
     socket.off('typing:stop');
   }
 }
+
+/**
+ * Remove unread count listener
+ */
+export function offUnreadCountUpdate(callback: (data: { unreadCount: number }) => void): void {
+  if (socket) {
+    socket.off('unread:update', callback);
+  }
+}
+
+/**
+ * Remove conversation update listener
+ */
+export function offConversationUpdate(callback: (data: any) => void): void {
+  if (socket) {
+    socket.off('conversation:update', callback);
+  }
+}
+
+// ============================================
+// React Hooks for Safe Event Management
+// These hooks automatically cleanup listeners on unmount
+// ============================================
+
+import { useEffect, useCallback, useRef } from 'react';
+
+/**
+ * Hook for safely subscribing to new messages with automatic cleanup
+ */
+export function useNewMessageListener(callback: (data: any) => void): void {
+  const callbackRef = useRef(callback);
+  callbackRef.current = callback;
+
+  useEffect(() => {
+    const handler = (data: any) => callbackRef.current(data);
+    onNewMessage(handler);
+    return () => offNewMessage(handler);
+  }, []);
+}
+
+/**
+ * Hook for safely subscribing to unread count updates with automatic cleanup
+ */
+export function useUnreadCountListener(callback: (data: { unreadCount: number }) => void): void {
+  const callbackRef = useRef(callback);
+  callbackRef.current = callback;
+
+  useEffect(() => {
+    const handler = (data: { unreadCount: number }) => callbackRef.current(data);
+    onUnreadCountUpdate(handler);
+    return () => offUnreadCountUpdate(handler);
+  }, []);
+}
+
+/**
+ * Hook for safely subscribing to conversation updates with automatic cleanup
+ */
+export function useConversationUpdateListener(callback: (data: any) => void): void {
+  const callbackRef = useRef(callback);
+  callbackRef.current = callback;
+
+  useEffect(() => {
+    const handler = (data: any) => callbackRef.current(data);
+    onConversationUpdate(handler);
+    return () => offConversationUpdate(handler);
+  }, []);
+}
+
+/**
+ * Hook for safely subscribing to typing indicators with automatic cleanup
+ */
+export function useTypingIndicatorListener(
+  callback: (data: { userId: string; email: string; conversationId: string }) => void
+): void {
+  const callbackRef = useRef(callback);
+  callbackRef.current = callback;
+
+  useEffect(() => {
+    const handler = (data: { userId: string; email: string; conversationId: string }) =>
+      callbackRef.current(data);
+    onTypingIndicator(handler);
+    return () => offTypingIndicator(handler);
+  }, []);
+}
+
+/**
+ * Hook for managing conversation room membership with automatic leave on unmount
+ */
+export function useConversationRoom(conversationId: string | null): void {
+  useEffect(() => {
+    if (!conversationId) return;
+
+    joinConversation(conversationId);
+    return () => leaveConversation(conversationId);
+  }, [conversationId]);
+}
+
+/**
+ * Hook for socket initialization and cleanup
+ */
+export function useSocketConnection(token: string | null): Socket | null {
+  const socketRef = useRef<Socket | null>(null);
+
+  useEffect(() => {
+    if (!token) return;
+
+    socketRef.current = initializeSocket(token);
+
+    return () => {
+      removeAllListeners();
+      // Note: We don't disconnect here to allow reconnection
+      // Call disconnectSocket() explicitly when logging out
+    };
+  }, [token]);
+
+  return socketRef.current;
+}

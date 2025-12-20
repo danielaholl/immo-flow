@@ -162,6 +162,7 @@ export default function FavoritesPage() {
     monthlyRent?: number | null;
     monthlyFee?: number | null;
     purchasePrice?: number | null;
+    renovationCosts?: number | null;
   }) => {
     if (!selectedProperty?.id) return;
     saveUserPropertyParamsMutation.mutate({

@@ -51,7 +51,27 @@ const nextConfig = {
     return config;
   },
   images: {
-    domains: ['via.placeholder.com', 'localhost'], // Add your image domains here
+    // Use remotePatterns for better security and flexibility
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**', // Allow all HTTPS images (for user avatars, external URLs)
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
+      {
+        protocol: 'http',
+        hostname: '127.0.0.1',
+      },
+    ],
+    // Device sizes for responsive images
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
+    // Image sizes for srcset
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    // Enable AVIF format for better compression
+    formats: ['image/avif', 'image/webp'],
   },
   async rewrites() {
     return [

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { Heart, HouseHeart, MessageSquare, Compass, Home, User, LogIn, UserPlus, Menu, X } from 'lucide-react';
+import { Heart, HouseHeart, MessageSquare, Compass, Home, User, LogIn, UserPlus, Menu, X, Tag } from 'lucide-react';
 import { useAuthContext } from '../providers/AuthProvider';
 import { useEffect, useState } from 'react';
 import { trpc } from '@/lib/trpc';
@@ -60,6 +60,12 @@ export function Header() {
                 <div className="flex items-center gap-1.5">
                   <Compass size={18} />
                   <span>Entdecken</span>
+                </div>
+              </Link>
+              <Link href="/pricing" className="text-text-primary hover:text-primary text-base">
+                <div className="flex items-center gap-1.5">
+                  <Tag size={18} />
+                  <span>Preise</span>
                 </div>
               </Link>
               {loading ? (
@@ -165,6 +171,15 @@ export function Header() {
                 </div>
               ) : (
                 <>
+                  <Link
+                    href="/pricing"
+                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <Tag size={24} className="text-primary" />
+                    <span className="text-lg font-medium text-gray-900">Preise</span>
+                  </Link>
+
                   <Link
                     href="/auth/login"
                     className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"

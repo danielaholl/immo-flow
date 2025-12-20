@@ -162,7 +162,38 @@ export const OWNER_JSON_SUBQUERY = `
 `;
 
 /**
- * Property-Felder für json_build_object in Subqueries (z.B. favorites)
+ * Lightweight Property-Felder für Listen/Thumbnails (ohne documents, ohne detaillierte Evaluations)
+ * Reduziert Payload-Größe erheblich (von ~50MB auf ~2KB pro Property)
+ */
+export const PROPERTY_LIST_FIELDS = `
+  'id', p.id,
+  'title', p.title,
+  'price', p.price,
+  'location', p.location,
+  'street_address', p.street_address,
+  'postal_code', p.postal_code,
+  'full_address', NULLIF(CONCAT_WS(', ', p.street_address, CONCAT_WS(' ', p.postal_code, p.location)), ''),
+  'sqm', p.sqm,
+  'rooms', p.rooms,
+  'bathrooms', p.bathrooms,
+  'images', COALESCE((p.images)[1:3], ARRAY[]::text[]),
+  'video_url', p.video_url,
+  'property_type', p.property_type,
+  'status', p.status,
+  'ai_score', COALESCE(p.ai_investment_score, p.ai_score),
+  'ai_investment_score', p.ai_investment_score,
+  'buyer_evaluation', p.buyer_evaluation,
+  'seller_evaluation', p.seller_evaluation,
+  'is_external', p.is_external,
+  'user_id', p.user_id,
+  'created_at', p.created_at,
+  'days_online', EXTRACT(DAY FROM (CURRENT_TIMESTAMP - p.created_at))::integer,
+  'documents_count', COALESCE(jsonb_array_length(p.documents), 0)
+`;
+
+/**
+ * Full Property-Felder für json_build_object in Subqueries (z.B. favorites, detail views)
+ * Enthält alle Felder inkl. documents - nur für Detail-Ansichten verwenden!
  */
 export const PROPERTY_JSON_FIELDS = `
   'id', p.id,

@@ -31,6 +31,7 @@ export const userPropertyParametersRouter = router({
       monthlyRent: z.number().min(0).nullable().optional(),
       monthlyFee: z.number().min(0).nullable().optional(),
       purchasePrice: z.number().min(0).nullable().optional(),
+      renovationCosts: z.number().min(0).nullable().optional(),
       // Berechnete Kennzahlen
       calculatedGrossYield: z.number().nullable().optional(),
       calculatedRentMultiplier: z.number().nullable().optional(),
@@ -39,8 +40,8 @@ export const userPropertyParametersRouter = router({
     .mutation(async ({ input, ctx }) => {
       const params = await queryOne(
         `INSERT INTO user_property_parameters
-         (user_id, property_id, equity_percentage, interest_rate, amortization_rate, broker_commission, monthly_rent, monthly_fee, purchase_price, calculated_gross_yield, calculated_rent_multiplier, calculated_monthly_cashflow)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+         (user_id, property_id, equity_percentage, interest_rate, amortization_rate, broker_commission, monthly_rent, monthly_fee, purchase_price, renovation_costs, calculated_gross_yield, calculated_rent_multiplier, calculated_monthly_cashflow)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
          ON CONFLICT (user_id, property_id)
          DO UPDATE SET
            equity_percentage = COALESCE($3, user_property_parameters.equity_percentage),
@@ -50,9 +51,10 @@ export const userPropertyParametersRouter = router({
            monthly_rent = COALESCE($7, user_property_parameters.monthly_rent),
            monthly_fee = COALESCE($8, user_property_parameters.monthly_fee),
            purchase_price = COALESCE($9, user_property_parameters.purchase_price),
-           calculated_gross_yield = COALESCE($10, user_property_parameters.calculated_gross_yield),
-           calculated_rent_multiplier = COALESCE($11, user_property_parameters.calculated_rent_multiplier),
-           calculated_monthly_cashflow = COALESCE($12, user_property_parameters.calculated_monthly_cashflow),
+           renovation_costs = COALESCE($10, user_property_parameters.renovation_costs),
+           calculated_gross_yield = COALESCE($11, user_property_parameters.calculated_gross_yield),
+           calculated_rent_multiplier = COALESCE($12, user_property_parameters.calculated_rent_multiplier),
+           calculated_monthly_cashflow = COALESCE($13, user_property_parameters.calculated_monthly_cashflow),
            updated_at = NOW()
          RETURNING *`,
         [
@@ -65,6 +67,7 @@ export const userPropertyParametersRouter = router({
           input.monthlyRent ?? null,
           input.monthlyFee ?? null,
           input.purchasePrice ?? null,
+          input.renovationCosts ?? null,
           input.calculatedGrossYield ?? null,
           input.calculatedRentMultiplier ?? null,
           input.calculatedMonthlyCashflow ?? null,

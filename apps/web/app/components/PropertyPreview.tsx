@@ -258,6 +258,7 @@ export interface PropertyPreviewProps {
     broker_commission?: number | null;
     monthly_rent?: number | null;
     monthly_fee?: number | null;
+    renovation_costs?: number | null;
   } | null;
   onSaveUserPropertyParams?: (params: {
     equityPercentage?: number | null;
@@ -266,6 +267,7 @@ export interface PropertyPreviewProps {
     brokerCommission?: number | null;
     monthlyRent?: number | null;
     monthlyFee?: number | null;
+    renovationCosts?: number | null;
   }) => void;
   isSavingUserPropertyParams?: boolean;
 }

@@ -173,13 +173,32 @@ Antworte NUR mit einem JSON-Objekt in folgendem Format:
   "average_price_per_sqm": <Zahl>,
   "price_range_min": <Zahl>,
   "price_range_max": <Zahl>,
-  "negotiation_price": <Zahl>, // Realistischer Zielpreis nach Verhandlung (Gesamtpreis in EUR)
+  "negotiation_price": <Zahl>, // WICHTIG: Voller Euro-Betrag (z.B. 219000, NICHT 219)
   "negotiation_discount_percent": <Zahl>, // Erwarteter Rabatt in % (z.B. 8 für 8%)
   "negotiation_reasoning": "Begründung warum dieser Verhandlungspreis realistisch ist (1-2 Sätze)",
   "reasoning": "Kurze Begründung für Marktpreise (1-2 Sätze)"
-}`;
+}
 
-  return await callOpenAI<MarketPriceAnalysis>(marketPricePrompt);
+WICHTIG: Alle Preise als volle Euro-Beträge angeben (z.B. 219000 EUR, NICHT 219 oder 219k)!`;
+
+  const result = await callOpenAI<MarketPriceAnalysis>(marketPricePrompt);
+
+  // Validate and fix negotiation_price if it seems to be in thousands instead of full EUR
+  // If negotiation_price is less than 10000 and property price is over 50000, multiply by 1000
+  if (result.negotiation_price < 10000 && property.price > 50000) {
+    console.log(`⚠️ Fixing negotiation_price: ${result.negotiation_price} -> ${result.negotiation_price * 1000}`);
+    result.negotiation_price = result.negotiation_price * 1000;
+  }
+
+  // Also validate price_range values
+  if (result.price_range_min < 10000 && property.price > 50000) {
+    result.price_range_min = result.price_range_min * 1000;
+  }
+  if (result.price_range_max < 10000 && property.price > 50000) {
+    result.price_range_max = result.price_range_max * 1000;
+  }
+
+  return result;
 }
 
 /**

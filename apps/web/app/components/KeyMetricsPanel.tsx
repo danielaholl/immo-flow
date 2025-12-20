@@ -133,6 +133,7 @@ export interface KeyMetricsPanelProps {
     monthly_rent?: number | null;
     monthly_fee?: number | null;
     purchase_price?: number | null;
+    renovation_costs?: number | null;
   } | null;
   onSaveParams?: (params: {
     equityPercentage?: number | null;
@@ -142,6 +143,7 @@ export interface KeyMetricsPanelProps {
     monthlyRent?: number | null;
     monthlyFee?: number | null;
     purchasePrice?: number | null;
+    renovationCosts?: number | null;
     // Berechnete Kennzahlen
     calculatedGrossYield?: number | null;
     calculatedRentMultiplier?: number | null;
@@ -225,6 +227,7 @@ export function KeyMetricsPanel({
   const [editInterestRate, setEditInterestRate] = useState<number | null>(null);
   const [editAmortizationRate, setEditAmortizationRate] = useState<number | null>(null);
   const [editBrokerCommission, setEditBrokerCommission] = useState<number | null>(null);
+  const [editRenovationCosts, setEditRenovationCosts] = useState<number | null>(null);
   const [editMonthlyRent, setEditMonthlyRent] = useState<number | null>(null);
   const [editMonthlyFee, setEditMonthlyFee] = useState<number | null>(null);
   const [editPurchasePrice, setEditPurchasePrice] = useState<number | null>(null);
@@ -236,6 +239,7 @@ export function KeyMetricsPanel({
       setEditInterestRate(userParams.interest_rate ?? null);
       setEditAmortizationRate(userParams.amortization_rate ?? null);
       setEditBrokerCommission(userParams.broker_commission ?? null);
+      setEditRenovationCosts(userParams.renovation_costs ?? null);
       setEditMonthlyRent(userParams.monthly_rent ?? null);
       setEditMonthlyFee(userParams.monthly_fee ?? null);
       setEditPurchasePrice(userParams.purchase_price ?? null);
@@ -251,6 +255,7 @@ export function KeyMetricsPanel({
     setEditInterestRate(null);
     setEditAmortizationRate(null);
     setEditBrokerCommission(null);
+    setEditRenovationCosts(null);
     setEditMonthlyRent(null);
     setEditMonthlyFee(null);
     setEditPurchasePrice(null);
@@ -280,7 +285,9 @@ export function KeyMetricsPanel({
   const notarkosten = effectivePurchasePrice ? effectivePurchasePrice * (notarkostenRate / 100) : 0;
   const grundbuchkosten = effectivePurchasePrice ? effectivePurchasePrice * (grundbuchRate / 100) : 0;
   const maklergebuehren = effectivePurchasePrice ? effectivePurchasePrice * (maklerRate / 100) : 0;
-  const kaufnebenkosten = grunderwerbsteuer + notarkosten + grundbuchkosten + maklergebuehren;
+  // Renovierungskosten (aus Edit-State, Default: 0)
+  const renovierungskosten = Number(editRenovationCosts ?? 0);
+  const kaufnebenkosten = grunderwerbsteuer + notarkosten + grundbuchkosten + maklergebuehren + renovierungskosten;
   const gesamtinvestition = effectivePurchasePrice + kaufnebenkosten;
 
   // Kapitaldienst berechnen
@@ -432,6 +439,7 @@ export function KeyMetricsPanel({
         interestRate: editInterestRate,
         amortizationRate: editAmortizationRate,
         brokerCommission: editBrokerCommission,
+        renovationCosts: editRenovationCosts,
         monthlyRent: editMonthlyRent,
         monthlyFee: editMonthlyFee,
         purchasePrice: editPurchasePrice,
@@ -650,6 +658,32 @@ export function KeyMetricsPanel({
                   </div>
                   <span className="text-base font-semibold text-gray-700 text-right">
                     {formatCurrency(maklergebuehren)}
+                  </span>
+                </div>
+
+                {/* Renovierungskosten */}
+                <div className="grid grid-cols-[140px_100px_1fr] items-center gap-2">
+                  <span className="text-gray-600">+ Renovierung</span>
+                  <div className="flex justify-center">
+                    {isEditMode ? (
+                      <span className="relative inline-flex items-center">
+                        <input
+                          type="number"
+                          value={editRenovationCosts ?? ''}
+                          onChange={(e) => setEditRenovationCosts(e.target.value === '' ? null : Number(e.target.value))}
+                          placeholder="0"
+                          className="w-28 pl-2 pr-6 py-1.5 border border-[#DDDDDD] rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none"
+                          min="0"
+                          step="1000"
+                        />
+                        <span className="absolute right-2 text-gray-500 text-sm pointer-events-none">€</span>
+                      </span>
+                    ) : renovierungskosten > 0 ? (
+                      <span className="text-gray-500">(geschätzt)</span>
+                    ) : null}
+                  </div>
+                  <span className="text-base font-semibold text-gray-700 text-right">
+                    {formatCurrency(renovierungskosten)}
                   </span>
                 </div>
 
@@ -935,6 +969,7 @@ export function KeyMetricsPanel({
                 setEditInterestRate(zinssatz);
                 setEditAmortizationRate(tilgung);
                 setEditBrokerCommission(maklerRate);
+                setEditRenovationCosts(renovierungskosten);
                 setEditMonthlyRent(mieteinnahmen);
                 setEditMonthlyFee(hausgeld);
                 setEditPurchasePrice(effectivePurchasePrice);

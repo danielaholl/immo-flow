@@ -154,6 +154,7 @@ export default function PropertyPage() {
     monthlyRent?: number | null;
     monthlyFee?: number | null;
     purchasePrice?: number | null;
+    renovationCosts?: number | null;
     // Berechnete Kennzahlen
     calculatedGrossYield?: number | null;
     calculatedRentMultiplier?: number | null;

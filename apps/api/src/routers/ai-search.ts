@@ -186,14 +186,15 @@ function buildSearchQuery(criteria: SearchCriteria, limit: number, offset: numbe
     paramCount++;
   }
 
-  // Features (check if any feature matches)
+  // Features (check if any feature matches using GIN index)
   if (criteria.features && criteria.features.length > 0) {
-    // Use array overlap for features stored as JSONB array
+    // Use JSONB containment operator with GIN index for fast feature search
+    // This is much faster than features::text ILIKE which requires full table scan
     const featureConditions = criteria.features.map((feature) => {
       const param = `$${paramCount}`;
-      values.push(`%${feature}%`);
+      values.push(JSON.stringify([feature])); // Format as JSONB array
       paramCount++;
-      return `features::text ILIKE ${param}`;
+      return `features @> ${param}::jsonb`;
     });
     conditions.push(`(${featureConditions.join(' OR ')})`);
   }
@@ -289,11 +290,12 @@ function buildCountQuery(criteria: SearchCriteria): { sql: string; values: any[]
   }
 
   if (criteria.features && criteria.features.length > 0) {
+    // Use JSONB containment operator with GIN index for fast feature search
     const featureConditions = criteria.features.map((feature) => {
       const param = `$${paramCount}`;
-      values.push(`%${feature}%`);
+      values.push(JSON.stringify([feature])); // Format as JSONB array
       paramCount++;
-      return `features::text ILIKE ${param}`;
+      return `features @> ${param}::jsonb`;
     });
     conditions.push(`(${featureConditions.join(' OR ')})`);
   }
