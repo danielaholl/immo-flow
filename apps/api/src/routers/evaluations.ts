@@ -3,7 +3,7 @@
  * Property AI evaluation and analysis
  */
 import { z } from 'zod';
-import { router, protectedProcedure, publicProcedure } from '../trpc.js';
+import { router, protectedProcedure, publicProcedure, investorProcedure } from '../trpc.js';
 import { query, queryOne } from '../db.js';
 import { evaluatePropertyInvestment } from '../services/property-investment-evaluator.js';
 
@@ -227,8 +227,8 @@ export const evaluationsRouter = router({
       return { success: true };
     }),
 
-  // Generate AI-powered investment evaluation (NEW - replaces Supabase Edge Function)
-  generateInvestmentEvaluation: publicProcedure
+  // Generate AI-powered investment evaluation (requires Investor+ plan)
+  generateInvestmentEvaluation: investorProcedure
     .input(z.object({ propertyId: z.string().uuid() }))
     .mutation(async ({ input }) => {
       try {

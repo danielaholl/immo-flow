@@ -1,5 +1,16 @@
+export type PlanType =
+  | 'free'
+  | 'investor'
+  | 'pro'
+  | 'sucher'
+  | 'makler_pro'
+  | 'makler_enterprise'
+  | 'verkauf_starter'
+  | 'verkauf_premium';
+
 export interface PricingPlan {
   name: string;
+  planId: PlanType | null; // null for teaser cards or contact forms
   price: number;
   period: string;
   description: string;
@@ -7,12 +18,14 @@ export interface PricingPlan {
   isPopular?: boolean;
   isTeaser?: boolean;
   teaserLink?: string;
+  isContactForm?: boolean; // For Agentur plan
   ctaText: string;
 }
 
 export const investorPlans: PricingPlan[] = [
   {
     name: 'Free',
+    planId: 'free',
     price: 0,
     period: 'Monat',
     description: 'Zum Reinschnuppern',
@@ -28,6 +41,7 @@ export const investorPlans: PricingPlan[] = [
   },
   {
     name: 'Investor',
+    planId: 'investor',
     price: 29,
     period: 'Monat',
     description: 'Vollzugriff auf alle Analysen',
@@ -46,6 +60,7 @@ export const investorPlans: PricingPlan[] = [
   },
   {
     name: 'Pro',
+    planId: 'pro',
     price: 79,
     period: 'Monat',
     description: 'Für professionelle Investoren',
@@ -65,6 +80,7 @@ export const investorPlans: PricingPlan[] = [
 export const maklerPlans: PricingPlan[] = [
   {
     name: 'Pro',
+    planId: 'makler_pro',
     price: 99,
     period: 'Monat',
     description: 'Für Einzelmakler',
@@ -83,6 +99,7 @@ export const maklerPlans: PricingPlan[] = [
   },
   {
     name: 'Enterprise',
+    planId: 'makler_enterprise',
     price: 249,
     period: 'Monat',
     description: 'Für Maklerbüros',
@@ -101,9 +118,11 @@ export const maklerPlans: PricingPlan[] = [
   },
   {
     name: 'Agentur',
+    planId: null,
     price: 499,
     period: 'Monat',
     description: 'Für große Agenturen',
+    isContactForm: true,
     features: [
       'Alles aus Enterprise',
       '10+ Team-Seats',
@@ -119,6 +138,7 @@ export const maklerPlans: PricingPlan[] = [
 export const sucherPlans: PricingPlan[] = [
   {
     name: 'Free',
+    planId: 'free',
     price: 0,
     period: 'Monat',
     description: 'Zum Reinschnuppern',
@@ -134,6 +154,7 @@ export const sucherPlans: PricingPlan[] = [
   },
   {
     name: 'Sucher',
+    planId: 'sucher',
     price: 9,
     period: 'Monat',
     description: 'Finde dein Traumzuhause',
@@ -151,6 +172,7 @@ export const sucherPlans: PricingPlan[] = [
   },
   {
     name: 'Investor werden?',
+    planId: null,
     price: 29,
     period: 'Monat',
     description: 'Du überlegst, in Immobilien zu investieren?',
@@ -170,6 +192,7 @@ export const sucherPlans: PricingPlan[] = [
 export const verkaufPlans: PricingPlan[] = [
   {
     name: 'Starter',
+    planId: 'verkauf_starter',
     price: 99,
     period: 'einmalig',
     description: 'Für den schnellen Verkauf',
@@ -185,6 +208,7 @@ export const verkaufPlans: PricingPlan[] = [
   },
   {
     name: 'Premium',
+    planId: 'verkauf_premium',
     price: 249,
     period: 'einmalig',
     description: 'Maximale Sichtbarkeit',
@@ -202,9 +226,11 @@ export const verkaufPlans: PricingPlan[] = [
   },
   {
     name: 'Erfolgspaket',
+    planId: null,
     price: 0,
     period: '0,5% bei Verkauf',
     description: 'Zahle nur bei Erfolg',
+    isContactForm: true,
     features: [
       'Alles aus Premium',
       '12 Monate online',

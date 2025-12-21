@@ -93,9 +93,9 @@ class MemoryCache {
       }
     });
 
-    if (oldestKey) {
+    if (oldestKey !== null) {
       this.cache.delete(oldestKey);
-      console.log(`[L1 Cache] Evicted LRU entry: ${oldestKey.substring(0, 30)}...`);
+      console.log(`[L1 Cache] Evicted LRU entry: ${(oldestKey as string).substring(0, 30)}...`);
     }
   }
 

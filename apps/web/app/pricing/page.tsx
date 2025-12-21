@@ -7,12 +7,15 @@ import PricingCard from './components/PricingCard';
 import PricingToggle from './components/PricingToggle';
 import PricingFAQ from './components/PricingFAQ';
 import { investorPlans, maklerPlans, verkaufPlans, sucherPlans, PricingPlan } from './data';
+import { useSubscription, type PlanType } from '../../hooks/useSubscription';
 
 type UserType = 'sucher' | 'investor' | 'verkaeufer' | 'makler';
 
 export default function PricingPage() {
   const [userType, setUserType] = useState<UserType>('sucher');
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const router = useRouter();
+  const { checkout, isCheckoutLoading, plan: currentPlan } = useSubscription();
 
   const plans: PricingPlan[] =
     userType === 'sucher'
@@ -23,22 +26,35 @@ export default function PricingPage() {
           ? verkaufPlans
           : maklerPlans;
 
-  const handleSelectPlan = (plan: PricingPlan) => {
+  const handleSelectPlan = async (plan: PricingPlan) => {
+    setCheckoutError(null);
+
     // Teaser-Karte: Wechsle zum entsprechenden Tab
     if (plan.isTeaser && plan.teaserLink) {
       setUserType(plan.teaserLink as UserType);
       return;
     }
 
-    // TODO: Implement Stripe checkout or signup flow
-    if (plan.name === 'Free') {
+    // Free plan: Redirect to signup
+    if (plan.planId === 'free') {
       router.push('/auth/signup');
-    } else if (plan.name === 'Agentur') {
-      // Contact form for enterprise
-      window.location.href = 'mailto:kontakt@nestando.de?subject=Agentur-Plan%20Anfrage';
-    } else {
-      // For now, redirect to signup with plan parameter
-      router.push(`/auth/signup?plan=${plan.name.toLowerCase()}`);
+      return;
+    }
+
+    // Contact form for enterprise/special plans
+    if (plan.isContactForm) {
+      window.location.href = 'mailto:kontakt@nestando.de?subject=' + encodeURIComponent(`${plan.name} Anfrage`);
+      return;
+    }
+
+    // Paid plans: Start Stripe Checkout
+    if (plan.planId && plan.planId !== 'free') {
+      try {
+        await checkout(plan.planId as Exclude<PlanType, 'free'>);
+      } catch (error) {
+        console.error('Checkout error:', error);
+        setCheckoutError('Fehler beim Starten des Checkouts. Bitte versuche es erneut.');
+      }
     }
   };
 
@@ -59,6 +75,25 @@ export default function PricingPage() {
       {/* Toggle: Investor / Makler */}
       <PricingToggle value={userType} onChange={setUserType} />
 
+      {/* Error Message */}
+      {checkoutError && (
+        <div className="max-w-md mx-auto px-4 mb-4">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-center">
+            {checkoutError}
+          </div>
+        </div>
+      )}
+
+      {/* Loading Overlay */}
+      {isCheckoutLoading && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+            <p className="text-gray-700 font-medium">Weiterleitung zu Stripe...</p>
+          </div>
+        </div>
+      )}
+
       {/* Pricing Cards Grid */}
       <section className="max-w-7xl mx-auto px-4 py-12">
         <div className={`grid grid-cols-1 md:grid-cols-2 ${plans.length === 3 ? 'lg:grid-cols-3 max-w-5xl' : 'lg:grid-cols-4 max-w-7xl'} mx-auto gap-6 lg:gap-4`}>
@@ -66,6 +101,7 @@ export default function PricingPage() {
             <PricingCard
               key={plan.name}
               {...plan}
+              isCurrentPlan={plan.planId === currentPlan}
               onSelect={() => handleSelectPlan(plan)}
             />
           ))}

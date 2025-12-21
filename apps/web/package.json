@@ -13,6 +13,7 @@
     "@immoflow/database": "workspace:*",
     "@immoflow/ui": "workspace:*",
     "@immoflow/utils": "workspace:*",
+    "@stripe/stripe-js": "^8.6.0",
     "@tanstack/react-query": "4.42.0",
     "@trpc/client": "^10.45.0",
     "@trpc/react-query": "^10.45.0",

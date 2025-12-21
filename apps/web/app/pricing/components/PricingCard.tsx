@@ -5,6 +5,7 @@ import { PricingPlan } from '../data';
 
 interface PricingCardProps extends PricingPlan {
   onSelect: () => void;
+  isCurrentPlan?: boolean;
 }
 
 export default function PricingCard({
@@ -17,6 +18,7 @@ export default function PricingCard({
   isTeaser,
   ctaText,
   onSelect,
+  isCurrentPlan,
 }: PricingCardProps) {
   // Teaser-Karte hat spezielles Styling
   if (isTeaser) {
@@ -66,7 +68,14 @@ export default function PricingCard({
         transition-all duration-200
       `}
     >
-      {isPopular && (
+      {isCurrentPlan && (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+          <span className="bg-green-500 text-white text-sm font-medium px-4 py-1 rounded-full whitespace-nowrap">
+            Dein Plan
+          </span>
+        </div>
+      )}
+      {isPopular && !isCurrentPlan && (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2">
           <span className="bg-primary text-white text-sm font-medium px-4 py-1 rounded-full whitespace-nowrap">
             Beliebt
@@ -94,16 +103,19 @@ export default function PricingCard({
 
       <button
         onClick={onSelect}
+        disabled={isCurrentPlan}
         className={`
           w-full py-3 px-4 rounded-xl font-semibold transition-colors duration-200
           ${
-            isPopular
-              ? 'bg-primary text-white hover:bg-primary/90'
-              : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+            isCurrentPlan
+              ? 'bg-green-100 text-green-700 cursor-default'
+              : isPopular
+                ? 'bg-primary text-white hover:bg-primary/90'
+                : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
           }
         `}
       >
-        {ctaText}
+        {isCurrentPlan ? 'Aktiv' : ctaText}
       </button>
 
       <ul className="mt-6 space-y-3 flex-grow">

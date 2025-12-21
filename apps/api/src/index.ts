@@ -22,6 +22,7 @@ import { testConnection } from './db.js';
 import uploadRoutes from './routes/upload.js';
 import { apiRateLimiter, authRateLimiter } from './middleware/rateLimit.js';
 import { initializeSocketServer } from './socket.js';
+import { stripeWebhookRouter } from './webhooks/stripe.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -32,6 +33,10 @@ app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true,
 }));
+
+// Stripe webhook needs raw body for signature verification
+// Must be before express.json() middleware
+app.use('/webhooks', express.raw({ type: 'application/json' }), stripeWebhookRouter);
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));

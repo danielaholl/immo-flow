@@ -13,6 +13,8 @@ config({ path: join(__dirname, '../../../.env') });
 import { initTRPC, TRPCError } from '@trpc/server';
 import type { CreateExpressContextOptions } from '@trpc/server/adapters/express';
 import jwt from 'jsonwebtoken';
+import { query as dbQuery, queryOne } from './db.js';
+import type { PlanType } from './config/stripe-prices.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
@@ -82,4 +84,62 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
       user: ctx.user, // Now guaranteed to be defined
     },
   });
+});
+
+/**
+ * Get user's current subscription plan
+ */
+export async function getUserPlan(userId: string): Promise<PlanType> {
+  const sub = await queryOne(
+    `SELECT plan_type FROM subscriptions
+     WHERE user_id = $1 AND status IN ('active', 'trialing')
+     ORDER BY created_at DESC LIMIT 1`,
+    [userId]
+  );
+  return (sub?.plan_type as PlanType) || 'free';
+}
+
+/**
+ * Investor+ Procedure - requires investor or pro plan
+ * For: KI-Analyse, SWOT-Analyse, Rendite-Kalkulator, Finanzierungsrechner
+ */
+export const investorProcedure = protectedProcedure.use(async ({ ctx, next }) => {
+  const plan = await getUserPlan(ctx.user.id);
+  if (!['investor', 'pro'].includes(plan)) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'Diese Funktion erfordert mindestens den Investor-Plan. Jetzt upgraden für volle KI-Analysen.',
+    });
+  }
+  return next({ ctx: { ...ctx, plan } });
+});
+
+/**
+ * Pro Procedure - requires pro plan
+ * For: Portfolio-Übersicht, PDF-Export, Investoren-Club
+ */
+export const proProcedure = protectedProcedure.use(async ({ ctx, next }) => {
+  const plan = await getUserPlan(ctx.user.id);
+  if (plan !== 'pro') {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'Diese Funktion erfordert den Pro-Plan. Jetzt upgraden für alle Premium-Features.',
+    });
+  }
+  return next({ ctx: { ...ctx, plan } });
+});
+
+/**
+ * Sucher+ Procedure - requires sucher, investor or pro plan
+ * For: Budget-Suche, Preis-Check
+ */
+export const searcherProcedure = protectedProcedure.use(async ({ ctx, next }) => {
+  const plan = await getUserPlan(ctx.user.id);
+  if (!['sucher', 'investor', 'pro'].includes(plan)) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'Diese Funktion erfordert mindestens den Sucher-Plan.',
+    });
+  }
+  return next({ ctx: { ...ctx, plan } });
 });

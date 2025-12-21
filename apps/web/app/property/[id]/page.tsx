@@ -22,6 +22,8 @@ import { trpc } from '@/lib/trpc';
 import { useAuthGuard } from '@/app/hooks/useAuthGuard';
 import { LoginPromptModal } from '@/app/components/LoginPromptModal';
 import { RestrictedContent } from '@/app/components/RestrictedContent';
+import { UpgradeModal } from '@/app/components/UpgradeModal';
+import { useSubscription } from '@/hooks/useSubscription';
 
 export default function PropertyPage() {
   // Performance tracking
@@ -36,7 +38,9 @@ export default function PropertyPage() {
   const params = useParams();
   const router = useRouter();
   const { user } = useAuthContext();
+  const { canAccess, plan } = useSubscription();
   const [hasConsent, setHasConsent] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [consentLoading, setConsentLoading] = useState(false);
   const [isConsentDialogOpen, setIsConsentDialogOpen] = useState(false);
   const [hasCommissionConsent, setHasCommissionConsent] = useState(false);
@@ -447,6 +451,13 @@ export default function PropertyPage() {
       return;
     }
 
+    // Check if user has access to AI analysis (requires investor+ plan)
+    if (!canAccess('ai_analysis')) {
+      console.log('⚠️ User does not have access to AI analysis, showing upgrade modal');
+      setIsUpgradeModalOpen(true);
+      return;
+    }
+
     setIsEvaluating(true);
     try {
       // If viewType is provided and is a buyer view, use the new KI evaluation mutation
@@ -459,8 +470,12 @@ export default function PropertyPage() {
         // Legacy behavior: use investment evaluation for undefined viewType
         await evaluateMutation.mutateAsync({ propertyId: property.id });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error triggering evaluation:', error);
+      // Check if error is due to plan restriction
+      if (error?.data?.code === 'FORBIDDEN') {
+        setIsUpgradeModalOpen(true);
+      }
       // Reset state on error
       setIsEvaluating(false);
     }
@@ -709,6 +724,14 @@ export default function PropertyPage() {
         propertyTitle={property.title}
       /> */}
       {/* TODO: PropertyFeedbackModal component doesn't exist - need to create or remove this feature */}
+
+      {/* Upgrade Modal - for premium features */}
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        feature="ai_analysis"
+        requiredPlan="investor"
+      />
 
       {/* Contact Success Toast */}
       {showContactSuccess && (

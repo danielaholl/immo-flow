@@ -3,9 +3,13 @@
  * User favorites management
  */
 import { z } from 'zod';
-import { router, protectedProcedure } from '../trpc.js';
+import { TRPCError } from '@trpc/server';
+import { router, protectedProcedure, getUserPlan } from '../trpc.js';
 import { query, queryOne } from '../db.js';
 import { PROPERTY_LIST_FIELDS } from '../lib/propertyQueryBuilder.js';
+
+// Maximum favorites for free users
+const FREE_FAVORITES_LIMIT = 5;
 
 export const favoritesRouter = router({
   // Get user favorites - optimized with JOINs and lightweight fields
@@ -40,10 +44,28 @@ export const favoritesRouter = router({
     return favorites;
   }),
 
-  // Add favorite
+  // Add favorite (with limit for free users)
   add: protectedProcedure
     .input(z.object({ propertyId: z.string().uuid() }))
     .mutation(async ({ input, ctx }) => {
+      // Check plan and enforce favorites limit for free users
+      const plan = await getUserPlan(ctx.user.id);
+
+      if (plan === 'free') {
+        const countResult = await queryOne(
+          'SELECT COUNT(*)::int as count FROM favorites WHERE user_id = $1',
+          [ctx.user.id]
+        );
+        const currentCount = countResult?.count || 0;
+
+        if (currentCount >= FREE_FAVORITES_LIMIT) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: `Du hast das Limit von ${FREE_FAVORITES_LIMIT} Favoriten erreicht. Upgrade auf Sucher oder Investor für unbegrenzte Favoriten.`,
+          });
+        }
+      }
+
       const favorite = await queryOne(
         `INSERT INTO favorites (user_id, property_id)
          VALUES ($1, $2)
@@ -114,5 +136,25 @@ export const favoritesRouter = router({
     await query('SELECT calculate_user_preferences($1)', [ctx.user.id]);
 
     return { success: true };
+  }),
+
+  // Get favorites count and limit info (for UI display)
+  getStatus: protectedProcedure.query(async ({ ctx }) => {
+    const plan = await getUserPlan(ctx.user.id);
+    const countResult = await queryOne(
+      'SELECT COUNT(*)::int as count FROM favorites WHERE user_id = $1',
+      [ctx.user.id]
+    );
+    const count = countResult?.count || 0;
+    const limit = plan === 'free' ? FREE_FAVORITES_LIMIT : null;
+    const hasUnlimited = plan !== 'free';
+
+    return {
+      count,
+      limit,
+      hasUnlimited,
+      remaining: limit ? Math.max(0, limit - count) : null,
+      isAtLimit: limit ? count >= limit : false,
+    };
   }),
 });
