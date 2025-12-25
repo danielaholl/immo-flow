@@ -105,6 +105,7 @@ export const taxOptimizerRouter = router({
         interestRate: z.number().min(0).max(0.15).optional(),
         rentalYield: z.number().min(0).max(0.15).optional(),
         maintenanceRate: z.number().min(0).max(0.05).optional(),
+        customAfaRate: z.number().min(0).max(0.2).optional(), // 0-20% benutzerdefinierter AfA-Satz
       })
     )
     .query(({ input }) => {
@@ -116,6 +117,7 @@ export const taxOptimizerRouter = router({
         interestRate: input.interestRate,
         rentalYield: input.rentalYield,
         maintenanceRate: input.maintenanceRate,
+        customAfaRate: input.customAfaRate,
       });
     }),
 

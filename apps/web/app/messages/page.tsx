@@ -585,6 +585,7 @@ export default function MessagesPage() {
                       showSenderNames={true}
                       className="h-full"
                     />
+                    </>
                   );
                 })()
               ) : (

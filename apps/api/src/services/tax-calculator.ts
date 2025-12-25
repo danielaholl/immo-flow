@@ -33,16 +33,16 @@ export const AFA_STRATEGIES = {
     description: 'Konservative Strategie für Bestandsimmobilien',
   },
   neubau: {
-    rate: 0.05, // 5% degressive AfA (since 2024)
+    rate: 0.04, // ~4% durchschnittliche degressive AfA über 10 Jahre (5% degressiv = Ø 4,01% p.a.)
     buildingRatio: 0.85, // 85% building portion (typically higher for new builds)
     label: 'Neubau (5% degr. AfA)',
     description: 'Aggressive Strategie für Neubauten mit degressiver AfA',
   },
   denkmal: {
-    rate: 0.09, // Up to 9% for Denkmal-AfA (12 years)
-    buildingRatio: 0.90, // 90% for renovation portion
+    rate: 0.09, // 9% for Denkmal-AfA on renovation costs (12 years)
+    buildingRatio: 0.35, // ~35% of purchase price as typical renovation costs
     label: 'Denkmal-AfA (9%)',
-    description: 'Maximale Steuerersparnis durch Denkmalschutz-Sanierung',
+    description: 'Steuerersparnis durch Denkmalschutz-Sanierung (9% auf ~35% Sanierungskosten)',
   },
 } as const;
 
@@ -65,6 +65,7 @@ export interface TaxCalculatorParams {
   interestRate?: number; // Zinssatz
   rentalYield?: number; // Mietrendite
   maintenanceRate?: number; // Instandhaltungskosten
+  customAfaRate?: number; // Optional: Benutzerdefinierter AfA-Satz (z.B. 0.042 für 4.2%)
 }
 
 export interface TaxCalculatorResult {
@@ -91,7 +92,7 @@ export interface TaxCalculatorResult {
   strategyDetails: (typeof AFA_STRATEGIES)[AfaStrategy];
 
   // Input Echo
-  params: Required<TaxCalculatorParams>;
+  params: Omit<Required<TaxCalculatorParams>, 'customAfaRate'> & { customAfaRate?: number };
 }
 
 export interface PropertyTaxEffect {
@@ -175,7 +176,7 @@ export function calculateTargetPropertyPrice(
   params: TaxCalculatorParams
 ): TaxCalculatorResult {
   // Fill in defaults
-  const fullParams: Required<TaxCalculatorParams> = {
+  const fullParams = {
     annualTaxPaid: params.annualTaxPaid,
     marginalTaxRate: params.marginalTaxRate,
     strategy: params.strategy,
@@ -183,9 +184,13 @@ export function calculateTargetPropertyPrice(
     interestRate: params.interestRate ?? DEFAULT_PARAMS.interestRate,
     rentalYield: params.rentalYield ?? DEFAULT_PARAMS.rentalYield,
     maintenanceRate: params.maintenanceRate ?? DEFAULT_PARAMS.maintenanceRate,
+    customAfaRate: params.customAfaRate,
   };
 
   const strategyDetails = AFA_STRATEGIES[fullParams.strategy];
+
+  // Use custom AfA rate if provided, otherwise use strategy default
+  const effectiveAfaRate = fullParams.customAfaRate ?? strategyDetails.rate;
 
   // Step 1: Calculate income to offset (Y)
   const incomeToOffset = calculateIncomeToOffset(
@@ -198,7 +203,7 @@ export function calculateTargetPropertyPrice(
     ltvRatio: fullParams.ltvRatio,
     interestRate: fullParams.interestRate,
     buildingRatio: strategyDetails.buildingRatio,
-    afaRate: strategyDetails.rate,
+    afaRate: effectiveAfaRate,
     maintenanceRate: fullParams.maintenanceRate,
     rentalYield: fullParams.rentalYield,
   });
@@ -214,7 +219,7 @@ export function calculateTargetPropertyPrice(
   const interestDeduction =
     targetPortfolioValue * fullParams.ltvRatio * fullParams.interestRate;
   const depreciationDeduction =
-    targetPortfolioValue * strategyDetails.buildingRatio * strategyDetails.rate;
+    targetPortfolioValue * strategyDetails.buildingRatio * effectiveAfaRate;
   const maintenanceDeduction =
     targetPortfolioValue * fullParams.maintenanceRate;
   const rentalIncome = targetPortfolioValue * fullParams.rentalYield;

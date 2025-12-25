@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Building2, Sparkles, Landmark } from 'lucide-react';
+import { Building2, Sparkles, Landmark, TrendingDown } from 'lucide-react';
 
 export type AfaStrategy = 'bestand' | 'neubau' | 'denkmal';
 
@@ -13,6 +13,7 @@ const STRATEGIES: Record<
     description: string;
     icon: React.ReactNode;
     color: string;
+    avgNote?: string;
   }
 > = {
   bestand: {
@@ -28,11 +29,12 @@ const STRATEGIES: Record<
     description: 'Aggressive Strategie mit degressiver AfA seit 2024',
     icon: <Sparkles size={20} />,
     color: 'green',
+    avgNote: '(Ø 4%)',
   },
   denkmal: {
     label: 'Denkmal-AfA',
-    rate: 'bis 9%',
-    description: 'Maximale Ersparnis durch Denkmalschutz-Sanierung',
+    rate: '9% auf Sanier.',
+    description: '9% AfA auf Sanierungskosten (~35% des Kaufpreises)',
     icon: <Landmark size={20} />,
     color: 'amber',
   },
@@ -101,6 +103,12 @@ export function TaxStrategySelector({
                     >
                       {strategy.rate}
                     </span>
+                    {strategy.avgNote && (
+                      <span className="text-xs text-gray-500 flex items-center gap-1">
+                        <TrendingDown size={12} />
+                        {strategy.avgNote}
+                      </span>
+                    )}
                   </div>
                 </div>
               </label>
@@ -149,6 +157,12 @@ export function TaxStrategySelector({
                 }`}
               >
                 {strategy.rate}
+                {strategy.avgNote && (
+                  <span className="text-xs font-normal text-gray-500 ml-2 inline-flex items-center gap-1">
+                    <TrendingDown size={12} />
+                    {strategy.avgNote}
+                  </span>
+                )}
               </div>
               <p className="text-xs text-gray-500 line-clamp-2">
                 {strategy.description}

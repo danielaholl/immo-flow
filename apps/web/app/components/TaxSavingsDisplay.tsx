@@ -60,13 +60,13 @@ export function TaxSavingsDisplay({
       </div>
 
       {/* Vertical Bar Chart */}
-      <div className="flex flex-col items-center mb-6">
+      <div className="flex flex-col items-center mb-6 w-full">
         {/* Bars container */}
-        <div className="flex items-end justify-center gap-6 md:gap-10">
+        <div className="flex items-end justify-between w-[80%] px-4">
           {/* Current Tax Bar (Red) */}
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center flex-1 max-w-[45%]">
             <div
-              className="w-20 md:w-28 bg-gradient-to-t from-red-500 to-red-400 rounded-lg transition-all duration-500 relative shadow-lg"
+              className="w-full max-w-32 bg-gradient-to-t from-red-500 to-red-400 rounded-lg transition-all duration-500 relative shadow-lg"
               style={{ height: `${currentBarHeight}px` }}
             >
               {/* Value inside bar */}
@@ -79,9 +79,9 @@ export function TaxSavingsDisplay({
           </div>
 
           {/* Optimized Tax Bar (Green) - same height, light green with dark green bottom 1/3 */}
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center flex-1 max-w-[45%]">
             <div
-              className="w-20 md:w-28 relative rounded-lg overflow-hidden shadow-lg"
+              className="w-full max-w-32 relative rounded-lg overflow-hidden shadow-lg"
               style={{ height: `${currentBarHeight}px` }}
             >
               {/* Light green background (full height) */}
@@ -89,36 +89,28 @@ export function TaxSavingsDisplay({
 
               {/* Dark green bottom 1/3 */}
               <div
-                className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-green-600 to-green-500"
+                className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-green-600 to-green-500 flex items-center justify-center"
                 style={{ height: '33.33%' }}
-              />
-
-              {/* Gespart text in light green area */}
-              <div className="absolute inset-0 flex items-center justify-center" style={{ paddingBottom: '33.33%' }}>
-                <span className="text-green-700 font-bold text-sm md:text-base">Gespart!</span>
+              >
+                <span className="text-white font-bold text-sm md:text-base">0 €</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Continuous gray separator line under both bars */}
-        <div className="w-full max-w-[280px] h-px bg-gray-300 mt-2" />
+        <div className="w-[80%] h-px bg-gray-300 mt-2" />
 
         {/* Labels */}
-        <div className="flex justify-between w-full mt-2">
-          <p className="text-sm text-gray-600 text-center font-medium flex-1">
+        <div className="flex justify-between w-[80%] mt-2 gap-2">
+          <p className="text-xs sm:text-sm text-gray-600 text-center font-medium flex-1 whitespace-nowrap">
             Deine Steuer Heute
           </p>
-          <p className="text-sm text-gray-600 text-center font-medium flex-1">
+          <p className="text-xs sm:text-sm text-gray-600 text-center font-medium flex-1 whitespace-nowrap">
             Mit Immobilien
           </p>
         </div>
       </div>
-
-      {/* Motivation Text */}
-      <p className="text-center text-gray-500 text-sm mt-4 max-w-sm">
-        So wandeln sich deine Steuern in Sachwerte!
-      </p>
 
       {/* Savings Summary */}
       <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-xl text-center w-full max-w-sm">

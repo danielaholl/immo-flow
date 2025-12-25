@@ -22,6 +22,20 @@ interface SellerKnowledgeManagerProps {
   defaultExpanded?: boolean;
 }
 
+// Knowledge entry type
+interface KnowledgeEntry {
+  id: string;
+  topic: string;
+  content: string;
+  sourceType: string | null;
+  sourceMessageId: string | null;
+  category: string | null;
+  isActive: boolean | null;
+  confidenceScore: number | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
 // Category labels in German
 const CATEGORY_LABELS: Record<string, string> = {
   costs: 'Kosten',
@@ -87,10 +101,10 @@ export function SellerKnowledgeManager({
     },
   });
 
-  const activeCount = entries?.filter((e) => e.isActive).length || 0;
-  const learnedCount = entries?.filter((e) => e.sourceType === 'chat_learned').length || 0;
+  const activeCount = entries?.filter((e: KnowledgeEntry) => e.isActive).length || 0;
+  const learnedCount = entries?.filter((e: KnowledgeEntry) => e.sourceType === 'chat_learned').length || 0;
 
-  const handleEdit = (entry: any) => {
+  const handleEdit = (entry: KnowledgeEntry) => {
     setEditingEntry(entry.id);
     setEditForm({
       topic: entry.topic,
@@ -184,7 +198,7 @@ export function SellerKnowledgeManager({
           {/* Entry List */}
           {entries && entries.length > 0 && (
             <div className="divide-y divide-gray-100">
-              {entries.map((entry) => (
+              {(entries as KnowledgeEntry[]).map((entry) => (
                 <div
                   key={entry.id}
                   className={`p-4 ${!entry.isActive ? 'bg-gray-50 opacity-60' : ''}`}

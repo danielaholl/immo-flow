@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { Calculator, Plus, Info, ChevronRight, Building2, Home, Check } from 'lucide-react';
+import { Calculator, Info, Building2, Check } from 'lucide-react';
 import { trpc } from '@/app/providers/TRPCProvider';
 import { TaxStrategySelector, type AfaStrategy } from '../components/TaxStrategySelector';
 import { TaxSavingsDisplay } from '../components/TaxSavingsDisplay';
+import { Header } from '../components/Header';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -88,6 +89,22 @@ export default function SteuerOptimiererPage() {
   const [annualTaxPaid, setAnnualTaxPaid] = useState<number>(30000);
   const [marginalTaxRate, setMarginalTaxRate] = useState<number>(42);
   const [strategy, setStrategy] = useState<AfaStrategy>('neubau');
+  const [customAfaRate, setCustomAfaRate] = useState<number | null>(null);
+
+  // Get the default AfA rate for the current strategy
+  const defaultAfaRate = useMemo(() => {
+    const rates = { bestand: 2, neubau: 4, denkmal: 9 }; // neubau: 4% = Ø über 10 Jahre bei 5% degressiv
+    return rates[strategy];
+  }, [strategy]);
+
+  // Effective AfA rate: custom if set, otherwise default
+  const effectiveAfaRate = customAfaRate !== null ? customAfaRate : defaultAfaRate;
+
+  // Handle strategy change - reset custom rate
+  const handleStrategyChange = useCallback((newStrategy: AfaStrategy) => {
+    setStrategy(newStrategy);
+    setCustomAfaRate(null); // Reset custom rate when strategy changes
+  }, []);
 
   // Calculate the target portfolio value
   const calculationResult = trpc.taxOptimizer.calculate.useQuery(
@@ -95,6 +112,7 @@ export default function SteuerOptimiererPage() {
       annualTaxPaid,
       marginalTaxRate: marginalTaxRate / 100,
       strategy,
+      customAfaRate: customAfaRate !== null ? customAfaRate / 100 : undefined,
     },
     {
       enabled: annualTaxPaid > 0 && marginalTaxRate > 0,
@@ -119,7 +137,8 @@ export default function SteuerOptimiererPage() {
     return matchingProperties.data.map((property: { id: string; price: number }) => {
       // Simple calculation for property tax savings
       const buildingRatio = strategy === 'bestand' ? 0.8 : strategy === 'neubau' ? 0.85 : 0.9;
-      const afaRate = strategy === 'bestand' ? 0.02 : strategy === 'neubau' ? 0.05 : 0.09;
+      // Use effective AfA rate (custom if set, otherwise default for strategy)
+      const afaRate = effectiveAfaRate / 100;
       const interestRate = 0.04;
       const rentalYield = 0.03;
       const maintenanceRate = 0.005;
@@ -136,7 +155,7 @@ export default function SteuerOptimiererPage() {
         taxSavings: Math.round(taxSavings),
       };
     });
-  }, [matchingProperties.data, strategy, marginalTaxRate]);
+  }, [matchingProperties.data, strategy, marginalTaxRate, effectiveAfaRate]);
 
   const handleTaxChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/[^\d]/g, '');
@@ -145,37 +164,16 @@ export default function SteuerOptimiererPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <Home className="text-green-600" size={24} />
-            <span className="font-bold text-xl text-gray-900">Nestando</span>
-          </Link>
-          <nav className="hidden md:flex items-center gap-6">
-            <Link href="/" className="text-gray-600 hover:text-gray-900">
-              Entdecken
-            </Link>
-            <Link href="/pricing" className="text-gray-600 hover:text-gray-900">
-              Preise
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <Header />
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
+      <main className="max-w-[1600px] mx-auto px-4 py-8">
         {/* Hero Section */}
         <div className="text-center mb-10">
-          <div className="inline-flex items-center gap-2 bg-green-100 text-green-700 px-4 py-2 rounded-full text-sm font-medium mb-4">
-            <Calculator size={16} />
-            Steuer-Optimierer
-          </div>
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
             Wandle Steuern in Sachwerte
           </h1>
-          <p className="text-gray-600 max-w-2xl mx-auto">
+          <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto">
             Berechne, wie viel Immobilienbesitz du brauchst, um deine Steuerlast auf 0€ zu senken.
-            Legale Steueroptimierung durch AfA und Werbungskosten.
           </p>
         </div>
 
@@ -184,10 +182,9 @@ export default function SteuerOptimiererPage() {
           {/* Left Column - Inputs */}
           <div className="lg:col-span-3 flex">
             <div className="bg-white rounded-2xl border border-gray-200 p-6 flex-1 flex flex-col">
-              <div className="flex items-center gap-2 mb-6">
-                <Plus className="text-green-600" size={20} />
-                <h2 className="font-semibold text-gray-900">Dein Steuer-Optimierer</h2>
-              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-6">
+                Dein Steuer-Optimierer
+              </h3>
 
               {/* Annual Tax Input */}
               <div className="mb-5">
@@ -214,11 +211,13 @@ export default function SteuerOptimiererPage() {
                 </label>
                 <div className="relative">
                   <input
-                    type="number"
-                    value={marginalTaxRate}
-                    onChange={(e) => setMarginalTaxRate(Number(e.target.value))}
-                    min={14}
-                    max={45}
+                    type="text"
+                    inputMode="decimal"
+                    value={marginalTaxRate || ''}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^\d]/g, '');
+                      setMarginalTaxRate(val === '' ? 0 : Math.min(45, Math.max(0, Number(val))));
+                    }}
                     className="w-full px-4 py-3 pr-10 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none text-right text-lg font-medium"
                   />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500">
@@ -234,9 +233,53 @@ export default function SteuerOptimiererPage() {
               <div className="mb-5">
                 <TaxStrategySelector
                   value={strategy}
-                  onChange={setStrategy}
+                  onChange={handleStrategyChange}
                   compact
                 />
+              </div>
+
+              {/* Custom AfA Rate Input */}
+              <div className="mb-5">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  AfA-Satz anpassen
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={customAfaRate !== null ? customAfaRate : (defaultAfaRate || '')}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^\d.]/g, '');
+                      if (val === '') {
+                        setCustomAfaRate(null);
+                      } else {
+                        const numVal = Number(val);
+                        setCustomAfaRate(Math.min(20, Math.max(0, numVal)));
+                      }
+                    }}
+                    placeholder={`${defaultAfaRate}`}
+                    className="w-full px-4 py-3 pr-10 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none text-right text-lg font-medium"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500">
+                    %
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Standard: {defaultAfaRate}% {strategy === 'neubau' && '(Ø degressiv)'}
+                  {strategy === 'bestand' && '(linear)'}
+                  {strategy === 'denkmal' && '(auf ~35% Sanierungskosten)'}
+                </p>
+              </div>
+
+              {/* Disclaimer */}
+              <div className="mt-auto pt-4 border-t border-gray-100">
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                  <p className="text-xs text-gray-600 leading-relaxed">
+                    <strong className="text-amber-800">Hinweis:</strong> Diese Rechnung dient als erste Indikation und ersetzt keine steuerliche Beratung.
+                    Die tatsächliche Steuerersparnis hängt von Ihrer individuellen Situation ab.
+                    Wir empfehlen, einen Steuerberater zu konsultieren.
+                  </p>
+                </div>
               </div>
 
             </div>
@@ -255,61 +298,90 @@ export default function SteuerOptimiererPage() {
               {/* Breakdown Details */}
               {calculationResult.data && (
                 <div className="mt-6 pt-6 border-t border-gray-100">
-                  <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                  <h3 className="text-sm font-medium text-gray-700 mb-4 flex items-center gap-2">
                     <Info size={16} />
                     Berechnungsdetails
                   </h3>
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <p className="text-gray-500 text-xs mb-1">Zu offsettendes Einkommen</p>
-                      <p className="font-semibold text-gray-900">
+                  <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm">
+                    {/* Zu versteuerndes Einkommen */}
+                    <div className="flex justify-between items-center pb-2 border-b border-gray-300">
+                      <span className="text-gray-700 font-medium">Zu versteuerndes Einkommen</span>
+                      <span className="font-semibold text-gray-900">
                         {formatCurrency(calculationResult.data.incomeToOffset)}
-                      </p>
+                      </span>
                     </div>
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <p className="text-gray-500 text-xs mb-1">AfA-Abschreibung p.a.</p>
-                      <p className="font-semibold text-green-600">
+
+                    {/* AfA-Abschreibung */}
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <span className="text-green-600">+ AfA-Abschreibung p.a.</span>
+                        <span className="text-xs text-gray-400">
+                          ({effectiveAfaRate}%{strategy === 'denkmal' ? ' auf ~35% Sanier.' : ''})
+                        </span>
+                      </div>
+                      <span className="font-semibold text-green-600">
                         {formatCurrency(calculationResult.data.breakdown.depreciationDeduction)}
-                      </p>
+                      </span>
                     </div>
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <p className="text-gray-500 text-xs mb-1">Zinsabzug p.a.</p>
-                      <p className="font-semibold text-green-600">
+
+                    {/* Zinsabzug */}
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <span className="text-green-600">+ Zinsabzug p.a.</span>
+                        <span className="text-xs text-gray-400">(4% Zinssatz)</span>
+                      </div>
+                      <span className="font-semibold text-green-600">
                         {formatCurrency(calculationResult.data.breakdown.interestDeduction)}
-                      </p>
+                      </span>
                     </div>
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <p className="text-gray-500 text-xs mb-1">Mieteinnahmen p.a.</p>
-                      <p className="font-semibold text-gray-900">
-                        -{formatCurrency(calculationResult.data.breakdown.rentalIncome)}
-                      </p>
+
+                    {/* Instandhaltung */}
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <span className="text-green-600">+ Instandhaltung p.a.</span>
+                        <span className="text-xs text-gray-400">(0,5%)</span>
+                      </div>
+                      <span className="font-semibold text-green-600">
+                        {formatCurrency(calculationResult.data.breakdown.maintenanceDeduction)}
+                      </span>
+                    </div>
+
+                    {/* Mieteinnahmen */}
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <span className="text-red-600">− Mieteinnahmen p.a.</span>
+                        <span className="text-xs text-gray-400">(3% vom Portfolio)</span>
+                      </div>
+                      <span className="font-semibold text-red-600">
+                        {formatCurrency(calculationResult.data.breakdown.rentalIncome)}
+                      </span>
+                    </div>
+
+                    {/* Separator */}
+                    <div className="border-t-2 border-gray-300 my-2"></div>
+
+                    {/* Netto-Verlust */}
+                    <div className="flex justify-between items-center pt-1">
+                      <span className="text-gray-900 font-bold">Netto-Verlust:</span>
+                      <span className="font-bold text-gray-900">
+                        {formatCurrency(calculationResult.data.breakdown.netTaxLoss)}
+                      </span>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Spacer */}
-              <div className="flex-1" />
-
-              {/* Disclaimer */}
-              <div className="mt-auto pt-4 border-t border-gray-100">
-                <p className="text-xs text-gray-500 text-center">
-                  <strong>Hinweis:</strong> Diese Rechnung dient als erste Indikation und ersetzt keine steuerliche Beratung.
-                  Die tatsächliche Steuerersparnis hängt von Ihrer individuellen Situation ab.
-                  Wir empfehlen, einen Steuerberater zu konsultieren.
-                </p>
-              </div>
             </div>
           </div>
 
           {/* Right Column - Properties */}
           <div className="lg:col-span-3 flex">
             <div className="bg-white rounded-2xl border border-gray-200 p-6 flex-1 flex flex-col">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-900">Passende Objekte finden</h3>
-                <span className="text-xs text-gray-500">
-                  {matchingProperties.data?.length || 0} gefunden
-                </span>
+              <div className="mb-6">
+                <h3 className="text-xl font-bold text-gray-900">Passende Objekte</h3>
+                <p className="text-xs text-gray-500 mt-1">
+                  {matchingProperties.data?.length || 0} Objekte gefunden
+                </p>
               </div>
 
               <div className="flex-1">
@@ -344,17 +416,6 @@ export default function SteuerOptimiererPage() {
                     </p>
                   </div>
                 )}
-              </div>
-
-              {/* Link to Portfolio */}
-              <div className="mt-auto pt-4 border-t border-gray-100">
-                <Link
-                  href="/portfolio"
-                  className="flex items-center justify-between text-sm text-green-600 hover:text-green-700"
-                >
-                  <span>Oder eine Portfolio-Übersicht ansehen</span>
-                  <ChevronRight size={16} />
-                </Link>
               </div>
             </div>
           </div>
