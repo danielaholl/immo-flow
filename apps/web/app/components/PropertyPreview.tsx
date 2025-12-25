@@ -650,17 +650,13 @@ export function PropertyPreview({
 
           {/* Commission */}
           <p className={`text-base mt-3 ${
-            data.commission_rate === 0
-              ? 'text-green-600 font-medium'
-              : data.commission_rate != null && data.commission_rate > 0
-                ? 'text-gray-600'
-                : 'text-gray-400'
+            data.commission_rate != null && data.commission_rate > 0
+              ? 'text-gray-600'
+              : 'text-green-600 font-medium'
           }`}>
-            {data.commission_rate === 0
-              ? '✓ Provisionsfrei'
-              : data.commission_rate != null && data.commission_rate > 0
-                ? `Provision: ${data.commission_rate.toFixed(2).replace('.', ',')} % inkl. MwSt.`
-                : 'Provision: Keine Angabe'}
+            {data.commission_rate != null && data.commission_rate > 0
+              ? `Provision: ${data.commission_rate.toFixed(2).replace('.', ',')} % inkl. MwSt.`
+              : '✓ Provisionsfrei'}
           </p>
 
         </div>
@@ -698,10 +694,8 @@ export function PropertyPreview({
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 bg-green-500 rounded-full animate-pulse flex-shrink-0" />
                     <h3 className="font-semibold text-gray-900 text-base sm:text-lg">Smart-Check</h3>
-                    {isLoadingMarketData && (
-                      <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" title="Berechnung läuft..." />
-                    )}
                   </div>
                   {(() => {
                     const marketAvgPrice = marketData?.marketAvgPricePerSqm || sellerAnalysisMarketAverage || data.evaluation?.market_average_price_per_sqm || 3500;

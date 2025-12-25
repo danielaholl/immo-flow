@@ -1,11 +1,50 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Home, TrendingUp, Calculator, ChevronDown, Wallet, PiggyBank } from 'lucide-react';
+import { Home, ChevronDown } from 'lucide-react';
+import { InvestmentCalculator, UserParams, SavedParams } from './InvestmentCalculator';
+
+// Grunderwerbsteuer nach Bundesland (gleiche Werte wie InvestmentCalculator)
+const GRUNDERWERBSTEUER_SAETZE: Record<string, number> = {
+  'bayern': 3.5,
+  'sachsen': 3.5,
+  'hamburg': 4.5,
+  'baden-württemberg': 5.0,
+  'niedersachsen': 5.0,
+  'rheinland-pfalz': 5.0,
+  'sachsen-anhalt': 5.0,
+  'berlin': 6.0,
+  'hessen': 6.0,
+  'mecklenburg-vorpommern': 6.0,
+  'bremen': 5.0,
+  'nordrhein-westfalen': 6.5,
+  'saarland': 6.5,
+  'schleswig-holstein': 6.5,
+  'brandenburg': 6.5,
+  'thüringen': 6.5,
+};
+
+function detectStateFromLocation(location?: string): string | null {
+  if (!location) return null;
+  const locationLower = location.toLowerCase();
+  for (const state of Object.keys(GRUNDERWERBSTEUER_SAETZE)) {
+    if (locationLower.includes(state)) return state;
+  }
+  // Stadt-basierte Erkennung
+  if (locationLower.includes('münchen') || locationLower.includes('nürnberg')) return 'bayern';
+  if (locationLower.includes('berlin')) return 'berlin';
+  if (locationLower.includes('hamburg')) return 'hamburg';
+  if (locationLower.includes('frankfurt') || locationLower.includes('wiesbaden')) return 'hessen';
+  if (locationLower.includes('köln') || locationLower.includes('düsseldorf')) return 'nordrhein-westfalen';
+  if (locationLower.includes('stuttgart')) return 'baden-württemberg';
+  if (locationLower.includes('dresden') || locationLower.includes('leipzig')) return 'sachsen';
+  return null;
+}
 
 export interface BuyVsRentCardProps {
   purchasePrice: number;
   sqm: number;
+  location?: string;
   monthlyRent?: number;        // Actual monthly rent if known
   avgRentPerSqm?: number;      // Fallback: rent per sqm from market data
   monthlyFee?: number;         // Hausgeld
@@ -13,12 +52,20 @@ export interface BuyVsRentCardProps {
   interestRate?: number;       // Zinssatz in %
   amortizationRate?: number;   // Tilgung in %
   equityPercentage?: number;   // Eigenkapitalquote in %
+  commissionRate?: number;     // Maklergebühr in %
   className?: string;
+
+  // Persistenz
+  propertyId?: string;
+  userParams?: UserParams | null;
+  onSaveParams?: (params: SavedParams) => void;
+  isSavingParams?: boolean;
 }
 
 export function BuyVsRentCard({
   purchasePrice,
   sqm,
+  location,
   monthlyRent,
   avgRentPerSqm,
   monthlyFee,
@@ -26,22 +73,14 @@ export function BuyVsRentCard({
   interestRate = 3.5,
   amortizationRate = 2.0,
   equityPercentage = 20,
+  commissionRate = 0,
   className = '',
+  propertyId,
+  userParams,
+  onSaveParams,
+  isSavingParams = false,
 }: BuyVsRentCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-
-  // Calculate Hausgeld - use provided value or estimate based on sqm and yearBuilt
-  const { effectiveHausgeld, isHausgeldEstimated } = useMemo(() => {
-    if (monthlyFee && monthlyFee > 0) {
-      return { effectiveHausgeld: monthlyFee, isHausgeldEstimated: false };
-    }
-    if (sqm > 0) {
-      // Altbau (<1980): 3.50€/m², Neubau (≥1980): 2.50€/m²
-      const hausgeldProQm = yearBuilt && yearBuilt >= 1980 ? 2.50 : 3.50;
-      return { effectiveHausgeld: sqm * hausgeldProQm, isHausgeldEstimated: true };
-    }
-    return { effectiveHausgeld: 0, isHausgeldEstimated: false };
-  }, [monthlyFee, sqm, yearBuilt]);
 
   // Format currency
   const formatCurrency = (value: number) => {
@@ -53,108 +92,99 @@ export function BuyVsRentCard({
     }).format(value);
   };
 
-  // Calculate effective monthly rent
+  // Calculate effective monthly rent (Marktmiete)
   const effectiveMonthlyRent = useMemo(() => {
     if (monthlyRent && monthlyRent >= 100) {
       return monthlyRent;
     } else if (avgRentPerSqm && sqm > 0) {
       return avgRentPerSqm * sqm;
     } else if (monthlyRent && monthlyRent > 0 && sqm > 0) {
-      // monthlyRent is likely €/m², multiply by sqm
       return monthlyRent * sqm;
     }
     return 0;
   }, [monthlyRent, avgRentPerSqm, sqm]);
 
-  // Calculate buy vs rent analysis
+  // Calculate Hausgeld
+  const effectiveHausgeld = useMemo(() => {
+    if (monthlyFee && monthlyFee > 0) return monthlyFee;
+    if (sqm > 0) {
+      const hausgeldProQm = yearBuilt && yearBuilt >= 1980 ? 2.50 : 3.50;
+      return sqm * hausgeldProQm;
+    }
+    return 0;
+  }, [monthlyFee, sqm, yearBuilt]);
+
+  // Grunderwerbsteuer ermitteln
+  const detectedState = detectStateFromLocation(location);
+  const grunderwerbsteuerRate = detectedState
+    ? GRUNDERWERBSTEUER_SAETZE[detectedState]
+    : 5.0; // Default
+
+  // Quick calculation for summary cards (gleiche Logik wie InvestmentCalculator)
   const analysis = useMemo(() => {
     if (effectiveMonthlyRent <= 0 || purchasePrice <= 0) return null;
 
-    // Kaufnebenkosten (~10%)
-    const purchaseCosts = purchasePrice * 0.10;
-    const totalInvestment = purchasePrice + purchaseCosts;
+    // Kaufnebenkosten (detailliert wie InvestmentCalculator)
+    const grunderwerbsteuer = purchasePrice * (grunderwerbsteuerRate / 100);
+    const notarkosten = purchasePrice * 0.015;
+    const grundbuchkosten = purchasePrice * 0.005;
+    const maklergebuehren = purchasePrice * (commissionRate / 100);
+    const kaufnebenkosten = grunderwerbsteuer + notarkosten + grundbuchkosten + maklergebuehren;
+    const totalInvestment = purchasePrice + kaufnebenkosten;
 
     // Finanzierung
     const equityAmount = totalInvestment * (equityPercentage / 100);
     const loanAmount = totalInvestment - equityAmount;
-    const annualRate = (interestRate + amortizationRate) / 100;
-    const monthlyMortgage = (loanAmount * annualRate) / 12;
+    const monatlicheZinsen = loanAmount * (interestRate / 100 / 12);
+    const monatlicheTilgung = loanAmount * (amortizationRate / 100 / 12);
+    const monthlyMortgage = Math.ceil(monatlicheZinsen + monatlicheTilgung);
 
-    // Monatliche Kosten beim Kauf
-    const monthlyOwnershipCost = monthlyMortgage + effectiveHausgeld;
+    // Instandhaltung (~1% p.a.)
+    const monthlyMaintenance = Math.ceil(purchasePrice * 0.01 / 12);
 
-    // Instandhaltungsrücklage (~1% p.a. vom Kaufpreis)
-    const monthlyMaintenance = (purchasePrice * 0.01) / 12;
-    const totalMonthlyCostBuying = monthlyOwnershipCost + monthlyMaintenance;
+    // Monatliche Kosten beim Kauf (volle Kosten für Eigennutzer)
+    const totalMonthlyCostBuying = monthlyMortgage + effectiveHausgeld + monthlyMaintenance;
 
-    // Opportunitätskosten des Eigenkapitals (konservativ 5% p.a.)
-    const opportunityCostRate = 0.05;
-    const monthlyOpportunityCost = (equityAmount * opportunityCostRate) / 12;
-
-    // Parameter für Langzeitberechnung
-    const APPRECIATION_RATE = 0.025;   // 2.5% Wertsteigerung p.a.
-    const RENT_INCREASE_RATE = 0.025;  // 2.5% Mietsteigerung p.a.
+    // Break-Even Berechnung (gleiche Logik wie InvestmentCalculator)
+    const APPRECIATION_RATE = 0.025;
+    const RENT_INCREASE_RATE = 0.025;
 
     let propertyValue = purchasePrice;
     let remainingLoan = loanAmount;
     let currentYearlyRent = effectiveMonthlyRent * 12;
     let breakEvenYears = 0;
+    let renterAccumulatedSavings = equityAmount;
 
-    // Mieter accumulated savings (invested capital + monthly savings)
-    let renterAccumulatedSavings = equityAmount; // Starts with equity not spent
+    const yearlyMortgage = monthlyMortgage * 12;
+    const yearlyMaintenance = monthlyMaintenance * 12;
+    const yearlyHausgeld = effectiveHausgeld * 12;
+    const yearlyBuyerCost = yearlyMortgage + yearlyMaintenance + yearlyHausgeld;
+    const yearlyTilgung = loanAmount * (amortizationRate / 100);
 
     for (let year = 1; year <= 40; year++) {
-      // Yearly costs for buyer
-      const yearlyMortgage = monthlyMortgage * 12;
-      const yearlyMaintenance = monthlyMaintenance * 12;
-      const yearlyHausgeld = effectiveHausgeld * 12;
-      const yearlyBuyerCost = yearlyMortgage + yearlyMaintenance + yearlyHausgeld;
-
-      // Yearly rent (increases each year)
       currentYearlyRent *= (1 + RENT_INCREASE_RATE);
-
-      // Monthly savings for renter (if buying costs more than renting)
       const yearlySavingsFromRenting = Math.max(0, yearlyBuyerCost - currentYearlyRent);
+      renterAccumulatedSavings = renterAccumulatedSavings + yearlySavingsFromRenting;
 
-      // Renter's accumulated savings grow with opportunity cost rate
-      renterAccumulatedSavings = renterAccumulatedSavings * (1 + opportunityCostRate) + yearlySavingsFromRenting;
-
-      // Tilgung reduziert Restschuld
-      const yearlyTilgung = loanAmount * (amortizationRate / 100);
       remainingLoan = Math.max(0, remainingLoan - yearlyTilgung);
-
-      // Wertsteigerung
       propertyValue *= (1 + APPRECIATION_RATE);
 
-      // Netto-Vermögen Käufer = Immobilienwert - Restschuld
       const buyerNetWorth = propertyValue - remainingLoan;
-
-      // Break-even wenn Käufer-Vermögen > Mieter-Vermögen (inkl. gesparter Differenz)
       if (buyerNetWorth >= renterAccumulatedSavings && breakEvenYears === 0) {
         breakEvenYears = year;
       }
     }
 
-    // If no breakeven found in 40 years
     if (breakEvenYears === 0) breakEvenYears = 40;
-
-    const isBuyingBetter = breakEvenYears <= 15;
-    const monthlySavingsIfRenting = totalMonthlyCostBuying - effectiveMonthlyRent;
+    const isBuyingBetter = breakEvenYears <= 10;
 
     return {
       breakEvenYears,
-      effectiveMonthlyRent,
-      monthlyMortgage: Math.round(monthlyMortgage),
-      monthlyOwnershipCost: Math.round(monthlyOwnershipCost),
+      effectiveMonthlyRent: Math.round(effectiveMonthlyRent),
       totalMonthlyCostBuying: Math.round(totalMonthlyCostBuying),
-      monthlyMaintenance: Math.round(monthlyMaintenance),
-      equityAmount: Math.round(equityAmount),
-      loanAmount: Math.round(loanAmount),
       isBuyingBetter,
-      monthlySavingsIfRenting: Math.round(monthlySavingsIfRenting),
-      monthlyOpportunityCost: Math.round(monthlyOpportunityCost),
     };
-  }, [effectiveMonthlyRent, purchasePrice, equityPercentage, interestRate, amortizationRate, effectiveHausgeld]);
+  }, [effectiveMonthlyRent, purchasePrice, equityPercentage, interestRate, amortizationRate, effectiveHausgeld, grunderwerbsteuerRate, commissionRate]);
 
   if (!analysis) return null;
 
@@ -228,9 +258,9 @@ export function BuyVsRentCard({
           </div>
 
           {/* Kaufkosten */}
-          <div className="rounded-xl p-2 sm:p-3 text-center border bg-purple-50 border-purple-200">
+          <div className="rounded-xl p-2 sm:p-3 text-center border bg-red-50 border-red-200">
             <span className="text-sm text-gray-500">Kauf/Monat</span>
-            <div className="text-base sm:text-lg font-bold text-purple-600">
+            <div className="text-base sm:text-lg font-bold text-red-600">
               {formatCurrency(analysis.totalMonthlyCostBuying)}
             </div>
           </div>
@@ -250,98 +280,26 @@ export function BuyVsRentCard({
         </div>
       </div>
 
-      {/* Expanded Details */}
+      {/* Expanded Details - InvestmentCalculator */}
       {isExpanded && (
-        <div className="px-4 sm:px-5 pb-4 sm:pb-5 border-t border-gray-100 pt-4">
-          {/* Mieten Section */}
-          <div className="mb-4">
-            <div className="flex items-center gap-2 mb-2">
-              <PiggyBank size={18} className="text-blue-600" />
-              <h4 className="font-semibold text-gray-900 text-base">Mieten</h4>
-            </div>
-            <div className="space-y-1 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Monatliche Miete</span>
-                <span className="font-medium text-gray-900">{formatCurrency(analysis.effectiveMonthlyRent)}</span>
-              </div>
-              <div className="flex justify-between text-gray-500">
-                <span>+ Entgangene Rendite auf EK (5% p.a.)</span>
-                <span>~{formatCurrency(analysis.monthlyOpportunityCost)}/Monat</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Kaufen Section */}
-          <div className="mb-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Wallet size={18} className="text-purple-600" />
-              <h4 className="font-semibold text-gray-900 text-base">Kaufen</h4>
-            </div>
-            <div className="space-y-1 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Kreditrate ({interestRate}% + {amortizationRate}%)</span>
-                <span className="font-medium text-gray-900">{formatCurrency(analysis.monthlyMortgage)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">+ Hausgeld{isHausgeldEstimated && ' (KI-geschätzt)'}</span>
-                <span className="font-medium text-gray-900">{formatCurrency(effectiveHausgeld)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">+ Instandhaltung (~1% p.a.)</span>
-                <span className="font-medium text-gray-900">{formatCurrency(analysis.monthlyMaintenance)}</span>
-              </div>
-              <div className="flex justify-between pt-1 border-t border-gray-200">
-                <span className="text-gray-900 font-semibold">Gesamt/Monat</span>
-                <span className="font-bold text-gray-900">{formatCurrency(analysis.totalMonthlyCostBuying)}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Finanzierung */}
-          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <Calculator size={18} className="text-gray-600" />
-              <h4 className="font-semibold text-gray-700 text-base">Finanzierung</h4>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div>
-                <span className="text-gray-500">Eigenkapital ({equityPercentage}%)</span>
-                <p className="font-medium text-gray-900">{formatCurrency(analysis.equityAmount)}</p>
-              </div>
-              <div>
-                <span className="text-gray-500">Darlehen</span>
-                <p className="font-medium text-gray-900">{formatCurrency(analysis.loanAmount)}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Fazit */}
-          <div className="p-3 bg-indigo-50 rounded-lg">
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingUp size={18} className="text-indigo-600" />
-              <h4 className="font-semibold text-indigo-900 text-base">Fazit</h4>
-            </div>
-            <p className="text-sm text-indigo-800">
-              {analysis.isBuyingBetter ? (
-                <>
-                  Nach <strong>{analysis.breakEvenYears} Jahren</strong> übersteigt das aufgebaute Immobilienvermögen
-                  die alternative Kapitalanlage. Berücksichtigt sind Wertsteigerung (2,5% p.a.),
-                  Tilgung und entgangene Rendite auf das Eigenkapital.
-                </>
-              ) : (
-                <>
-                  Der Break-Even liegt bei <strong>{analysis.breakEvenYears} Jahren</strong>.
-                  Bei diesem Preis-Miete-Verhältnis ist die Immobilie eine sehr langfristige Investition.
-                  Prüfen Sie, ob ein niedrigerer Kaufpreis verhandelbar ist.
-                </>
-              )}
-            </p>
-          </div>
-
-          {/* Hinweis */}
-          <p className="text-xs text-gray-400 mt-3 text-center">
-            Annahmen: 2,5% Wertsteigerung, 2,5% Mietsteigerung, 5% alternative Kapitalrendite p.a.
-          </p>
+        <div className="px-4 sm:px-5 pb-4 sm:pb-5 border-t border-gray-100">
+          <InvestmentCalculator
+            mode="eigennutzer"
+            purchasePrice={purchasePrice}
+            location={location}
+            commissionRate={commissionRate}
+            equityPercentage={equityPercentage}
+            interestRate={interestRate}
+            amortizationRate={amortizationRate}
+            monthlyFee={monthlyFee}
+            sqm={sqm}
+            yearBuilt={yearBuilt}
+            marketRent={effectiveMonthlyRent}
+            userParams={userParams}
+            onSaveParams={propertyId && onSaveParams ? onSaveParams : undefined}
+            isSavingParams={isSavingParams}
+            canEdit={true}
+          />
         </div>
       )}
     </div>

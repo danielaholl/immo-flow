@@ -1,92 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { TrendingUp, Wallet, ChevronDown, Sparkles, Receipt, Landmark, Pencil, RotateCcw, Check } from 'lucide-react';
-
-// Grunderwerbsteuer nach Bundesland (Stand 2024)
-const GRUNDERWERBSTEUER_BY_STATE: Record<string, number> = {
-  'bayern': 3.5,
-  'sachsen': 3.5,
-  'hamburg': 5.5,
-  'baden-württemberg': 5.0,
-  'niedersachsen': 5.0,
-  'rheinland-pfalz': 5.0,
-  'sachsen-anhalt': 5.0,
-  'berlin': 6.0,
-  'hessen': 6.0,
-  'mecklenburg-vorpommern': 6.0,
-  'bremen': 5.0,
-  'brandenburg': 6.5,
-  'nordrhein-westfalen': 6.5,
-  'saarland': 6.5,
-  'schleswig-holstein': 6.5,
-  'thüringen': 5.0,
-};
-
-// Stadt/Region zu Bundesland Mapping (häufige Städte)
-const CITY_TO_STATE: Record<string, string> = {
-  'münchen': 'bayern',
-  'nürnberg': 'bayern',
-  'augsburg': 'bayern',
-  'regensburg': 'bayern',
-  'berlin': 'berlin',
-  'hamburg': 'hamburg',
-  'bremen': 'bremen',
-  'frankfurt': 'hessen',
-  'wiesbaden': 'hessen',
-  'darmstadt': 'hessen',
-  'köln': 'nordrhein-westfalen',
-  'düsseldorf': 'nordrhein-westfalen',
-  'dortmund': 'nordrhein-westfalen',
-  'essen': 'nordrhein-westfalen',
-  'duisburg': 'nordrhein-westfalen',
-  'bochum': 'nordrhein-westfalen',
-  'stuttgart': 'baden-württemberg',
-  'karlsruhe': 'baden-württemberg',
-  'mannheim': 'baden-württemberg',
-  'freiburg': 'baden-württemberg',
-  'heidelberg': 'baden-württemberg',
-  'hannover': 'niedersachsen',
-  'braunschweig': 'niedersachsen',
-  'oldenburg': 'niedersachsen',
-  'dresden': 'sachsen',
-  'leipzig': 'sachsen',
-  'chemnitz': 'sachsen',
-  'mainz': 'rheinland-pfalz',
-  'koblenz': 'rheinland-pfalz',
-  'potsdam': 'brandenburg',
-  'magdeburg': 'sachsen-anhalt',
-  'halle': 'sachsen-anhalt',
-  'erfurt': 'thüringen',
-  'jena': 'thüringen',
-  'kiel': 'schleswig-holstein',
-  'lübeck': 'schleswig-holstein',
-  'rostock': 'mecklenburg-vorpommern',
-  'schwerin': 'mecklenburg-vorpommern',
-  'saarbrücken': 'saarland',
-};
-
-// Funktion: Bundesland aus Location ermitteln
-const getStateFromLocation = (location?: string): string | null => {
-  if (!location) return null;
-  const locationLower = location.toLowerCase();
-
-  // Direkt nach Bundesland suchen
-  for (const state of Object.keys(GRUNDERWERBSTEUER_BY_STATE)) {
-    if (locationLower.includes(state)) {
-      return state;
-    }
-  }
-
-  // Nach Stadt suchen
-  for (const [city, state] of Object.entries(CITY_TO_STATE)) {
-    if (locationLower.includes(city)) {
-      return state;
-    }
-  }
-
-  return null;
-};
+import React, { useState } from 'react';
+import { ChevronDown, Sparkles, Calculator } from 'lucide-react';
+import { InvestmentCalculator, UserParams, SavedParams } from './InvestmentCalculator';
 
 export interface KeyMetricsPanelProps {
   // AI Score
@@ -118,9 +34,6 @@ export interface KeyMetricsPanelProps {
   // Legacy Props (werden durch berechnete Werte ersetzt)
   estimatedRent?: number;           // Fallback: Geschätzte Kaltmiete
   estimatedOperatingCosts?: number; // Fallback: Hausgeld (nicht umlagefähig)
-  estimatedMaintenanceCosts?: number; // Instandhaltungskosten (entfernt - im Hausgeld enthalten)
-  loanPayment?: number;             // Fallback: Kreditrate (wird durch monatlicheRate ersetzt)
-  loanDetails?: string;             // z.B. "(3.5% Zins, 2% Tilgung)"
 
   // Callbacks
   onTriggerEvaluation?: () => void;
@@ -128,30 +41,8 @@ export interface KeyMetricsPanelProps {
 
   // User Property Parameters (für Edit-Modus)
   propertyId?: string;
-  userParams?: {
-    equity_percentage?: number | null;
-    interest_rate?: number | null;
-    amortization_rate?: number | null;
-    broker_commission?: number | null;
-    monthly_rent?: number | null;
-    monthly_fee?: number | null;
-    purchase_price?: number | null;
-    renovation_costs?: number | null;
-  } | null;
-  onSaveParams?: (params: {
-    equityPercentage?: number | null;
-    interestRate?: number | null;
-    amortizationRate?: number | null;
-    brokerCommission?: number | null;
-    monthlyRent?: number | null;
-    monthlyFee?: number | null;
-    purchasePrice?: number | null;
-    renovationCosts?: number | null;
-    // Berechnete Kennzahlen
-    calculatedGrossYield?: number | null;
-    calculatedRentMultiplier?: number | null;
-    calculatedMonthlyCashflow?: number | null;
-  }) => void;
+  userParams?: UserParams | null;
+  onSaveParams?: (params: SavedParams) => void;
   isSavingParams?: boolean;
 
   // UI
@@ -169,17 +60,6 @@ const formatCurrency = (amount: number): string => {
   }).format(amount);
 };
 
-// Utility: Cashflow-Werte aufgerundet formatieren (ohne Nachkommastellen)
-const formatCashflowValue = (amount: number): string => {
-  const rounded = Math.ceil(Math.abs(amount));
-  return new Intl.NumberFormat('de-DE', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(rounded);
-};
-
 // Utility: Rendite-Farbe bestimmen
 const getYieldColor = (yieldPercent: number): string => {
   if (yieldPercent >= 4) return 'text-green-600';
@@ -192,15 +72,7 @@ const getCashflowColor = (cashflow: number): string => {
   return cashflow >= 0 ? 'text-green-600' : 'text-red-600';
 };
 
-// Utility: Breakeven berechnen (in Jahren)
-const calculateBreakeven = (purchasePrice?: number, monthlyCashflow?: number): number | null => {
-  if (!purchasePrice || !monthlyCashflow || monthlyCashflow <= 0) return null;
-  const annualCashflow = monthlyCashflow * 12;
-  return purchasePrice / annualCashflow;
-};
-
 export function KeyMetricsPanel({
-  aiScore,
   grossYield,
   rentMultiplier,
   monthlyCashflow: externalCashflow,
@@ -213,7 +85,6 @@ export function KeyMetricsPanel({
   monthlyFee,
   yearBuilt,
   estimatedRent,
-  estimatedOperatingCosts,
   onTriggerEvaluation,
   isLoading = false,
   propertyId,
@@ -224,242 +95,78 @@ export function KeyMetricsPanel({
   className = '',
 }: KeyMetricsPanelProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
-  const [isKaufnebenkostenExpanded, setIsKaufnebenkostenExpanded] = useState(false);
-  const [isKapitaldienstExpanded, setIsKapitaldienstExpanded] = useState(false);
-  const [isCashflowExpanded, setIsCashflowExpanded] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
-
-  // Edit-States - null bedeutet "nutze Default-Wert"
-  const [editEquityPercent, setEditEquityPercent] = useState<number | null>(null);
-  const [editInterestRate, setEditInterestRate] = useState<number | null>(null);
-  const [editAmortizationRate, setEditAmortizationRate] = useState<number | null>(null);
-  const [editBrokerCommission, setEditBrokerCommission] = useState<number | null>(null);
-  const [editRenovationCosts, setEditRenovationCosts] = useState<number | null>(null);
-  const [editMonthlyRent, setEditMonthlyRent] = useState<number | null>(null);
-  const [editMonthlyFee, setEditMonthlyFee] = useState<number | null>(null);
-  const [editPurchasePrice, setEditPurchasePrice] = useState<number | null>(null);
-
-  // Initialisiere Edit-States aus userParams wenn vorhanden
-  useEffect(() => {
-    if (userParams) {
-      setEditEquityPercent(userParams.equity_percentage ?? null);
-      setEditInterestRate(userParams.interest_rate ?? null);
-      setEditAmortizationRate(userParams.amortization_rate ?? null);
-      setEditBrokerCommission(userParams.broker_commission ?? null);
-      setEditRenovationCosts(userParams.renovation_costs ?? null);
-      setEditMonthlyRent(userParams.monthly_rent ?? null);
-      setEditMonthlyFee(userParams.monthly_fee ?? null);
-      setEditPurchasePrice(userParams.purchase_price ?? null);
-    }
-  }, [userParams]);
 
   // Zeige Edit-Button nur wenn propertyId und onSaveParams vorhanden
   const canEdit = !!propertyId && !!onSaveParams;
 
-  // Reset alle Edit-States auf Originalwerte
-  const handleReset = () => {
-    setEditEquityPercent(null);
-    setEditInterestRate(null);
-    setEditAmortizationRate(null);
-    setEditBrokerCommission(null);
-    setEditRenovationCosts(null);
-    setEditMonthlyRent(null);
-    setEditMonthlyFee(null);
-    setEditPurchasePrice(null);
-  };
-
-  // Speichern-Handler
-  // Hinweis: Die berechneten Werte werden im handleSave berechnet und müssen
-  // nach den Edit-State Variablen und Berechnungs-Funktionen definiert werden.
-  // Die eigentliche Implementierung erfolgt weiter unten nach den Berechnungen.
-
-  // Check if we have external data (vor Cashflow-Berechnung)
+  // Check if we have external data
   const hasExternalData = grossYield !== undefined || rentMultiplier !== undefined || externalCashflow !== undefined;
 
-  // Kaufnebenkosten berechnen
-  const detectedState = getStateFromLocation(location);
-  const grunderwerbsteuerRate = detectedState
-    ? GRUNDERWERBSTEUER_BY_STATE[detectedState]
-    : 6.0; // Default: 6.0%
-  const notarkostenRate = 1.5;
-  const grundbuchRate = 0.5;
-  // Edit-State hat Priorität über Prop (Number() um sicherzustellen dass es eine Zahl ist)
-  const maklerRate = Number(editBrokerCommission ?? commissionRate ?? 0);
-  // Effektiver Kaufpreis: Edit-State hat Priorität über Property-Kaufpreis
-  const effectivePurchasePrice = Number(editPurchasePrice ?? purchasePrice ?? 0);
-
-  const grunderwerbsteuer = effectivePurchasePrice ? effectivePurchasePrice * (grunderwerbsteuerRate / 100) : 0;
-  const notarkosten = effectivePurchasePrice ? effectivePurchasePrice * (notarkostenRate / 100) : 0;
-  const grundbuchkosten = effectivePurchasePrice ? effectivePurchasePrice * (grundbuchRate / 100) : 0;
-  const maklergebuehren = effectivePurchasePrice ? effectivePurchasePrice * (maklerRate / 100) : 0;
-  // Renovierungskosten (aus Edit-State, Default: 0)
-  const renovierungskosten = Number(editRenovationCosts ?? 0);
-  const kaufnebenkosten = grunderwerbsteuer + notarkosten + grundbuchkosten + maklergebuehren + renovierungskosten;
-  const gesamtinvestition = effectivePurchasePrice + kaufnebenkosten;
-
-  // Kapitaldienst berechnen
-  const hasFinancingData = financingTerms?.interestRate !== undefined ||
-    financingTerms?.amortizationRate !== undefined ||
-    financingTerms?.loanToValue !== undefined;
-
-  // Eigenkapital-Quote (Default: 20% EK = 80% LTV)
-  // Edit-State hat Priorität über Props (Number() um sicherzustellen dass es eine Zahl ist)
-  const defaultEKRate = financingTerms?.loanToValue
-    ? (100 - Number(financingTerms.loanToValue))
-    : 20;
-  const eigenkapitalRate = Number(editEquityPercent ?? defaultEKRate);
-  const eigenkapital = gesamtinvestition * (eigenkapitalRate / 100);
-  const darlehensbetrag = gesamtinvestition - eigenkapital;
-
-  // Zinsen und Tilgung (Defaults: aktuelle Marktkonditionen)
-  // Edit-State hat Priorität über Props (Number() um sicherzustellen dass es eine Zahl ist)
-  const zinssatz = Number(editInterestRate ?? financingTerms?.interestRate ?? 3.8);
-  const tilgung = Number(editAmortizationRate ?? financingTerms?.amortizationRate ?? 2.0);
-
-  // Monatliche Rate berechnen (aufgerundet für konsistente Anzeige)
-  const monatlicheZinsen = darlehensbetrag * (zinssatz / 100 / 12);
-  const monatlicheTilgung = darlehensbetrag * (tilgung / 100 / 12);
-  const monatlicheRate = Math.ceil(monatlicheZinsen + monatlicheTilgung);
-
   // ============================================
-  // CASHFLOW-BERECHNUNG
+  // BERECHNUNGEN FÜR HEADER-CARDS
   // ============================================
 
-  // 1. Mieteinnahmen berechnen
-  // Edit-State hat Priorität, dann: estimatedRentPerSqm * sqm > estimatedRent
+  // Effektive Werte (userParams hat Priorität)
+  const effectivePurchasePrice = Number(userParams?.purchase_price ?? purchasePrice ?? 0);
+
+  // Mieteinnahmen berechnen
   const calculatedRent = estimatedRentPerSqm && sqm
     ? Number(estimatedRentPerSqm) * Number(sqm)
     : estimatedRent;
-  const mieteinnahmen = Number(editMonthlyRent ?? calculatedRent ?? 0);
-  const hasRentFromAI = !!(estimatedRentPerSqm && sqm);
-  const hasEditedRent = editMonthlyRent !== null;
+  const mieteinnahmen = Number(userParams?.monthly_rent ?? calculatedRent ?? 0);
 
-  // 2. Hausgeld berechnen
-  // Edit-State hat Priorität, dann: monthlyFee (aus Property) > estimatedOperatingCosts > Formel-Berechnung
-  // Formel: Altbau (vor 1980): ~3.50€/qm, Neubau: ~2.50€/qm
+  // Finanzierungsdaten
+  const defaultEKRate = financingTerms?.loanToValue
+    ? (100 - Number(financingTerms.loanToValue))
+    : 20;
+  const eigenkapitalRate = Number(userParams?.equity_percentage ?? defaultEKRate);
+  const zinssatz = Number(userParams?.interest_rate ?? financingTerms?.interestRate ?? 3.8);
+  const tilgung = Number(userParams?.amortization_rate ?? financingTerms?.amortizationRate ?? 2.0);
+  const maklerRate = Number(userParams?.broker_commission ?? commissionRate ?? 0);
+  const renovierungskosten = Number(userParams?.renovation_costs ?? 0);
+
+  // Hausgeld berechnen
   const calculateHausgeld = (): number => {
     if (monthlyFee && Number(monthlyFee) > 0) return Number(monthlyFee);
-    if (estimatedOperatingCosts && Number(estimatedOperatingCosts) > 0) return Number(estimatedOperatingCosts);
     if (sqm) {
-      // Hausgeld-Schätzung basierend auf Baujahr
       const hausgeldProQm = yearBuilt && Number(yearBuilt) >= 1980 ? 2.50 : 3.50;
       return Number(sqm) * hausgeldProQm;
     }
     return 0;
   };
-  const hausgeld = Number(editMonthlyFee ?? calculateHausgeld());
-  const hasHausgeldFromProperty = !!(monthlyFee && Number(monthlyFee) > 0);
-  const hasEditedHausgeld = editMonthlyFee !== null;
+  const hausgeld = Number(userParams?.monthly_fee ?? calculateHausgeld());
 
-  // 3. Kreditrate = monatlicheRate aus Kapitaldienst
-  const kreditrate = monatlicheRate;
+  // Gesamtinvestition berechnen (für Eigenkapital)
+  const kaufnebenkosten = effectivePurchasePrice * 0.10 + renovierungskosten + (effectivePurchasePrice * maklerRate / 100);
+  const gesamtinvestition = effectivePurchasePrice + kaufnebenkosten;
+  const eigenkapital = gesamtinvestition * (eigenkapitalRate / 100);
+  const darlehensbetrag = gesamtinvestition - eigenkapital;
 
-  // 4. Monatlicher Cashflow berechnen
-  const calculatedCashflow = mieteinnahmen - hausgeld - kreditrate;
+  // Monatliche Rate und Ausgaben
+  const monatlicheZinsen = darlehensbetrag * (zinssatz / 100 / 12);
+  const monatlicheTilgung = darlehensbetrag * (tilgung / 100 / 12);
+  const monatlicheRate = Math.ceil(monatlicheZinsen + monatlicheTilgung);
+  const instandhaltungskosten = Math.ceil(effectivePurchasePrice * 0.01 / 12);
+  const hausgeldNichtUmlegbar = Math.ceil(hausgeld * 0.30);
+  const monatlicheAusgaben = monatlicheRate + hausgeldNichtUmlegbar + instandhaltungskosten;
 
-  // Finaler Cashflow-Wert (extern übergeben oder berechnet)
+  // Cashflow berechnen
+  const calculatedCashflow = mieteinnahmen - monatlicheAusgaben;
   const monthlyCashflow = externalCashflow ?? (mieteinnahmen > 0 ? calculatedCashflow : undefined);
 
-  // ============================================
-  // BREAK-EVEN EIGENKAPITAL BERECHNUNG
-  // ============================================
-  // Berechnet das nötige EK für Cashflow = 0 bei Marktmiete
-  // Formel: Kreditrate = Mieteinnahmen - Hausgeld
-  //         Darlehensbetrag = Kreditrate * 12 * 100 / (Zinssatz + Tilgung)
-  //         Break-Even EK = Gesamtinvestition - Darlehensbetrag
+  // Rendite und Faktor lokal berechnen
+  const localGrossYield = mieteinnahmen > 0 && effectivePurchasePrice > 0
+    ? (mieteinnahmen * 12 / effectivePurchasePrice) * 100
+    : undefined;
+  const localRentMultiplier = mieteinnahmen > 0 && effectivePurchasePrice > 0
+    ? effectivePurchasePrice / (mieteinnahmen * 12)
+    : undefined;
 
-  const calculateBreakEvenEK = (): { amount: number; percentage: number } | null => {
-    if (mieteinnahmen <= 0 || gesamtinvestition <= 0) return null;
-
-    // Maximale Kreditrate für Cashflow = 0
-    const maxKreditrate = mieteinnahmen - hausgeld;
-
-    // Wenn maxKreditrate <= 0, dann reicht die Miete nicht mal für Hausgeld
-    if (maxKreditrate <= 0) return null;
-
-    // Berechne den maximalen Darlehensbetrag
-    const jahreszins = zinssatz + tilgung; // Gesamtbelastung p.a. in %
-    const maxDarlehensbetrag = maxKreditrate * 12 * 100 / jahreszins;
-
-    // Berechne das nötige Eigenkapital
-    const breakEvenEK = gesamtinvestition - maxDarlehensbetrag;
-    const breakEvenEKRate = (breakEvenEK / gesamtinvestition) * 100;
-
-    // Wenn EK negativ oder über 100%, dann nicht sinnvoll
-    if (breakEvenEK < 0 || breakEvenEKRate > 100) return null;
-
-    return {
-      amount: Math.ceil(breakEvenEK),
-      percentage: breakEvenEKRate,
-    };
-  };
-
-  const breakEvenEK = calculateBreakEvenEK();
-
-  // ============================================
-  // RENDITE-BERECHNUNG (lokal)
-  // ============================================
-  // Brutto-Rendite = (Jahresmiete / Kaufpreis) * 100
-  // Wird lokal neu berechnet wenn User Parameter ändert
-
-  const calculateLocalGrossYield = (): number | undefined => {
-    if (mieteinnahmen <= 0 || effectivePurchasePrice <= 0) return undefined;
-    const jahresmiete = mieteinnahmen * 12;
-    return (jahresmiete / effectivePurchasePrice) * 100;
-  };
-
-  // Lokale Rendite berechnen wenn möglich, sonst Prop verwenden
-  // Dies ermöglicht auch Updates wenn sich der Preis über den Slider ändert
-  const localGrossYield = calculateLocalGrossYield();
-  const effectiveGrossYield = localGrossYield !== undefined
-    ? localGrossYield
-    : grossYield;
-
-  // ============================================
-  // FAKTOR-BERECHNUNG (lokal)
-  // ============================================
-  // Faktor = Kaufpreis / Jahresmiete
-  // Wird lokal neu berechnet wenn User Parameter ändert
-
-  const calculateLocalRentMultiplier = (): number | undefined => {
-    if (mieteinnahmen <= 0 || effectivePurchasePrice <= 0) return undefined;
-    const jahresmiete = mieteinnahmen * 12;
-    return effectivePurchasePrice / jahresmiete;
-  };
-
-  // Lokale Berechnung wenn möglich, sonst Prop verwenden
-  // Dies ermöglicht auch Updates wenn sich der Preis über den Slider ändert
-  const localRentMultiplier = calculateLocalRentMultiplier();
-  const effectiveRentMultiplier = localRentMultiplier !== undefined
-    ? localRentMultiplier
-    : rentMultiplier;
+  const effectiveGrossYield = localGrossYield ?? grossYield;
+  const effectiveRentMultiplier = localRentMultiplier ?? rentMultiplier;
 
   // Finale Prüfung: Haben wir Daten zum Anzeigen?
   const hasData = hasExternalData || monthlyCashflow !== undefined;
-
-  // Calculate breakeven (Jahre bis Amortisation - legacy)
-  const breakeven = calculateBreakeven(purchasePrice, monthlyCashflow);
-
-  // Speichern-Handler (nach allen Berechnungen definiert)
-  const handleSave = () => {
-    if (onSaveParams) {
-      onSaveParams({
-        equityPercentage: editEquityPercent,
-        interestRate: editInterestRate,
-        amortizationRate: editAmortizationRate,
-        brokerCommission: editBrokerCommission,
-        renovationCosts: editRenovationCosts,
-        monthlyRent: editMonthlyRent,
-        monthlyFee: editMonthlyFee,
-        purchasePrice: editPurchasePrice,
-        // Berechnete Kennzahlen mitspeichern
-        calculatedGrossYield: localGrossYield ?? null,
-        calculatedRentMultiplier: localRentMultiplier ?? null,
-        calculatedMonthlyCashflow: calculatedCashflow ?? null,
-      });
-    }
-    setIsEditMode(false);
-  };
 
   // No data state - show CTA to trigger AI evaluation OR loading state
   if (!hasData) {
@@ -488,7 +195,9 @@ export function KeyMetricsPanel({
       <div className={`bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200 rounded-2xl border p-4 sm:p-6 ${className}`}>
         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
           <div className="flex items-start gap-3 flex-1 min-w-0">
-            <span className="w-3 h-3 bg-green-500 rounded-full animate-pulse flex-shrink-0 mt-1.5" />
+            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Calculator size={18} className="text-blue-600" />
+            </div>
             <div className="flex-1 min-w-0">
               <h4 className="text-base sm:font-semibold text-gray-900">
                 Deal-Insights
@@ -530,7 +239,9 @@ export function KeyMetricsPanel({
       >
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="w-4 h-4 bg-green-500 rounded-full animate-pulse flex-shrink-0" />
+            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Calculator size={18} className="text-blue-600" />
+            </div>
             <h3 className="font-semibold text-gray-900 text-base sm:text-lg truncate">
               Deal-Insights
             </h3>
@@ -545,9 +256,9 @@ export function KeyMetricsPanel({
         <div className="grid gap-2 sm:gap-3 grid-cols-4">
           {/* Rendite */}
           <div className={`rounded-xl p-2 sm:p-3 text-center border ${
-            effectiveGrossYield !== undefined && Number(effectiveGrossYield) >= 5
+            effectiveGrossYield !== undefined && Number(effectiveGrossYield) >= 4
               ? 'bg-green-50 border-green-200'
-              : effectiveGrossYield !== undefined && Number(effectiveGrossYield) >= 3
+              : effectiveGrossYield !== undefined && Number(effectiveGrossYield) >= 2
                 ? 'bg-yellow-50 border-yellow-200'
                 : effectiveGrossYield !== undefined && Number(effectiveGrossYield) > 0
                   ? 'bg-red-50 border-red-200'
@@ -618,464 +329,28 @@ export function KeyMetricsPanel({
         </div>
       </div>
 
-      {/* Expanded Content - Kaufnebenkosten & Cashflow-Übersicht */}
-      {isExpanded && (
+      {/* Expanded Content - InvestmentCalculator */}
+      {isExpanded && effectivePurchasePrice > 0 && (
         <div className="px-4 sm:px-5 pb-4 sm:pb-5 border-t border-gray-100">
-          {/* 1. Kaufnebenkosten-Übersicht */}
-          {(effectivePurchasePrice > 0 || isEditMode) && (
-            <div className="pt-4 pb-4 border-b border-gray-100">
-              <div
-                className="flex items-center justify-between cursor-pointer"
-                onClick={() => setIsKaufnebenkostenExpanded(!isKaufnebenkostenExpanded)}
-              >
-                <div className="flex items-center gap-2">
-                  <Receipt size={18} className="text-blue-600" />
-                  <h4 className="font-semibold text-gray-900 text-base">Gesamtinvestitionskosten</h4>
-                  <span className="text-base font-semibold text-blue-600">
-                    {formatCurrency(gesamtinvestition)}
-                  </span>
-                </div>
-                <ChevronDown
-                  size={18}
-                  className={`text-gray-400 transition-transform duration-200 ${isKaufnebenkostenExpanded ? 'rotate-180' : ''}`}
-                />
-              </div>
-              {isKaufnebenkostenExpanded && (
-              <div className="space-y-2 mt-3 text-sm">
-                {/* Kaufpreis */}
-                <div className="grid grid-cols-[155px_120px_1fr] items-center gap-2">
-                  <span className="text-gray-600">Kaufpreis</span>
-                  <div className="flex justify-center">
-                    {isEditMode ? (
-                      <span className="relative inline-flex items-center">
-                        <input
-                          type="number"
-                          value={editPurchasePrice ?? ''}
-                          onChange={(e) => setEditPurchasePrice(e.target.value === '' ? null : Number(e.target.value))}
-                          placeholder={String(purchasePrice ?? 0)}
-                          className="w-36 pl-2 pr-6 py-1.5 border border-[#DDDDDD] rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none"
-                          min="0"
-                          step="1000"
-                        />
-                        <span className="absolute right-2 text-gray-500 text-sm pointer-events-none">€</span>
-                      </span>
-                    ) : null}
-                  </div>
-                  <span className="font-semibold text-gray-900 text-right">
-                    {formatCurrency(effectivePurchasePrice)}
-                  </span>
-                </div>
-
-                {/* Grunderwerbsteuer */}
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">
-                    + Grunderwerbsteuer ({grunderwerbsteuerRate.toFixed(1)}%){detectedState ? ` (${detectedState.charAt(0).toUpperCase() + detectedState.slice(1)})` : ''}
-                  </span>
-                  <span className="font-semibold text-gray-700">
-                    {formatCurrency(grunderwerbsteuer)}
-                  </span>
-                </div>
-
-                {/* Notarkosten */}
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">+ Notarkosten (~{notarkostenRate}%)</span>
-                  <span className="font-semibold text-gray-700">
-                    {formatCurrency(notarkosten)}
-                  </span>
-                </div>
-
-                {/* Grundbuchkosten */}
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">+ Grundbuch (~{grundbuchRate}%)</span>
-                  <span className="font-semibold text-gray-700">
-                    {formatCurrency(grundbuchkosten)}
-                  </span>
-                </div>
-
-                {/* Maklergebühren */}
-                <div className="grid grid-cols-[155px_115px_1fr] items-center gap-2">
-                  <span className="text-gray-600">+ Maklergebühren</span>
-                  <div className="flex justify-center">
-                    {isEditMode ? (
-                      <span className="relative inline-flex items-center">
-                        <input
-                          type="number"
-                          value={editBrokerCommission ?? ''}
-                          onChange={(e) => setEditBrokerCommission(e.target.value === '' ? null : Number(e.target.value))}
-                          placeholder={String(commissionRate ?? 0)}
-                          className="w-24 pl-2 pr-6 py-1.5 border border-[#DDDDDD] rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none"
-                          min="0"
-                          max="10"
-                          step="0.1"
-                        />
-                        <span className="absolute right-2 text-gray-500 text-sm pointer-events-none">%</span>
-                      </span>
-                    ) : (
-                      <span className="text-gray-500">({maklerRate.toFixed(2)}%)</span>
-                    )}
-                  </div>
-                  <span className="font-semibold text-gray-700 text-right">
-                    {formatCurrency(maklergebuehren)}
-                  </span>
-                </div>
-
-                {/* Renovierungskosten */}
-                <div className="grid grid-cols-[155px_115px_1fr] items-center gap-2">
-                  <span className="text-gray-600">+ Renovierung</span>
-                  <div className="flex justify-center">
-                    {isEditMode ? (
-                      <span className="relative inline-flex items-center">
-                        <input
-                          type="number"
-                          value={editRenovationCosts ?? ''}
-                          onChange={(e) => setEditRenovationCosts(e.target.value === '' ? null : Number(e.target.value))}
-                          placeholder="0"
-                          className="w-28 pl-2 pr-6 py-1.5 border border-[#DDDDDD] rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none"
-                          min="0"
-                          step="1000"
-                        />
-                        <span className="absolute right-2 text-gray-500 text-sm pointer-events-none">€</span>
-                      </span>
-                    ) : null}
-                  </div>
-                  <span className="font-semibold text-gray-700 text-right">
-                    {formatCurrency(renovierungskosten)}
-                  </span>
-                </div>
-
-                {/* Gesamtinvestition */}
-                <div className="flex justify-between items-center pt-2 border-t border-gray-200">
-                  <span className="text-gray-900 font-bold">Gesamtinvestition</span>
-                  <span className="text-lg font-bold text-gray-900">
-                    {formatCurrency(gesamtinvestition)}
-                  </span>
-                </div>
-              </div>
-              )}
-            </div>
-          )}
-
-          {/* 2. Kapitaldienst */}
-          {effectivePurchasePrice > 0 && (
-            <div className="pt-4 pb-4 border-b border-gray-100">
-              <div
-                className="flex items-center justify-between cursor-pointer"
-                onClick={() => setIsKapitaldienstExpanded(!isKapitaldienstExpanded)}
-              >
-                <div className="flex items-center gap-2">
-                  <Landmark size={18} className="text-red-600" />
-                  <h4 className="font-semibold text-gray-900 text-base">Monatliche Rate</h4>
-                  <span className="text-base font-semibold text-red-600">
-                    -{formatCurrency(monatlicheRate)}
-                  </span>
-                  {!hasFinancingData && (
-                    <span className="text-xs text-gray-400">(Standardwerte)</span>
-                  )}
-                </div>
-                <ChevronDown
-                  size={18}
-                  className={`text-gray-400 transition-transform duration-200 ${isKapitaldienstExpanded ? 'rotate-180' : ''}`}
-                />
-              </div>
-              {isKapitaldienstExpanded && (
-              <div className="space-y-2 mt-3 text-sm">
-                {/* Eigenkapital */}
-                <div className="grid grid-cols-[155px_115px_1fr] items-center gap-2">
-                  <span className="text-gray-600">Eigenkapital</span>
-                  <div className="flex justify-center">
-                    {isEditMode ? (
-                      <span className="relative inline-flex items-center">
-                        <input
-                          type="number"
-                          value={editEquityPercent ?? ''}
-                          onChange={(e) => setEditEquityPercent(e.target.value === '' ? null : Number(e.target.value))}
-                          placeholder={String(defaultEKRate)}
-                          className="w-24 pl-2 pr-6 py-1.5 border border-[#DDDDDD] rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none"
-                          min="0"
-                          max="100"
-                          step="1"
-                        />
-                        <span className="absolute right-2 text-gray-500 text-sm pointer-events-none">%</span>
-                      </span>
-                    ) : (
-                      <span className="text-gray-500">({eigenkapitalRate.toFixed(0)}%)</span>
-                    )}
-                  </div>
-                  <span className="font-semibold text-gray-900 text-right">
-                    {formatCurrency(eigenkapital)}
-                  </span>
-                </div>
-
-                {/* Darlehensbetrag */}
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Darlehensbetrag</span>
-                  <span className="font-semibold text-gray-700">
-                    {formatCurrency(darlehensbetrag)}
-                  </span>
-                </div>
-
-                {/* Zinssatz mit monatlichem Betrag */}
-                <div className="grid grid-cols-[155px_115px_1fr] items-center gap-2">
-                  <span className="text-gray-600">Zinssatz</span>
-                  <div className="flex justify-center">
-                    {isEditMode ? (
-                      <span className="relative inline-flex items-center">
-                        <input
-                          type="number"
-                          value={editInterestRate ?? ''}
-                          onChange={(e) => setEditInterestRate(e.target.value === '' ? null : Number(e.target.value))}
-                          placeholder={String(financingTerms?.interestRate ?? 3.8)}
-                          className="w-24 pl-2 pr-6 py-1.5 border border-[#DDDDDD] rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none"
-                          min="0"
-                          max="15"
-                          step="0.1"
-                        />
-                        <span className="absolute right-2 text-gray-500 text-sm pointer-events-none">%</span>
-                      </span>
-                    ) : (
-                      <span className="text-gray-500">({zinssatz.toFixed(2)}%)</span>
-                    )}
-                  </div>
-                  <span className="font-semibold text-gray-700 text-right">{formatCurrency(Math.ceil(monatlicheZinsen))}/Monat</span>
-                </div>
-
-                {/* Tilgung mit monatlichem Betrag */}
-                <div className="grid grid-cols-[155px_115px_1fr] items-center gap-2">
-                  <span className="text-gray-600">Tilgung</span>
-                  <div className="flex justify-center">
-                    {isEditMode ? (
-                      <span className="relative inline-flex items-center">
-                        <input
-                          type="number"
-                          value={editAmortizationRate ?? ''}
-                          onChange={(e) => setEditAmortizationRate(e.target.value === '' ? null : Number(e.target.value))}
-                          placeholder={String(financingTerms?.amortizationRate ?? 2.0)}
-                          className="w-24 pl-2 pr-6 py-1.5 border border-[#DDDDDD] rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none"
-                          min="0"
-                          max="10"
-                          step="0.5"
-                        />
-                        <span className="absolute right-2 text-gray-500 text-sm pointer-events-none">%</span>
-                      </span>
-                    ) : (
-                      <span className="text-gray-500">({tilgung.toFixed(1)}%)</span>
-                    )}
-                  </div>
-                  <span className="font-semibold text-gray-700 text-right">{formatCurrency(Math.ceil(monatlicheTilgung))}/Monat</span>
-                </div>
-
-                {/* Monatliche Rate */}
-                <div className="flex justify-between items-center pt-2 border-t border-gray-200">
-                  <span className="text-gray-900 font-bold">Monatliche Rate</span>
-                  <span className="text-lg font-bold text-red-600">
-                    {formatCurrency(monatlicheRate)}
-                  </span>
-                </div>
-              </div>
-              )}
-            </div>
-          )}
-
-          {/* 3. Cashflow-Übersicht */}
-          <div className="pt-4">
-            <div
-              className="flex items-center justify-between cursor-pointer"
-              onClick={() => setIsCashflowExpanded(!isCashflowExpanded)}
-            >
-              <div className="flex items-center gap-2">
-                <Wallet size={18} className="text-green-600" />
-                <h4 className="font-semibold text-gray-900 text-base">Monatlicher Cashflow</h4>
-                {monthlyCashflow !== undefined && (
-                  <span className={`text-base font-semibold ${monthlyCashflow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {monthlyCashflow >= 0 ? '+' : ''}{formatCashflowValue(monthlyCashflow)}
-                  </span>
-                )}
-              </div>
-              <ChevronDown
-                size={18}
-                className={`text-gray-400 transition-transform duration-200 ${isCashflowExpanded ? 'rotate-180' : ''}`}
-              />
-            </div>
-
-            {isCashflowExpanded && (
-            <div className="space-y-3 mt-3 text-sm">
-            {/* Mieteinnahmen */}
-            {(mieteinnahmen > 0 || isEditMode) && (
-              <div className="grid grid-cols-[155px_115px_1fr] items-center gap-2">
-                <span className="text-gray-600">Mieteinnahmen</span>
-                <div className="flex justify-center">
-                  {isEditMode ? (
-                    <span className="relative inline-flex items-center">
-                      <input
-                        type="number"
-                        value={editMonthlyRent ?? ''}
-                        onChange={(e) => setEditMonthlyRent(e.target.value === '' ? null : Number(e.target.value))}
-                        placeholder={String(calculatedRent ?? 0)}
-                        className="w-24 pl-2 pr-6 py-1.5 border border-[#DDDDDD] rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none"
-                        min="0"
-                        step="50"
-                      />
-                      <span className="absolute right-2 text-gray-500 text-sm pointer-events-none">€</span>
-                    </span>
-                  ) : hasRentFromAI && estimatedRentPerSqm ? (
-                    <span className="text-xs text-gray-400">
-                      ({Number(estimatedRentPerSqm).toFixed(2)}€/m²)
-                    </span>
-                  ) : null}
-                </div>
-                <span className="font-semibold text-green-600 text-right">
-                  +{formatCashflowValue(mieteinnahmen)}
-                </span>
-              </div>
-            )}
-
-            {/* Hausgeld */}
-            {(hausgeld > 0 || isEditMode) && (
-              <div className="grid grid-cols-[155px_115px_1fr] items-center gap-2">
-                <span className="text-gray-600">Hausgeld</span>
-                <div className="flex justify-center">
-                  {isEditMode ? (
-                    <span className="relative inline-flex items-center">
-                      <input
-                        type="number"
-                        value={editMonthlyFee ?? ''}
-                        onChange={(e) => setEditMonthlyFee(e.target.value === '' ? null : Number(e.target.value))}
-                        placeholder={String(calculateHausgeld())}
-                        className="w-24 pl-2 pr-6 py-1.5 border border-[#DDDDDD] rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none"
-                        min="0"
-                        step="10"
-                      />
-                      <span className="absolute right-2 text-gray-500 text-sm pointer-events-none">€</span>
-                    </span>
-                  ) : !hasHausgeldFromProperty && sqm ? (
-                    <span className="text-xs text-gray-400">(KI-geschätzt)</span>
-                  ) : null}
-                </div>
-                <span className="font-semibold text-red-600 text-right">
-                  -{formatCashflowValue(hausgeld)}
-                </span>
-              </div>
-            )}
-
-            {/* Kreditrate */}
-            {kreditrate > 0 && (
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">
-                  Kreditrate
-                  <span className="text-xs text-gray-400 ml-1">
-                    ({zinssatz.toFixed(1)}% Zins, {tilgung.toFixed(0)}% Tilgung)
-                  </span>
-                </span>
-                <span className="font-semibold text-red-600">
-                  -{formatCashflowValue(kreditrate)}
-                </span>
-              </div>
-            )}
-
-            {/* Summe: Monatlicher Cashflow */}
-            {monthlyCashflow !== undefined && (
-              <div className="flex justify-between items-center pt-3 border-t border-gray-200">
-                <span className="text-gray-900 font-bold">Cashflow / Monat</span>
-                <span className={`text-lg font-bold ${monthlyCashflow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {monthlyCashflow >= 0 ? '+' : '-'}{formatCashflowValue(monthlyCashflow)}
-                </span>
-              </div>
-            )}
-
-            {/* Cashflow auf EK (Eigenkapitalrendite) */}
-            {monthlyCashflow !== undefined && eigenkapital > 0 && (
-              <div className="flex justify-between items-center pt-2">
-                <span className="text-gray-600">
-                  Cashflow auf EK
-                  <span className="text-xs text-gray-400 ml-1">(p.a.)</span>
-                </span>
-                <span className={`font-semibold ${(monthlyCashflow * 12 / eigenkapital * 100) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {((monthlyCashflow * 12 / eigenkapital) * 100).toFixed(2)}%
-                </span>
-              </div>
-            )}
-
-            {/* Break-Even EK */}
-            {breakEvenEK !== null && (
-              <div className="flex justify-between items-center pt-2 mt-2 border-t border-dashed border-gray-200">
-                <span className="text-gray-600">
-                  Break-Even EK
-                  <span className="text-xs text-gray-400 ml-1">(Cashflow = 0)</span>
-                </span>
-                <span className="font-semibold text-gray-900">
-                  {breakEvenEK.percentage.toFixed(0)}% <span className="text-gray-500 font-normal">({formatCurrency(breakEvenEK.amount)})</span>
-                </span>
-              </div>
-            )}
-
-            {/* Fallback wenn keine Daten */}
-            {mieteinnahmen === 0 && hausgeld === 0 && kreditrate === 0 && monthlyCashflow === undefined && (
-              <div className="text-center text-gray-500 py-4">
-                <Wallet size={24} className="mx-auto mb-2 text-gray-400" />
-                <p className="text-sm">Keine Cashflow-Daten verfügbar</p>
-              </div>
-            )}
-            </div>
-            )}
-          </div>
-
-        </div>
-      )}
-
-      {/* Buttons am unteren Rand - nur wenn aufgeklappt */}
-      {isExpanded && canEdit && (
-        <div className="px-4 sm:px-5 pb-4 sm:pb-5">
-          {isEditMode ? (
-            <div className="flex justify-center gap-3 pt-2">
-              <button
-                onClick={() => {
-                  handleReset();
-                  setIsEditMode(false);
-                }}
-                className="py-3 px-6 border border-gray-300 text-gray-700 rounded-full hover:bg-gray-100 transition-all flex items-center justify-center gap-2 text-sm font-semibold"
-              >
-                <RotateCcw size={16} />
-                Abbrechen
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={isSavingParams}
-                className="py-3 px-6 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-full transition-all flex items-center justify-center gap-2 text-sm font-semibold shadow-lg shadow-green-500/30 hover:shadow-xl hover:shadow-green-500/40 hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
-              >
-                {isSavingParams ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Check size={16} />
-                )}
-                Speichern
-              </button>
-            </div>
-          ) : (
-            <div className="flex justify-center pt-2">
-              <button
-                onClick={() => {
-                  // Alle Bereiche aufklappen
-                  setIsKaufnebenkostenExpanded(true);
-                  setIsKapitaldienstExpanded(true);
-                  setIsCashflowExpanded(true);
-                  // Initialisiere Edit-Werte mit aktuellen berechneten Werten
-                  setEditEquityPercent(eigenkapitalRate);
-                  setEditInterestRate(zinssatz);
-                  setEditAmortizationRate(tilgung);
-                  setEditBrokerCommission(maklerRate);
-                  setEditRenovationCosts(renovierungskosten);
-                  setEditMonthlyRent(mieteinnahmen);
-                  setEditMonthlyFee(hausgeld);
-                  setEditPurchasePrice(effectivePurchasePrice);
-                  setIsEditMode(true);
-                }}
-                className="py-3 px-6 bg-gradient-to-r from-[#FF385C] to-[#E31C5F] hover:from-[#E31C5F] hover:to-[#C81E4E] text-white rounded-full transition-all flex items-center justify-center gap-2 text-sm font-semibold shadow-lg shadow-[#FF385C]/30 hover:shadow-xl hover:shadow-[#FF385C]/40 hover:-translate-y-0.5"
-              >
-                <Pencil size={16} />
-                Simulation starten
-              </button>
-            </div>
-          )}
+          <InvestmentCalculator
+            mode="investor"
+            purchasePrice={purchasePrice ?? 0}
+            location={location}
+            commissionRate={commissionRate}
+            equityPercentage={financingTerms?.loanToValue ? (100 - financingTerms.loanToValue) : 20}
+            interestRate={financingTerms?.interestRate}
+            amortizationRate={financingTerms?.amortizationRate}
+            monthlyFee={monthlyFee}
+            sqm={sqm}
+            yearBuilt={yearBuilt}
+            monthlyRent={calculatedRent}
+            estimatedRentPerSqm={estimatedRentPerSqm}
+            renovationCosts={0}
+            userParams={userParams}
+            onSaveParams={canEdit ? onSaveParams : undefined}
+            isSavingParams={isSavingParams}
+            canEdit={canEdit}
+          />
         </div>
       )}
     </div>
