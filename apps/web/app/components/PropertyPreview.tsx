@@ -263,6 +263,7 @@ export interface PropertyPreviewProps {
     monthly_rent?: number | null;
     monthly_fee?: number | null;
     renovation_costs?: number | null;
+    purchase_price?: number | null;
   } | null;
   onSaveUserPropertyParams?: (params: {
     equityPercentage?: number | null;
@@ -272,6 +273,7 @@ export interface PropertyPreviewProps {
     monthlyRent?: number | null;
     monthlyFee?: number | null;
     renovationCosts?: number | null;
+    purchasePrice?: number | null;
   }) => void;
   isSavingUserPropertyParams?: boolean;
 }
@@ -754,6 +756,7 @@ export function PropertyPreview({
                         deviationPercent={deviationPercent}
                         pricePosition={pricePosition}
                         currentPricePerSqm={simulatedPrice ? Math.round(simulatedPrice / data.sqm) : pricePerSqm}
+                        currentTotalPrice={simulatedPrice || undefined}
                         marketAvgPricePerSqm={marketAvgPrice}
                         sqm={data.sqm}
                         rooms={data.rooms}
@@ -771,16 +774,18 @@ export function PropertyPreview({
                       {evaluationViewType === 'seller' && (
                         <div className="mt-6 pt-4 border-t border-gray-100">
                           {!showPriceSuggestion ? (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setShowPriceSuggestion(true);
-                              }}
-                              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-purple-700 transition-all"
-                            >
-                              <Sparkles size={18} />
-                              KI-Preisoptimierung
-                            </button>
+                            <div className="flex justify-center">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowPriceSuggestion(true);
+                                }}
+                                className="py-3 px-6 bg-gradient-to-r from-[#FF385C] to-[#E31C5F] hover:from-[#E31C5F] hover:to-[#C81E4E] text-white rounded-full transition-all flex items-center justify-center gap-2 text-sm font-semibold shadow-lg shadow-[#FF385C]/30 hover:shadow-xl hover:shadow-[#FF385C]/40 hover:-translate-y-0.5"
+                              >
+                                <Sparkles size={16} />
+                                KI-Preisoptimierung
+                              </button>
+                            </div>
                           ) : (
                             <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-4">
                               <div className="flex items-start gap-3">
@@ -836,7 +841,7 @@ export function PropertyPreview({
             aiScore={data.ai_investment_score}
             grossYield={data.buyer_evaluation?.buyer_investor?.grossYield}
             rentMultiplier={data.buyer_evaluation?.buyer_investor?.rentMultiplier}
-            purchasePrice={simulatedPrice || data.price}
+            purchasePrice={simulatedPrice || userPropertyParams?.purchase_price || data.price}
             commissionRate={data.commission_rate}
             location={data.location}
             financingTerms={data.financing_terms ? {
@@ -856,6 +861,7 @@ export function PropertyPreview({
             userParams={userPropertyParams}
             onSaveParams={onSaveUserPropertyParams}
             isSavingParams={isSavingUserPropertyParams}
+            onPurchasePriceChange={setSimulatedPrice}
             className="mb-6"
           />
         )}
@@ -863,7 +869,7 @@ export function PropertyPreview({
         {/* Kaufen vs. Mieten Card - für Eigennutzer */}
         {evaluationViewType === 'buyer' && (
           <BuyVsRentCard
-            purchasePrice={simulatedPrice || data.price}
+            purchasePrice={simulatedPrice || userPropertyParams?.purchase_price || data.price}
             sqm={data.sqm}
             monthlyRent={data.rental_income?.estimated_market_rent || data.evaluation?.estimated_monthly_rent || data.actual_monthly_rent}
             avgRentPerSqm={data.rental_income?.rent_per_sqm}
@@ -871,7 +877,8 @@ export function PropertyPreview({
             yearBuilt={data.year_built}
             interestRate={data.financing_terms?.interest_rate_90 ?? data.financing_terms?.interest_rate ?? 3.5}
             amortizationRate={data.financing_terms?.amortization_rate ?? 2.0}
-            equityPercentage={userPropertyParams?.equity_percentage ?? 20}
+            equityPercentage={(userPropertyParams?.equity_percentage != null && userPropertyParams.equity_percentage > 0) ? userPropertyParams.equity_percentage : 20}
+            onPurchasePriceChange={setSimulatedPrice}
             className="mb-6"
           />
         )}

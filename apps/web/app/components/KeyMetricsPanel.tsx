@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
-import { ChevronDown, Sparkles, Calculator } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { ChevronDown, Sparkles, Calculator, Loader2 } from 'lucide-react';
 import { InvestmentCalculator, UserParams, SavedParams } from './InvestmentCalculator';
+import { trpc } from '@/app/providers/TRPCProvider';
 
 export interface KeyMetricsPanelProps {
   // AI Score
@@ -44,6 +45,9 @@ export interface KeyMetricsPanelProps {
   userParams?: UserParams | null;
   onSaveParams?: (params: SavedParams) => void;
   isSavingParams?: boolean;
+
+  // Live-Update Callback für Header
+  onPurchasePriceChange?: (price: number) => void;
 
   // UI
   defaultExpanded?: boolean;
@@ -91,6 +95,7 @@ export function KeyMetricsPanel({
   userParams,
   onSaveParams,
   isSavingParams = false,
+  onPurchasePriceChange,
   defaultExpanded = false,
   className = '',
 }: KeyMetricsPanelProps) {
@@ -115,15 +120,28 @@ export function KeyMetricsPanel({
     : estimatedRent;
   const mieteinnahmen = Number(userParams?.monthly_rent ?? calculatedRent ?? 0);
 
-  // Finanzierungsdaten
+  // Finanzierungsdaten - robuste Konvertierung (leere Strings und NaN vermeiden)
+  const parseNum = (val: unknown, fallback: number): number => {
+    if (val === null || val === undefined || val === '') return fallback;
+    const num = Number(val);
+    return isNaN(num) ? fallback : num;
+  };
+
+  // Spezielle Funktion für EK-Rate: 0 wird als "nicht gesetzt" behandelt
+  const parseEKRate = (val: unknown, fallback: number): number => {
+    if (val === null || val === undefined || val === '' || val === 0) return fallback;
+    const num = Number(val);
+    return isNaN(num) || num <= 0 ? fallback : num;
+  };
+
   const defaultEKRate = financingTerms?.loanToValue
     ? (100 - Number(financingTerms.loanToValue))
     : 20;
-  const eigenkapitalRate = Number(userParams?.equity_percentage ?? defaultEKRate);
-  const zinssatz = Number(userParams?.interest_rate ?? financingTerms?.interestRate ?? 3.8);
-  const tilgung = Number(userParams?.amortization_rate ?? financingTerms?.amortizationRate ?? 2.0);
-  const maklerRate = Number(userParams?.broker_commission ?? commissionRate ?? 0);
-  const renovierungskosten = Number(userParams?.renovation_costs ?? 0);
+  const eigenkapitalRate = parseEKRate(userParams?.equity_percentage, defaultEKRate);
+  const zinssatz = parseNum(userParams?.interest_rate, parseNum(financingTerms?.interestRate, 3.8));
+  const tilgung = parseNum(userParams?.amortization_rate, parseNum(financingTerms?.amortizationRate, 2.0));
+  const maklerRate = parseNum(userParams?.broker_commission, parseNum(commissionRate, 0));
+  const renovierungskosten = parseNum(userParams?.renovation_costs, 0);
 
   // Hausgeld berechnen
   const calculateHausgeld = (): number => {
@@ -165,8 +183,143 @@ export function KeyMetricsPanel({
   const effectiveGrossYield = localGrossYield ?? grossYield;
   const effectiveRentMultiplier = localRentMultiplier ?? rentMultiplier;
 
+  // Cash on Cash berechnen
+  const cashOnCash = monthlyCashflow !== undefined && eigenkapital > 0
+    ? (monthlyCashflow * 12 / eigenkapital) * 100
+    : undefined;
+
   // Finale Prüfung: Haben wir Daten zum Anzeigen?
   const hasData = hasExternalData || monthlyCashflow !== undefined;
+
+  // Fallback: Regelbasiertes KI-Fazit
+  const fallbackFazit = useMemo(() => {
+    if (!hasData || effectiveGrossYield === undefined) return null;
+
+    let verdict: 'positive' | 'neutral' | 'negative';
+    let sentences: string[] = [];
+
+    if (effectiveGrossYield >= 5) {
+      verdict = 'positive';
+      sentences.push(`Attraktive Bruttorendite von ${effectiveGrossYield.toFixed(1)}% – deutlich über Marktdurchschnitt.`);
+    } else if (effectiveGrossYield >= 4) {
+      verdict = 'positive';
+      sentences.push(`Solide Bruttorendite von ${effectiveGrossYield.toFixed(1)}% – ein gutes Investment.`);
+    } else if (effectiveGrossYield >= 3) {
+      verdict = 'neutral';
+      sentences.push(`Moderate Bruttorendite von ${effectiveGrossYield.toFixed(1)}% – akzeptabel für gute Lagen.`);
+    } else {
+      verdict = 'negative';
+      sentences.push(`Niedrige Bruttorendite von nur ${effectiveGrossYield.toFixed(1)}% – für reine Kapitalanlage wenig attraktiv.`);
+    }
+
+    if (effectiveRentMultiplier !== undefined) {
+      if (effectiveRentMultiplier <= 18) {
+        sentences.push(`Exzellenter Kaufpreisfaktor von ${effectiveRentMultiplier.toFixed(1)}x.`);
+      } else if (effectiveRentMultiplier > 28) {
+        sentences.push(`Hoher Kaufpreisfaktor von ${effectiveRentMultiplier.toFixed(1)}x.`);
+      }
+    }
+
+    if (monthlyCashflow !== undefined) {
+      if (monthlyCashflow > 200) {
+        sentences.push(`Positiver Cashflow von ${formatCurrency(monthlyCashflow)}/Monat.`);
+      } else if (monthlyCashflow < -200) {
+        sentences.push(`Negativer Cashflow von ${formatCurrency(monthlyCashflow)}/Monat.`);
+      }
+    }
+
+    if (sentences.length > 3) sentences = sentences.slice(0, 3);
+
+    return {
+      verdict,
+      text: sentences.join(' '),
+      color: verdict === 'positive' ? '#22C55E' : verdict === 'neutral' ? '#F59E0B' : '#EF4444',
+    };
+  }, [hasData, effectiveGrossYield, effectiveRentMultiplier, monthlyCashflow]);
+
+  // KI-Fazit API Call
+  const [aiFazit, setAiFazit] = useState<{
+    text: string;
+    suggestions?: string[];
+    verdict: 'positive' | 'neutral' | 'negative';
+    color: string;
+  } | null>(null);
+  const [fazitRequested, setFazitRequested] = useState(false);
+  const [aiFazitError, setAiFazitError] = useState(false);
+
+  const generateAiFazitMutation = trpc.evaluations.generateAiFazit.useMutation({
+    onSuccess: (data: { text: string; suggestions?: string[]; verdict: 'positive' | 'neutral' | 'negative'; color: string }) => {
+      setAiFazit(data);
+    },
+    onError: () => {
+      setAiFazitError(true);
+    },
+  });
+
+  // Reset fazitRequested when key values change
+  useEffect(() => {
+    setFazitRequested(false);
+    setAiFazit(null);
+  }, [eigenkapitalRate, zinssatz, tilgung, effectivePurchasePrice]);
+
+  // Generate AI Fazit when expanded and we have data
+  useEffect(() => {
+    if (isExpanded && hasData && effectiveGrossYield !== undefined && !aiFazit && !fazitRequested && !generateAiFazitMutation.isPending && !aiFazitError) {
+      // Debug logging
+      console.log('📊 KeyMetricsPanel AI Fazit Request:', {
+        eigenkapitalRate,
+        eigenkapital,
+        zinssatz,
+        tilgung,
+        effectivePurchasePrice,
+        userParamsEK: userParams?.equity_percentage,
+      });
+
+      setFazitRequested(true);
+      // Nur mit propertyId aufrufen (erforderlich für Persistierung)
+      if (!propertyId) {
+        console.warn('No propertyId - AI Fazit cannot be persisted');
+        return;
+      }
+      generateAiFazitMutation.mutate({
+        mode: 'investor',
+        propertyId: propertyId,
+        forceRegenerate: false,
+        purchasePrice: effectivePurchasePrice,
+        monthlyRent: mieteinnahmen || undefined,
+        grossYield: effectiveGrossYield,
+        rentMultiplier: effectiveRentMultiplier,
+        monthlyCashflow: monthlyCashflow,
+        cashOnCash: cashOnCash,
+        equityPercentage: eigenkapitalRate,
+        interestRate: zinssatz,
+        loanAmount: darlehensbetrag,
+        // Neue Felder
+        amortizationRate: tilgung,
+        monthlyMortgage: monatlicheRate,
+        totalInvestment: gesamtinvestition,
+        monthlyFee: hausgeld,
+        monthlyMaintenance: instandhaltungskosten,
+        annualRent: mieteinnahmen ? mieteinnahmen * 12 : undefined,
+        annualCashflow: monthlyCashflow !== undefined ? monthlyCashflow * 12 : undefined,
+        equityAmount: eigenkapital,
+        // Immobilie
+        location: location,
+        sqm: sqm ? Number(sqm) : undefined,
+        yearBuilt: yearBuilt ? Number(yearBuilt) : undefined,
+      });
+    }
+  }, [isExpanded, hasData, effectiveGrossYield, aiFazit, fazitRequested, aiFazitError, eigenkapitalRate, zinssatz, tilgung, effectivePurchasePrice, propertyId]);
+
+  // Use AI fazit if available, otherwise fallback
+  const displayFazit = aiFazit || (aiFazitError ? fallbackFazit : null);
+
+  // Helper to get bgColor from verdict
+  const getFazitBgColor = (verdict: string) => {
+    if (verdict === 'positive') return 'bg-green-50 border-green-200';
+    if (verdict === 'neutral') return 'bg-amber-50 border-amber-200';
+    return 'bg-red-50 border-red-200';
+  };
 
   // No data state - show CTA to trigger AI evaluation OR loading state
   if (!hasData) {
@@ -246,10 +399,15 @@ export function KeyMetricsPanel({
               Deal-Insights
             </h3>
           </div>
-          <ChevronDown
-            size={20}
-            className={`flex-shrink-0 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
-          />
+          <div className="flex items-center gap-2">
+            <span className="text-base font-semibold text-gray-700">
+              {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(purchasePrice ?? 0)}
+            </span>
+            <ChevronDown
+              size={20}
+              className={`flex-shrink-0 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+            />
+          </div>
         </div>
 
         {/* Key Metrics Cards - always shown */}
@@ -332,6 +490,105 @@ export function KeyMetricsPanel({
       {/* Expanded Content - InvestmentCalculator */}
       {isExpanded && effectivePurchasePrice > 0 && (
         <div className="px-4 sm:px-5 pb-4 sm:pb-5 border-t border-gray-100">
+          {/* KI-Fazit für Investoren */}
+          {generateAiFazitMutation.isPending ? (
+            <div className="mt-4 mb-4 rounded-xl p-4 border bg-blue-50 border-blue-200">
+              <div className="flex items-center gap-3">
+                <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+                <p className="text-sm text-blue-700">KI-Fazit wird generiert...</p>
+              </div>
+            </div>
+          ) : displayFazit ? (
+            <div className="mt-4 mb-4 space-y-3">
+              {/* Fazit */}
+              <div className={`rounded-xl p-4 border ${getFazitBgColor(displayFazit.verdict)}`}>
+                <div className="flex items-start gap-3">
+                  <div
+                    className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: displayFazit.color + '20' }}
+                  >
+                    <Sparkles className="w-4 h-4" style={{ color: displayFazit.color }} />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm font-semibold text-gray-900">
+                        {aiFazitError ? 'Fazit' : 'KI-Fazit'}
+                      </p>
+                      {propertyId && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAiFazit(null);
+                            setFazitRequested(true);
+                            setAiFazitError(false);
+                            generateAiFazitMutation.mutate({
+                              mode: 'investor',
+                              propertyId: propertyId,
+                              forceRegenerate: true,
+                              purchasePrice: effectivePurchasePrice,
+                              monthlyRent: mieteinnahmen || undefined,
+                              grossYield: effectiveGrossYield,
+                              rentMultiplier: effectiveRentMultiplier,
+                              monthlyCashflow: monthlyCashflow,
+                              cashOnCash: cashOnCash,
+                              equityPercentage: eigenkapitalRate,
+                              interestRate: zinssatz,
+                              loanAmount: darlehensbetrag,
+                              amortizationRate: tilgung,
+                              monthlyMortgage: monatlicheRate,
+                              totalInvestment: gesamtinvestition,
+                              monthlyFee: hausgeld,
+                              monthlyMaintenance: instandhaltungskosten,
+                              annualRent: mieteinnahmen ? mieteinnahmen * 12 : undefined,
+                              annualCashflow: monthlyCashflow !== undefined ? monthlyCashflow * 12 : undefined,
+                              equityAmount: eigenkapital,
+                              location: location,
+                              sqm: sqm ? Number(sqm) : undefined,
+                              yearBuilt: yearBuilt ? Number(yearBuilt) : undefined,
+                            });
+                          }}
+                          disabled={generateAiFazitMutation.isPending}
+                          className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1 disabled:opacity-50"
+                        >
+                          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+                          </svg>
+                          Neu generieren
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-700 leading-relaxed">{displayFazit.text}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Optimierungsvorschläge */}
+              {aiFazit?.suggestions && aiFazit.suggestions.length > 0 && (
+                <div className="rounded-xl p-4 border bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-blue-100">
+                      <svg className="w-4 h-4 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-gray-900 mb-2">
+                        So wird's ein Top-Deal
+                      </p>
+                      <ul className="space-y-1.5">
+                        {aiFazit.suggestions.map((tip, index) => (
+                          <li key={index} className="text-sm text-gray-700 flex items-start gap-2">
+                            <span className="text-blue-500 flex-shrink-0">•</span>
+                            <span>{tip}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : null}
           <InvestmentCalculator
             mode="investor"
             purchasePrice={purchasePrice ?? 0}
@@ -349,6 +606,7 @@ export function KeyMetricsPanel({
             userParams={userParams}
             onSaveParams={canEdit ? onSaveParams : undefined}
             isSavingParams={isSavingParams}
+            onPurchasePriceChange={onPurchasePriceChange}
             canEdit={canEdit}
           />
         </div>

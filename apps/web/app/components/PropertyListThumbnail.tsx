@@ -119,25 +119,23 @@ export const PropertyListThumbnail = memo(function PropertyListThumbnail({
           : 'border-gray-200 hover:border-gray-300'
       }`}
     >
-      {/* Action Buttons - Bottom right, vertical stack */}
-      <div className="absolute bottom-2 right-2 z-20 flex flex-col-reverse gap-1.5">
-        {/* Delete Button (X) - bottom */}
-        {onDelete && (
-          <button
-            onClick={onDelete}
-            className="w-8 h-8 bg-white/80 backdrop-blur-sm text-gray-500 hover:text-gray-700 hover:bg-white rounded-full flex items-center justify-center transition-all shadow-md"
-            title={deleteTooltip}
-          >
-            <X size={18} />
-          </button>
-        )}
-        {/* Unread Badge - above delete */}
-        {unreadCount !== undefined && unreadCount > 0 && (
-          <div className="w-8 h-8 bg-blue-500 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-md">
-            {unreadCount}
-          </div>
-        )}
-      </div>
+      {/* Delete Button - Top right */}
+      {onDelete && (
+        <button
+          onClick={onDelete}
+          className="absolute top-2 right-2 z-20 w-7 h-7 bg-white/80 backdrop-blur-sm text-gray-500 hover:text-red-500 hover:bg-white rounded-full flex items-center justify-center transition-all shadow-md opacity-0 group-hover:opacity-100"
+          title={deleteTooltip}
+        >
+          <X size={16} />
+        </button>
+      )}
+
+      {/* Unread Badge - Bottom right */}
+      {unreadCount !== undefined && unreadCount > 0 && (
+        <div className="absolute bottom-2 right-2 z-20 w-8 h-8 bg-blue-500 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-md">
+          {unreadCount}
+        </div>
+      )}
 
       <div className="flex h-full cursor-pointer" onClick={onClick}>
         {/* Thumbnail - Full height */}
@@ -273,7 +271,7 @@ export const PropertyListThumbnail = memo(function PropertyListThumbnail({
               <>
                 <span>{rooms} Zi.</span>
                 <span>•</span>
-                <span>{sqm} m²</span>
+                <span>{Math.ceil(sqm)} m²</span>
                 <span>•</span>
                 <span>{formatPrice(Math.round(price / sqm))}/m²</span>
               </>

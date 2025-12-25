@@ -55,6 +55,14 @@ export const userPropertyParametersRouter = router({
            calculated_gross_yield = COALESCE($11, user_property_parameters.calculated_gross_yield),
            calculated_rent_multiplier = COALESCE($12, user_property_parameters.calculated_rent_multiplier),
            calculated_monthly_cashflow = COALESCE($13, user_property_parameters.calculated_monthly_cashflow),
+           -- Invalidate cached AI fazit when parameters change
+           investor_fazit_text = NULL,
+           investor_fazit_tips = NULL,
+           investor_fazit_verdict = NULL,
+           eigennutzer_fazit_text = NULL,
+           eigennutzer_fazit_tips = NULL,
+           eigennutzer_fazit_verdict = NULL,
+           fazit_generated_at = NULL,
            updated_at = NOW()
          RETURNING *`,
         [

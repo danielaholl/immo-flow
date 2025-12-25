@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Clock, Users, TrendingDown, Calculator } from 'lucide-react';
+import { TrendingDown, TrendingUp, Minus } from 'lucide-react';
 
 interface MarketComparisonBarProps {
   deviationPercent: number;
   pricePosition: 'sehr_guenstig' | 'guenstig' | 'marktgerecht' | 'teuer' | 'sehr_teuer';
   currentPricePerSqm: number;
+  currentTotalPrice?: number; // Exakter Gesamtpreis (um Rundungsfehler zu vermeiden)
   marketAvgPricePerSqm: number;
   minPricePerSqm?: number | null;
   maxPricePerSqm?: number | null;
@@ -28,6 +29,7 @@ export function MarketComparisonBar({
   deviationPercent: initialDeviationPercent,
   pricePosition: initialPricePosition,
   currentPricePerSqm: initialPricePerSqm,
+  currentTotalPrice: initialTotalPrice,
   marketAvgPricePerSqm,
   minPricePerSqm,
   maxPricePerSqm,
@@ -45,6 +47,7 @@ export function MarketComparisonBar({
   // State for interactive slider
   const [isDragging, setIsDragging] = useState(false);
   const [localDeviationPercent, setLocalDeviationPercent] = useState(initialDeviationPercent);
+  const [externalTotalPrice, setExternalTotalPrice] = useState<number | null>(null);
   const barRef = useRef<HTMLDivElement>(null);
 
   // Update local state when props change
@@ -54,10 +57,23 @@ export function MarketComparisonBar({
     }
   }, [initialDeviationPercent, isDragging]);
 
+  // Update slider position when external price changes (e.g., from InvestmentCalculator)
+  useEffect(() => {
+    if (!isDragging && initialPricePerSqm > 0 && marketAvgPricePerSqm > 0) {
+      const newDeviation = ((initialPricePerSqm / marketAvgPricePerSqm) - 1) * 100;
+      const clampedDeviation = Math.max(-45, Math.min(45, newDeviation));
+      setLocalDeviationPercent(clampedDeviation);
+      // Speichere den exakten Gesamtpreis wenn vorhanden
+      setExternalTotalPrice(initialTotalPrice ?? null);
+    }
+  }, [initialPricePerSqm, marketAvgPricePerSqm, isDragging, initialTotalPrice]);
+
   // Calculate current values based on deviation
   const deviationPercent = localDeviationPercent;
-  const currentPricePerSqm = Math.round(marketAvgPricePerSqm * (1 + deviationPercent / 100));
-  const currentPrice = sqm > 0 ? currentPricePerSqm * sqm : 0;
+  const calculatedPricePerSqm = Math.round(marketAvgPricePerSqm * (1 + deviationPercent / 100));
+  // Use external total price if set (to avoid rounding errors), otherwise calculate
+  const currentPrice = externalTotalPrice ?? (sqm > 0 ? calculatedPricePerSqm * sqm : 0);
+  const currentPricePerSqm = externalTotalPrice && sqm > 0 ? Math.round(externalTotalPrice / sqm) : calculatedPricePerSqm;
 
   // Calculate marker position (0-100%)
   // Center (50%) = market average
@@ -124,11 +140,11 @@ export function MarketComparisonBar({
     return '#EF4444'; // Red
   };
 
-  // Get marketing duration from API or calculate estimate
+  // Get marketing duration based on current slider position
   const getMarketingDuration = () => {
-    // Use API data if available
-    const min = apiMarketingMin ?? (deviationPercent <= -10 ? 2 : deviationPercent <= 0 ? 3 : deviationPercent <= 10 ? 4 : deviationPercent <= 20 ? 8 : 16);
-    const max = apiMarketingMax ?? (deviationPercent <= -10 ? 4 : deviationPercent <= 0 ? 6 : deviationPercent <= 10 ? 8 : deviationPercent <= 20 ? 16 : 24);
+    // Always calculate dynamically based on current deviation (slider position)
+    const min = deviationPercent <= -10 ? 2 : deviationPercent <= 0 ? 3 : deviationPercent <= 10 ? 4 : deviationPercent <= 20 ? 8 : 16;
+    const max = deviationPercent <= -10 ? 4 : deviationPercent <= 0 ? 6 : deviationPercent <= 10 ? 8 : deviationPercent <= 20 ? 16 : 24;
 
     // Determine label based on duration
     let label: string;
@@ -141,14 +157,32 @@ export function MarketComparisonBar({
     return { min, max, label };
   };
 
+  // Calculate dynamic AI score based on price deviation
+  // When price is lower (negative deviation) = better deal = higher score
+  // When price is higher (positive deviation) = worse deal = lower score
+  const calculateDynamicAiScore = () => {
+    if (!aiScore) return null;
+
+    // Calculate adjustment based on deviation
+    // -20% deviation = +15 points, +20% deviation = -15 points
+    const adjustmentPerPercent = 0.75; // 15 points per 20%
+    const adjustment = -deviationPercent * adjustmentPerPercent;
+
+    // Apply adjustment and clamp between 0 and 100
+    const adjustedScore = Math.round(Math.max(0, Math.min(100, aiScore + adjustment)));
+    return adjustedScore;
+  };
+
+  const dynamicAiScore = calculateDynamicAiScore();
+
   // Get AI-Score color and label
   const getAiScoreDisplay = () => {
-    if (!aiScore) return null;
-    if (aiScore >= 80) return { color: '#22C55E', label: 'Top' };
-    if (aiScore >= 60) return { color: '#84CC16', label: 'Gut' };
-    if (aiScore >= 40) return { color: '#EAB308', label: 'OK' };
-    if (aiScore >= 20) return { color: '#F97316', label: 'Schwach' };
-    return { color: '#EF4444', label: 'Nein' };
+    if (dynamicAiScore === null) return null;
+    if (dynamicAiScore >= 80) return { color: '#22C55E', label: 'Top', score: dynamicAiScore };
+    if (dynamicAiScore >= 60) return { color: '#84CC16', label: 'Gut', score: dynamicAiScore };
+    if (dynamicAiScore >= 40) return { color: '#EAB308', label: 'OK', score: dynamicAiScore };
+    if (dynamicAiScore >= 20) return { color: '#F97316', label: 'Schwach', score: dynamicAiScore };
+    return { color: '#EF4444', label: 'Nein', score: dynamicAiScore };
   };
 
   const aiScoreDisplay = getAiScoreDisplay();
@@ -205,7 +239,7 @@ export function MarketComparisonBar({
 
   // Buyer-specific: Get recommendation text based on price position
   const getBuyerRecommendation = () => {
-    const absDeviation = Math.abs(deviationPercent);
+    const absDeviation = Math.abs(deviationPercent).toFixed(2);
     if (deviationPercent <= -15) {
       return {
         text: `Schnäppchen! Vergleichbare Objekte in ${location || 'dieser Lage'} kosten ${absDeviation}% mehr.`,
@@ -278,6 +312,7 @@ export function MarketComparisonBar({
     const clampedDeviation = Math.max(-45, Math.min(45, newDeviation));
 
     setLocalDeviationPercent(clampedDeviation);
+    setExternalTotalPrice(null); // Reset external price when slider is moved
 
     // Notify parent of price change
     if (onPriceChange && sqm > 0) {
@@ -354,7 +389,7 @@ export function MarketComparisonBar({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {/* AI-Score Badge */}
+          {/* AI-Score Badge - Dynamic based on price deviation */}
           {aiScoreDisplay && (
             <span
               className="text-sm font-semibold px-3 py-1 rounded-full flex items-center gap-1.5"
@@ -366,18 +401,24 @@ export function MarketComparisonBar({
               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2" fill="none"/>
               </svg>
-              {aiScore}
+              {aiScoreDisplay.score}/100
             </span>
           )}
-          {/* Position Badge */}
+          {/* Position Badge - Icon only */}
           <span
-            className="text-sm font-semibold px-3 py-1 rounded-full"
+            className="w-8 h-8 rounded-full flex items-center justify-center"
             style={{
               backgroundColor: getPositionColor() + '20',
               color: getPositionColor(),
             }}
           >
-            {getPositionLabel()}
+            {deviationPercent <= -5 ? (
+              <TrendingDown size={16} />
+            ) : deviationPercent <= 5 ? (
+              <Minus size={16} />
+            ) : (
+              <TrendingUp size={16} />
+            )}
           </span>
         </div>
       </div>
@@ -397,6 +438,7 @@ export function MarketComparisonBar({
             const newDeviation = Math.round((percentage - 50) * 0.9);
             const clampedDeviation = Math.max(-45, Math.min(45, newDeviation));
             setLocalDeviationPercent(clampedDeviation);
+            setExternalTotalPrice(null); // Reset external price when slider is clicked
 
             if (onPriceChange && sqm > 0) {
               const newPricePerSqm = Math.round(marketAvgPricePerSqm * (1 + clampedDeviation / 100));
@@ -412,18 +454,20 @@ export function MarketComparisonBar({
           style={{ left: '50%' }}
         />
 
-        {/* Current Price Marker - White Circle with colored glow */}
+        {/* Current Price Marker - Glass Design */}
         <div
-          className={`absolute top-1/2 w-7 h-7 rounded-full bg-white border-4 border-white transition-shadow ${
+          className={`absolute top-1/2 w-8 h-8 rounded-full backdrop-blur-md transition-all ${
             isInteractive ? 'cursor-grab active:cursor-grabbing hover:scale-110' : ''
-          } ${isDragging ? 'scale-110' : ''}`}
+          } ${isDragging ? 'scale-115' : ''}`}
           style={{
             left: `${markerPosition}%`,
             transform: `translateX(-50%) translateY(-50%)`,
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.1) 100%)',
+            border: '1.5px solid rgba(255, 255, 255, 0.6)',
             boxShadow: isDragging
-              ? `0 0 0 3px ${getGlowColor()}, 0 4px 12px rgba(0,0,0,0.3)`
-              : `0 0 0 2px ${getGlowColor()}, 0 2px 8px rgba(0,0,0,0.25)`,
-            animation: isInteractive && !isDragging ? 'wiggle 1.5s ease-in-out infinite' : 'none',
+              ? 'inset 0 1px 2px rgba(255,255,255,0.8), inset 0 -1px 2px rgba(0,0,0,0.1), 0 4px 16px rgba(0,0,0,0.2)'
+              : 'inset 0 1px 2px rgba(255,255,255,0.8), inset 0 -1px 2px rgba(0,0,0,0.1), 0 2px 8px rgba(0,0,0,0.15)',
+            animation: isInteractive && !isDragging ? 'wiggle 2.5s ease-in-out infinite' : 'none',
           }}
           onMouseDown={handleDragStart}
           onTouchStart={handleDragStart}
@@ -466,11 +510,25 @@ export function MarketComparisonBar({
           {/* Negotiation Price - Only when above market */}
           {negotiationPrice && (
             <div className="bg-gradient-to-r from-amber-50/40 to-orange-50/40 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
-                  <TrendingDown size={16} className="text-amber-600" />
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                    <TrendingDown size={16} className="text-amber-600" />
+                  </div>
+                  <span className="text-sm font-semibold text-gray-900">Verhandlungsempfehlung</span>
                 </div>
-                <span className="text-sm font-semibold text-gray-900">Verhandlungsempfehlung</span>
+                {onPriceChange && sqm > 0 && (
+                  <button
+                    onClick={() => {
+                      const newPricePerSqm = Math.round(negotiationPrice.suggestedOffer / sqm);
+                      onPriceChange(negotiationPrice.suggestedOffer, newPricePerSqm);
+                      setExternalTotalPrice(null);
+                    }}
+                    className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium rounded-lg transition-colors"
+                  >
+                    Simulieren
+                  </button>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -491,47 +549,43 @@ export function MarketComparisonBar({
       {viewType === 'seller' && (
         <div className="mt-4 grid grid-cols-2 gap-3">
           {/* Marketing Duration */}
-          <div className="bg-gradient-to-r from-blue-50/40 to-purple-50/40 rounded-xl p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
-                <Clock size={16} className="text-blue-600" />
-              </div>
-              <span
-                className="text-xs font-medium px-2 py-0.5 rounded-full"
-                style={{
-                  backgroundColor: getPositionColor() + '20',
-                  color: getPositionColor(),
-                }}
-              >
-                {marketingDuration.label}
-              </span>
-            </div>
-            <p className="text-xs text-gray-500">Vermarktungsdauer</p>
-            <p className="text-lg font-bold text-gray-900">
+          <div className={`rounded-xl p-2 sm:p-3 text-center border ${
+            marketingDuration.max <= 6
+              ? 'bg-green-50 border-green-200'
+              : marketingDuration.max <= 10
+                ? 'bg-yellow-50 border-yellow-200'
+                : 'bg-red-50 border-red-200'
+          }`}>
+            <span className="text-sm text-gray-500">Vermarktungsdauer</span>
+            <div className={`text-base sm:text-lg font-bold ${
+              marketingDuration.max <= 6
+                ? 'text-green-600'
+                : marketingDuration.max <= 10
+                  ? 'text-yellow-600'
+                  : 'text-red-600'
+            }`}>
               {marketingDuration.min}–{marketingDuration.max} Wo.
-            </p>
+            </div>
           </div>
 
           {/* Search Queries */}
-          <div className="bg-gradient-to-r from-green-50/40 to-emerald-50/40 rounded-xl p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
-                <Users size={16} className="text-green-600" />
-              </div>
-              <span
-                className="text-xs font-medium px-2 py-0.5 rounded-full"
-                style={{
-                  backgroundColor: getSearchTrendColor(searchQueries.trend) + '20',
-                  color: getSearchTrendColor(searchQueries.trend),
-                }}
-              >
-                {getSearchTrendLabel(searchQueries.trend)}
-              </span>
-            </div>
-            <p className="text-xs text-gray-500">Passende Suchanfragen</p>
-            <p className="text-lg font-bold text-gray-900">
+          <div className={`rounded-xl p-2 sm:p-3 text-center border ${
+            searchQueries.trend === 'sehr_hoch' || searchQueries.trend === 'hoch' || searchQueries.trend === 'gut'
+              ? 'bg-green-50 border-green-200'
+              : searchQueries.trend === 'normal'
+                ? 'bg-yellow-50 border-yellow-200'
+                : 'bg-red-50 border-red-200'
+          }`}>
+            <span className="text-sm text-gray-500">Passende Suchanfragen</span>
+            <div className={`text-base sm:text-lg font-bold ${
+              searchQueries.trend === 'sehr_hoch' || searchQueries.trend === 'hoch' || searchQueries.trend === 'gut'
+                ? 'text-green-600'
+                : searchQueries.trend === 'normal'
+                  ? 'text-yellow-600'
+                  : 'text-red-600'
+            }`}>
               ~{searchQueries.count}
-            </p>
+            </div>
           </div>
         </div>
       )}

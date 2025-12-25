@@ -73,6 +73,9 @@ export interface InvestmentCalculatorProps {
   onSaveParams?: (params: SavedParams) => void;
   isSavingParams?: boolean;
 
+  // Live-Update Callback für Header
+  onPurchasePriceChange?: (price: number) => void;
+
   // Optionen
   canEdit?: boolean;
   className?: string;
@@ -133,6 +136,7 @@ export function InvestmentCalculator({
   userParams,
   onSaveParams,
   isSavingParams = false,
+  onPurchasePriceChange,
   canEdit = true,
   className = '',
 }: InvestmentCalculatorProps) {
@@ -167,6 +171,13 @@ export function InvestmentCalculator({
     }
   }, [userParams]);
 
+  // Aktualisiere editPurchasePrice wenn purchasePrice prop sich ändert (z.B. durch Slider)
+  useEffect(() => {
+    if (purchasePrice > 0) {
+      setEditPurchasePrice(purchasePrice);
+    }
+  }, [purchasePrice]);
+
   // Format currency
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('de-DE', {
@@ -188,14 +199,14 @@ export function InvestmentCalculator({
   // ============================================
 
   // Effektive Werte (Edit hat Priorität)
-  const effectivePurchasePrice = editPurchasePrice ?? purchasePrice;
-  const effectiveEquityPercent = editEquityPercent ?? equityPercentage;
-  const effectiveInterestRate = editInterestRate ?? interestRate;
-  const effectiveAmortizationRate = editAmortizationRate ?? amortizationRate;
+  const effectivePurchasePrice = Number(editPurchasePrice ?? purchasePrice) || 0;
+  const effectiveEquityPercent = Number(editEquityPercent ?? equityPercentage) || 20;
+  const effectiveInterestRate = Number(editInterestRate ?? interestRate ?? 3.5) || 3.5;
+  const effectiveAmortizationRate = Number(editAmortizationRate ?? amortizationRate ?? 2.0) || 2.0;
 
   // Effektive Maklergebühren und Renovierungskosten
-  const effectiveBrokerCommission = editBrokerCommission ?? commissionRate;
-  const effectiveRenovationCosts = editRenovationCosts ?? renovationCosts;
+  const effectiveBrokerCommission = Number(editBrokerCommission ?? commissionRate) || 0;
+  const effectiveRenovationCosts = Number(editRenovationCosts ?? renovationCosts) || 0;
 
   // Kaufnebenkosten
   const grunderwerbsteuer = effectivePurchasePrice * (grunderwerbsteuerRate / 100);
@@ -208,9 +219,11 @@ export function InvestmentCalculator({
   // Finanzierung
   const eigenkapital = gesamtinvestition * (effectiveEquityPercent / 100);
   const darlehensbetrag = gesamtinvestition - eigenkapital;
-  const monatlicheZinsen = darlehensbetrag * (effectiveInterestRate / 100 / 12);
-  const monatlicheTilgung = darlehensbetrag * (effectiveAmortizationRate / 100 / 12);
-  const monatlicheRate = Math.ceil(monatlicheZinsen + monatlicheTilgung);
+  const monatlicheZinsenRaw = darlehensbetrag * (effectiveInterestRate / 100 / 12);
+  const monatlicheTilgungRaw = darlehensbetrag * (effectiveAmortizationRate / 100 / 12);
+  const monatlicheZinsen = Math.round(monatlicheZinsenRaw);
+  const monatlicheTilgung = Math.round(monatlicheTilgungRaw);
+  const monatlicheRate = monatlicheZinsen + monatlicheTilgung;
 
   // Hausgeld berechnen
   const calculateHausgeld = (): number => {
@@ -383,13 +396,19 @@ export function InvestmentCalculator({
                 {isEditMode ? (
                   <span className="relative inline-flex items-center">
                     <input
-                      type="number"
-                      value={editPurchasePrice ?? ''}
-                      onChange={(e) => setEditPurchasePrice(e.target.value === '' ? null : Number(e.target.value))}
-                      placeholder={String(purchasePrice)}
-                      className="w-36 pl-2 pr-7 py-1.5 border border-[#DDDDDD] rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none"
-                      min="0"
-                      step="1000"
+                      type="text"
+                      value={editPurchasePrice !== null ? new Intl.NumberFormat('de-DE').format(editPurchasePrice) : ''}
+                      onChange={(e) => {
+                        // Entferne alle Nicht-Ziffern und parse die Zahl
+                        const rawValue = e.target.value.replace(/[^\d]/g, '');
+                        const newPrice = rawValue === '' ? null : Number(rawValue);
+                        setEditPurchasePrice(newPrice);
+                        if (newPrice !== null && onPurchasePriceChange) {
+                          onPurchasePriceChange(newPrice);
+                        }
+                      }}
+                      placeholder={new Intl.NumberFormat('de-DE').format(purchasePrice)}
+                      className="w-36 pl-2 pr-7 py-1.5 border border-[#DDDDDD] rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none text-right"
                     />
                     <span className="absolute right-2 text-gray-500 text-sm pointer-events-none">€</span>
                   </span>
@@ -544,7 +563,7 @@ export function InvestmentCalculator({
                   <span className="text-gray-500">({effectiveInterestRate.toFixed(2)}%)</span>
                 )}
               </div>
-              <span className="font-semibold text-gray-700 text-right">{formatCurrency(Math.ceil(monatlicheZinsen))}/Monat</span>
+              <span className="font-semibold text-gray-700 text-right">{formatCurrency(monatlicheZinsen)}/Monat</span>
             </div>
 
             {/* Tilgung */}
@@ -569,7 +588,7 @@ export function InvestmentCalculator({
                   <span className="text-gray-500">({effectiveAmortizationRate.toFixed(1)}%)</span>
                 )}
               </div>
-              <span className="font-semibold text-gray-700 text-right">{formatCurrency(Math.ceil(monatlicheTilgung))}/Monat</span>
+              <span className="font-semibold text-gray-700 text-right">{formatCurrency(monatlicheTilgung)}/Monat</span>
             </div>
 
             {/* Monatliche Rate */}

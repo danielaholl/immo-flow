@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { Home, ChevronDown } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Home, ChevronDown, Loader2, Sparkles } from 'lucide-react';
 import { InvestmentCalculator, UserParams, SavedParams } from './InvestmentCalculator';
+import { trpc } from '@/app/providers/TRPCProvider';
 
 // Grunderwerbsteuer nach Bundesland (gleiche Werte wie InvestmentCalculator)
 const GRUNDERWERBSTEUER_SAETZE: Record<string, number> = {
@@ -60,6 +61,9 @@ export interface BuyVsRentCardProps {
   userParams?: UserParams | null;
   onSaveParams?: (params: SavedParams) => void;
   isSavingParams?: boolean;
+
+  // Live-Update Callback für Header
+  onPurchasePriceChange?: (price: number) => void;
 }
 
 export function BuyVsRentCard({
@@ -70,17 +74,30 @@ export function BuyVsRentCard({
   avgRentPerSqm,
   monthlyFee,
   yearBuilt,
-  interestRate = 3.5,
-  amortizationRate = 2.0,
-  equityPercentage = 20,
+  interestRate: interestRateProp = 3.5,
+  amortizationRate: amortizationRateProp = 2.0,
+  equityPercentage: equityPercentageProp = 20,
   commissionRate = 0,
   className = '',
   propertyId,
   userParams,
   onSaveParams,
   isSavingParams = false,
+  onPurchasePriceChange,
 }: BuyVsRentCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // Robuste Konvertierung (leere Strings und NaN vermeiden)
+  const parseNum = (val: unknown, fallback: number): number => {
+    if (val === null || val === undefined || val === '') return fallback;
+    const num = Number(val);
+    return isNaN(num) ? fallback : num;
+  };
+
+  // Effektive Werte mit Fallbacks
+  const interestRate = parseNum(interestRateProp, 3.5);
+  const amortizationRate = parseNum(amortizationRateProp, 2.0);
+  const equityPercentage = parseNum(equityPercentageProp, 20);
 
   // Format currency
   const formatCurrency = (value: number) => {
@@ -183,8 +200,133 @@ export function BuyVsRentCard({
       effectiveMonthlyRent: Math.round(effectiveMonthlyRent),
       totalMonthlyCostBuying: Math.round(totalMonthlyCostBuying),
       isBuyingBetter,
+      loanAmount: Math.round(loanAmount),
+      // Zusätzliche Werte für KI-Analyse
+      monthlyMortgage: Math.round(monthlyMortgage),
+      monthlyMaintenance: Math.round(monthlyMaintenance),
+      equityAmount: Math.round(equityAmount),
+      totalInvestment: Math.round(totalInvestment),
     };
   }, [effectiveMonthlyRent, purchasePrice, equityPercentage, interestRate, amortizationRate, effectiveHausgeld, grunderwerbsteuerRate, commissionRate]);
+
+  // Fallback: Regelbasiertes Fazit
+  const fallbackFazit = useMemo(() => {
+    if (!analysis) return null;
+
+    const { breakEvenYears, effectiveMonthlyRent, totalMonthlyCostBuying } = analysis;
+    const monthlySavingsOrCost = effectiveMonthlyRent - totalMonthlyCostBuying;
+
+    let verdict: 'positive' | 'neutral' | 'negative';
+    let sentences: string[] = [];
+
+    if (breakEvenYears <= 8) {
+      verdict = 'positive';
+      sentences.push(`Kaufen lohnt sich: Break-Even bereits nach ${breakEvenYears} Jahren.`);
+    } else if (breakEvenYears <= 15) {
+      verdict = 'neutral';
+      sentences.push(`Break-Even bei ${breakEvenYears} Jahren – langfristige Investition.`);
+    } else {
+      verdict = 'negative';
+      sentences.push(`Break-Even erst nach ${breakEvenYears} Jahren – finanziell wenig attraktiv.`);
+    }
+
+    if (monthlySavingsOrCost > 200) {
+      sentences.push(`Sie sparen ${formatCurrency(monthlySavingsOrCost)}/Monat gegenüber Miete.`);
+    } else if (monthlySavingsOrCost < -300) {
+      sentences.push(`Mehrbelastung von ${formatCurrency(Math.abs(monthlySavingsOrCost))}/Monat.`);
+    }
+
+    if (equityPercentage < 15) {
+      sentences.push(`Niedriges Eigenkapital (${equityPercentage}%) erhöht das Risiko.`);
+    }
+
+    if (sentences.length > 3) sentences = sentences.slice(0, 3);
+
+    return {
+      verdict,
+      text: sentences.join(' '),
+      color: verdict === 'positive' ? '#22C55E' : verdict === 'neutral' ? '#F59E0B' : '#EF4444',
+    };
+  }, [analysis, equityPercentage]);
+
+  // KI-Fazit API Call
+  const [aiFazit, setAiFazit] = useState<{
+    text: string;
+    suggestions?: string[];
+    verdict: 'positive' | 'neutral' | 'negative';
+    color: string;
+  } | null>(null);
+  const [fazitRequested, setFazitRequested] = useState(false);
+  const [aiFazitError, setAiFazitError] = useState(false);
+
+  const generateAiFazitMutation = trpc.evaluations.generateAiFazit.useMutation({
+    onSuccess: (data: { text: string; suggestions?: string[]; verdict: 'positive' | 'neutral' | 'negative'; color: string }) => {
+      setAiFazit(data);
+    },
+    onError: () => {
+      setAiFazitError(true);
+    },
+  });
+
+  // Reset fazitRequested when key values change
+  useEffect(() => {
+    setFazitRequested(false);
+    setAiFazit(null);
+  }, [equityPercentage, interestRate, amortizationRate, purchasePrice]);
+
+  // Generate AI Fazit when expanded and we have data
+  useEffect(() => {
+    if (isExpanded && analysis && !aiFazit && !fazitRequested && !generateAiFazitMutation.isPending && !aiFazitError) {
+      // Debug logging
+      console.log('🧮 BuyVsRentCard AI Fazit Request:', {
+        equityPercentage,
+        equityAmount: analysis.equityAmount,
+        interestRate,
+        amortizationRate,
+        purchasePrice,
+      });
+
+      setFazitRequested(true);
+      // Nur mit propertyId aufrufen (erforderlich für Persistierung)
+      if (!propertyId) {
+        console.warn('No propertyId - AI Fazit cannot be persisted');
+        return;
+      }
+      generateAiFazitMutation.mutate({
+        mode: 'eigennutzer',
+        propertyId: propertyId,
+        forceRegenerate: false,
+        purchasePrice: Number(purchasePrice),
+        monthlyRent: Number(analysis.effectiveMonthlyRent),
+        breakEvenYears: Number(analysis.breakEvenYears),
+        totalMonthlyCostBuying: Number(analysis.totalMonthlyCostBuying),
+        equityPercentage: Number(equityPercentage),
+        interestRate: Number(interestRate),
+        loanAmount: Number(analysis.loanAmount),
+        // Neue Felder
+        amortizationRate: Number(amortizationRate),
+        monthlyMortgage: Number(analysis.monthlyMortgage),
+        totalInvestment: Number(analysis.totalInvestment),
+        monthlyFee: Number(effectiveHausgeld),
+        monthlyMaintenance: Number(analysis.monthlyMaintenance),
+        equityAmount: Number(analysis.equityAmount),
+        // Immobilie
+        location: location,
+        sqm: sqm ? Number(sqm) : undefined,
+        yearBuilt: yearBuilt ? Number(yearBuilt) : undefined,
+      });
+    }
+  }, [isExpanded, analysis, aiFazit, fazitRequested, aiFazitError, equityPercentage, interestRate, amortizationRate, purchasePrice, propertyId]);
+
+  // Use AI fazit if available, otherwise fallback
+  const displayFazit = aiFazit || (aiFazitError ? fallbackFazit : null);
+
+  // Helper to get bgColor from verdict
+  const getFazitBgColor = (verdict: string) => {
+    if (verdict === 'positive') return 'bg-green-50 border-green-200';
+    if (verdict === 'neutral') return 'bg-amber-50 border-amber-200';
+    return 'bg-red-50 border-red-200';
+  };
 
   if (!analysis) return null;
 
@@ -233,10 +375,15 @@ export function BuyVsRentCard({
               {analysis.isBuyingBetter ? 'Kaufen lohnt sich' : 'Langfristige Investition'}
             </span>
           </div>
-          <ChevronDown
-            size={20}
-            className={`flex-shrink-0 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
-          />
+          <div className="flex items-center gap-2">
+            <span className="text-base font-semibold text-gray-700">
+              {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(purchasePrice)}
+            </span>
+            <ChevronDown
+              size={20}
+              className={`flex-shrink-0 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+            />
+          </div>
         </div>
 
         {/* Summary Cards */}
@@ -245,22 +392,30 @@ export function BuyVsRentCard({
           <div className={`rounded-xl p-2 sm:p-3 text-center border ${getBreakEvenBg()}`}>
             <span className="text-sm text-gray-500">Break-Even</span>
             <div className={`text-base sm:text-lg font-bold ${getBreakEvenColor()}`}>
-              {analysis.breakEvenYears} J.
+              {analysis.breakEvenYears} <span className="hidden sm:inline">{analysis.breakEvenYears === 1 ? 'Jahr' : 'Jahre'}</span><span className="sm:hidden">J.</span>
             </div>
           </div>
 
           {/* Miete */}
-          <div className="rounded-xl p-2 sm:p-3 text-center border bg-blue-50 border-blue-200">
+          <div className="rounded-xl p-2 sm:p-3 text-center border bg-gray-50 border-gray-200">
             <span className="text-sm text-gray-500">Miete/Monat</span>
-            <div className="text-base sm:text-lg font-bold text-blue-600">
+            <div className="text-base sm:text-lg font-bold text-gray-900">
               {formatCurrency(analysis.effectiveMonthlyRent)}
             </div>
           </div>
 
           {/* Kaufkosten */}
-          <div className="rounded-xl p-2 sm:p-3 text-center border bg-red-50 border-red-200">
+          <div className={`rounded-xl p-2 sm:p-3 text-center border ${
+            analysis.totalMonthlyCostBuying < analysis.effectiveMonthlyRent
+              ? 'bg-green-50 border-green-200'
+              : 'bg-red-50 border-red-200'
+          }`}>
             <span className="text-sm text-gray-500">Kauf/Monat</span>
-            <div className="text-base sm:text-lg font-bold text-red-600">
+            <div className={`text-base sm:text-lg font-bold ${
+              analysis.totalMonthlyCostBuying < analysis.effectiveMonthlyRent
+                ? 'text-green-600'
+                : 'text-red-600'
+            }`}>
               {formatCurrency(analysis.totalMonthlyCostBuying)}
             </div>
           </div>
@@ -283,6 +438,101 @@ export function BuyVsRentCard({
       {/* Expanded Details - InvestmentCalculator */}
       {isExpanded && (
         <div className="px-4 sm:px-5 pb-4 sm:pb-5 border-t border-gray-100">
+          {/* KI-Fazit */}
+          {generateAiFazitMutation.isPending ? (
+            <div className="mt-4 mb-4 rounded-xl p-4 border bg-blue-50 border-blue-200">
+              <div className="flex items-center gap-3">
+                <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+                <p className="text-sm text-blue-700">KI-Fazit wird generiert...</p>
+              </div>
+            </div>
+          ) : displayFazit ? (
+            <div className="mt-4 mb-4 space-y-3">
+              {/* Fazit */}
+              <div className={`rounded-xl p-4 border ${getFazitBgColor(displayFazit.verdict)}`}>
+                <div className="flex items-start gap-3">
+                  <div
+                    className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: displayFazit.color + '20' }}
+                  >
+                    <Sparkles className="w-4 h-4" style={{ color: displayFazit.color }} />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm font-semibold text-gray-900">
+                        {aiFazitError ? 'Fazit' : 'KI-Fazit'}
+                      </p>
+                      {propertyId && analysis && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAiFazit(null);
+                            setFazitRequested(true);
+                            setAiFazitError(false);
+                            generateAiFazitMutation.mutate({
+                              mode: 'eigennutzer',
+                              propertyId: propertyId,
+                              forceRegenerate: true,
+                              purchasePrice: Number(purchasePrice),
+                              monthlyRent: Number(analysis.effectiveMonthlyRent),
+                              breakEvenYears: Number(analysis.breakEvenYears),
+                              totalMonthlyCostBuying: Number(analysis.totalMonthlyCostBuying),
+                              equityPercentage: Number(equityPercentage),
+                              interestRate: Number(interestRate),
+                              loanAmount: Number(analysis.loanAmount),
+                              amortizationRate: Number(amortizationRate),
+                              monthlyMortgage: Number(analysis.monthlyMortgage),
+                              totalInvestment: Number(analysis.totalInvestment),
+                              monthlyFee: Number(effectiveHausgeld),
+                              monthlyMaintenance: Number(analysis.monthlyMaintenance),
+                              equityAmount: Number(analysis.equityAmount),
+                              location: location,
+                              sqm: sqm ? Number(sqm) : undefined,
+                              yearBuilt: yearBuilt ? Number(yearBuilt) : undefined,
+                            });
+                          }}
+                          disabled={generateAiFazitMutation.isPending}
+                          className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1 disabled:opacity-50"
+                        >
+                          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+                          </svg>
+                          Neu generieren
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-700 leading-relaxed">{displayFazit.text}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Optimierungsvorschläge */}
+              {aiFazit?.suggestions && aiFazit.suggestions.length > 0 && (
+                <div className="rounded-xl p-4 border bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-200">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-indigo-100">
+                      <svg className="w-4 h-4 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-gray-900 mb-2">
+                        Optimierungspotenzial
+                      </p>
+                      <ul className="space-y-1.5">
+                        {aiFazit.suggestions.map((tip, index) => (
+                          <li key={index} className="text-sm text-gray-700 flex items-start gap-2">
+                            <span className="text-indigo-500 flex-shrink-0">•</span>
+                            <span>{tip}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : null}
           <InvestmentCalculator
             mode="eigennutzer"
             purchasePrice={purchasePrice}
@@ -298,6 +548,7 @@ export function BuyVsRentCard({
             userParams={userParams}
             onSaveParams={propertyId && onSaveParams ? onSaveParams : undefined}
             isSavingParams={isSavingParams}
+            onPurchasePriceChange={onPurchasePriceChange}
             canEdit={true}
           />
         </div>

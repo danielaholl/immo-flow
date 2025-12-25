@@ -67,7 +67,7 @@ export function MasterDetailLayout({
         <div className="flex flex-col lg:flex-row overflow-hidden h-full">
           {/* Left Column - Master List */}
           <div
-            className={`${showDetail ? 'hidden' : 'block'} w-full lg:block lg:w-[480px] lg:min-w-[25%] lg:flex-shrink-0 lg:border-r lg:border-gray-200 overflow-y-auto`}
+            className={`${showDetail ? 'hidden' : 'block'} w-full lg:block lg:w-[380px] lg:min-w-[20%] lg:flex-shrink-0 lg:border-r lg:border-gray-200 overflow-y-auto`}
           >
             <div className="p-4">
               {/* Desktop Header - Hidden on mobile */}
