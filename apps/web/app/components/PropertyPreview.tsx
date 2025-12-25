@@ -4,14 +4,17 @@ import React, { useState, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { Bath, Sparkles, DoorClosed, Square, Layers, Euro, Building2, Clock, Flame, Zap, ChevronDown, Star, Eye, Heart, Mail, FileText, Loader2 } from 'lucide-react';
 import { LocationDisplay } from './LocationDisplay';
+import { MarketComparisonBar } from './MarketComparisonBar';
 
 // Dynamic imports for heavy components - reduces initial bundle size
-const AIEvaluationPanel = dynamic(() => import('./AIEvaluationPanel').then(mod => ({ default: mod.AIEvaluationPanel })), {
+// AIEvaluationPanel removed - market comparison now provides all data
+
+const KeyMetricsPanel = dynamic(() => import('./KeyMetricsPanel').then(mod => ({ default: mod.KeyMetricsPanel })), {
   loading: () => <div className="flex items-center justify-center p-8"><Loader2 className="animate-spin text-gray-400" size={24} /></div>,
   ssr: false,
 });
 
-const KeyMetricsPanel = dynamic(() => import('./KeyMetricsPanel').then(mod => ({ default: mod.KeyMetricsPanel })), {
+const BuyVsRentCard = dynamic(() => import('./BuyVsRentCard').then(mod => ({ default: mod.BuyVsRentCard })), {
   loading: () => <div className="flex items-center justify-center p-8"><Loader2 className="animate-spin text-gray-400" size={24} /></div>,
   ssr: false,
 });
@@ -21,6 +24,7 @@ const KeyMetricsPanel = dynamic(() => import('./KeyMetricsPanel').then(mod => ({
 import type { PropertyDocument } from '../create-listing/types';
 import { PropertyDocumentsList } from './PropertyDocumentsList';
 import { DocumentVisibilityManager } from './DocumentVisibilityManager';
+import { trpc } from '@/app/providers/TRPCProvider';
 
 export interface PropertyPreviewData {
   id?: string;
@@ -398,7 +402,28 @@ export function PropertyPreview({
   const [isAIEvaluationExpanded, setIsAIEvaluationExpanded] = useState(false);
   // State for highlights and red flags accordion
   const [isHighlightsExpanded, setIsHighlightsExpanded] = useState(false);
+  // State for market comparison accordion
+  const [isMarketComparisonExpanded, setIsMarketComparisonExpanded] = useState(false);
+  // State for price optimization suggestion
+  const [showPriceSuggestion, setShowPriceSuggestion] = useState(false);
+  // State for simulated price (when user drags the slider)
+  const [simulatedPrice, setSimulatedPrice] = useState<number | null>(null);
   // buyerTabSelected state entfernt - beide Scores werden jetzt untereinander angezeigt
+
+  // Fetch market data for comparison (without needing full AI analysis)
+  const { data: marketData, isLoading: isLoadingMarketData } = trpc.properties.getMarketComparison.useQuery(
+    {
+      propertyId: propertyId,
+      price: Number(data.price),
+      sqm: Number(data.sqm),
+      location: data.location,
+      propertyType: data.property_type as 'apartment' | 'house' | 'villa' | 'commercial' | 'land' | 'office' | 'retail' | 'industrial' | 'parking' | 'multi_family' | undefined,
+    },
+    {
+      enabled: Number(data.price) > 0 && Number(data.sqm) > 0 && !!data.location,
+      staleTime: 5 * 60 * 1000, // 5 minutes cache
+    }
+  );
 
   // Memoized price formatter to avoid recreation on every render
   const formatPrice = useCallback((price: number) => {
@@ -600,10 +625,10 @@ export function PropertyPreview({
               <p className="text-sm text-gray-500 mb-1">Preis pro m²</p>
               {(() => {
                 // Determine color based on view type and market comparison
-                let priceColor = 'text-gray-900'; // Default black
+                let priceColor = 'text-gray-900'; // Default
 
                 if (evaluationViewType === 'buyer') {
-                  const marketAvgPrice = sellerAnalysisMarketAverage || data.evaluation?.market_average_price_per_sqm;
+                  const marketAvgPrice = marketData?.marketAvgPricePerSqm || sellerAnalysisMarketAverage || data.evaluation?.market_average_price_per_sqm;
                   if (marketAvgPrice && pricePerSqm > 0) {
                     const difference = ((pricePerSqm - marketAvgPrice) / marketAvgPrice) * 100;
                     if (difference < -3) {
@@ -624,98 +649,238 @@ export function PropertyPreview({
           </div>
 
           {/* Commission */}
-          {data.commission_rate && data.commission_rate > 0 && (
-            <p className="text-base text-gray-600 mt-4">
-              zzgl. {data.commission_rate}% Provision
-            </p>
-          )}
+          <p className={`text-base mt-3 ${
+            data.commission_rate === 0
+              ? 'text-green-600 font-medium'
+              : data.commission_rate != null && data.commission_rate > 0
+                ? 'text-gray-600'
+                : 'text-gray-400'
+          }`}>
+            {data.commission_rate === 0
+              ? '✓ Provisionsfrei'
+              : data.commission_rate != null && data.commission_rate > 0
+                ? `Provision: ${data.commission_rate.toFixed(2).replace('.', ',')} % inkl. MwSt.`
+                : 'Provision: Keine Angabe'}
+          </p>
 
-          {/* Market Average - Dynamic Comparison - Only show if market data exists */}
-          {(sellerAnalysisMarketAverage || data.evaluation?.market_average_price_per_sqm) && (() => {
-            // Use seller analysis market average if available, otherwise fall back to evaluation
-            const marketAvgPrice = sellerAnalysisMarketAverage || data.evaluation?.market_average_price_per_sqm || 0;
-            const propertyPrice = pricePerSqm;
-            const difference = ((propertyPrice - marketAvgPrice) / marketAvgPrice) * 100;
-            const percentDiff = Math.abs(Math.round(difference));
-
-            // Determine market position (within 3% is considered equal)
-            let marketPosition: 'under' | 'equal' | 'over';
-            if (percentDiff <= 3) {
-              marketPosition = 'equal';
-            } else if (difference < 0) {
-              marketPosition = 'under';
-            } else {
-              marketPosition = 'over';
-            }
-
-            const getMarketPositionDisplay = () => {
-              switch (marketPosition) {
-                case 'equal':
-                  return {
-                    color: 'text-blue-600',
-                    iconColor: 'text-blue-600',
-                    text: `Entspricht dem Markt-Durchschnitt (${new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(marketAvgPrice)}/m²)`,
-                    icon: (
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-blue-600">
-                        <path
-                          d="M3 8H13M8 3H13M8 13H13"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    ),
-                  };
-                case 'under':
-                  return {
-                    color: 'text-green-600',
-                    iconColor: 'text-green-600',
-                    text: `${percentDiff}% unter Markt-Durchschnitt (${new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(marketAvgPrice)}/m²)`,
-                    icon: (
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-green-600">
-                        <path
-                          d="M8 3L8 13M8 3L4 7M8 3L12 7"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    ),
-                  };
-                case 'over':
-                  return {
-                    color: 'text-red-600',
-                    iconColor: 'text-red-600',
-                    text: `${percentDiff}% über Markt-Durchschnitt (${new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(marketAvgPrice)}/m²)`,
-                    icon: (
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-red-600">
-                        <path
-                          d="M8 13L8 3M8 13L4 9M8 13L12 9"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    ),
-                  };
-              }
-            };
-
-            const display = getMarketPositionDisplay();
-
-            return (
-              <div className="flex items-center gap-2 mt-2">
-                {display.icon}
-                <span className={`text-sm font-medium ${display.color}`}>
-                  {display.text}
-                </span>
-              </div>
-            );
-          })()}
         </div>
+
+        {/* Market Comparison Card - Show when price is entered */}
+        {data.price > 0 && data.sqm > 0 && data.location && (
+          <div className="mb-6 bg-white rounded-2xl border border-gray-200 overflow-hidden">
+            {/* Header - Always Visible */}
+            <div
+              className="p-6 flex items-center justify-between cursor-pointer"
+              onClick={() => setIsMarketComparisonExpanded(!isMarketComparisonExpanded)}
+            >
+              <div className="flex items-center gap-3">
+                {/* AI Score Badge */}
+                <div className={`w-14 h-14 rounded-xl flex flex-col items-center justify-center border-2 ${
+                  data.ai_investment_score !== undefined && data.ai_investment_score >= 70
+                    ? 'bg-green-50 border-green-300'
+                    : data.ai_investment_score !== undefined && data.ai_investment_score >= 50
+                      ? 'bg-yellow-50 border-yellow-300'
+                      : data.ai_investment_score !== undefined && data.ai_investment_score > 0
+                        ? 'bg-red-50 border-red-300'
+                        : 'bg-gray-50 border-gray-300'
+                }`}>
+                  <span className={`text-xl font-bold ${
+                    data.ai_investment_score !== undefined && data.ai_investment_score >= 70
+                      ? 'text-green-600'
+                      : data.ai_investment_score !== undefined && data.ai_investment_score >= 50
+                        ? 'text-yellow-600'
+                        : data.ai_investment_score !== undefined
+                          ? 'text-red-600'
+                          : 'text-gray-400'
+                  }`}>
+                    {data.ai_investment_score !== undefined ? Math.round(data.ai_investment_score) : '—'}
+                  </span>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-gray-900 text-base sm:text-lg">Smart-Check</h3>
+                    {isLoadingMarketData && (
+                      <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" title="Berechnung läuft..." />
+                    )}
+                  </div>
+                  {(() => {
+                    const marketAvgPrice = marketData?.marketAvgPricePerSqm || sellerAnalysisMarketAverage || data.evaluation?.market_average_price_per_sqm || 3500;
+                    const difference = ((pricePerSqm - marketAvgPrice) / marketAvgPrice) * 100;
+                    const percentDiff = Math.abs(Math.round(difference));
+
+                    if (percentDiff <= 3) {
+                      return <p className="text-sm text-blue-600 font-medium">Marktgerecht</p>;
+                    } else if (difference < 0) {
+                      return <p className="text-sm text-green-600 font-medium">{percentDiff}% unter Marktdurchschnitt</p>;
+                    } else {
+                      return <p className="text-sm text-orange-600 font-medium">{percentDiff}% über Marktdurchschnitt</p>;
+                    }
+                  })()}
+                </div>
+              </div>
+              <ChevronDown
+                className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isMarketComparisonExpanded ? 'rotate-180' : ''}`}
+              />
+            </div>
+
+            {/* Expanded Content */}
+            {isMarketComparisonExpanded && (
+              <div className="px-6 pb-6 border-t border-gray-200 pt-4">
+                {(() => {
+                  const marketAvgPrice = marketData?.marketAvgPricePerSqm || sellerAnalysisMarketAverage || data.evaluation?.market_average_price_per_sqm || 3500;
+                  const difference = ((pricePerSqm - marketAvgPrice) / marketAvgPrice) * 100;
+                  const deviationPercent = Math.round(difference);
+
+                  let pricePosition: 'sehr_guenstig' | 'guenstig' | 'marktgerecht' | 'teuer' | 'sehr_teuer';
+                  if (deviationPercent <= -15) {
+                    pricePosition = 'sehr_guenstig';
+                  } else if (deviationPercent <= -5) {
+                    pricePosition = 'guenstig';
+                  } else if (deviationPercent <= 5) {
+                    pricePosition = 'marktgerecht';
+                  } else if (deviationPercent <= 15) {
+                    pricePosition = 'teuer';
+                  } else {
+                    pricePosition = 'sehr_teuer';
+                  }
+
+                  // Determine viewType for MarketComparisonBar
+                  const marketViewType = evaluationViewType === 'seller'
+                    ? 'seller'
+                    : (data.buyer_evaluation?.buyer_selfuse ? 'buyer_selfuse' : 'buyer_investor');
+
+                  // Get monthly rent for Eigennutzer buy vs rent calculation
+                  const estimatedMonthlyRent = data.rental_income?.estimated_market_rent
+                    || data.evaluation?.estimated_monthly_rent
+                    || data.actual_monthly_rent;
+
+                  return (
+                    <>
+                      <MarketComparisonBar
+                        deviationPercent={deviationPercent}
+                        pricePosition={pricePosition}
+                        currentPricePerSqm={simulatedPrice ? Math.round(simulatedPrice / data.sqm) : pricePerSqm}
+                        marketAvgPricePerSqm={marketAvgPrice}
+                        sqm={data.sqm}
+                        rooms={data.rooms}
+                        location={data.location}
+                        isInteractive={true}
+                        viewType={evaluationViewType === 'seller' ? 'seller' : 'buyer_selfuse'}
+                        onPriceChange={(newPrice) => setSimulatedPrice(newPrice)}
+                        // API data for market comparison
+                        marketingDurationMin={marketData?.marketingDurationMin}
+                        marketingDurationMax={marketData?.marketingDurationMax}
+                        aiScore={marketData?.aiScore}
+                      />
+
+                      {/* Price Suggestion for Sellers */}
+                      {evaluationViewType === 'seller' && (
+                        <div className="mt-6 pt-4 border-t border-gray-100">
+                          {!showPriceSuggestion ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowPriceSuggestion(true);
+                              }}
+                              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-purple-700 transition-all"
+                            >
+                              <Sparkles size={18} />
+                              KI-Preisoptimierung
+                            </button>
+                          ) : (
+                            <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-4">
+                              <div className="flex items-start gap-3">
+                                <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+                                  <Sparkles size={16} className="text-purple-600" />
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-gray-900 mb-2">Preisempfehlung der KI</p>
+                                  {(() => {
+                                    const suggestedPrice = Math.round(marketAvgPrice * data.sqm);
+                                    const suggestedMin = Math.round(suggestedPrice * 0.95);
+                                    const suggestedMax = Math.round(suggestedPrice * 1.05);
+
+                                    return (
+                                      <>
+                                        <p className="text-2xl font-bold text-gray-900 mb-1">
+                                          {formatPrice(suggestedPrice)}
+                                        </p>
+                                        <p className="text-xs text-gray-500">
+                                          Optimale Preisspanne: {formatPrice(suggestedMin)} – {formatPrice(suggestedMax)}
+                                        </p>
+                                        {deviationPercent > 10 && (
+                                          <p className="text-xs text-orange-600 mt-2">
+                                            Tipp: Eine Preisanpassung könnte die Vermarktungszeit verkürzen.
+                                          </p>
+                                        )}
+                                        {deviationPercent < -10 && (
+                                          <p className="text-xs text-green-600 mt-2">
+                                            Tipp: Sie könnten den Preis erhöhen und sind immer noch unter Markt.
+                                          </p>
+                                        )}
+                                      </>
+                                    );
+                                  })()}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Deal-Insights - nur für Buyer View */}
+        {evaluationViewType === 'buyer' && (
+          <KeyMetricsPanel
+            aiScore={data.ai_investment_score}
+            grossYield={data.buyer_evaluation?.buyer_investor?.grossYield}
+            rentMultiplier={data.buyer_evaluation?.buyer_investor?.rentMultiplier}
+            purchasePrice={simulatedPrice || data.price}
+            commissionRate={data.commission_rate}
+            location={data.location}
+            financingTerms={data.financing_terms ? {
+              interestRate: data.financing_terms.interest_rate_90 ?? data.financing_terms.interest_rate,
+              amortizationRate: data.financing_terms.amortization_rate,
+              loanToValue: data.financing_terms.loan_to_value,
+            } : undefined}
+            sqm={data.sqm}
+            estimatedRentPerSqm={data.rental_income?.rent_per_sqm}
+            monthlyFee={data.monthly_fee}
+            yearBuilt={data.year_built}
+            estimatedRent={data.rental_income?.estimated_market_rent || data.evaluation?.estimated_monthly_rent || data.actual_monthly_rent}
+            estimatedOperatingCosts={data.cashflow_calculation?.non_transferable_fee}
+            onTriggerEvaluation={onTriggerEvaluation ? () => onTriggerEvaluation('buyer_investor') : undefined}
+            isLoading={isGeneratingEvaluation}
+            propertyId={propertyId}
+            userParams={userPropertyParams}
+            onSaveParams={onSaveUserPropertyParams}
+            isSavingParams={isSavingUserPropertyParams}
+            className="mb-6"
+          />
+        )}
+
+        {/* Kaufen vs. Mieten Card - für Eigennutzer */}
+        {evaluationViewType === 'buyer' && (
+          <BuyVsRentCard
+            purchasePrice={simulatedPrice || data.price}
+            sqm={data.sqm}
+            monthlyRent={data.rental_income?.estimated_market_rent || data.evaluation?.estimated_monthly_rent || data.actual_monthly_rent}
+            avgRentPerSqm={data.rental_income?.rent_per_sqm}
+            monthlyFee={data.monthly_fee}
+            yearBuilt={data.year_built}
+            interestRate={data.financing_terms?.interest_rate_90 ?? data.financing_terms?.interest_rate ?? 3.5}
+            amortizationRate={data.financing_terms?.amortization_rate ?? 2.0}
+            equityPercentage={userPropertyParams?.equity_percentage ?? 20}
+            className="mb-6"
+          />
+        )}
 
         {/* Weitere Details Section - Compact Accordion */}
         {(data.sqm || data.rooms || energyEfficiencyClass || data.available_from || data.year_built || data.bathrooms || data.monthly_fee || data.floor_level || data.total_floors || data.heating_type || data.energy_source || data.energy_certificate || data.usable_area || condition) && (
@@ -742,19 +907,15 @@ export function PropertyPreview({
                   </div>
                 )}
 
-                {/* Energy Efficiency Class */}
-                {energyEfficiencyClass && (
-                  <div className="flex items-center gap-2">
-                    <Zap size={20} className="text-yellow-600" />
-                    <span className="text-base font-semibold text-gray-900">Energie: {energyEfficiencyClass}</span>
-                  </div>
-                )}
-
-                {/* Year Built */}
-                {data.year_built && (
+                {/* Year Built & Energy Efficiency Class - Combined */}
+                {(data.year_built || energyEfficiencyClass) && (
                   <div className="flex items-center gap-2">
                     <Building2 size={20} className="text-gray-600" />
-                    <span className="text-base font-semibold text-gray-900">{data.year_built}</span>
+                    <span className="text-base font-semibold text-gray-900">
+                      {data.year_built && `Bj. ${data.year_built}`}
+                      {data.year_built && energyEfficiencyClass && ' • '}
+                      {energyEfficiencyClass && `Energie ${energyEfficiencyClass}`}
+                    </span>
                   </div>
                 )}
               </div>
@@ -962,96 +1123,42 @@ export function PropertyPreview({
           </div>
         )}
 
-        {/* Kennzahlen auf einen Blick - nur für Buyer View */}
-        {evaluationViewType === 'buyer' && (
-          <KeyMetricsPanel
-            grossYield={data.buyer_evaluation?.buyer_investor?.grossYield}
-            rentMultiplier={data.buyer_evaluation?.buyer_investor?.rentMultiplier}
-            purchasePrice={data.price}
-            commissionRate={data.commission_rate}
-            location={data.location}
-            financingTerms={data.financing_terms ? {
-              interestRate: data.financing_terms.interest_rate_90 ?? data.financing_terms.interest_rate,
-              amortizationRate: data.financing_terms.amortization_rate,
-              loanToValue: data.financing_terms.loan_to_value,
-            } : undefined}
-            sqm={data.sqm}
-            estimatedRentPerSqm={data.rental_income?.rent_per_sqm}
-            monthlyFee={data.monthly_fee}
-            yearBuilt={data.year_built}
-            estimatedRent={data.rental_income?.estimated_market_rent || data.evaluation?.estimated_monthly_rent || data.actual_monthly_rent}
-            estimatedOperatingCosts={data.cashflow_calculation?.non_transferable_fee}
-            onTriggerEvaluation={onTriggerEvaluation ? () => onTriggerEvaluation('buyer_investor') : undefined}
-            isLoading={isGeneratingEvaluation}
-            propertyId={propertyId}
-            userParams={userPropertyParams}
-            onSaveParams={onSaveUserPropertyParams}
-            isSavingParams={isSavingUserPropertyParams}
-            className="mb-6"
-          />
-        )}
-
-        {/* BUYER VIEW: KI-Bewertung mit wiederverwendbarer Komponente */}
-        {evaluationViewType === 'buyer' && onTriggerEvaluation && propertyId && (
-          <AIEvaluationPanel
-            mode="buyer"
-            buyerEvaluation={data.buyer_evaluation}
-            isLoading={isGeneratingEvaluation}
-            onTriggerEvaluation={onTriggerEvaluation}
-            className="mb-6"
-          />
-        )}
-
-        {/* SELLER VIEW: KI-Bewertung mit wiederverwendbarer Komponente */}
-        {evaluationViewType === 'seller' && onTriggerEvaluation && propertyId && (
-          <AIEvaluationPanel
-            mode="seller"
-            sellerEvaluation={data.seller_evaluation}
-            isLoading={isGeneratingEvaluation}
-            onTriggerEvaluation={onTriggerEvaluation}
-            className="mb-6"
-          />
-        )}
-
-        {/* Description - Collapsible */}
+        {/* Description - No header, just content */}
         {data.description && (() => {
-          const maxPreviewLength = 80;
+          const maxPreviewLength = 150;
           const isLongDescription = data.description.length > maxPreviewLength;
           const previewText = isLongDescription
             ? data.description.slice(0, maxPreviewLength) + '...'
             : data.description;
 
           return (
-            <div className="mb-6 bg-white rounded-2xl border border-gray-200 overflow-hidden">
-              {/* Header - Clickable */}
-              <div
-                className={`p-6 flex items-center justify-between gap-4 ${isLongDescription ? 'cursor-pointer' : ''}`}
-                onClick={() => isLongDescription && setIsDescriptionExpanded(!isDescriptionExpanded)}
-              >
-                <h3 className="text-lg font-semibold text-gray-900">Beschreibung</h3>
-                {isLongDescription && (
+            <div className="mb-6 bg-white rounded-2xl border border-gray-200 overflow-hidden p-6">
+              {/* Important Notes - Show if exists */}
+              {data.important_notes && (
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl mb-4">
+                  <p className="text-base text-gray-700 leading-relaxed">
+                    {data.important_notes}
+                  </p>
+                </div>
+              )}
+
+              {/* Description Text - whitespace-pre-line preserves newlines for structured content */}
+              <p className="text-gray-700 leading-relaxed text-base whitespace-pre-line">
+                {isDescriptionExpanded || !isLongDescription ? data.description : previewText}
+              </p>
+
+              {/* Show more/less button */}
+              {isLongDescription && (
+                <button
+                  onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
+                  className="mt-3 text-sm font-medium text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                >
+                  {isDescriptionExpanded ? 'Weniger anzeigen' : 'Mehr anzeigen'}
                   <ChevronDown
-                    className={`w-5 h-5 text-gray-400 transition-transform duration-200 flex-shrink-0 ${isDescriptionExpanded ? 'rotate-180' : ''}`}
+                    className={`w-4 h-4 transition-transform duration-200 ${isDescriptionExpanded ? 'rotate-180' : ''}`}
                   />
-                )}
-              </div>
-
-              {/* Content */}
-              <div className={`px-6 pb-6 ${isLongDescription ? '-mt-2' : '-mt-4'}`}>
-                {/* Important Notes as Header - Show if exists */}
-                {data.important_notes && (
-                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl mb-4">
-                    <p className="text-base text-gray-700 leading-relaxed">
-                      {data.important_notes}
-                    </p>
-                  </div>
-                )}
-
-                {/* Description Text */}
-                <p className="text-gray-700 leading-relaxed text-base">
-                  {isDescriptionExpanded || !isLongDescription ? data.description : previewText}
-                </p>
-              </div>
+                </button>
+              )}
             </div>
           );
         })()}

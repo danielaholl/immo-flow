@@ -1,12 +1,37 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthContext } from '@/app/providers/AuthProvider';
 import { Header } from '../components/Header';
 import { trpc } from '@/lib/trpc';
+import { useSubscription, type PlanType } from '@/hooks/useSubscription';
 import type { SearchHistory, UserPreferencesParsed } from './types';
-import { User, Phone, Mail, MapPin, Building2, Shield, ChevronRight, Rows3, Edit3, LogOut, Home, Plus, Eye, Heart, Camera, Send, ImagePlus, Search, Clock, X, Sparkles, TrendingUp } from 'lucide-react';
+import { User, Phone, Mail, MapPin, Building2, Shield, ChevronRight, Rows3, Edit3, LogOut, Home, Plus, Eye, Heart, Camera, Send, ImagePlus, Search, Clock, X, Sparkles, TrendingUp, Crown } from 'lucide-react';
+
+// Plan display names (fallback prices are fetched from API)
+const planNames: Record<PlanType, string> = {
+  free: 'Free',
+  sucher: 'Sucher',
+  investor: 'Investor',
+  pro: 'Pro',
+  makler_pro: 'Makler Pro',
+  makler_enterprise: 'Makler Enterprise',
+  verkauf_starter: 'Verkauf Starter',
+  verkauf_premium: 'Verkauf Premium',
+};
+
+// Fallback prices (used while loading from Stripe)
+const fallbackPrices: Record<PlanType, number> = {
+  free: 0,
+  sucher: 9,
+  investor: 29,
+  pro: 79,
+  makler_pro: 99,
+  makler_enterprise: 249,
+  verkauf_starter: 99,
+  verkauf_premium: 249,
+};
 
 type MessageType = 'bot' | 'user';
 type InputType = 'quick-reply' | 'text' | 'textarea' | 'phone' | 'image-upload' | 'none';
@@ -164,6 +189,25 @@ function isProfileComplete(profile: any): boolean {
 export default function ProfilePage() {
   const { user, profile, loading: authLoading, refreshProfile, signOut } = useAuthContext();
   const router = useRouter();
+  const { plan, subscription, manageSubscription, isPortalLoading } = useSubscription();
+
+  // Fetch dynamic prices from Stripe
+  const { data: stripePlans } = trpc.payments.getPlans.useQuery(undefined, {
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    retry: 1,
+  });
+
+  // Create price lookup from API data with fallback
+  const planPrices = useMemo(() => {
+    if (!stripePlans) return fallbackPrices;
+    const prices = { ...fallbackPrices };
+    stripePlans.forEach(p => {
+      if (p.id in prices) {
+        prices[p.id as PlanType] = p.price;
+      }
+    });
+    return prices;
+  }, [stripePlans]);
 
   // View mode: 'overview' for existing profiles, 'edit' for new/editing profiles
   const [viewMode, setViewMode] = useState<'overview' | 'edit'>('overview');
@@ -823,7 +867,71 @@ export default function ProfilePage() {
                   Account
                 </h2>
 
-                <div className="space-y-2">
+                <div className="space-y-3">
+                  {/* Subscription Card */}
+                  <div className="bg-gradient-to-r from-primary/5 to-purple-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Crown size={18} className="text-primary" />
+                        <span className="font-medium text-gray-900">Dein Plan</span>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        plan === 'free' ? 'bg-gray-100 text-gray-600' : 'bg-primary/10 text-primary'
+                      }`}>
+                        {planNames[plan]}
+                      </span>
+                    </div>
+
+                    <div className="text-2xl font-bold text-gray-900 mb-1">
+                      {planPrices[plan]}€<span className="text-sm font-normal text-gray-500">/Monat</span>
+                    </div>
+
+                    {subscription?.currentPeriodEnd && (
+                      <p className="text-xs text-gray-500">
+                        {subscription.cancelAtPeriodEnd
+                          ? `Endet am ${new Date(subscription.currentPeriodEnd).toLocaleDateString('de-DE')}`
+                          : `Verlängert am ${new Date(subscription.currentPeriodEnd).toLocaleDateString('de-DE')}`
+                        }
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Upgrade Button - for free users or users who can upgrade */}
+                  {(plan === 'free' || plan === 'sucher' || plan === 'investor') && (
+                    <button
+                      onClick={() => router.push('/pricing')}
+                      className={`w-full flex items-center justify-between p-3 rounded-lg transition-colors ${
+                        plan === 'free'
+                          ? 'bg-primary text-white hover:bg-primary/90'
+                          : 'bg-gradient-to-r from-primary/10 to-purple-100 text-primary hover:from-primary/20 hover:to-purple-200'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Crown size={18} />
+                        <span>{plan === 'free' ? 'Jetzt upgraden' : 'Auf höheren Plan upgraden'}</span>
+                      </div>
+                      <ChevronRight size={18} />
+                    </button>
+                  )}
+
+                  {/* Manage Subscription Button - only for paid users */}
+                  {plan !== 'free' && (
+                    <button
+                      onClick={() => manageSubscription()}
+                      disabled={isPortalLoading}
+                      className="w-full flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors text-left disabled:opacity-50"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Crown size={18} className="text-gray-400" />
+                        <span className="text-gray-900">
+                          {isPortalLoading ? 'Wird geladen...' : 'Abo verwalten'}
+                        </span>
+                      </div>
+                      <ChevronRight size={18} className="text-gray-400" />
+                    </button>
+                  )}
+
+                  {/* Password Change Button */}
                   <button
                     onClick={() => alert('Passwort ändern wird implementiert')}
                     className="w-full flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors text-left"

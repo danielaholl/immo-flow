@@ -421,16 +421,6 @@ export default function MyPropertiesPage() {
                     Alle ({properties.length})
                   </button>
                   <button
-                    onClick={() => setStatusFilter('pending')}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                      statusFilter === 'pending'
-                        ? 'bg-gray-900 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Entwürfe ({properties.filter(p => p.status === 'pending').length})
-                  </button>
-                  <button
                     onClick={() => setStatusFilter('active')}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                       statusFilter === 'active'
@@ -466,16 +456,6 @@ export default function MyPropertiesPage() {
                     }`}
                   >
                     Alle ({properties.length})
-                  </button>
-                  <button
-                    onClick={() => setStatusFilter('pending')}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                      statusFilter === 'pending'
-                        ? 'bg-gray-900 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Entwürfe ({properties.filter(p => p.status === 'pending').length})
                   </button>
                   <button
                     onClick={() => setStatusFilter('active')}

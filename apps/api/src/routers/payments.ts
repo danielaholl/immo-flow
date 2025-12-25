@@ -4,7 +4,7 @@
  */
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure } from '../trpc.js';
+import { router, protectedProcedure, publicProcedure } from '../trpc.js';
 import { query, queryOne } from '../db.js';
 import {
   stripe,
@@ -20,6 +20,74 @@ import {
   isSubscriptionPlan,
   hasFeatureAccess,
 } from '../config/stripe-prices.js';
+
+// Cache for Stripe prices (refresh every 5 minutes)
+let stripePricesCache: {
+  data: Record<string, { priceEur: number; interval: string }> | null;
+  timestamp: number;
+} = { data: null, timestamp: 0 };
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Fetch prices from Stripe API
+ */
+async function fetchStripePrices(): Promise<Record<string, { priceEur: number; interval: string }>> {
+  // Check cache
+  if (stripePricesCache.data && Date.now() - stripePricesCache.timestamp < CACHE_TTL) {
+    return stripePricesCache.data;
+  }
+
+  if (!isStripeConfigured()) {
+    console.log('[Payments] Stripe not configured, using fallback prices');
+    return {};
+  }
+
+  const prices: Record<string, { priceEur: number; interval: string }> = {};
+
+  try {
+    // Fetch all prices from Stripe in one call
+    const priceIds = Object.values(STRIPE_PRICES).map(p => p.stripePriceId);
+    const stripePriceList = await stripe.prices.list({
+      active: true,
+      limit: 100,
+    });
+
+    // Map Stripe prices to our plan types
+    for (const [planType, config] of Object.entries(STRIPE_PRICES)) {
+      const stripePrice = stripePriceList.data.find(p => p.id === config.stripePriceId);
+
+      if (stripePrice) {
+        prices[planType] = {
+          priceEur: (stripePrice.unit_amount || 0) / 100,
+          interval: stripePrice.recurring?.interval || 'one_time',
+        };
+      } else {
+        // Fallback to config if price not found in Stripe
+        prices[planType] = {
+          priceEur: config.priceEur,
+          interval: config.interval,
+        };
+      }
+    }
+
+    // Update cache
+    stripePricesCache = { data: prices, timestamp: Date.now() };
+    console.log('[Payments] Fetched prices from Stripe:', Object.keys(prices).length, 'plans');
+
+    return prices;
+  } catch (error) {
+    console.error('[Payments] Failed to fetch Stripe prices:', error);
+    // Return fallback prices from config
+    const fallback: Record<string, { priceEur: number; interval: string }> = {};
+    for (const [planType, config] of Object.entries(STRIPE_PRICES)) {
+      fallback[planType] = {
+        priceEur: config.priceEur,
+        interval: config.interval,
+      };
+    }
+    return fallback;
+  }
+}
 
 export const paymentsRouter = router({
   /**
@@ -203,16 +271,24 @@ export const paymentsRouter = router({
     }),
 
   /**
-   * Get available plans with pricing
+   * Get available plans with pricing (fetches from Stripe)
+   * Public endpoint - no auth required for pricing page
    */
-  getPlans: protectedProcedure.query(async () => {
-    return Object.entries(STRIPE_PRICES).map(([key, config]) => ({
-      id: key,
-      name: config.name,
-      price: config.priceEur,
-      interval: config.interval,
-      features: config.features,
-    }));
+  getPlans: publicProcedure.query(async () => {
+    // Fetch prices from Stripe (with caching)
+    const stripePrices = await fetchStripePrices();
+
+    return Object.entries(STRIPE_PRICES).map(([key, config]) => {
+      const stripeData = stripePrices[key];
+      return {
+        id: key,
+        name: config.name,
+        // Use Stripe price if available, otherwise fallback to config
+        price: stripeData?.priceEur ?? config.priceEur,
+        interval: stripeData?.interval ?? config.interval,
+        features: config.features,
+      };
+    });
   }),
 
   /**

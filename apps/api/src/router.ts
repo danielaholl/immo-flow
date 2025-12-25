@@ -19,6 +19,7 @@ import { aiSearchRouter } from './routers/ai-search.js';
 import { documentAccessRouter } from './routers/document-access.js';
 import { userPropertyParametersRouter } from './routers/userPropertyParameters.js';
 import { paymentsRouter } from './routers/payments.js';
+import { portfolioRouter } from './routers/portfolio.js';
 
 export const appRouter = router({
   auth: authRouter,
@@ -37,6 +38,7 @@ export const appRouter = router({
   documentAccess: documentAccessRouter,
   userPropertyParameters: userPropertyParametersRouter,
   payments: paymentsRouter,
+  portfolio: portfolioRouter,
 });
 
 // Export type definition of API

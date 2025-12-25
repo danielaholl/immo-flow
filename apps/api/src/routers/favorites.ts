@@ -6,20 +6,20 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure, getUserPlan } from '../trpc.js';
 import { query, queryOne } from '../db.js';
-import { PROPERTY_LIST_FIELDS } from '../lib/propertyQueryBuilder.js';
+import { PROPERTY_JSON_FIELDS } from '../lib/propertyQueryBuilder.js';
 
 // Maximum favorites for free users
 const FREE_FAVORITES_LIMIT = 5;
 
 export const favoritesRouter = router({
-  // Get user favorites - optimized with JOINs and lightweight fields
-  // Uses PROPERTY_LIST_FIELDS to reduce payload size (excludes documents, detailed evaluations)
+  // Get user favorites - includes full property data for detail view
+  // Uses PROPERTY_JSON_FIELDS to include description, documents, etc.
   getAll: protectedProcedure.query(async ({ ctx }) => {
     const favorites = await query(
       `SELECT
         f.*,
         json_build_object(
-          ${PROPERTY_LIST_FIELDS},
+          ${PROPERTY_JSON_FIELDS},
           'owner', json_build_object(
             'id', up.id,
             'user_id', up.user_id,

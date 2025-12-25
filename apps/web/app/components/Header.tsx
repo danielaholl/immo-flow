@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { Heart, HouseHeart, MessageSquare, Compass, Home, User, LogIn, UserPlus, Menu, X, Tag } from 'lucide-react';
+import { Heart, HouseHeart, MessageSquare, Compass, Home, User, LogIn, UserPlus, Menu, X, Tag, Briefcase } from 'lucide-react';
 import { useAuthContext } from '../providers/AuthProvider';
 import { useEffect, useState } from 'react';
 import { trpc } from '@/lib/trpc';
@@ -84,6 +84,12 @@ export function Header() {
                         <div className="flex items-center gap-1.5">
                           <Heart size={18} />
                           <span>Favoriten</span>
+                        </div>
+                      </Link>
+                      <Link href="/portfolio" className="text-text-primary hover:text-primary text-base">
+                        <div className="flex items-center gap-1.5">
+                          <Briefcase size={18} />
+                          <span>Portfolio</span>
                         </div>
                       </Link>
                       <Link href="/my-properties" className="text-text-primary hover:text-primary text-base">

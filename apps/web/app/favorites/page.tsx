@@ -13,9 +13,9 @@ import { ShareLinkModal } from '../components/ShareLinkModal';
 import type { PropertyDocument } from '../create-listing/types';
 import { mapToPropertyPreviewData } from '../utils/propertyMapper';
 import { PropertyActionButtons } from '../components/PropertyActionButtons';
-import { InvestmentScoreBadge, GlassButton, PropertyScoreBadge } from '@immoflow/ui';
+import { InvestmentScoreBadge, PropertyGlassActions, PropertyScoreBadge } from '@immoflow/ui';
 // import { PropertyFeedbackModal } from '@immoflow/ui'; // Component doesn't exist
-import { MapPin, Home, Heart, X, Plus, Share2, MessageSquare } from 'lucide-react';
+import { MapPin, Home, Heart, Plus } from 'lucide-react';
 import { PropertyListThumbnail } from '../components/PropertyListThumbnail';
 import { trpc } from '@/lib/trpc';
 import { useMasterDetailNavigation } from '@/app/hooks/useMasterDetailNavigation';
@@ -454,44 +454,14 @@ export default function FavoritesPage() {
                       )}
 
                       {/* Action Buttons - Bottom Right */}
-                      <div className="absolute bottom-5 right-3 z-20 flex flex-col gap-2">
-                        <GlassButton
-                          variant="default"
-                          iconOnly
-                          subtleBorder
-                          iconLeft={<Share2 strokeWidth={2} />}
-                          onClick={() => setIsShareModalOpen(true)}
-                          tooltip="Teilen"
-                          ariaLabel="Teilen"
-                        />
-                        <GlassButton
-                          variant="default"
-                          iconOnly
-                          subtleBorder
-                          iconLeft={<MessageSquare strokeWidth={2} />}
-                          onClick={handleStartMessage}
-                          tooltip="Nachricht senden"
-                          ariaLabel="Nachricht senden"
-                        />
-                        <GlassButton
-                          variant="default"
-                          iconOnly
-                          subtleBorder
-                          iconLeft={<X strokeWidth={2.5} />}
-                          onClick={handleDismiss}
-                          tooltip="Nicht interessiert"
-                          ariaLabel="Nicht interessiert"
-                        />
-                        <GlassButton
-                          variant="favorite"
-                          iconOnly
-                          subtleBorder
-                          iconLeft={<Heart fill="#FF385C" strokeWidth={2} />}
-                          onClick={() => handleRemoveFavorite(selectedProperty.id)}
-                          tooltip="Favorit entfernen"
-                          ariaLabel="Favorit entfernen"
-                        />
-                      </div>
+                      <PropertyGlassActions
+                        className="absolute bottom-5 right-3 z-20"
+                        isFavorite={true}
+                        onFavorite={() => handleRemoveFavorite(selectedProperty.id)}
+                        onMessage={handleStartMessage}
+                        onShare={() => setIsShareModalOpen(true)}
+                        onDismiss={handleDismiss}
+                      />
                     </>
                   }
                 >

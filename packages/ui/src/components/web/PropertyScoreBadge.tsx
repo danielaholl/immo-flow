@@ -61,25 +61,35 @@ function getBadgeInfo(displayScore: number): BadgeInfo {
 export function PropertyScoreBadge({ score, variant = 'overlay' }: PropertyScoreBadgeProps) {
   const displayScore = toDisplayScore(score);
   const { dotColor } = getBadgeInfo(displayScore);
+  // Score als 2-stellige Zahl (0-100) anzeigen
+  const twoDigitScore = Math.round(score);
 
   return (
     <div
-      className="w-[52px] h-[52px] rounded-full flex items-center justify-center"
+      className="h-[52px] rounded-full flex items-center gap-2 px-4"
       style={{
         backdropFilter: 'blur(4px)',
         WebkitBackdropFilter: 'blur(4px)',
-        border: `1px solid ${dotColor}`,
+        border: '1px solid rgba(255, 255, 255, 0.5)',
+        background: 'rgba(0, 0, 0, 0.3)',
       }}
     >
-      {/* Score */}
+      {/* Ampel-Dot */}
       <div
-        className="text-[28px] font-bold leading-none"
+        className="w-4 h-4 rounded-full flex-shrink-0"
         style={{
-          color: dotColor,
+          backgroundColor: dotColor,
+          boxShadow: `0 0 8px ${dotColor}`,
+        }}
+      />
+      {/* Score in weiß (2-stellig) */}
+      <div
+        className="text-[28px] font-bold leading-none text-white"
+        style={{
           textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
         }}
       >
-        {displayScore}
+        {twoDigitScore}
       </div>
     </div>
   );

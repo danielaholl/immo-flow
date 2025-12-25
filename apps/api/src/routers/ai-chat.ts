@@ -26,6 +26,10 @@ const PropertyDataSchema = z.object({
   year_built: z.number().nullish(),
   available_from: z.string().nullish(),
   important_notes: z.string().nullish(),
+  // Financial fields
+  monthly_fee: z.number().nullish(),        // Hausgeld
+  monthly_rent: z.number().nullish(),       // Mieteinnahmen (bei Kapitalanlage)
+  commission_rate: z.number().nullish(),    // Maklerprovision in %
 });
 
 export type ExtractedPropertyData = z.infer<typeof PropertyDataSchema>;
@@ -58,8 +62,10 @@ export const aiChatRouter = router({
 
       try {
         // Calculate which fields are already known and which are still missing
-        const priority1Fields = ['property_type', 'title', 'location', 'price', 'sqm', 'rooms', 'condition'] as const;
-        const priority2Fields = ['bathrooms', 'floor_level', 'total_floors', 'year_built', 'postal_code', 'street_address', 'description', 'features', 'available_from', 'important_notes'] as const;
+        // Note: title and description are auto-generated, so they're not in priority fields
+        // commission_rate is priority 1 because it's important financial info shown below price
+        const priority1Fields = ['property_type', 'location', 'price', 'commission_rate', 'sqm', 'rooms', 'condition'] as const;
+        const priority2Fields = ['bathrooms', 'floor_level', 'total_floors', 'year_built', 'postal_code', 'street_address', 'features', 'available_from', 'important_notes', 'monthly_fee', 'monthly_rent'] as const;
 
         const missingPriority1 = priority1Fields.filter(field => !currentData[field as keyof typeof currentData]);
         const missingPriority2 = priority2Fields.filter(field => !currentData[field as keyof typeof currentData]);
@@ -144,19 +150,94 @@ ${missingPriority1.length > 0 ? missingPriority1.join(', ') : 'ALLE PFLICHTFELDE
 ${missingPriority2.length > 0 ? missingPriority2.join(', ') : 'Keine'}
 
 -------------------------------------------------------------------
-WICHTIGSTE REGEL: Frage NIEMALS nach Feldern, die oben unter "BEREITS BEKANNTE DATEN" aufgefuehrt sind!
-Wenn z.B. property_type bereits bekannt ist (z.B. "apartment"), dann frage NICHT "Um welche Art von Immobilie handelt es sich?"
+WICHTIGSTE REGELN:
+1. Frage NIEMALS nach Feldern, die oben unter "BEREITS BEKANNTE DATEN" aufgefuehrt sind!
+2. Frage NIEMALS zweimal nach dem gleichen Feld!
+3. Wenn der User "Wohnung", "Apartment" o.ae. sagt -> property_type = 'apartment' (NICHT nochmal fragen!)
+4. Wenn der User "Haus", "Einfamilienhaus" o.ae. sagt -> property_type = 'house' (NICHT nochmal fragen!)
 -------------------------------------------------------------------
+
+AUTOMATISCHE ERKENNUNG VON IMMOBILIENTYPEN (SEHR WICHTIG!):
+- "Wohnung", "Apartment", "Eigentumswohnung", "ETW", "Zimmer-Wohnung" -> property_type = 'apartment'
+- "Haus", "Einfamilienhaus", "EFH", "Reihenhaus", "Doppelhaushaelfte", "DHH" -> property_type = 'house'
+- "Villa", "Landhaus" -> property_type = 'villa'
+- "Gewerbe", "Buero", "Laden", "Geschaeft" -> property_type = 'commercial'
+Wenn der User einen dieser Begriffe erwaehnt, setze property_type entsprechend und frage NICHT nochmal danach!
+
+AUTOMATISCHE GENERIERUNG VON TITEL UND BESCHREIBUNG (SEHR WICHTIG - IMMER SOFORT MACHEN!):
+Bei JEDER Antwort MUSST du title und description generieren oder AKTUALISIEREN!
+
+WICHTIG: Wenn der User neue Infos liefert, AKTUALISIERE title und description entsprechend!
+- Neuer Preis bekannt? -> Evtl. "Attraktiver Preis" oder Preisklasse im Titel erwaehnen
+- Neue Features? -> In die Beschreibung aufnehmen
+- Baujahr/Zustand bekannt? -> "Kernsaniert 2022" oder "Neubau" im Titel/Beschreibung
+- Besondere Lage? -> "Ruhige Lage", "Zentral", "Mit Bergblick" etc. hervorheben
+
+1. **title**: Erstelle/aktualisiere einen catchy, modernen Titel
+   - MAXIMAL 50-60 ZEICHEN! Kurz und praegnant halten!
+   - Optional: EIN Emoji am Anfang (☀️🏠✨🌳) fuer Social-Media-Appeal
+   - Format: "[Emoji] [Adjektiv] [Zimmer]-Zi in [Stadtteil]" oder kreativ
+   - Beispiele (alle unter 50 Zeichen):
+     * "☀️ Sonnige 2-Zi-Wohnung in Moosach" (34 Zeichen)
+     * "✨ Sanierte 3-Zi mit Isar-Naehe" (31 Zeichen)
+     * "🏔️ Helle 2-Zi mit Bergblick" (27 Zeichen)
+     * "Stylische City-Wohnung in Schwabing" (35 Zeichen)
+   - Kuerze: "Zimmer" -> "Zi", "Wohnung" kann auch weg wenn klar
+   - Bei Updates: Tausche Highlights aus, aber halte es kurz!
+
+2. **description**: Erstelle/aktualisiere eine STORYTELLING-Beschreibung (Social-Media-Style)
+   - NICHT wie ein trockener Makler schreiben! Sondern emotional, modern, catchy
+   - Perfekt fuer TikTok, Instagram und junge Zielgruppen
+   - KLARE TRENNUNG der Bereiche mit Ueberschriften!
+
+   STRUKTUR der Beschreibung (mit klaren Ueberschriften):
+
+   **✨ Der Vibe**
+   1-2 Saetze die ein Bild malen, wie sich das Leben dort anfuehlt.
+
+   **📋 Die Hard-Facts**
+   Bullet-Points mit Emojis fuer alle wichtigen Fakten:
+   • 📐 Flaeche
+   • 🍳 Kueche
+   • 🛀 Bad
+   • 🚗 Parken
+   • ☀️ Balkon/Terrasse
+   • 🏗️ Zustand
+
+   **📍 Location-Check**
+   1-2 Saetze zur Lage: Anbindung, Umgebung, Lifestyle.
+
+   TONALITAET je nach Zielgruppe:
+   - Jung/Singles/Paare: Locker, "Place-to-be", "Dein neues Nest"
+   - Familien: Warm, "Platz fuer alle", "Euer Familientraum"
+   - Investoren: Rendite-Fokus, Zahlen betonen
+
+   BEISPIEL (mit klarer Struktur):
+   "✨ Der Vibe
+   Stell dir vor: Feierabend auf deinem eigenen Sued-Balkon, die Sonne im Gesicht, und die U-Bahn direkt ums Eck. Diese 2-Zimmer-Wohnung verbindet entspanntes Wohnen mit dem Puls von Muenchen.
+
+   📋 Die Hard-Facts
+   • 📐 52 m² perfekt geschnitten
+   • 🍳 EBK inklusive – ready to cook
+   • 🛀 Bad 2022 komplett saniert
+   • 🚗 Eigener Tiefgaragenstellplatz
+   • ☀️ Suedbalkon fuer Sonnenanbeter
+
+   📍 Location-Check
+   Moosach ist der Place-to-be! Olympiapark in 10 Min zum Joggen, U3 bringt dich in Rekordzeit in die City oder zu BMW."
 
 Deine Aufgabe:
 1. Extrahiere strukturierte Daten aus der Nachricht des Benutzers
-2. Bestaetige die NEU erkannten Werte in einer kurzen Auflistung
-3. WENN alle Pflichtfelder vorhanden sind:
+2. GENERIERE oder AKTUALISIERE title und description bei JEDER Antwort!
+   - Erste Nachricht: Erstelle initiale Version
+   - Folgenachrichten: Aktualisiere wenn neue relevante Infos (Features, Lage, Zustand, etc.)
+3. Bestaetige die NEU erkannten Werte in einer kurzen Auflistung
+4. WENN alle Pflichtfelder vorhanden sind:
    - Teile mit, welche optionalen Felder noch ergaenzt werden koennten
-   - Formuliere es als freundlichen Vorschlag, z.B.: "Du koenntest noch folgende Angaben ergaenzen: Baujahr, Etage, Beschreibung"
-   - Frage nach EINEM der fehlenden optionalen Felder
-4. WENN Pflichtfelder fehlen:
+   - Formuliere es als freundlichen Vorschlag
+5. WENN Pflichtfelder fehlen:
    - Frage nach dem naechsten fehlenden Pflichtfeld
+   - ABER: Stelle die Frage NUR EINMAL (nicht in response UND followUpQuestion!)
 
 WICHTIG - DEUTSCHE BEGRIFFE VERWENDEN:
 Verwende in deinen Antworten IMMER deutsche Begriffe, NIEMALS die englischen Feldnamen!
@@ -190,6 +271,9 @@ available_from -> Einzugstermin
 important_notes -> Besonderheiten
 heating_type -> Heizung
 energy_efficiency_class -> Energieklasse
+monthly_fee -> Hausgeld
+monthly_rent -> Mieteinnahmen
+commission_rate -> Maklerprovision
 
 ANTWORT-FORMAT (NUR DEUTSCHE BEGRIFFE, KEINE UMLAUTE!):
 Beispiel wenn Pflichtfelder fehlen:
@@ -227,10 +311,19 @@ Feldtypen (INTERN - nicht in Antworten verwenden!):
 - features: Array von Ausstattungsmerkmalen
 - available_from: Verfuegbar ab (Datum)
 - important_notes: WICHTIGE rechtliche und finanzielle Details
+- monthly_fee: Hausgeld in Euro pro Monat (Zahl, z.B. 170)
+- monthly_rent: Mieteinnahmen in Euro pro Monat bei Kapitalanlage (Zahl, z.B. 1500)
+- commission_rate: Maklerprovision in Prozent (Zahl, z.B. 3.57)
 
 WICHTIG - Property-Typ-abhaengige Felder:
 - Bei property_type = 'house' oder 'villa': Frage nach "Anzahl der Geschosse" (total_floors), NICHT nach Etage (floor_level)
 - Bei property_type = 'apartment': Frage nach "Etage" (floor_level)
+
+WICHTIG - Provision (commission_rate):
+- NACHDEM der Preis bekannt ist, IMMER fragen: "Wird die Immobilie mit Maklerprovision verkauft? Wenn ja, wie hoch ist sie in %?"
+- Wenn User "provisionsfrei", "keine Provision", "ohne Makler" sagt -> commission_rate: 0
+- Wenn User z.B. "3,57% Provision" oder "Maklergebuehr 3%" sagt -> commission_rate: 3.57
+- Die Provision wird unterhalb des Preises angezeigt, daher ist diese Info wichtig!
 
 REGELN:
 1. Frage NIEMALS nach Feldern, die bereits bekannt sind (oben aufgelistet)!
@@ -238,14 +331,28 @@ REGELN:
 3. Priorisiere Pflichtfelder vor optionalen Feldern
 4. Wenn alle Pflichtfelder vorhanden: Erwaehne welche optionalen Felder noch ergaenzt werden koennten
 5. Wenn der User "fertig", "das wars", "keine weiteren Angaben" sagt - setze userSaidComplete: true
+6. GENERIERE IMMER title und description - und AKTUALISIERE sie bei neuen Infos!
+7. KEINE DOPPELTEN FRAGEN: Wenn du in "response" eine Frage stellst, setze "followUpQuestion" auf null!
 
 Antworte im JSON Format:
 {
-  "extractedData": { ... extrahierte Felder ... },
-  "response": "Deine Antwort mit Auflistung der erkannten Werte UND Hinweis auf ergaenzbare Felder",
-  "missingFields": ["field1", "field2"],
-  "optionalFieldsSuggestion": "Baujahr, Etage, Beschreibung", // Liste der optionalen Felder die noch ergaenzt werden koennten (nur wenn alle Pflichtfelder vorhanden)
-  "followUpQuestion": "Frage nach einem fehlenden Feld" // null wenn User fertig ist
+  "extractedData": {
+    "property_type": "apartment",  // IMMER setzen wenn User "Wohnung" etc. erwaehnt!
+    "title": "Sonnige 2-Zi-Wohnung in Moosach",  // MAX 50-60 Zeichen! Kurz halten!
+    "description": "✨ Der Vibe\nStell dir vor: Feierabend auf deinem eigenen Sued-Balkon, die Sonne im Gesicht, und die U-Bahn direkt ums Eck. Diese 2-Zimmer-Wohnung verbindet entspanntes Wohnen mit dem Puls von Muenchen.\n\n📋 Die Hard-Facts\n• 📐 52 m² perfekt geschnitten\n• 🍳 EBK inklusive – ready to cook\n• 🛀 Bad 2022 komplett saniert\n• 🚗 Eigener Tiefgaragenstellplatz\n• ☀️ Suedbalkon fuer Sonnenanbeter\n\n📍 Location-Check\nMoosach ist der Place-to-be! Olympiapark in 10 Min zum Joggen, U3 bringt dich in Rekordzeit in die City.",  // STORYTELLING mit klaren Bereichen!
+    "location": "Muenchen-Moosach",
+    "street_address": "Dresdner Str. 1",
+    "sqm": 52,
+    "rooms": 2,
+    "floor_level": "3",  // "3 OG" oder "3. Stock" -> "3"
+    "monthly_fee": 170,  // Hausgeld in Euro
+    "monthly_rent": 1500,  // Mieteinnahmen bei Kapitalanlage
+    "features": ["EBK", "Suedbalkon", "Bad 2022 saniert", "Tiefgarage"]
+  },
+  "response": "Ok, ich habe erfasst:\n- Etage: 3. OG\n- Hausgeld: 170 Euro/Monat\n- Mieteinnahmen: 1.500 Euro/Monat\n\nTitel und Beschreibung wurden aktualisiert - schau in die Vorschau!",
+  "missingFields": [],
+  "optionalFieldsSuggestion": "Baujahr, Energieklasse",
+  "followUpQuestion": null,  // IMMER null! Frage steht bereits in response
   "userSaidComplete": false
 }`;
 
@@ -292,7 +399,8 @@ Antworte im JSON Format:
         console.log('[AI Chat] Merged data:', JSON.stringify(mergedData, null, 2));
 
         // Determine required fields that are still missing
-        const requiredFields = ['property_type', 'title', 'location', 'price', 'sqm', 'rooms', 'condition'];
+        // Note: title is auto-generated so not required from user
+        const requiredFields = ['property_type', 'location', 'price', 'sqm', 'rooms', 'condition'];
         const missingRequiredFields = requiredFields.filter(field => !mergedData[field]);
 
         // Only complete if user explicitly said they're done

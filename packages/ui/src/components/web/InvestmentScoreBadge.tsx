@@ -84,14 +84,16 @@ export function InvestmentScoreBadge({
     red: '!',
   }[colorClass] : null;
 
+  // 2-stelliger Score (0-100)
+  const twoDigitScore = score !== null && score !== undefined ? Math.round(score) : 0;
+
   return (
     <div
       className={`inline-flex items-center gap-1.5 font-semibold rounded-full border ${colorClass} ${sizeClasses[size]} ${className}`}
-      title={`Investment-Score: ${scoreValue}/5 - ${label}`}
+      title={`Investment-Score: ${twoDigitScore} - ${label}`}
     >
       <span className="text-lg leading-none">{icon}</span>
-      <span>{scoreValue}</span>
-      {showLabel && <span className="font-normal">/ 5</span>}
+      <span>{twoDigitScore}</span>
     </div>
   );
 }

@@ -27,4 +27,5 @@ export {
   type GlassButtonVariant,
   type GlassButtonSize,
 } from './web/GlassButton';
+export { PropertyGlassActions, type PropertyGlassActionsProps } from './web/PropertyGlassActions';
 export * from './web/PropertyImagePlaceholder';

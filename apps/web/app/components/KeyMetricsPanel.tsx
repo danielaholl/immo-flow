@@ -89,6 +89,9 @@ const getStateFromLocation = (location?: string): string | null => {
 };
 
 export interface KeyMetricsPanelProps {
+  // AI Score
+  aiScore?: number;           // AI Investment Score (0-100)
+
   // Daten aus BuyerEvaluation
   grossYield?: number;        // Brutto Rendite in %
   rentMultiplier?: number;    // Faktor (Kaufpreis / Jahresmiete)
@@ -197,6 +200,7 @@ const calculateBreakeven = (purchasePrice?: number, monthlyCashflow?: number): n
 };
 
 export function KeyMetricsPanel({
+  aiScore,
   grossYield,
   rentMultiplier,
   monthlyCashflow: externalCashflow,
@@ -220,6 +224,9 @@ export function KeyMetricsPanel({
   className = '',
 }: KeyMetricsPanelProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const [isKaufnebenkostenExpanded, setIsKaufnebenkostenExpanded] = useState(false);
+  const [isKapitaldienstExpanded, setIsKapitaldienstExpanded] = useState(false);
+  const [isCashflowExpanded, setIsCashflowExpanded] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
 
   // Edit-States - null bedeutet "nutze Default-Wert"
@@ -401,10 +408,10 @@ export function KeyMetricsPanel({
     return (jahresmiete / effectivePurchasePrice) * 100;
   };
 
-  // Lokale Rendite berechnen wenn User-Werte vorhanden, sonst Prop verwenden
-  const hasUserEditedRentOrPrice = editMonthlyRent !== null || editPurchasePrice !== null;
+  // Lokale Rendite berechnen wenn möglich, sonst Prop verwenden
+  // Dies ermöglicht auch Updates wenn sich der Preis über den Slider ändert
   const localGrossYield = calculateLocalGrossYield();
-  const effectiveGrossYield = hasUserEditedRentOrPrice && localGrossYield !== undefined
+  const effectiveGrossYield = localGrossYield !== undefined
     ? localGrossYield
     : grossYield;
 
@@ -420,8 +427,10 @@ export function KeyMetricsPanel({
     return effectivePurchasePrice / jahresmiete;
   };
 
+  // Lokale Berechnung wenn möglich, sonst Prop verwenden
+  // Dies ermöglicht auch Updates wenn sich der Preis über den Slider ändert
   const localRentMultiplier = calculateLocalRentMultiplier();
-  const effectiveRentMultiplier = hasUserEditedRentOrPrice && localRentMultiplier !== undefined
+  const effectiveRentMultiplier = localRentMultiplier !== undefined
     ? localRentMultiplier
     : rentMultiplier;
 
@@ -479,10 +488,10 @@ export function KeyMetricsPanel({
       <div className={`bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200 rounded-2xl border p-4 sm:p-6 ${className}`}>
         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
           <div className="flex items-start gap-3 flex-1 min-w-0">
-            <Sparkles size={20} className="flex-shrink-0 text-blue-600 mt-0.5" />
+            <span className="w-3 h-3 bg-green-500 rounded-full animate-pulse flex-shrink-0 mt-1.5" />
             <div className="flex-1 min-w-0">
-              <h4 className="text-base sm:text-lg font-semibold text-gray-900">
-                Kennzahlen auf einen Blick
+              <h4 className="text-base sm:font-semibold text-gray-900">
+                Deal-Insights
               </h4>
               <p className="text-gray-600 text-sm">
                 Erhalte eine KI-basierte Berechnung der wichtigsten Investment-Kennzahlen.
@@ -521,9 +530,9 @@ export function KeyMetricsPanel({
       >
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2 min-w-0">
-            <TrendingUp size={18} className="flex-shrink-0 text-blue-600" />
-            <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">
-              Kennzahlen auf einen Blick
+            <span className="w-4 h-4 bg-green-500 rounded-full animate-pulse flex-shrink-0" />
+            <h3 className="font-semibold text-gray-900 text-base sm:text-lg truncate">
+              Deal-Insights
             </h3>
           </div>
           <ChevronDown
@@ -535,24 +544,54 @@ export function KeyMetricsPanel({
         {/* Key Metrics Cards - always shown */}
         <div className="grid gap-2 sm:gap-3 grid-cols-4">
           {/* Rendite */}
-          <div className="bg-gray-50 rounded-xl p-2 sm:p-3 text-center border border-gray-100">
-            <span className="text-xs text-gray-500">Rendite</span>
+          <div className={`rounded-xl p-2 sm:p-3 text-center border ${
+            effectiveGrossYield !== undefined && Number(effectiveGrossYield) >= 5
+              ? 'bg-green-50 border-green-200'
+              : effectiveGrossYield !== undefined && Number(effectiveGrossYield) >= 3
+                ? 'bg-yellow-50 border-yellow-200'
+                : effectiveGrossYield !== undefined && Number(effectiveGrossYield) > 0
+                  ? 'bg-red-50 border-red-200'
+                  : 'bg-gray-50 border-gray-100'
+          }`}>
+            <span className="text-sm text-gray-500">Rendite</span>
             <div className={`text-base sm:text-lg font-bold ${effectiveGrossYield !== undefined ? getYieldColor(Number(effectiveGrossYield)) : 'text-gray-400'}`}>
               {effectiveGrossYield !== undefined ? `${Number(effectiveGrossYield).toFixed(1)}%` : '—'}
             </div>
           </div>
 
           {/* Faktor */}
-          <div className="bg-gray-50 rounded-xl p-2 sm:p-3 text-center border border-gray-100">
-            <span className="text-xs text-gray-500">Faktor</span>
-            <div className="text-base sm:text-lg font-bold text-gray-900">
+          <div className={`rounded-xl p-2 sm:p-3 text-center border ${
+            effectiveRentMultiplier !== undefined && Number(effectiveRentMultiplier) <= 20
+              ? 'bg-green-50 border-green-200'
+              : effectiveRentMultiplier !== undefined && Number(effectiveRentMultiplier) <= 25
+                ? 'bg-yellow-50 border-yellow-200'
+                : effectiveRentMultiplier !== undefined && Number(effectiveRentMultiplier) > 0
+                  ? 'bg-red-50 border-red-200'
+                  : 'bg-gray-50 border-gray-100'
+          }`}>
+            <span className="text-sm text-gray-500">Faktor</span>
+            <div className={`text-base sm:text-lg font-bold ${
+              effectiveRentMultiplier !== undefined && Number(effectiveRentMultiplier) <= 20
+                ? 'text-green-600'
+                : effectiveRentMultiplier !== undefined && Number(effectiveRentMultiplier) <= 25
+                  ? 'text-yellow-600'
+                  : effectiveRentMultiplier !== undefined
+                    ? 'text-red-600'
+                    : 'text-gray-400'
+            }`}>
               {effectiveRentMultiplier !== undefined ? `${Number(effectiveRentMultiplier).toFixed(1)}x` : '—'}
             </div>
           </div>
 
           {/* Cashflow */}
-          <div className="bg-gray-50 rounded-xl p-2 sm:p-3 text-center border border-gray-100">
-            <span className="text-xs text-gray-500">Cashflow</span>
+          <div className={`rounded-xl p-2 sm:p-3 text-center border ${
+            monthlyCashflow !== undefined && Number(monthlyCashflow) > 0
+              ? 'bg-green-50 border-green-200'
+              : monthlyCashflow !== undefined && Number(monthlyCashflow) < 0
+                ? 'bg-red-50 border-red-200'
+                : 'bg-gray-50 border-gray-100'
+          }`}>
+            <span className="text-sm text-gray-500">Cashflow</span>
             <div className={`text-base sm:text-lg font-bold ${monthlyCashflow !== undefined ? getCashflowColor(Number(monthlyCashflow)) : 'text-gray-400'}`}>
               {monthlyCashflow !== undefined
                 ? `${Number(monthlyCashflow) >= 0 ? '+' : ''}${Number(monthlyCashflow).toLocaleString('de-DE')}€`
@@ -561,8 +600,14 @@ export function KeyMetricsPanel({
           </div>
 
           {/* Cash on Cash */}
-          <div className="bg-gray-50 rounded-xl p-2 sm:p-3 text-center border border-gray-100">
-            <span className="text-xs text-gray-500 leading-tight block">Cash on Cash</span>
+          <div className={`rounded-xl p-2 sm:p-3 text-center border ${
+            monthlyCashflow !== undefined && eigenkapital > 0 && monthlyCashflow > 0
+              ? 'bg-green-50 border-green-200'
+              : monthlyCashflow !== undefined && eigenkapital > 0 && monthlyCashflow < 0
+                ? 'bg-red-50 border-red-200'
+                : 'bg-gray-50 border-gray-100'
+          }`}>
+            <span className="text-sm text-gray-500 leading-tight block">Cash on Cash</span>
             <div className={`text-base sm:text-lg font-bold ${monthlyCashflow !== undefined && eigenkapital > 0 ? getCashflowColor(monthlyCashflow) : 'text-gray-400'}`}>
               {monthlyCashflow !== undefined && eigenkapital > 0
                 ? `${((monthlyCashflow * 12 / eigenkapital) * 100).toFixed(1)}%`
@@ -579,13 +624,26 @@ export function KeyMetricsPanel({
           {/* 1. Kaufnebenkosten-Übersicht */}
           {(effectivePurchasePrice > 0 || isEditMode) && (
             <div className="pt-4 pb-4 border-b border-gray-100">
-              <div className="flex items-center gap-2 mb-3">
-                <Receipt size={16} className="text-blue-600" />
-                <h4 className="font-semibold text-gray-900">Kaufnebenkosten</h4>
+              <div
+                className="flex items-center justify-between cursor-pointer"
+                onClick={() => setIsKaufnebenkostenExpanded(!isKaufnebenkostenExpanded)}
+              >
+                <div className="flex items-center gap-2">
+                  <Receipt size={18} className="text-blue-600" />
+                  <h4 className="font-semibold text-gray-900 text-base">Gesamtinvestitionskosten</h4>
+                  <span className="text-base font-semibold text-blue-600">
+                    {formatCurrency(gesamtinvestition)}
+                  </span>
+                </div>
+                <ChevronDown
+                  size={18}
+                  className={`text-gray-400 transition-transform duration-200 ${isKaufnebenkostenExpanded ? 'rotate-180' : ''}`}
+                />
               </div>
-              <div className="space-y-2">
+              {isKaufnebenkostenExpanded && (
+              <div className="space-y-2 mt-3 text-sm">
                 {/* Kaufpreis */}
-                <div className="grid grid-cols-[140px_120px_1fr] items-center gap-2">
+                <div className="grid grid-cols-[155px_120px_1fr] items-center gap-2">
                   <span className="text-gray-600">Kaufpreis</span>
                   <div className="flex justify-center">
                     {isEditMode ? (
@@ -595,7 +653,7 @@ export function KeyMetricsPanel({
                           value={editPurchasePrice ?? ''}
                           onChange={(e) => setEditPurchasePrice(e.target.value === '' ? null : Number(e.target.value))}
                           placeholder={String(purchasePrice ?? 0)}
-                          className="w-28 pl-2 pr-6 py-1.5 border border-[#DDDDDD] rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none"
+                          className="w-36 pl-2 pr-6 py-1.5 border border-[#DDDDDD] rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none"
                           min="0"
                           step="1000"
                         />
@@ -603,7 +661,7 @@ export function KeyMetricsPanel({
                       </span>
                     ) : null}
                   </div>
-                  <span className="text-base font-semibold text-gray-900 text-right">
+                  <span className="font-semibold text-gray-900 text-right">
                     {formatCurrency(effectivePurchasePrice)}
                   </span>
                 </div>
@@ -613,7 +671,7 @@ export function KeyMetricsPanel({
                   <span className="text-gray-600">
                     + Grunderwerbsteuer ({grunderwerbsteuerRate.toFixed(1)}%){detectedState ? ` (${detectedState.charAt(0).toUpperCase() + detectedState.slice(1)})` : ''}
                   </span>
-                  <span className="text-base font-semibold text-gray-700">
+                  <span className="font-semibold text-gray-700">
                     {formatCurrency(grunderwerbsteuer)}
                   </span>
                 </div>
@@ -621,7 +679,7 @@ export function KeyMetricsPanel({
                 {/* Notarkosten */}
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">+ Notarkosten (~{notarkostenRate}%)</span>
-                  <span className="text-base font-semibold text-gray-700">
+                  <span className="font-semibold text-gray-700">
                     {formatCurrency(notarkosten)}
                   </span>
                 </div>
@@ -629,13 +687,13 @@ export function KeyMetricsPanel({
                 {/* Grundbuchkosten */}
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">+ Grundbuch (~{grundbuchRate}%)</span>
-                  <span className="text-base font-semibold text-gray-700">
+                  <span className="font-semibold text-gray-700">
                     {formatCurrency(grundbuchkosten)}
                   </span>
                 </div>
 
                 {/* Maklergebühren */}
-                <div className="grid grid-cols-[140px_100px_1fr] items-center gap-2">
+                <div className="grid grid-cols-[155px_115px_1fr] items-center gap-2">
                   <span className="text-gray-600">+ Maklergebühren</span>
                   <div className="flex justify-center">
                     {isEditMode ? (
@@ -656,13 +714,13 @@ export function KeyMetricsPanel({
                       <span className="text-gray-500">({maklerRate.toFixed(2)}%)</span>
                     )}
                   </div>
-                  <span className="text-base font-semibold text-gray-700 text-right">
+                  <span className="font-semibold text-gray-700 text-right">
                     {formatCurrency(maklergebuehren)}
                   </span>
                 </div>
 
                 {/* Renovierungskosten */}
-                <div className="grid grid-cols-[140px_100px_1fr] items-center gap-2">
+                <div className="grid grid-cols-[155px_115px_1fr] items-center gap-2">
                   <span className="text-gray-600">+ Renovierung</span>
                   <div className="flex justify-center">
                     {isEditMode ? (
@@ -678,11 +736,9 @@ export function KeyMetricsPanel({
                         />
                         <span className="absolute right-2 text-gray-500 text-sm pointer-events-none">€</span>
                       </span>
-                    ) : renovierungskosten > 0 ? (
-                      <span className="text-gray-500">(geschätzt)</span>
                     ) : null}
                   </div>
-                  <span className="text-base font-semibold text-gray-700 text-right">
+                  <span className="font-semibold text-gray-700 text-right">
                     {formatCurrency(renovierungskosten)}
                   </span>
                 </div>
@@ -695,22 +751,36 @@ export function KeyMetricsPanel({
                   </span>
                 </div>
               </div>
+              )}
             </div>
           )}
 
           {/* 2. Kapitaldienst */}
           {effectivePurchasePrice > 0 && (
             <div className="pt-4 pb-4 border-b border-gray-100">
-              <div className="flex items-center gap-2 mb-3">
-                <Landmark size={16} className="text-purple-600" />
-                <h4 className="font-semibold text-gray-900">Kapitaldienst</h4>
-                {!hasFinancingData && (
-                  <span className="text-xs text-gray-400 ml-auto">(Standardwerte)</span>
-                )}
+              <div
+                className="flex items-center justify-between cursor-pointer"
+                onClick={() => setIsKapitaldienstExpanded(!isKapitaldienstExpanded)}
+              >
+                <div className="flex items-center gap-2">
+                  <Landmark size={18} className="text-red-600" />
+                  <h4 className="font-semibold text-gray-900 text-base">Monatliche Rate</h4>
+                  <span className="text-base font-semibold text-red-600">
+                    -{formatCurrency(monatlicheRate)}
+                  </span>
+                  {!hasFinancingData && (
+                    <span className="text-xs text-gray-400">(Standardwerte)</span>
+                  )}
+                </div>
+                <ChevronDown
+                  size={18}
+                  className={`text-gray-400 transition-transform duration-200 ${isKapitaldienstExpanded ? 'rotate-180' : ''}`}
+                />
               </div>
-              <div className="space-y-2">
+              {isKapitaldienstExpanded && (
+              <div className="space-y-2 mt-3 text-sm">
                 {/* Eigenkapital */}
-                <div className="grid grid-cols-[140px_100px_1fr] items-center gap-2">
+                <div className="grid grid-cols-[155px_115px_1fr] items-center gap-2">
                   <span className="text-gray-600">Eigenkapital</span>
                   <div className="flex justify-center">
                     {isEditMode ? (
@@ -731,7 +801,7 @@ export function KeyMetricsPanel({
                       <span className="text-gray-500">({eigenkapitalRate.toFixed(0)}%)</span>
                     )}
                   </div>
-                  <span className="text-base font-semibold text-gray-900 text-right">
+                  <span className="font-semibold text-gray-900 text-right">
                     {formatCurrency(eigenkapital)}
                   </span>
                 </div>
@@ -739,13 +809,13 @@ export function KeyMetricsPanel({
                 {/* Darlehensbetrag */}
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Darlehensbetrag</span>
-                  <span className="text-base font-semibold text-gray-700">
+                  <span className="font-semibold text-gray-700">
                     {formatCurrency(darlehensbetrag)}
                   </span>
                 </div>
 
                 {/* Zinssatz mit monatlichem Betrag */}
-                <div className="grid grid-cols-[140px_100px_1fr] items-center gap-2">
+                <div className="grid grid-cols-[155px_115px_1fr] items-center gap-2">
                   <span className="text-gray-600">Zinssatz</span>
                   <div className="flex justify-center">
                     {isEditMode ? (
@@ -766,11 +836,11 @@ export function KeyMetricsPanel({
                       <span className="text-gray-500">({zinssatz.toFixed(2)}%)</span>
                     )}
                   </div>
-                  <span className="text-gray-600 text-right">{formatCurrency(Math.ceil(monatlicheZinsen))}/Monat</span>
+                  <span className="font-semibold text-gray-700 text-right">{formatCurrency(Math.ceil(monatlicheZinsen))}/Monat</span>
                 </div>
 
                 {/* Tilgung mit monatlichem Betrag */}
-                <div className="grid grid-cols-[140px_100px_1fr] items-center gap-2">
+                <div className="grid grid-cols-[155px_115px_1fr] items-center gap-2">
                   <span className="text-gray-600">Tilgung</span>
                   <div className="flex justify-center">
                     {isEditMode ? (
@@ -791,30 +861,47 @@ export function KeyMetricsPanel({
                       <span className="text-gray-500">({tilgung.toFixed(1)}%)</span>
                     )}
                   </div>
-                  <span className="text-gray-600 text-right">{formatCurrency(Math.ceil(monatlicheTilgung))}/Monat</span>
+                  <span className="font-semibold text-gray-700 text-right">{formatCurrency(Math.ceil(monatlicheTilgung))}/Monat</span>
                 </div>
 
                 {/* Monatliche Rate */}
                 <div className="flex justify-between items-center pt-2 border-t border-gray-200">
                   <span className="text-gray-900 font-bold">Monatliche Rate</span>
-                  <span className="text-lg font-bold text-purple-600">
+                  <span className="text-lg font-bold text-red-600">
                     {formatCurrency(monatlicheRate)}
                   </span>
                 </div>
               </div>
+              )}
             </div>
           )}
 
           {/* 3. Cashflow-Übersicht */}
-          <div className="pt-4 space-y-3">
-            <div className="flex items-center gap-2 mb-3">
-              <Wallet size={16} className="text-green-600" />
-              <h4 className="font-semibold text-gray-900">Monatlicher Cashflow</h4>
+          <div className="pt-4">
+            <div
+              className="flex items-center justify-between cursor-pointer"
+              onClick={() => setIsCashflowExpanded(!isCashflowExpanded)}
+            >
+              <div className="flex items-center gap-2">
+                <Wallet size={18} className="text-green-600" />
+                <h4 className="font-semibold text-gray-900 text-base">Monatlicher Cashflow</h4>
+                {monthlyCashflow !== undefined && (
+                  <span className={`text-base font-semibold ${monthlyCashflow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {monthlyCashflow >= 0 ? '+' : ''}{formatCashflowValue(monthlyCashflow)}
+                  </span>
+                )}
+              </div>
+              <ChevronDown
+                size={18}
+                className={`text-gray-400 transition-transform duration-200 ${isCashflowExpanded ? 'rotate-180' : ''}`}
+              />
             </div>
 
+            {isCashflowExpanded && (
+            <div className="space-y-3 mt-3 text-sm">
             {/* Mieteinnahmen */}
             {(mieteinnahmen > 0 || isEditMode) && (
-              <div className="grid grid-cols-[140px_100px_1fr] items-center gap-2">
+              <div className="grid grid-cols-[155px_115px_1fr] items-center gap-2">
                 <span className="text-gray-600">Mieteinnahmen</span>
                 <div className="flex justify-center">
                   {isEditMode ? (
@@ -836,7 +923,7 @@ export function KeyMetricsPanel({
                     </span>
                   ) : null}
                 </div>
-                <span className="text-base font-semibold text-green-600 text-right">
+                <span className="font-semibold text-green-600 text-right">
                   +{formatCashflowValue(mieteinnahmen)}
                 </span>
               </div>
@@ -844,7 +931,7 @@ export function KeyMetricsPanel({
 
             {/* Hausgeld */}
             {(hausgeld > 0 || isEditMode) && (
-              <div className="grid grid-cols-[140px_100px_1fr] items-center gap-2">
+              <div className="grid grid-cols-[155px_115px_1fr] items-center gap-2">
                 <span className="text-gray-600">Hausgeld</span>
                 <div className="flex justify-center">
                   {isEditMode ? (
@@ -861,10 +948,10 @@ export function KeyMetricsPanel({
                       <span className="absolute right-2 text-gray-500 text-sm pointer-events-none">€</span>
                     </span>
                   ) : !hasHausgeldFromProperty && sqm ? (
-                    <span className="text-xs text-gray-400">(geschätzt)</span>
+                    <span className="text-xs text-gray-400">(KI-geschätzt)</span>
                   ) : null}
                 </div>
-                <span className="text-base font-semibold text-red-600 text-right">
+                <span className="font-semibold text-red-600 text-right">
                   -{formatCashflowValue(hausgeld)}
                 </span>
               </div>
@@ -879,7 +966,7 @@ export function KeyMetricsPanel({
                     ({zinssatz.toFixed(1)}% Zins, {tilgung.toFixed(0)}% Tilgung)
                   </span>
                 </span>
-                <span className="text-base font-semibold text-red-600">
+                <span className="font-semibold text-red-600">
                   -{formatCashflowValue(kreditrate)}
                 </span>
               </div>
@@ -902,7 +989,7 @@ export function KeyMetricsPanel({
                   Cashflow auf EK
                   <span className="text-xs text-gray-400 ml-1">(p.a.)</span>
                 </span>
-                <span className={`text-base font-semibold ${(monthlyCashflow * 12 / eigenkapital * 100) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <span className={`font-semibold ${(monthlyCashflow * 12 / eigenkapital * 100) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {((monthlyCashflow * 12 / eigenkapital) * 100).toFixed(2)}%
                 </span>
               </div>
@@ -915,7 +1002,7 @@ export function KeyMetricsPanel({
                   Break-Even EK
                   <span className="text-xs text-gray-400 ml-1">(Cashflow = 0)</span>
                 </span>
-                <span className="text-base font-semibold text-gray-900">
+                <span className="font-semibold text-gray-900">
                   {breakEvenEK.percentage.toFixed(0)}% <span className="text-gray-500 font-normal">({formatCurrency(breakEvenEK.amount)})</span>
                 </span>
               </div>
@@ -928,6 +1015,8 @@ export function KeyMetricsPanel({
                 <p className="text-sm">Keine Cashflow-Daten verfügbar</p>
               </div>
             )}
+            </div>
+            )}
           </div>
 
         </div>
@@ -937,13 +1026,13 @@ export function KeyMetricsPanel({
       {isExpanded && canEdit && (
         <div className="px-4 sm:px-5 pb-4 sm:pb-5">
           {isEditMode ? (
-            <div className="flex gap-3">
+            <div className="flex justify-center gap-3 pt-2">
               <button
                 onClick={() => {
                   handleReset();
                   setIsEditMode(false);
                 }}
-                className="flex-1 py-2.5 border border-[#DDDDDD] text-gray-700 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 text-sm font-medium"
+                className="py-3 px-6 border border-gray-300 text-gray-700 rounded-full hover:bg-gray-100 transition-all flex items-center justify-center gap-2 text-sm font-semibold"
               >
                 <RotateCcw size={16} />
                 Abbrechen
@@ -951,7 +1040,7 @@ export function KeyMetricsPanel({
               <button
                 onClick={handleSave}
                 disabled={isSavingParams}
-                className="flex-1 py-2.5 bg-[#FF385C] text-white rounded-xl hover:bg-[#E31C5F] transition-colors flex items-center justify-center gap-2 text-sm font-medium disabled:opacity-50"
+                className="py-3 px-6 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-full transition-all flex items-center justify-center gap-2 text-sm font-semibold shadow-lg shadow-green-500/30 hover:shadow-xl hover:shadow-green-500/40 hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
               >
                 {isSavingParams ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -962,24 +1051,30 @@ export function KeyMetricsPanel({
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => {
-                // Initialisiere Edit-Werte mit aktuellen berechneten Werten
-                setEditEquityPercent(eigenkapitalRate);
-                setEditInterestRate(zinssatz);
-                setEditAmortizationRate(tilgung);
-                setEditBrokerCommission(maklerRate);
-                setEditRenovationCosts(renovierungskosten);
-                setEditMonthlyRent(mieteinnahmen);
-                setEditMonthlyFee(hausgeld);
-                setEditPurchasePrice(effectivePurchasePrice);
-                setIsEditMode(true);
-              }}
-              className="w-full py-2.5 text-[#FF385C] hover:text-[#E31C5F] hover:bg-red-50 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm font-medium"
-            >
-              <Pencil size={16} />
-              Annahmen bearbeiten
-            </button>
+            <div className="flex justify-center pt-2">
+              <button
+                onClick={() => {
+                  // Alle Bereiche aufklappen
+                  setIsKaufnebenkostenExpanded(true);
+                  setIsKapitaldienstExpanded(true);
+                  setIsCashflowExpanded(true);
+                  // Initialisiere Edit-Werte mit aktuellen berechneten Werten
+                  setEditEquityPercent(eigenkapitalRate);
+                  setEditInterestRate(zinssatz);
+                  setEditAmortizationRate(tilgung);
+                  setEditBrokerCommission(maklerRate);
+                  setEditRenovationCosts(renovierungskosten);
+                  setEditMonthlyRent(mieteinnahmen);
+                  setEditMonthlyFee(hausgeld);
+                  setEditPurchasePrice(effectivePurchasePrice);
+                  setIsEditMode(true);
+                }}
+                className="py-3 px-6 bg-gradient-to-r from-[#FF385C] to-[#E31C5F] hover:from-[#E31C5F] hover:to-[#C81E4E] text-white rounded-full transition-all flex items-center justify-center gap-2 text-sm font-semibold shadow-lg shadow-[#FF385C]/30 hover:shadow-xl hover:shadow-[#FF385C]/40 hover:-translate-y-0.5"
+              >
+                <Pencil size={16} />
+                Simulation starten
+              </button>
+            </div>
           )}
         </div>
       )}

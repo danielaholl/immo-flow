@@ -135,7 +135,7 @@ export default function SuggestionPage() {
                         className="w-3 h-3 rounded-full"
                         style={{ backgroundColor: getScoreColor(property.ai_score) }}
                       />
-                      <span className="text-white font-semibold">{toDisplayScore(property.ai_score)}/5</span>
+                      <span className="text-white font-semibold">{Math.round(property.ai_score)}</span>
                     </div>
                   )}
 
@@ -194,9 +194,9 @@ export default function SuggestionPage() {
               </div>
             </div>
 
-            {/* Description */}
+            {/* Description - whitespace-pre-line for structured storytelling content */}
             {property.description && (
-              <p className="text-gray-700 mb-8 leading-relaxed" style={{ fontSize: '18px' }}>
+              <p className="text-gray-700 mb-8 leading-relaxed whitespace-pre-line" style={{ fontSize: '18px' }}>
                 {property.description}
               </p>
             )}

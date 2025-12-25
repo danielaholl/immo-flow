@@ -76,16 +76,16 @@ export function useSubscription() {
   };
 
   /**
-   * Open Stripe Customer Portal for subscription management
+   * Open Stripe Customer Portal for subscription management (opens in new tab)
    */
   const manageSubscription = async (): Promise<void> => {
     try {
       const baseUrl = window.location.origin;
       const result = await createPortalMutation.mutateAsync({
-        returnUrl: `${baseUrl}/settings`,
+        returnUrl: `${baseUrl}/profile`,
       });
       if (result.url) {
-        window.location.href = result.url;
+        window.open(result.url, '_blank');
       }
     } catch (err) {
       console.error('Failed to create portal session:', err);
@@ -131,6 +131,10 @@ export function useSubscription() {
       financing_calculator: ['investor', 'pro'],
       cashflow_projection: ['investor', 'pro'],
       portfolio_overview: ['pro'],
+      portfolio_basic: ['investor', 'pro'],
+      portfolio_analytics: ['pro'],
+      portfolio_charts: ['pro'],
+      portfolio_unlimited: ['pro'],
       pdf_export: ['pro'],
       investor_club: ['pro'],
       priority_support: ['pro', 'makler_enterprise'],

@@ -460,22 +460,24 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
   };
 
   // Ermittelt das nächste fehlende Pflichtfeld für Follow-Up Frage
+  // Note: title und description werden von der KI automatisch generiert
   const getNextMissingFieldQuestion = (data: any): string | null => {
     // Check both camelCase (from backend) and snake_case (from frontend state)
     const getValue = (camel: string, snake: string) => data[camel] || data[snake];
 
+    // Pflichtfelder in Prioritätsreihenfolge (ohne title/description - werden auto-generiert)
     const fieldQuestions: Array<{ camel: string; snake: string; question: string }> = [
-      { camel: 'propertyType', snake: 'property_type', question: 'Um welche Art von Immobilie handelt es sich? (Wohnung, Haus, Gewerbe)' },
-      { camel: 'streetAddress', snake: 'street_address', question: 'Wie lautet die Straße und Hausnummer?' },
-      { camel: 'postalCode', snake: 'postal_code', question: 'Wie lautet die Postleitzahl?' },
       { camel: 'location', snake: 'location', question: 'In welcher Stadt befindet sich die Immobilie?' },
       { camel: 'price', snake: 'price', question: 'Wie hoch ist der Kaufpreis?' },
       { camel: 'sqm', snake: 'sqm', question: 'Wie groß ist die Wohnfläche in m²?' },
+      { camel: 'rooms', snake: 'rooms', question: 'Wie viele Zimmer hat die Immobilie?' },
+      { camel: 'condition', snake: 'condition', question: 'In welchem Zustand ist die Immobilie? (Neu, renoviert, gepflegt, sanierungsbedürftig)' },
+      // Optionale Felder
+      { camel: 'streetAddress', snake: 'street_address', question: 'Wie lautet die Straße und Hausnummer?' },
+      { camel: 'postalCode', snake: 'postal_code', question: 'Wie lautet die Postleitzahl?' },
       { camel: 'commissionRate', snake: 'commission_rate', question: 'Wie hoch sind die Maklergebühren in %?' },
       { camel: 'monthlyFee', snake: 'monthly_fee', question: 'Wie hoch ist das monatliche Hausgeld in EUR?' },
       { camel: 'monthlyRent', snake: 'monthly_rent', question: 'Wie hoch sind die monatlichen Mieteinnahmen in EUR?' },
-      { camel: 'rooms', snake: 'rooms', question: 'Wie viele Zimmer hat die Immobilie?' },
-      { camel: 'condition', snake: 'condition', question: 'In welchem Zustand ist die Immobilie? (Neu, renoviert, gepflegt, sanierungsbedürftig)' },
     ];
 
     for (const { camel, snake, question } of fieldQuestions) {
@@ -576,8 +578,10 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
 
   // Submit property
   const handleSubmit = async (skipImageCheck = false) => {
-    if (!isComplete && !isEditMode && !isImportMode) {
-      alert('Bitte fülle alle erforderlichen Felder aus.');
+    // Check required fields: property_type, location, price, sqm, rooms
+    const hasRequired = listingData.property_type && listingData.location && listingData.price && listingData.sqm && listingData.rooms;
+    if (!hasRequired && !isEditMode && !isImportMode) {
+      alert('Bitte fülle alle erforderlichen Felder aus: Typ, Ort, Preis, Fläche, Zimmer.');
       return;
     }
 
@@ -654,8 +658,10 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
 
   // Submit and publish property directly (status: 'active')
   const handleSubmitAndPublish = async (skipImageCheck = false) => {
-    if (!isComplete && !isEditMode && !isImportMode) {
-      alert('Bitte fülle alle erforderlichen Felder aus.');
+    // Check required fields: property_type, location, price, sqm, rooms
+    const hasRequired = listingData.property_type && listingData.location && listingData.price && listingData.sqm && listingData.rooms;
+    if (!hasRequired && !isEditMode && !isImportMode) {
+      alert('Bitte fülle alle erforderlichen Felder aus: Typ, Ort, Preis, Fläche, Zimmer.');
       return;
     }
 
@@ -1487,6 +1493,17 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
     }
   };
 
+  // Check if all required fields are filled (for showing submit button)
+  const hasRequiredFields = useMemo(() => {
+    return !!(
+      listingData.property_type &&
+      listingData.location &&
+      listingData.price &&
+      listingData.sqm &&
+      listingData.rooms
+    );
+  }, [listingData.property_type, listingData.location, listingData.price, listingData.sqm, listingData.rooms]);
+
   // Preview data (memoized to prevent unnecessary re-renders)
   const previewData: PropertyPreviewData = useMemo(() => ({
     type: listingData.property_type || 'apartment',
@@ -1494,6 +1511,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
     location: listingData.location || '',
     address: listingData.street_address || '', // Show street address in location component
     price: listingData.price || 0,
+    commission_rate: listingData.commission_rate,
     sqm: listingData.sqm || 0,
     rooms: listingData.rooms || 0,
     plot_size: listingData.plot_size,
@@ -1525,8 +1543,8 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     user_id: user?.id || '',
-    // Only show owner info when listing is complete
-    owner: isComplete ? {
+    // Only show owner info when required fields are filled
+    owner: hasRequiredFields ? {
       first_name: profile?.first_name || '',
       last_name: profile?.last_name || '',
       company: profile?.company || null,
@@ -1535,7 +1553,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
       phone: profile?.phone || null,
     } : undefined,
     // Note: Seller evaluation is shown separately via SellerAnalysis component
-  }), [listingData, uploadedImages, videoUrl, documents, user, profile, isComplete]);
+  }), [listingData, uploadedImages, videoUrl, documents, user, profile, hasRequiredFields]);
 
   // Convert messages from Message format to ChatMessage format for UniversalChat
   const convertedMessages: ChatMessage[] = useMemo(() => {
@@ -1661,8 +1679,8 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
                       />
                     </div>
 
-                    {/* Fixed Submit Button(s) */}
-                    {(isComplete || isEditMode || isImportMode) && (
+                    {/* Fixed Submit Button(s) - Show when required fields are filled */}
+                    {(hasRequiredFields || isEditMode || isImportMode) && (
                       <div className="flex-shrink-0 bg-white border-t border-gray-200 p-4 lg:p-6">
                         {/* For Edit and Import mode: Single button */}
                         {(isEditMode || isImportMode) ? (
@@ -1681,37 +1699,21 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
                             )}
                           </button>
                         ) : (
-                          /* For Create mode: Two buttons */
-                          <div className="flex flex-col gap-3">
-                            <button
-                              onClick={() => handleSubmitAndPublish()}
-                              disabled={isSubmitting}
-                              className="w-full bg-green-600 hover:bg-green-700 text-white py-3 lg:py-4 rounded-xl text-base lg:text-lg font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg"
-                            >
-                              {isSubmitting ? (
-                                <>
-                                  <Loader2 size={20} className="lg:w-6 lg:h-6 animate-spin" />
-                                  <span>Wird veröffentlicht...</span>
-                                </>
-                              ) : (
-                                <span>Speichern und Veröffentlichen</span>
-                              )}
-                            </button>
-                            <button
-                              onClick={() => handleSubmit()}
-                              disabled={isSubmitting}
-                              className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 lg:py-4 rounded-xl text-base lg:text-lg font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                            >
-                              {isSubmitting ? (
-                                <>
-                                  <Loader2 size={20} className="lg:w-6 lg:h-6 animate-spin" />
-                                  <span>Wird gespeichert...</span>
-                                </>
-                              ) : (
-                                <span>Als Entwurf speichern</span>
-                              )}
-                            </button>
-                          </div>
+                          /* For Create mode: Single publish button */
+                          <button
+                            onClick={() => handleSubmitAndPublish()}
+                            disabled={isSubmitting}
+                            className="w-full bg-green-600 hover:bg-green-700 text-white py-3 lg:py-4 rounded-xl text-base lg:text-lg font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg"
+                          >
+                            {isSubmitting ? (
+                              <>
+                                <Loader2 size={20} className="lg:w-6 lg:h-6 animate-spin" />
+                                <span>Wird veröffentlicht...</span>
+                              </>
+                            ) : (
+                              <span>Speichern und Veröffentlichen</span>
+                            )}
+                          </button>
                         )}
                       </div>
                     )}
@@ -1815,7 +1817,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
               <button
                 onClick={() => {
                   setShowImageDialog(false);
-                  handleSubmit(true);
+                  handleSubmitAndPublish(true);
                 }}
                 className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-medium transition-colors"
               >

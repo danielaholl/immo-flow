@@ -54,6 +54,7 @@ export const investorPlans: PricingPlan[] = [
       'Rendite-Kalkulator',
       'Finanzierungsrechner',
       'Cashflow-Projektion',
+      'Zielpreisrechner',
       'Email-Alerts für neue Objekte',
     ],
     ctaText: 'Investor wählen',

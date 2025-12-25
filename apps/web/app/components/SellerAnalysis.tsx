@@ -106,11 +106,11 @@ export function SellerAnalysis({ analysis, onGenerateAnalysis, isGenerating }: S
           <div>
             <p className="text-sm font-medium text-gray-600 mb-1">Inseratsqualität</p>
             <p className={`text-3xl font-bold ${getScoreColor(analysis.listing_quality_score)}`}>
-              {toDisplayScore(analysis.listing_quality_score)}/5
+              {Math.round(analysis.listing_quality_score)}
             </p>
           </div>
           <div className="text-right">
-            {toDisplayScore(analysis.listing_quality_score) >= 4 ? (
+            {analysis.listing_quality_score >= 60 ? (
               <CheckCircle className="text-green-600" size={32} />
             ) : (
               <AlertCircle className="text-yellow-600" size={32} />

@@ -155,10 +155,10 @@ export function UniversalChat({
     if (textarea) {
       // Reset height to auto to get the correct scrollHeight
       textarea.style.height = 'auto';
-      // Line height is ~26px (text-base 16px * leading-relaxed 1.625)
-      // Max 20 lines = 520px
-      const lineHeight = 26;
-      const maxLines = 20;
+      // Line height is ~24px (text-base 16px * leading-normal 1.5)
+      // Max 10 lines = 240px
+      const lineHeight = 24;
+      const maxLines = 10;
       const maxHeight = lineHeight * maxLines;
       const newHeight = Math.min(textarea.scrollHeight, maxHeight);
       textarea.style.height = `${newHeight}px`;
@@ -404,9 +404,9 @@ export function UniversalChat({
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             disabled={disabled || isSending}
-            className="min-w-0 resize-none bg-transparent px-4 pt-4 pb-2 focus:outline-none text-base leading-relaxed overflow-y-auto"
+            className="min-w-0 resize-none bg-transparent px-4 pt-3 pb-2 focus:outline-none text-base leading-normal overflow-y-auto"
             rows={1}
-            style={{ minHeight: '44px', maxHeight: '520px' }}
+            style={{ minHeight: '40px', maxHeight: '240px' }}
           />
 
           {/* Bottom row with buttons */}

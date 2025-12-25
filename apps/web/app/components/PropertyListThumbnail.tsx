@@ -169,7 +169,7 @@ export const PropertyListThumbnail = memo(function PropertyListThumbnail({
             />
           )}
 
-          {/* Badge - AI Score (1-5 Skala) - oben rechts */}
+          {/* Badge - AI Score (2-stellig, 0-100) - oben rechts */}
           {aiScore !== undefined && aiScore > 0 && (
             <div
               className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-lg"
@@ -192,7 +192,7 @@ export const PropertyListThumbnail = memo(function PropertyListThumbnail({
                   textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
                 }}
               >
-                {toDisplayScore(aiScore)}
+                {Math.round(aiScore)}
               </span>
             </div>
           )}

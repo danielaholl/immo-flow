@@ -54,7 +54,7 @@ function toDisplayScore(score: number): number {
 
 export function AIRatingHero({ rating, score, explanation }: AIRatingHeroProps) {
   const config = ratingConfig[rating];
-  const displayScore = toDisplayScore(score);
+  const twoDigitScore = Math.round(score);
 
   return (
     <div className={`bg-gradient-to-br ${config.gradient} rounded-2xl p-6 md:p-8 text-white shadow-xl`}>
@@ -69,7 +69,7 @@ export function AIRatingHero({ rating, score, explanation }: AIRatingHeroProps) 
       <div className="mb-6">
         <div className="flex items-center justify-between mb-3">
           <span className="text-sm md:text-base opacity-90">Investment Score:</span>
-          <span className="text-3xl md:text-4xl font-bold">{displayScore}/5</span>
+          <span className="text-3xl md:text-4xl font-bold">{twoDigitScore}</span>
         </div>
         <div className="w-full h-3 md:h-4 bg-white/20 rounded-full overflow-hidden">
           <div

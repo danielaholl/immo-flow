@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '../components/Header';
 import PricingCard from './components/PricingCard';
@@ -8,6 +8,7 @@ import PricingToggle from './components/PricingToggle';
 import PricingFAQ from './components/PricingFAQ';
 import { investorPlans, maklerPlans, verkaufPlans, sucherPlans, PricingPlan } from './data';
 import { useSubscription, type PlanType } from '../../hooks/useSubscription';
+import { trpc } from '../../lib/trpc';
 
 type UserType = 'sucher' | 'investor' | 'verkaeufer' | 'makler';
 
@@ -17,14 +18,42 @@ export default function PricingPage() {
   const router = useRouter();
   const { checkout, isCheckoutLoading, plan: currentPlan } = useSubscription();
 
-  const plans: PricingPlan[] =
-    userType === 'sucher'
-      ? sucherPlans
-      : userType === 'investor'
-        ? investorPlans
-        : userType === 'verkaeufer'
-          ? verkaufPlans
-          : maklerPlans;
+  // Fetch dynamic prices from Stripe
+  const { data: stripePlans } = trpc.payments.getPlans.useQuery(undefined, {
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    retry: 1,
+  });
+
+  // Create a price lookup map from Stripe data
+  const priceMap = useMemo(() => {
+    if (!stripePlans) return {};
+    return stripePlans.reduce((acc, plan) => {
+      acc[plan.id] = plan.price;
+      return acc;
+    }, {} as Record<string, number>);
+  }, [stripePlans]);
+
+  // Merge static plan data with dynamic Stripe prices
+  const mergePrices = (staticPlans: PricingPlan[]): PricingPlan[] => {
+    return staticPlans.map(plan => ({
+      ...plan,
+      price: plan.planId && priceMap[plan.planId] !== undefined
+        ? priceMap[plan.planId]
+        : plan.price,
+    }));
+  };
+
+  const plans: PricingPlan[] = useMemo(() => {
+    const staticPlans =
+      userType === 'sucher'
+        ? sucherPlans
+        : userType === 'investor'
+          ? investorPlans
+          : userType === 'verkaeufer'
+            ? verkaufPlans
+            : maklerPlans;
+    return mergePrices(staticPlans);
+  }, [userType, priceMap]);
 
   const handleSelectPlan = async (plan: PricingPlan) => {
     setCheckoutError(null);

@@ -153,6 +153,232 @@ export const propertiesRouter = router({
       return property;
     }),
 
+  // Get market comparison data for a property
+  getMarketComparison: publicProcedure
+    .input(z.object({
+      propertyId: z.string().uuid().optional(),
+      // For preview mode (before property is saved)
+      price: z.number().positive().optional(),
+      sqm: z.number().positive().optional(),
+      location: z.string().optional(),
+      propertyType: z.enum(['apartment', 'house', 'villa', 'commercial', 'land', 'office', 'retail', 'industrial', 'parking', 'multi_family']).optional(),
+    }))
+    .query(async ({ input }) => {
+      let propertyPrice: number;
+      let propertySqm: number;
+      let propertyLocation: string;
+      let propertyType: string | null = null;
+
+      // Get property data either from ID or from direct input
+      if (input.propertyId) {
+        const property = await queryOne(
+          'SELECT price, sqm, location, property_type FROM properties WHERE id = $1',
+          [input.propertyId]
+        );
+        if (!property) {
+          throw new Error('Immobilie nicht gefunden');
+        }
+        propertyPrice = property.price;
+        propertySqm = property.sqm;
+        propertyLocation = property.location;
+        propertyType = property.property_type;
+      } else if (input.price && input.sqm && input.location) {
+        propertyPrice = input.price;
+        propertySqm = input.sqm;
+        propertyLocation = input.location;
+        propertyType = input.propertyType || null;
+      } else {
+        throw new Error('Preis, Fläche und Standort sind erforderlich');
+      }
+
+      const pricePerSqm = Math.round(propertyPrice / propertySqm);
+
+      // 1. Get historical sold data from our platform (last 6 months)
+      const historicalData = await query(
+        `SELECT
+          AVG(CASE
+            WHEN sold_price IS NOT NULL THEN sold_price::decimal / sqm
+            ELSE price::decimal / sqm
+          END) as avg_price_per_sqm,
+          COUNT(*) as sample_count,
+          MIN(CASE
+            WHEN sold_price IS NOT NULL THEN sold_price::decimal / sqm
+            ELSE price::decimal / sqm
+          END) as min_price_per_sqm,
+          MAX(CASE
+            WHEN sold_price IS NOT NULL THEN sold_price::decimal / sqm
+            ELSE price::decimal / sqm
+          END) as max_price_per_sqm
+        FROM properties
+        WHERE location ILIKE $1
+          AND status = 'sold'
+          AND deleted_at IS NULL
+          AND sqm > 0
+          AND (sold_at >= NOW() - INTERVAL '6 months' OR created_at >= NOW() - INTERVAL '6 months')
+          ${propertyType ? 'AND property_type = $2' : ''}`,
+        propertyType ? [`%${propertyLocation}%`, propertyType] : [`%${propertyLocation}%`]
+      );
+
+      // 2. Get AI evaluation data if available (for this property)
+      let aiMarketData = null;
+      let aiScore: number | null = null;
+      if (input.propertyId) {
+        // Get market average from AI evaluations
+        aiMarketData = await queryOne(
+          `SELECT market_average_price_per_sqm
+           FROM property_ai_evaluations
+           WHERE property_id = $1
+           ORDER BY created_at DESC
+           LIMIT 1`,
+          [input.propertyId]
+        );
+        // Get AI score from the property itself
+        const propertyScore = await queryOne(
+          `SELECT ai_investment_score FROM properties WHERE id = $1`,
+          [input.propertyId]
+        );
+        if (propertyScore?.ai_investment_score) {
+          aiScore = Number(propertyScore.ai_investment_score);
+        }
+      }
+
+      // 3. Get average rent per sqm for the location
+      const rentData = await query(
+        `SELECT
+          AVG(monthly_rent::decimal / sqm) as avg_rent_per_sqm,
+          COUNT(*) as rent_sample_count
+        FROM properties
+        WHERE location ILIKE $1
+          AND monthly_rent IS NOT NULL
+          AND monthly_rent > 0
+          AND sqm > 0
+          AND deleted_at IS NULL
+          ${propertyType ? 'AND property_type = $2' : ''}`,
+        propertyType ? [`%${propertyLocation}%`, propertyType] : [`%${propertyLocation}%`]
+      );
+      const avgRentPerSqm = rentData[0]?.avg_rent_per_sqm ? Math.round(Number(rentData[0].avg_rent_per_sqm) * 100) / 100 : null;
+      const estimatedMonthlyRent = avgRentPerSqm ? Math.round(avgRentPerSqm * propertySqm) : null;
+
+      // 4. Get marketing duration from sold properties
+      // Calculate days_online as the difference between sold_at and created_at
+      const marketingData = await query(
+        `SELECT
+          AVG(EXTRACT(DAY FROM (COALESCE(sold_at, NOW()) - created_at))::integer) as avg_days,
+          MIN(EXTRACT(DAY FROM (COALESCE(sold_at, NOW()) - created_at))::integer) as min_days,
+          MAX(EXTRACT(DAY FROM (COALESCE(sold_at, NOW()) - created_at))::integer) as max_days,
+          PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY EXTRACT(DAY FROM (COALESCE(sold_at, NOW()) - created_at))::integer) as p25_days,
+          PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY EXTRACT(DAY FROM (COALESCE(sold_at, NOW()) - created_at))::integer) as p75_days,
+          COUNT(*) as marketing_sample_count
+        FROM properties
+        WHERE location ILIKE $1
+          AND status = 'sold'
+          AND deleted_at IS NULL
+          AND EXTRACT(DAY FROM (COALESCE(sold_at, NOW()) - created_at))::integer > 0
+          AND (sold_at >= NOW() - INTERVAL '12 months' OR created_at >= NOW() - INTERVAL '12 months')
+          ${propertyType ? 'AND property_type = $2' : ''}`,
+        propertyType ? [`%${propertyLocation}%`, propertyType] : [`%${propertyLocation}%`]
+      );
+
+      // Calculate marketing duration in weeks (use p25-p75 for realistic range)
+      let marketingDurationMin = 4;  // Default: 4 weeks
+      let marketingDurationMax = 12; // Default: 12 weeks
+      if (marketingData[0]?.p25_days && marketingData[0]?.p75_days) {
+        marketingDurationMin = Math.max(1, Math.round(Number(marketingData[0].p25_days) / 7));
+        marketingDurationMax = Math.max(marketingDurationMin + 1, Math.round(Number(marketingData[0].p75_days) / 7));
+      }
+
+      // 5. Combine data sources for price
+      const platformAvg = historicalData[0]?.avg_price_per_sqm ? Number(historicalData[0].avg_price_per_sqm) : null;
+      const aiAvg = aiMarketData?.market_average_price_per_sqm ? Number(aiMarketData.market_average_price_per_sqm) : null;
+      const sampleCount = Number(historicalData[0]?.sample_count || 0);
+
+      // Weight: If we have enough platform data (5+ samples), use 70/30 split
+      // Otherwise rely more on AI estimation
+      let marketAvgPricePerSqm: number;
+      let dataSource: 'platform' | 'ai' | 'combined' | 'estimated';
+
+      if (platformAvg && sampleCount >= 5 && aiAvg) {
+        // Both sources available with good platform data
+        marketAvgPricePerSqm = Math.round(platformAvg * 0.7 + aiAvg * 0.3);
+        dataSource = 'combined';
+      } else if (platformAvg && sampleCount >= 3) {
+        // Platform data only but enough samples
+        marketAvgPricePerSqm = Math.round(platformAvg);
+        dataSource = 'platform';
+      } else if (aiAvg) {
+        // AI data only
+        marketAvgPricePerSqm = Math.round(aiAvg);
+        dataSource = 'ai';
+      } else if (platformAvg) {
+        // Limited platform data
+        marketAvgPricePerSqm = Math.round(platformAvg);
+        dataSource = 'platform';
+      } else {
+        // No data - use regional estimation (fallback)
+        // Default German average: ~3,500 €/m² (varies widely by region)
+        marketAvgPricePerSqm = 3500;
+        dataSource = 'estimated';
+      }
+
+      // Calculate deviation percentage
+      const deviationPercent = Math.round(((pricePerSqm - marketAvgPricePerSqm) / marketAvgPricePerSqm) * 100);
+
+      // Determine price position label
+      let pricePosition: 'sehr_guenstig' | 'guenstig' | 'marktgerecht' | 'teuer' | 'sehr_teuer';
+      if (deviationPercent <= -15) {
+        pricePosition = 'sehr_guenstig';
+      } else if (deviationPercent <= -5) {
+        pricePosition = 'guenstig';
+      } else if (deviationPercent <= 5) {
+        pricePosition = 'marktgerecht';
+      } else if (deviationPercent <= 15) {
+        pricePosition = 'teuer';
+      } else {
+        pricePosition = 'sehr_teuer';
+      }
+
+      // Calculate suggested price range (±10% from market)
+      const suggestedMinPrice = Math.round(marketAvgPricePerSqm * propertySqm * 0.9);
+      const suggestedMaxPrice = Math.round(marketAvgPricePerSqm * propertySqm * 1.1);
+
+      return {
+        // Current property data
+        currentPrice: propertyPrice,
+        currentPricePerSqm: pricePerSqm,
+
+        // Market data
+        marketAvgPricePerSqm,
+        marketAvgPrice: Math.round(marketAvgPricePerSqm * propertySqm),
+        minPricePerSqm: historicalData[0]?.min_price_per_sqm ? Math.round(Number(historicalData[0].min_price_per_sqm)) : null,
+        maxPricePerSqm: historicalData[0]?.max_price_per_sqm ? Math.round(Number(historicalData[0].max_price_per_sqm)) : null,
+
+        // Comparison
+        deviationPercent,
+        pricePosition,
+
+        // Suggestions
+        suggestedMinPrice,
+        suggestedMaxPrice,
+        suggestedOptimalPrice: Math.round(marketAvgPricePerSqm * propertySqm),
+
+        // Data quality
+        dataSource,
+        sampleCount,
+        location: propertyLocation,
+
+        // Rental data
+        avgRentPerSqm,
+        estimatedMonthlyRent,
+
+        // Marketing duration (in weeks)
+        marketingDurationMin,
+        marketingDurationMax,
+
+        // AI-Score (0-100)
+        aiScore,
+      };
+    }),
+
   // Get property with owner
   getByIdWithOwner: publicProcedure
     .input(z.object({ id: z.string().uuid() }))

@@ -2,12 +2,12 @@
 
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { House, Heart, X, Share2, MessageSquare } from 'lucide-react';
+import { House } from 'lucide-react';
 import { colors } from '../../../theme';
 import type { PropertyCardProps } from './PropertyCard.types';
 import { usePropertyCardLogic } from './PropertyCard.logic';
 import { PropertyImageSlideshow } from '../PropertyImageSlideshow';
-import { GlassButton } from '../../web/GlassButton';
+import { PropertyGlassActions } from '../../web/PropertyGlassActions';
 import { PropertyScoreBadge } from '../../web/PropertyScoreBadge';
 import { PropertyInfoOverlay } from '../PropertyInfoOverlay';
 
@@ -52,44 +52,14 @@ export function PropertyCard({
             )}
 
             {/* Action Buttons - Reusable Components */}
-            <div className="absolute bottom-5 right-3 flex flex-col gap-2 z-20">
-              <GlassButton
-                variant="default"
-                iconOnly
-                subtleBorder
-                iconLeft={<Share2 strokeWidth={2} />}
-                onClick={(e) => onShare?.(e as any)}
-                tooltip="Teilen"
-                ariaLabel="Teilen"
-              />
-              <GlassButton
-                variant="default"
-                iconOnly
-                subtleBorder
-                iconLeft={<MessageSquare strokeWidth={2} />}
-                onClick={(e) => onMessage?.(e as any)}
-                tooltip="Nachricht senden"
-                ariaLabel="Nachricht senden"
-              />
-              <GlassButton
-                variant="default"
-                iconOnly
-                subtleBorder
-                iconLeft={<X strokeWidth={2.5} />}
-                onClick={(e) => onDismiss?.(e as any)}
-                tooltip="Nicht interessiert"
-                ariaLabel="Nicht interessiert"
-              />
-              <GlassButton
-                variant="favorite"
-                iconOnly
-                subtleBorder
-                iconLeft={<Heart fill={isFavorite ? '#FF385C' : 'none'} strokeWidth={2} />}
-                onClick={(e) => onFavorite?.(e as any)}
-                tooltip={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-                ariaLabel={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-              />
-            </div>
+            <PropertyGlassActions
+              className="absolute bottom-5 right-3 z-20"
+              isFavorite={isFavorite}
+              onFavorite={(e) => onFavorite?.(e as any)}
+              onMessage={(e) => onMessage?.(e as any)}
+              onShare={(e) => onShare?.(e as any)}
+              onDismiss={(e) => onDismiss?.(e as any)}
+            />
 
             {/* Owner Badge - Glassmorphism */}
             {isOwner && (

@@ -222,7 +222,7 @@ export function AIEvaluationPanel({
                   className="text-base font-bold"
                   style={{ color: scoreInfo.color }}
                 >
-                  {toDisplayScore(buyerEvaluation.buyer_investor.investmentScore)}/5
+                  {Math.round(buyerEvaluation.buyer_investor.investmentScore)}
                 </span>
                 <span
                   className="text-sm font-medium hidden sm:inline"

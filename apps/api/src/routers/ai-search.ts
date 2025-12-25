@@ -75,7 +75,7 @@ async function extractSearchCriteria(searchQuery: string): Promise<SearchCriteri
   try {
     const systemPrompt = buildSystemPrompt('search', SEARCH_EXTRACTION_INSTRUCTIONS);
     const completion = await getOpenAIClient().chat.completions.create({
-      model: 'gpt-5.2',
+      model: 'gpt-4o',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: searchQuery },
@@ -118,14 +118,14 @@ function buildSearchQuery(criteria: SearchCriteria, limit: number, offset: numbe
 
   // Location search (case-insensitive)
   if (criteria.location) {
-    conditions.push(`(location ILIKE $${paramCount} OR address ILIKE $${paramCount})`);
+    conditions.push(`(location ILIKE $${paramCount} OR street_address ILIKE $${paramCount})`);
     values.push(`%${criteria.location}%`);
     paramCount++;
   }
 
   // District search
   if (criteria.district) {
-    conditions.push(`(location ILIKE $${paramCount} OR address ILIKE $${paramCount})`);
+    conditions.push(`(location ILIKE $${paramCount} OR street_address ILIKE $${paramCount})`);
     values.push(`%${criteria.district}%`);
     paramCount++;
   }
@@ -186,15 +186,14 @@ function buildSearchQuery(criteria: SearchCriteria, limit: number, offset: numbe
     paramCount++;
   }
 
-  // Features (check if any feature matches using GIN index)
+  // Features (check if any feature matches in text array)
   if (criteria.features && criteria.features.length > 0) {
-    // Use JSONB containment operator with GIN index for fast feature search
-    // This is much faster than features::text ILIKE which requires full table scan
+    // Use ILIKE with unnest for case-insensitive feature matching on text[] column
     const featureConditions = criteria.features.map((feature) => {
       const param = `$${paramCount}`;
-      values.push(JSON.stringify([feature])); // Format as JSONB array
+      values.push(`%${feature}%`);
       paramCount++;
-      return `features @> ${param}::jsonb`;
+      return `EXISTS (SELECT 1 FROM unnest(features) f WHERE f ILIKE ${param})`;
     });
     conditions.push(`(${featureConditions.join(' OR ')})`);
   }
@@ -227,13 +226,13 @@ function buildCountQuery(criteria: SearchCriteria): { sql: string; values: any[]
   conditions.push(`status = 'active'`);
 
   if (criteria.location) {
-    conditions.push(`(location ILIKE $${paramCount} OR address ILIKE $${paramCount})`);
+    conditions.push(`(location ILIKE $${paramCount} OR street_address ILIKE $${paramCount})`);
     values.push(`%${criteria.location}%`);
     paramCount++;
   }
 
   if (criteria.district) {
-    conditions.push(`(location ILIKE $${paramCount} OR address ILIKE $${paramCount})`);
+    conditions.push(`(location ILIKE $${paramCount} OR street_address ILIKE $${paramCount})`);
     values.push(`%${criteria.district}%`);
     paramCount++;
   }
@@ -290,12 +289,12 @@ function buildCountQuery(criteria: SearchCriteria): { sql: string; values: any[]
   }
 
   if (criteria.features && criteria.features.length > 0) {
-    // Use JSONB containment operator with GIN index for fast feature search
+    // Use ILIKE with unnest for case-insensitive feature matching on text[] column
     const featureConditions = criteria.features.map((feature) => {
       const param = `$${paramCount}`;
-      values.push(JSON.stringify([feature])); // Format as JSONB array
+      values.push(`%${feature}%`);
       paramCount++;
-      return `features @> ${param}::jsonb`;
+      return `EXISTS (SELECT 1 FROM unnest(features) f WHERE f ILIKE ${param})`;
     });
     conditions.push(`(${featureConditions.join(' OR ')})`);
   }
