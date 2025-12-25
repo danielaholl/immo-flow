@@ -175,6 +175,66 @@ export type Database = {
           },
         ]
       }
+      seller_knowledge_base: {
+        Row: {
+          id: string
+          property_id: string
+          user_id: string
+          topic: string
+          content: string
+          source_type: string | null
+          source_message_id: string | null
+          category: string | null
+          is_active: boolean | null
+          confidence_score: number | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          property_id: string
+          user_id: string
+          topic: string
+          content: string
+          source_type?: string | null
+          source_message_id?: string | null
+          category?: string | null
+          is_active?: boolean | null
+          confidence_score?: number | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          property_id?: string
+          user_id?: string
+          topic?: string
+          content?: string
+          source_type?: string | null
+          source_message_id?: string | null
+          category?: string | null
+          is_active?: boolean | null
+          confidence_score?: number | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seller_knowledge_base_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seller_knowledge_base_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       properties: {
         Row: {
           ai_analysis: Json | null

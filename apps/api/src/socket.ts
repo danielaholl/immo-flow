@@ -159,3 +159,31 @@ export function emitConversationUpdate(userId: string, conversation: any) {
 
   console.log(`[Socket.io] Emitted conversation update to user: ${userId}`);
 }
+
+/**
+ * Emit knowledge learned event to seller
+ * Used to notify the seller when AI has extracted knowledge from their response
+ */
+export function emitKnowledgeLearned(
+  conversationId: string,
+  userId: string,
+  learned: {
+    id: string;
+    topic: string;
+    content: string;
+    category: string;
+    confidence: number;
+  }
+) {
+  if (!io) return;
+
+  // Emit to the specific user (seller) for confirmation UI
+  io.to(`user:${userId}`).emit('knowledge:learned', {
+    conversationId,
+    learned,
+  });
+
+  console.log(
+    `[Socket.io] Emitted knowledge learned to user: ${userId} (topic: ${learned.topic})`
+  );
+}

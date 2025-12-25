@@ -4,14 +4,14 @@ import { useEffect, useState, useRef, useMemo } from 'react';
 import { useAuthContext } from '../providers/AuthProvider';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { trpc } from '@/lib/trpc';
-import { MessageSquare, Home, MapPin, Euro, Loader2 } from 'lucide-react';
+import { MessageSquare, Home, MapPin, Euro, Loader2, Brain, Check, X, Pencil } from 'lucide-react';
 import Link from 'next/link';
 import { Header } from '../components/Header';
 import { PropertyListThumbnail } from '../components/PropertyListThumbnail';
 import { PropertyPreview } from '../components/PropertyPreview';
 import { PropertyImageSlideshow } from '../components/PropertyImageSlideshow';
 import { SlideshowManagerProvider } from '../components/SlideshowManagerContext';
-import { joinConversation, leaveConversation, onNewMessage, offNewMessage, sendTypingIndicator, onTypingIndicator, offTypingIndicator, onTypingStop, offTypingStop } from '@/lib/socket';
+import { joinConversation, leaveConversation, onNewMessage, offNewMessage, sendTypingIndicator, onTypingIndicator, offTypingIndicator, onTypingStop, offTypingStop, onKnowledgeLearned, offKnowledgeLearned } from '@/lib/socket';
 import { UniversalChat } from '../components/UniversalChat';
 import type { ChatMessage } from '../components/UniversalChat/types';
 import { MasterDetailLayout } from '../components/layouts/MasterDetailLayout';
@@ -29,6 +29,16 @@ export default function MessagesPage() {
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
   const [conversationFilter, setConversationFilter] = useState<'all' | 'unread'>('all');
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+  const [learnedKnowledge, setLearnedKnowledge] = useState<{
+    conversationId: string;
+    learned: {
+      id: string;
+      topic: string;
+      content: string;
+      category: string;
+      confidence: number;
+    };
+  } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -205,6 +215,37 @@ export default function MessagesPage() {
       offTypingStop(handleTypingStop);
     };
   }, [selectedConversationId, user?.id]);
+
+  // Listen for knowledge learned events (when AI extracts knowledge from seller response)
+  useEffect(() => {
+    const handleKnowledgeLearned = (data: {
+      conversationId: string;
+      learned: {
+        id: string;
+        topic: string;
+        content: string;
+        category: string;
+        confidence: number;
+      };
+    }) => {
+      // Only show if it's for the currently selected conversation
+      if (data.conversationId === selectedConversationId) {
+        setLearnedKnowledge(data);
+        // Auto-dismiss after 10 seconds if not interacted with
+        setTimeout(() => {
+          setLearnedKnowledge((prev) =>
+            prev?.conversationId === data.conversationId ? null : prev
+          );
+        }, 10000);
+      }
+    };
+
+    onKnowledgeLearned(handleKnowledgeLearned);
+
+    return () => {
+      offKnowledgeLearned(handleKnowledgeLearned);
+    };
+  }, [selectedConversationId]);
 
   // Handle typing indicator
   const handleTyping = () => {
@@ -466,9 +507,53 @@ export default function MessagesPage() {
                                      'Unbekannt';
 
                   return (
-                    <UniversalChat
-                      key={selectedConversationId}
-                      messages={convertedMessages}
+                    <>
+                      {/* Knowledge Learned Notification */}
+                      {learnedKnowledge && learnedKnowledge.conversationId === selectedConversationId && !isBuyer && (
+                        <div className="bg-purple-50 border-b border-purple-200 p-3">
+                          <div className="flex items-start gap-3">
+                            <div className="flex-shrink-0 w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                              <Brain size={16} className="text-purple-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-purple-900">
+                                Neue Information zur Wissensbasis hinzugefuegt
+                              </p>
+                              <p className="text-sm text-purple-700 mt-0.5">
+                                <span className="font-medium">{learnedKnowledge.learned.topic}:</span>{' '}
+                                {learnedKnowledge.learned.content.substring(0, 100)}
+                                {learnedKnowledge.learned.content.length > 100 ? '...' : ''}
+                              </p>
+                              <div className="flex gap-2 mt-2">
+                                <button
+                                  onClick={() => setLearnedKnowledge(null)}
+                                  className="flex items-center gap-1 px-2 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
+                                >
+                                  <Check size={12} />
+                                  OK
+                                </button>
+                                <Link
+                                  href={`/my-properties?property=${selectedConversation.propertyId}`}
+                                  className="flex items-center gap-1 px-2 py-1 text-xs bg-white text-purple-700 border border-purple-300 rounded hover:bg-purple-50 transition-colors"
+                                >
+                                  <Pencil size={12} />
+                                  Bearbeiten
+                                </Link>
+                                <button
+                                  onClick={() => setLearnedKnowledge(null)}
+                                  className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                                >
+                                  <X size={12} />
+                                  Schliessen
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      <UniversalChat
+                        key={selectedConversationId}
+                        messages={convertedMessages}
                       header={{
                         title: selectedConversation.propertyTitle,
                         subtitle: `${isBuyer ? 'Verkäufer' : 'Interessent'}: ${displayName}`,

@@ -14,7 +14,9 @@ import {
   emitNewMessage,
   emitUnreadCountUpdate,
   emitConversationUpdate,
+  emitKnowledgeLearned,
 } from '../socket.js';
+import { extractKnowledgeFromChat } from '../services/knowledge-learner-service.js';
 
 export const messagingRouter = router({
   /**
@@ -465,10 +467,51 @@ export const messagingRouter = router({
           // On error, forward to seller without AI response or notification
           console.log(`[Messaging] Question forwarded to seller (AI error): ${recipientProfileId}`);
         }
-      } else {
-        // Seller message - just notify buyer
-        // TODO: Send email notification to buyer
+      } else if (isSeller && hasTextContent) {
+        // Seller message - try to learn from the response
         console.log(`[Messaging] Seller replied to buyer: ${recipientProfileId}`);
+
+        // Get the last buyer question to learn from the seller's answer
+        try {
+          const lastBuyerQuestionResult = await db.query(
+            `SELECT content FROM messages
+            WHERE conversation_id = $1
+              AND sender_type = 'buyer'
+              AND content IS NOT NULL
+              AND content != ''
+            ORDER BY created_at DESC
+            LIMIT 1`,
+            [input.conversationId]
+          );
+
+          if (lastBuyerQuestionResult.rows.length > 0) {
+            const buyerQuestion = lastBuyerQuestionResult.rows[0].content;
+
+            // Extract knowledge asynchronously (non-blocking)
+            extractKnowledgeFromChat({
+              conversationId: input.conversationId,
+              messageId: userMessage.id,
+              propertyId: conversation.property_id,
+              sellerId: userId,
+              buyerQuestion,
+              sellerAnswer: input.content,
+            })
+              .then((learned) => {
+                if (learned) {
+                  console.log(
+                    `[Messaging] Knowledge learned: ${learned.topic}`
+                  );
+                  // Emit to seller for confirmation
+                  emitKnowledgeLearned(input.conversationId, userId, learned);
+                }
+              })
+              .catch((err) => {
+                console.error('[Messaging] Knowledge extraction failed:', err);
+              });
+          }
+        } catch (err) {
+          console.error('[Messaging] Failed to get last buyer question:', err);
+        }
       }
 
       // Update unread count for recipient

@@ -18,6 +18,11 @@ const BuyVsRentCard = dynamic(() => import('./BuyVsRentCard').then(mod => ({ def
   loading: () => <div className="flex items-center justify-center p-8"><Loader2 className="animate-spin text-gray-400" size={24} /></div>,
   ssr: false,
 });
+
+const PropertyTaxCard = dynamic(() => import('./PropertyTaxCard').then(mod => ({ default: mod.PropertyTaxCard })), {
+  loading: () => <div className="flex items-center justify-center p-8"><Loader2 className="animate-spin text-gray-400" size={24} /></div>,
+  ssr: false,
+});
 // AIInvestmentEvaluation und InvestmentScoreBadge auskommentiert - nur stichpunktartige Bewertung
 // import { AIInvestmentEvaluation, InvestmentScoreBadge } from '@immoflow/ui';
 
@@ -881,6 +886,16 @@ export function PropertyPreview({
             onPurchasePriceChange={setSimulatedPrice}
             className="mb-6"
           />
+        )}
+
+        {/* Steuer-Ersparnis Card - für Buyer/Investor View */}
+        {evaluationViewType === 'buyer' && data.price > 0 && (
+          <div className="mb-6">
+            <PropertyTaxCard
+              purchasePrice={simulatedPrice || userPropertyParams?.purchase_price || data.price}
+              yearBuilt={data.year_built}
+            />
+          </div>
         )}
 
         {/* Weitere Details Section - Compact Accordion */}

@@ -5,6 +5,7 @@
 import OpenAI from 'openai';
 import { db } from '../db.js';
 import { createLogger } from '../utils/logger.js';
+import { getKnowledgeForProperty } from './knowledge-learner-service.js';
 
 const log = createLogger('property-qa-service');
 
@@ -60,8 +61,11 @@ export async function answerPropertyQuestion(
 
     const prop = property.rows[0];
 
-    // Build comprehensive property context
-    const propertyContext = buildPropertyContext(prop);
+    // Fetch seller knowledge base entries
+    const sellerKnowledge = await getKnowledgeForProperty(propertyId);
+
+    // Build comprehensive property context including seller knowledge
+    const propertyContext = buildPropertyContext(prop, sellerKnowledge);
 
     // Create AI prompt
     const prompt = `Du bist ein KI-Assistent für eine Immobilienplattform. Ein Nutzer stellt eine Frage zu folgender Immobilie:
@@ -152,10 +156,19 @@ WICHTIG: Bei Confidence < 0.5 wird die Frage an den Verkäufer weitergeleitet!`;
   }
 }
 
+interface KnowledgeEntry {
+  topic: string;
+  content: string;
+  category: string;
+}
+
 /**
  * Build comprehensive property context for AI
  */
-function buildPropertyContext(property: any): string {
+function buildPropertyContext(
+  property: any,
+  sellerKnowledge: KnowledgeEntry[] = []
+): string {
   const sections: string[] = [];
 
   // Basic Information
@@ -222,6 +235,15 @@ function buildPropertyContext(property: any): string {
   if (property.description) {
     sections.push('BESCHREIBUNG:');
     sections.push(property.description.substring(0, 1500)); // Limit to 1500 chars
+    sections.push('');
+  }
+
+  // Seller Knowledge Base (private information from seller)
+  if (sellerKnowledge.length > 0) {
+    sections.push('VERKAEUFER-INFORMATIONEN (vertraulich, vom Eigentuemer bereitgestellt):');
+    sellerKnowledge.forEach((entry) => {
+      sections.push(`- ${entry.topic}: ${entry.content}`);
+    });
     sections.push('');
   }
 

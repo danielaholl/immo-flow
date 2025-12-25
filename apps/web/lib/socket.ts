@@ -185,6 +185,46 @@ export function offTypingStop(callback: (data: { userId: string; conversationId:
 }
 
 /**
+ * Listen for knowledge learned events (when AI extracts knowledge from seller response)
+ */
+export function onKnowledgeLearned(
+  callback: (data: {
+    conversationId: string;
+    learned: {
+      id: string;
+      topic: string;
+      content: string;
+      category: string;
+      confidence: number;
+    };
+  }) => void
+): void {
+  if (socket) {
+    socket.on('knowledge:learned', callback);
+  }
+}
+
+/**
+ * Remove knowledge learned listener
+ */
+export function offKnowledgeLearned(
+  callback: (data: {
+    conversationId: string;
+    learned: {
+      id: string;
+      topic: string;
+      content: string;
+      category: string;
+      confidence: number;
+    };
+  }) => void
+): void {
+  if (socket) {
+    socket.off('knowledge:learned', callback);
+  }
+}
+
+/**
  * Remove all event listeners
  */
 export function removeAllListeners(): void {
@@ -194,6 +234,7 @@ export function removeAllListeners(): void {
     socket.off('conversation:update');
     socket.off('typing:user');
     socket.off('typing:stop');
+    socket.off('knowledge:learned');
   }
 }
 
@@ -312,4 +353,29 @@ export function useSocketConnection(token: string | null): Socket | null {
   }, [token]);
 
   return socketRef.current;
+}
+
+/**
+ * Hook for safely subscribing to knowledge learned events with automatic cleanup
+ */
+export function useKnowledgeLearnedListener(
+  callback: (data: {
+    conversationId: string;
+    learned: {
+      id: string;
+      topic: string;
+      content: string;
+      category: string;
+      confidence: number;
+    };
+  }) => void
+): void {
+  const callbackRef = useRef(callback);
+  callbackRef.current = callback;
+
+  useEffect(() => {
+    const handler = (data: any) => callbackRef.current(data);
+    onKnowledgeLearned(handler);
+    return () => offKnowledgeLearned(handler);
+  }, []);
 }
