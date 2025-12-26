@@ -275,6 +275,7 @@ export default function ProfilePage() {
     { enabled: !!user && viewMode === 'overview' }
   );
 
+
   // Update local state when data changes
   useEffect(() => {
     if (searchHistoryData) {

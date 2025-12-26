@@ -76,6 +76,20 @@ const getCashflowColor = (cashflow: number): string => {
   return cashflow >= 0 ? 'text-green-600' : 'text-red-600';
 };
 
+// AfA-Rate basierend auf Baujahr bestimmen
+const getAfaRate = (yearBuilt?: number): number => {
+  if (!yearBuilt) return 0.02; // Default: Bestand
+  if (yearBuilt >= 2024) return 0.04; // Neubau (Ø degressiv)
+  if (yearBuilt < 1925) return 0.025; // Altbau
+  return 0.02; // Bestand
+};
+
+// Gebäudeanteil basierend auf Baujahr
+const getBuildingRatio = (yearBuilt?: number): number => {
+  if (yearBuilt && yearBuilt >= 2024) return 0.85; // Neubau
+  return 0.80; // Bestand/Altbau
+};
+
 export function KeyMetricsPanel({
   grossYield,
   rentMultiplier,
@@ -100,6 +114,13 @@ export function KeyMetricsPanel({
   className = '',
 }: KeyMetricsPanelProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const [isKiFazitExpanded, setIsKiFazitExpanded] = useState(false);
+
+  // Tax-Profil für Grenzsteuersatz laden
+  const { data: taxProfile } = trpc.taxOptimizer.getProfile.useQuery(undefined, {
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
 
   // Zeige Edit-Button nur wenn propertyId und onSaveParams vorhanden
   const canEdit = !!propertyId && !!onSaveParams;
@@ -187,6 +208,36 @@ export function KeyMetricsPanel({
   const cashOnCash = monthlyCashflow !== undefined && eigenkapital > 0
     ? (monthlyCashflow * 12 / eigenkapital) * 100
     : undefined;
+
+  // Steuereffekt berechnen
+  const steuereffekt = useMemo(() => {
+    if (monthlyCashflow === undefined || effectivePurchasePrice <= 0) return undefined;
+
+    // AfA berechnen
+    const afaRate = getAfaRate(yearBuilt ? Number(yearBuilt) : undefined);
+    const buildingRatio = getBuildingRatio(yearBuilt ? Number(yearBuilt) : undefined);
+    const afaJaehrlich = effectivePurchasePrice * buildingRatio * afaRate;
+
+    // Cashflow jährlich
+    const cashflowJaehrlich = monthlyCashflow * 12;
+
+    // Steuerlicher Gewinn/Verlust (Cashflow - AfA)
+    const steuerlichesErgebnis = cashflowJaehrlich - afaJaehrlich;
+
+    // Grenzsteuersatz aus Profil oder Default 42%
+    const grenzsteuersatz = taxProfile?.marginal_tax_rate
+      ? Number(taxProfile.marginal_tax_rate)
+      : 0.42;
+
+    // Steuereffekt berechnen
+    const jaehrlich = steuerlichesErgebnis * grenzsteuersatz;
+    const monatlich = jaehrlich / 12;
+
+    return {
+      monatlich: Math.round(monatlich),
+      jaehrlich: Math.round(jaehrlich),
+    };
+  }, [monthlyCashflow, effectivePurchasePrice, yearBuilt, taxProfile]);
 
   // Finale Prüfung: Haben wir Daten zum Anzeigen?
   const hasData = hasExternalData || monthlyCashflow !== undefined;
@@ -388,7 +439,7 @@ export function KeyMetricsPanel({
             setIsExpanded(!isExpanded);
           }
         }}
-        className="w-full p-4 sm:p-5 cursor-pointer"
+        className="w-full p-4 sm:p-5 cursor-pointer hover:bg-gray-50 transition-colors"
       >
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2 min-w-0">
@@ -411,7 +462,7 @@ export function KeyMetricsPanel({
         </div>
 
         {/* Key Metrics Cards - always shown */}
-        <div className="grid gap-2 sm:gap-3 grid-cols-4">
+        <div className="grid gap-2 sm:gap-3 grid-cols-5">
           {/* Rendite */}
           <div className={`rounded-xl p-2 sm:p-3 text-center border ${
             effectiveGrossYield !== undefined && Number(effectiveGrossYield) >= 4
@@ -468,6 +519,30 @@ export function KeyMetricsPanel({
             </div>
           </div>
 
+          {/* Steuereffekt */}
+          <div className={`rounded-xl p-2 sm:p-3 text-center border ${
+            steuereffekt !== undefined && steuereffekt.monatlich < 0
+              ? 'bg-green-50 border-green-200'
+              : steuereffekt !== undefined && steuereffekt.monatlich > 0
+                ? 'bg-red-50 border-red-200'
+                : 'bg-gray-50 border-gray-100'
+          }`}>
+            <span className="text-sm text-gray-500 leading-tight block">Steuereffekt</span>
+            <div className={`text-base sm:text-lg font-bold ${
+              steuereffekt !== undefined
+                ? steuereffekt.monatlich < 0
+                  ? 'text-green-600'
+                  : steuereffekt.monatlich > 0
+                    ? 'text-red-600'
+                    : 'text-gray-400'
+                : 'text-gray-400'
+            }`}>
+              {steuereffekt !== undefined
+                ? `${steuereffekt.monatlich < 0 ? '+' : ''}${Math.abs(steuereffekt.monatlich).toLocaleString('de-DE')}€`
+                : '—'}
+            </div>
+          </div>
+
           {/* Cash on Cash */}
           <div className={`rounded-xl p-2 sm:p-3 text-center border ${
             monthlyCashflow !== undefined && eigenkapital > 0 && monthlyCashflow > 0
@@ -490,7 +565,7 @@ export function KeyMetricsPanel({
       {/* Expanded Content - InvestmentCalculator */}
       {isExpanded && effectivePurchasePrice > 0 && (
         <div className="px-4 sm:px-5 pb-4 sm:pb-5 border-t border-gray-100">
-          {/* KI-Fazit für Investoren */}
+          {/* KI-Fazit für Investoren - Collapsible */}
           {generateAiFazitMutation.isPending ? (
             <div className="mt-4 mb-4 rounded-xl p-4 border bg-blue-50 border-blue-200">
               <div className="flex items-center gap-3">
@@ -499,94 +574,108 @@ export function KeyMetricsPanel({
               </div>
             </div>
           ) : displayFazit ? (
-            <div className="mt-4 mb-4 space-y-3">
-              {/* Fazit */}
-              <div className={`rounded-xl p-4 border ${getFazitBgColor(displayFazit.verdict)}`}>
-                <div className="flex items-start gap-3">
-                  <div
-                    className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: displayFazit.color + '20' }}
-                  >
-                    <Sparkles className="w-4 h-4" style={{ color: displayFazit.color }} />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="text-sm font-semibold text-gray-900">
-                        {aiFazitError ? 'Fazit' : 'KI-Fazit'}
-                      </p>
-                      {propertyId && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setAiFazit(null);
-                            setFazitRequested(true);
-                            setAiFazitError(false);
-                            generateAiFazitMutation.mutate({
-                              mode: 'investor',
-                              propertyId: propertyId,
-                              forceRegenerate: true,
-                              purchasePrice: effectivePurchasePrice,
-                              monthlyRent: mieteinnahmen || undefined,
-                              grossYield: effectiveGrossYield,
-                              rentMultiplier: effectiveRentMultiplier,
-                              monthlyCashflow: monthlyCashflow,
-                              cashOnCash: cashOnCash,
-                              equityPercentage: eigenkapitalRate,
-                              interestRate: zinssatz,
-                              loanAmount: darlehensbetrag,
-                              amortizationRate: tilgung,
-                              monthlyMortgage: monatlicheRate,
-                              totalInvestment: gesamtinvestition,
-                              monthlyFee: hausgeld,
-                              monthlyMaintenance: instandhaltungskosten,
-                              annualRent: mieteinnahmen ? mieteinnahmen * 12 : undefined,
-                              annualCashflow: monthlyCashflow !== undefined ? monthlyCashflow * 12 : undefined,
-                              equityAmount: eigenkapital,
-                              location: location,
-                              sqm: sqm ? Number(sqm) : undefined,
-                              yearBuilt: yearBuilt ? Number(yearBuilt) : undefined,
-                            });
-                          }}
-                          disabled={generateAiFazitMutation.isPending}
-                          className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1 disabled:opacity-50"
-                        >
-                          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
-                          </svg>
-                          Neu generieren
-                        </button>
-                      )}
+            <div className="mt-4 mb-4">
+              <div className="rounded-xl border overflow-hidden bg-gray-50 border-gray-200">
+                {/* Accordion Header */}
+                <div
+                  className="p-4 cursor-pointer flex items-center justify-between hover:bg-gray-100/50 transition-colors"
+                  onClick={() => setIsKiFazitExpanded(!isKiFazitExpanded)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                      style={{ backgroundColor: displayFazit.color + '20' }}
+                    >
+                      <Sparkles className="w-4 h-4" style={{ color: displayFazit.color }} />
                     </div>
-                    <p className="text-sm text-gray-700 leading-relaxed">{displayFazit.text}</p>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {aiFazitError ? 'Fazit' : 'KI-Fazit'}
+                    </p>
                   </div>
+                  <ChevronDown
+                    size={18}
+                    className={`text-gray-400 transition-transform duration-200 ${isKiFazitExpanded ? 'rotate-180' : ''}`}
+                  />
                 </div>
-              </div>
 
-              {/* Optimierungsvorschläge */}
-              {aiFazit?.suggestions && aiFazit.suggestions.length > 0 && (
-                <div className="rounded-xl p-4 border bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-blue-100">
-                      <svg className="w-4 h-4 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                      </svg>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-gray-900 mb-2">
-                        So wird's ein Top-Deal
-                      </p>
-                      <ul className="space-y-1.5">
-                        {aiFazit.suggestions.map((tip, index) => (
-                          <li key={index} className="text-sm text-gray-700 flex items-start gap-2">
-                            <span className="text-blue-500 flex-shrink-0">•</span>
-                            <span>{tip}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                {/* Accordion Content */}
+                {isKiFazitExpanded && (
+                  <div className="px-4 pb-4 space-y-3">
+                    {/* Fazit Text */}
+                    <p className="text-sm text-gray-700 leading-relaxed">{displayFazit.text}</p>
+
+                    {/* Optimierungsvorschläge */}
+                    {aiFazit?.suggestions && aiFazit.suggestions.length > 0 && (
+                      <div className="rounded-xl p-3 bg-white/50 border border-blue-100">
+                        <div className="flex items-start gap-3">
+                          <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 bg-blue-100">
+                            <svg className="w-3 h-3 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-xs font-semibold text-gray-900 mb-1.5">
+                              So wird's ein Top-Deal
+                            </p>
+                            <ul className="space-y-1">
+                              {aiFazit.suggestions.map((tip, index) => (
+                                <li key={index} className="text-xs text-gray-700 flex items-start gap-2">
+                                  <span className="text-blue-500 flex-shrink-0">•</span>
+                                  <span>{tip}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Neu generieren Button */}
+                    {propertyId && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setAiFazit(null);
+                          setFazitRequested(true);
+                          setAiFazitError(false);
+                          generateAiFazitMutation.mutate({
+                            mode: 'investor',
+                            propertyId: propertyId,
+                            forceRegenerate: true,
+                            purchasePrice: effectivePurchasePrice,
+                            monthlyRent: mieteinnahmen || undefined,
+                            grossYield: effectiveGrossYield,
+                            rentMultiplier: effectiveRentMultiplier,
+                            monthlyCashflow: monthlyCashflow,
+                            cashOnCash: cashOnCash,
+                            equityPercentage: eigenkapitalRate,
+                            interestRate: zinssatz,
+                            loanAmount: darlehensbetrag,
+                            amortizationRate: tilgung,
+                            monthlyMortgage: monatlicheRate,
+                            totalInvestment: gesamtinvestition,
+                            monthlyFee: hausgeld,
+                            monthlyMaintenance: instandhaltungskosten,
+                            annualRent: mieteinnahmen ? mieteinnahmen * 12 : undefined,
+                            annualCashflow: monthlyCashflow !== undefined ? monthlyCashflow * 12 : undefined,
+                            equityAmount: eigenkapital,
+                            location: location,
+                            sqm: sqm ? Number(sqm) : undefined,
+                            yearBuilt: yearBuilt ? Number(yearBuilt) : undefined,
+                          });
+                        }}
+                        disabled={generateAiFazitMutation.isPending}
+                        className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+                        </svg>
+                        Neu generieren
+                      </button>
+                    )}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           ) : null}
           <InvestmentCalculator

@@ -3,13 +3,16 @@
  * Replaces all 'any' types with proper type definitions
  */
 
+// AfA depreciation type for tax calculations
+export type AfaType = 'bestand' | 'altbau' | 'neubau' | 'denkmal';
+
 export interface ListingData {
   id?: string; // Property ID (set after creation)
   property_type?: 'apartment' | 'house' | 'land' | 'commercial';
   title?: string;
   location?: string; // City/area (e.g., "München")
   street_address?: string; // Street address (e.g., "Musterstraße 123")
-  postal_code?: string; // Postal code (e.g., "80331")
+  postal_code?: number; // Postal code (e.g., 80331)
   price?: number;
   sqm?: number;
   rooms?: number;
@@ -37,6 +40,7 @@ export interface ListingData {
   additional_costs?: number;
   monthly_fee?: number; // Hausgeld pro Monat in EUR
   monthly_rent?: number; // Mieteinnahme pro Monat in EUR
+  afa_type?: AfaType; // AfA-Typ für Steuerberechnung
   // AI Rating fields (legacy)
   ai_score?: number;
   ai_rating_explanation?: string;

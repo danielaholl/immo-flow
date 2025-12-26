@@ -354,6 +354,9 @@ importers:
       superjson:
         specifier: ^2.2.6
         version: 2.2.6
+      use-debounce:
+        specifier: ^10.0.6
+        version: 10.0.6(react@18.2.0)
     devDependencies:
       '@immoflow/tailwind-config':
         specifier: workspace:*
@@ -13831,6 +13834,15 @@ packages:
 
   /url-join@4.0.0:
     resolution: {integrity: sha512-EGXjXJZhIHiQMK2pQukuFcL303nskqIRzWvPvV5O8miOfwoUb9G+a/Cld60kUyeaybEI94wvVClT10DtfeAExA==}
+    dev: false
+
+  /use-debounce@10.0.6(react@18.2.0):
+    resolution: {integrity: sha512-C5OtPyhAZgVoteO9heXMTdW7v/IbFI+8bSVKYCJrSmiWWCLsbUxiBSp4t9v0hNBTGY97bT72ydDIDyGSFWfwXg==}
+    engines: {node: '>= 16.0.0'}
+    peerDependencies:
+      react: '*'
+    dependencies:
+      react: 18.2.0
     dev: false
 
   /use-latest-callback@0.2.6(react@18.2.0):

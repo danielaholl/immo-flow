@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { Calculator, ChevronDown, ChevronUp, PiggyBank, TrendingDown, Info } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Calculator, ChevronDown, ChevronUp, PiggyBank, TrendingDown, Info, User } from 'lucide-react';
 import Link from 'next/link';
+import { trpc } from '@/lib/trpc';
 
 export type AfaStrategy = 'bestand' | 'neubau' | 'denkmal';
 
@@ -32,6 +33,12 @@ export function PropertyTaxCard({
   yearBuilt,
   onStrategyChange,
 }: PropertyTaxCardProps) {
+  // Load user's tax profile
+  const { data: taxProfile } = trpc.taxOptimizer.getProfile.useQuery(undefined, {
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
   // Auto-detect strategy based on year built
   const getInitialStrategy = (): AfaStrategy => {
     if (!yearBuilt) return 'bestand';
@@ -44,6 +51,16 @@ export function PropertyTaxCard({
   const [strategy, setStrategy] = useState<AfaStrategy>(getInitialStrategy());
   const [isExpanded, setIsExpanded] = useState(false);
   const [marginalTaxRate, setMarginalTaxRate] = useState(42); // Default 42%
+  const [isUsingProfileRate, setIsUsingProfileRate] = useState(false);
+
+  // Update tax rate from user profile when loaded
+  useEffect(() => {
+    if (taxProfile?.marginal_tax_rate) {
+      const profileRate = Math.round(Number(taxProfile.marginal_tax_rate) * 100);
+      setMarginalTaxRate(profileRate);
+      setIsUsingProfileRate(true);
+    }
+  }, [taxProfile]);
 
   // Calculate tax savings for this property
   const taxEffect = useMemo(() => {
@@ -87,15 +104,15 @@ export function PropertyTaxCard({
   };
 
   return (
-    <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl border border-green-200 overflow-hidden">
+    <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-2xl border border-primary/20 overflow-hidden">
       {/* Header */}
       <div
         className="p-4 cursor-pointer flex items-center justify-between"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-            <PiggyBank className="text-green-600" size={20} />
+          <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+            <PiggyBank className="text-primary" size={20} />
           </div>
           <div>
             <h3 className="font-semibold text-gray-900 text-sm">Steuer-Ersparnis</h3>
@@ -104,7 +121,7 @@ export function PropertyTaxCard({
         </div>
         <div className="flex items-center gap-3">
           <div className="text-right">
-            <p className="text-xl font-bold text-green-600">
+            <p className="text-xl font-bold text-primary">
               {formatCurrency(taxEffect.annualTaxSavings)}
             </p>
             <p className="text-xs text-gray-500">pro Jahr</p>
@@ -123,10 +140,10 @@ export function PropertyTaxCard({
           {/* Monthly Savings */}
           <div className="bg-white rounded-xl p-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <TrendingDown className="text-green-500" size={16} />
+              <TrendingDown className="text-primary" size={16} />
               <span className="text-sm text-gray-600">Monatlich mehr netto:</span>
             </div>
-            <span className="font-bold text-green-600">
+            <span className="font-bold text-primary">
               +{formatCurrency(taxEffect.monthlyTaxSavings)}
             </span>
           </div>
@@ -145,7 +162,7 @@ export function PropertyTaxCard({
                     onClick={() => handleStrategyChange(key)}
                     className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-all ${
                       isSelected
-                        ? 'bg-green-600 text-white'
+                        ? 'bg-primary text-white'
                         : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
                     }`}
                   >
@@ -158,22 +175,41 @@ export function PropertyTaxCard({
 
           {/* Tax Rate Input */}
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-2">
-              Dein Grenzsteuersatz
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-medium text-gray-600">
+                Dein Grenzsteuersatz
+              </label>
+              {isUsingProfileRate && (
+                <span className="flex items-center gap-1 text-xs text-primary">
+                  <User size={10} />
+                  aus Profil
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               <input
                 type="range"
                 min={14}
                 max={45}
                 value={marginalTaxRate}
-                onChange={(e) => setMarginalTaxRate(Number(e.target.value))}
-                className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
+                onChange={(e) => {
+                  setMarginalTaxRate(Number(e.target.value));
+                  setIsUsingProfileRate(false);
+                }}
+                className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary"
               />
               <span className="w-12 text-sm font-medium text-gray-900 text-right">
                 {marginalTaxRate}%
               </span>
             </div>
+            {!isUsingProfileRate && !taxProfile && (
+              <Link
+                href="/profile"
+                className="block text-xs text-primary hover:underline mt-1"
+              >
+                Im Profil speichern →
+              </Link>
+            )}
           </div>
 
           {/* Breakdown */}
@@ -203,7 +239,7 @@ export function PropertyTaxCard({
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Mieteinnahmen:</span>
-                <span className="text-gray-600 font-medium">
+                <span className="text-red-600 font-medium">
                   -{formatCurrency(taxEffect.breakdown.rentalIncome)}
                 </span>
               </div>
@@ -219,7 +255,7 @@ export function PropertyTaxCard({
           {/* CTA Link */}
           <Link
             href="/steuer-optimierer"
-            className="flex items-center justify-center gap-2 w-full py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-xl transition-colors"
+            className="flex items-center justify-center gap-2 w-full py-2.5 bg-primary hover:opacity-90 text-white text-sm font-medium rounded-xl transition-colors"
           >
             <Calculator size={16} />
             Zum Steuer-Optimierer

@@ -42,7 +42,7 @@ export const propertiesRouter = router({
           minSqm: z.number().positive().max(100000).optional(),
           maxSqm: z.number().positive().max(100000).optional(),
           rooms: z.number().positive().int().max(50).optional(),
-          status: z.enum(['active', 'pending', 'archived', 'sold']).optional(),
+          status: z.enum(['active', 'pending', 'archived', 'sold', 'inactive']).optional(),
           limit: z.number().positive().int().max(100).default(20),
           offset: z.number().nonnegative().int().default(0),
         })
@@ -442,12 +442,12 @@ export const propertiesRouter = router({
         features: z.array(z.string().trim().max(100)).max(100).optional(),
         highlights: z.array(z.string().trim().max(100)).max(100).optional(),
         red_flags: z.array(z.string().trim().max(100)).max(100).optional(),
-        status: z.enum(['active', 'pending', 'archived', 'sold']).default('pending'),
+        status: z.enum(['active', 'pending', 'archived', 'sold', 'inactive']).default('inactive'),
         commission_rate: z.number().nonnegative().max(100).optional(),
         require_address_consent: z.boolean().optional(),
         // New fields added
         property_type: z.enum(['apartment', 'house', 'villa', 'commercial', 'land', 'office', 'retail', 'industrial', 'parking', 'multi_family']).optional(),
-        postal_code: z.string().trim().max(10).optional(),
+        postal_code: z.union([z.string(), z.number()]).transform(val => val != null ? String(val) : val).optional(),
         street_address: z.string().trim().max(500).optional(),
         year_built: z.number().int().min(1800).max(new Date().getFullYear() + 5).optional(),
         floor_level: z.string().trim().max(20).optional(),
@@ -465,6 +465,7 @@ export const propertiesRouter = router({
         important_notes: z.string().trim().max(2000).optional(),
         is_external: z.boolean().optional(),
         monthly_rent: z.number().int().nonnegative().max(1000000).optional(),
+        afa_type: z.enum(['bestand', 'altbau', 'neubau', 'denkmal']).optional().default('bestand'),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -476,8 +477,8 @@ export const propertiesRouter = router({
           year_built, floor_level, total_floors, bathrooms, usable_area,
           usable_area_ratio, monthly_fee, condition, heating_type,
           energy_source, energy_certificate, energy_efficiency_class,
-          available_from, important_notes, is_external, monthly_rent
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35)
+          available_from, important_notes, is_external, monthly_rent, afa_type
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36)
         RETURNING *`,
         [
           ctx.user.id,
@@ -515,6 +516,7 @@ export const propertiesRouter = router({
           input.important_notes,
           input.is_external || false,
           input.monthly_rent,
+          input.afa_type || 'bestand',
         ]
       );
 
@@ -553,12 +555,12 @@ export const propertiesRouter = router({
         features: z.array(z.string().trim().max(100)).max(100).optional(),
         highlights: z.array(z.string().trim().max(100)).max(100).optional(),
         red_flags: z.array(z.string().trim().max(100)).max(100).optional(),
-        status: z.enum(['active', 'pending', 'archived', 'sold']).nullish(),
+        status: z.enum(['active', 'pending', 'archived', 'sold', 'inactive']).nullish(),
         commission_rate: z.number().nonnegative().max(100).nullish(),
         require_address_consent: z.boolean().nullish(),
         // New fields added - using nullish() to accept both null and undefined
         property_type: z.enum(['apartment', 'house', 'villa', 'commercial', 'land', 'office', 'retail', 'industrial', 'parking', 'multi_family']).nullish(),
-        postal_code: z.string().trim().max(10).nullish(),
+        postal_code: z.union([z.string(), z.number()]).transform(val => val != null ? String(val) : val).nullish(),
         street_address: z.string().trim().max(500).nullish(),
         year_built: z.number().int().min(1800).max(new Date().getFullYear() + 5).nullish(),
         floor_level: z.string().trim().max(20).nullish(),
@@ -574,6 +576,7 @@ export const propertiesRouter = router({
         energy_efficiency_class: z.enum(['A+', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']).nullish(),
         available_from: z.string().trim().max(50).nullish(),
         important_notes: z.string().trim().max(2000).nullish(),
+        afa_type: z.enum(['bestand', 'altbau', 'neubau', 'denkmal']).nullish(),
       })
     )
     .mutation(async ({ input, ctx }) => {

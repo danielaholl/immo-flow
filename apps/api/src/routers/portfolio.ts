@@ -5,6 +5,10 @@
 import { z } from 'zod';
 import { router, protectedProcedure } from '../trpc.js';
 import { query, queryOne } from '../db.js';
+import {
+  calculatePortfolioPropertyTax,
+  type PortfolioPropertyTaxResult,
+} from '../services/tax-calculator.js';
 
 // Input schema for creating/updating portfolio properties
 const portfolioPropertySchema = z.object({
@@ -754,5 +758,61 @@ export const portfolioRouter = router({
     }
 
     return { success: true, propertiesProcessed: properties.length, totalMonthsGenerated: totalMonths };
+  }),
+
+  // Get tax effects for all portfolio properties
+  getTaxEffects: protectedProcedure.query(async ({ ctx }) => {
+    // Load user's tax profile for marginal tax rate
+    const taxProfile = await queryOne(
+      `SELECT marginal_tax_rate FROM tax_optimizer_profiles WHERE user_id = $1`,
+      [ctx.user.id]
+    );
+
+    // Use 42% (Spitzensteuersatz) as default if no profile exists
+    const DEFAULT_TAX_RATE = 0.42;
+    const hasTaxProfile = !!taxProfile && Number(taxProfile.marginal_tax_rate) > 0;
+    const marginalTaxRate = hasTaxProfile
+      ? Number(taxProfile.marginal_tax_rate)
+      : DEFAULT_TAX_RATE;
+
+    // Load all active properties with required fields
+    const properties = await query(
+      `SELECT
+        id, purchase_price, year_built, building_share,
+        loan_amount, interest_rate, monthly_rent
+       FROM portfolio_properties
+       WHERE user_id = $1 AND status = 'active'`,
+      [ctx.user.id]
+    );
+
+    // Calculate tax effect for each property
+    const taxEffects: Record<string, PortfolioPropertyTaxResult> = {};
+    let totalAnnualTaxEffect = 0;
+
+    for (const p of properties) {
+      const effect = calculatePortfolioPropertyTax({
+        purchasePrice: Number(p.purchase_price) || 0,
+        yearBuilt: p.year_built,
+        buildingShare: Number(p.building_share) || 0.80,
+        loanAmount: Number(p.loan_amount) || 0,
+        interestRate: Number(p.interest_rate) || 0,
+        monthlyRent: Number(p.monthly_rent) || 0,
+        marginalTaxRate,
+      });
+
+      taxEffects[p.id] = effect;
+      totalAnnualTaxEffect += effect.annualTaxEffect;
+    }
+
+    return {
+      hasTaxProfile,
+      marginalTaxRate,
+      taxEffects,
+      summary: {
+        totalAnnualTaxEffect: Math.round(totalAnnualTaxEffect),
+        totalMonthlyTaxEffect: Math.round(totalAnnualTaxEffect / 12),
+        propertyCount: properties.length,
+      },
+    };
   }),
 });

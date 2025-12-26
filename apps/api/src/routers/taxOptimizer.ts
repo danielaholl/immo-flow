@@ -15,7 +15,7 @@ import {
   type AfaStrategy,
 } from '../services/tax-calculator.js';
 
-const afaStrategySchema = z.enum(['bestand', 'neubau', 'denkmal']);
+const afaStrategySchema = z.enum(['bestand', 'altbau', 'neubau', 'denkmal']);
 
 export const taxOptimizerRouter = router({
   // Get the user's tax profile

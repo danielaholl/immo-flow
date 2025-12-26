@@ -12,7 +12,6 @@ import type { PropertyDocument } from '../create-listing/types';
 import { mapToPropertyPreviewData } from '../utils/propertyMapper';
 import { DeletePropertyModal } from '../components/DeletePropertyModal';
 import { InterestedPartiesList } from '../components/InterestedPartiesList';
-import { SellerKnowledgeManager } from '../components/SellerKnowledgeManager';
 import { ShareLinkModal } from '../components/ShareLinkModal';
 import { Home, Plus, Pencil, Power, Trash2, Share2 } from 'lucide-react';
 import { PropertyListThumbnail } from '../components/PropertyListThumbnail';
@@ -556,13 +555,6 @@ export default function MyPropertiesPage() {
                     />
                   </div>
 
-                  {/* KI-Wissensbasis */}
-                  <div className="mt-6">
-                    <SellerKnowledgeManager
-                      propertyId={selectedProperty.id}
-                      defaultExpanded={false}
-                    />
-                  </div>
                 </PropertyDetailLayout>
               ) : (
                 <div className="flex-1 flex items-center justify-center text-gray-500">

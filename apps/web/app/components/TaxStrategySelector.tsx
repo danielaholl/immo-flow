@@ -1,9 +1,9 @@
 'use client';
 
 import React from 'react';
-import { Building2, Sparkles, Landmark, TrendingDown } from 'lucide-react';
+import { Building2, Sparkles, Landmark, TrendingDown, Clock } from 'lucide-react';
 
-export type AfaStrategy = 'bestand' | 'neubau' | 'denkmal';
+export type AfaStrategy = 'bestand' | 'altbau' | 'neubau' | 'denkmal';
 
 const STRATEGIES: Record<
   AfaStrategy,
@@ -19,9 +19,16 @@ const STRATEGIES: Record<
   bestand: {
     label: 'Bestand',
     rate: '2% AfA',
-    description: 'Konservative Strategie für Bestandsimmobilien',
+    description: 'Standard für Gebäude nach 1925',
     icon: <Building2 size={20} />,
     color: 'blue',
+  },
+  altbau: {
+    label: 'Altbau',
+    rate: '2,5% AfA',
+    description: 'Für Gebäude vor 1925',
+    icon: <Clock size={20} />,
+    color: 'purple',
   },
   neubau: {
     label: 'Neubau',
@@ -68,7 +75,7 @@ export function TaxStrategySelector({
                 key={key}
                 className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
                   isSelected
-                    ? 'border-green-500 bg-green-50'
+                    ? 'border-primary bg-primary/5'
                     : 'border-gray-200 hover:border-gray-300 bg-white'
                 }`}
               >
@@ -82,11 +89,11 @@ export function TaxStrategySelector({
                 />
                 <div
                   className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                    isSelected ? 'border-green-500' : 'border-gray-300'
+                    isSelected ? 'border-primary' : 'border-gray-300'
                   }`}
                 >
                   {isSelected && (
-                    <div className="w-2 h-2 rounded-full bg-green-500" />
+                    <div className="w-2 h-2 rounded-full bg-primary" />
                   )}
                 </div>
                 <div className="flex-1">
@@ -97,7 +104,7 @@ export function TaxStrategySelector({
                     <span
                       className={`text-xs px-2 py-0.5 rounded-full ${
                         isSelected
-                          ? 'bg-green-100 text-green-700'
+                          ? 'bg-primary/10 text-primary'
                           : 'bg-gray-100 text-gray-600'
                       }`}
                     >
@@ -125,7 +132,7 @@ export function TaxStrategySelector({
       <label className="text-sm font-medium text-gray-700">
         Wähle deine AfA-Strategie
       </label>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {(Object.keys(STRATEGIES) as AfaStrategy[]).map((key) => {
           const strategy = STRATEGIES[key];
           const isSelected = value === key;
@@ -137,13 +144,13 @@ export function TaxStrategySelector({
               onClick={() => onChange(key)}
               className={`p-4 rounded-xl border-2 text-left transition-all ${
                 isSelected
-                  ? 'border-green-500 bg-green-50 shadow-md'
+                  ? 'border-primary bg-primary/5 shadow-md'
                   : 'border-gray-200 hover:border-gray-300 bg-white'
               }`}
             >
               <div className="flex items-center gap-2 mb-2">
                 <span
-                  className={`${isSelected ? 'text-green-600' : 'text-gray-500'}`}
+                  className={`${isSelected ? 'text-primary' : 'text-gray-500'}`}
                 >
                   {strategy.icon}
                 </span>
@@ -153,7 +160,7 @@ export function TaxStrategySelector({
               </div>
               <div
                 className={`text-lg font-bold mb-1 ${
-                  isSelected ? 'text-green-600' : 'text-gray-700'
+                  isSelected ? 'text-primary' : 'text-gray-700'
                 }`}
               >
                 {strategy.rate}

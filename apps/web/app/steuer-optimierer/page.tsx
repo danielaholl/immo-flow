@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
-import { Calculator, Info, Building2, Check } from 'lucide-react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { Calculator, Info, Building2, Check, Save, Pencil } from 'lucide-react';
 import { trpc } from '@/app/providers/TRPCProvider';
 import { TaxStrategySelector, type AfaStrategy } from '../components/TaxStrategySelector';
 import { TaxSavingsDisplay } from '../components/TaxSavingsDisplay';
@@ -54,7 +54,7 @@ function PropertyMatchCard({ property, taxSavings }: PropertyMatchCardProps) {
           sizes="(max-width: 768px) 100vw, 300px"
         />
         {/* Badge */}
-        <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-medium px-2 py-1 rounded-full flex items-center gap-1">
+        <div className="absolute top-2 right-2 bg-primary text-white text-xs font-medium px-2 py-1 rounded-full flex items-center gap-1">
           <Check size={12} />
           Geprüft
         </div>
@@ -65,7 +65,7 @@ function PropertyMatchCard({ property, taxSavings }: PropertyMatchCardProps) {
         </h4>
         <p className="text-xs text-gray-500 mb-2">{property.location}</p>
         <div className="flex justify-between items-center">
-          <span className="font-bold text-green-600">
+          <span className="font-bold text-primary">
             {formatCurrency(property.price)}
           </span>
           <span className="text-xs text-gray-500">
@@ -74,7 +74,7 @@ function PropertyMatchCard({ property, taxSavings }: PropertyMatchCardProps) {
         </div>
         {taxSavings > 0 && (
           <div className="mt-2 pt-2 border-t border-gray-100">
-            <p className="text-xs text-green-600">
+            <p className="text-xs text-primary">
               Spart dir {formatCurrency(taxSavings)}/Jahr
             </p>
           </div>
@@ -89,21 +89,68 @@ export default function SteuerOptimiererPage() {
   const [annualTaxPaid, setAnnualTaxPaid] = useState<number>(30000);
   const [marginalTaxRate, setMarginalTaxRate] = useState<number>(42);
   const [strategy, setStrategy] = useState<AfaStrategy>('neubau');
-  const [customAfaRate, setCustomAfaRate] = useState<number | null>(null);
+  const [isUsingProfileValues, setIsUsingProfileValues] = useState(false);
+  const [isEditingTax, setIsEditingTax] = useState(false);
+
+  // Load user's tax profile
+  const { data: taxProfile, isLoading: loadingProfile, refetch: refetchProfile } = trpc.taxOptimizer.getProfile.useQuery(undefined, {
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  // Mutation to save tax profile
+  const upsertTaxProfile = trpc.taxOptimizer.upsertProfile.useMutation({
+    onSuccess: () => {
+      refetchProfile();
+      setIsUsingProfileValues(true);
+      setHasUnsavedChanges(false);
+      setIsEditingTax(false);
+    },
+  });
+
+  // Track unsaved changes
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Update values from user profile when loaded
+  useEffect(() => {
+    if (taxProfile) {
+      if (taxProfile.annual_tax_paid) {
+        setAnnualTaxPaid(Number(taxProfile.annual_tax_paid));
+      }
+      if (taxProfile.marginal_tax_rate) {
+        setMarginalTaxRate(Math.round(Number(taxProfile.marginal_tax_rate) * 100));
+      }
+      if (taxProfile.preferred_strategy) {
+        setStrategy(taxProfile.preferred_strategy as AfaStrategy);
+      }
+      setIsUsingProfileValues(true);
+    }
+  }, [taxProfile]);
+
+  // Handle saving tax profile
+  const handleSaveProfile = async () => {
+    await upsertTaxProfile.mutateAsync({
+      annualTaxPaid,
+      marginalTaxRate: marginalTaxRate / 100,
+      preferredStrategy: strategy,
+    });
+  };
+
+  // Track changes to inputs
+  const handleInputChange = useCallback(() => {
+    setIsUsingProfileValues(false);
+    setHasUnsavedChanges(true);
+  }, []);
 
   // Get the default AfA rate for the current strategy
   const defaultAfaRate = useMemo(() => {
-    const rates = { bestand: 2, neubau: 4, denkmal: 9 }; // neubau: 4% = Ø über 10 Jahre bei 5% degressiv
+    const rates: Record<AfaStrategy, number> = { bestand: 2, altbau: 2.5, neubau: 4, denkmal: 9 };
     return rates[strategy];
   }, [strategy]);
 
-  // Effective AfA rate: custom if set, otherwise default
-  const effectiveAfaRate = customAfaRate !== null ? customAfaRate : defaultAfaRate;
-
-  // Handle strategy change - reset custom rate
+  // Handle strategy change
   const handleStrategyChange = useCallback((newStrategy: AfaStrategy) => {
     setStrategy(newStrategy);
-    setCustomAfaRate(null); // Reset custom rate when strategy changes
   }, []);
 
   // Calculate the target portfolio value
@@ -112,7 +159,6 @@ export default function SteuerOptimiererPage() {
       annualTaxPaid,
       marginalTaxRate: marginalTaxRate / 100,
       strategy,
-      customAfaRate: customAfaRate !== null ? customAfaRate / 100 : undefined,
     },
     {
       enabled: annualTaxPaid > 0 && marginalTaxRate > 0,
@@ -137,8 +183,7 @@ export default function SteuerOptimiererPage() {
     return matchingProperties.data.map((property: { id: string; price: number }) => {
       // Simple calculation for property tax savings
       const buildingRatio = strategy === 'bestand' ? 0.8 : strategy === 'neubau' ? 0.85 : 0.9;
-      // Use effective AfA rate (custom if set, otherwise default for strategy)
-      const afaRate = effectiveAfaRate / 100;
+      const afaRate = defaultAfaRate / 100;
       const interestRate = 0.04;
       const rentalYield = 0.03;
       const maintenanceRate = 0.005;
@@ -155,7 +200,7 @@ export default function SteuerOptimiererPage() {
         taxSavings: Math.round(taxSavings),
       };
     });
-  }, [matchingProperties.data, strategy, marginalTaxRate, effectiveAfaRate]);
+  }, [matchingProperties.data, strategy, marginalTaxRate, defaultAfaRate]);
 
   const handleTaxChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/[^\d]/g, '');
@@ -186,48 +231,112 @@ export default function SteuerOptimiererPage() {
                 Dein Steuer-Optimierer
               </h3>
 
-              {/* Annual Tax Input */}
-              <div className="mb-5">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Gezahlte Einkommensteuer pro Jahr
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={formatNumber(annualTaxPaid)}
-                    onChange={handleTaxChange}
-                    className="w-full px-4 py-3 pr-10 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none text-right text-lg font-medium"
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500">
-                    €
-                  </span>
-                </div>
-              </div>
+              {/* Tax Settings - Compact View or Edit Mode */}
+              {isEditingTax ? (
+                /* Edit Mode */
+                <div className="mb-5 space-y-4">
+                  {/* Annual Tax Input */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Gezahlte Einkommensteuer pro Jahr
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={formatNumber(annualTaxPaid)}
+                        onChange={(e) => {
+                          handleTaxChange(e);
+                          handleInputChange();
+                        }}
+                        className="w-full px-4 py-3 pr-10 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none text-right text-lg font-medium"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500">
+                        €
+                      </span>
+                    </div>
+                  </div>
 
-              {/* Tax Rate Input */}
-              <div className="mb-5">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Persönlicher Grenzsteuersatz
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={marginalTaxRate || ''}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/[^\d]/g, '');
-                      setMarginalTaxRate(val === '' ? 0 : Math.min(45, Math.max(0, Number(val))));
-                    }}
-                    className="w-full px-4 py-3 pr-10 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none text-right text-lg font-medium"
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500">
-                    %
-                  </span>
+                  {/* Tax Rate Input */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Persönlicher Grenzsteuersatz
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={marginalTaxRate || ''}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^\d]/g, '');
+                          setMarginalTaxRate(val === '' ? 0 : Math.min(45, Math.max(0, Number(val))));
+                          handleInputChange();
+                        }}
+                        className="w-full px-4 py-3 pr-10 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none text-right text-lg font-medium"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500">
+                        %
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Spitzensteuersatz: 42% ab 62.810€
+                    </p>
+                  </div>
+
+                  {/* Save/Cancel Buttons */}
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      onClick={() => {
+                        setIsEditingTax(false);
+                        // Reset to profile values if available
+                        if (taxProfile) {
+                          if (taxProfile.annual_tax_paid) {
+                            setAnnualTaxPaid(Number(taxProfile.annual_tax_paid));
+                          }
+                          if (taxProfile.marginal_tax_rate) {
+                            setMarginalTaxRate(Math.round(Number(taxProfile.marginal_tax_rate) * 100));
+                          }
+                        }
+                        setHasUnsavedChanges(false);
+                      }}
+                      className="flex-1 py-2.5 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition-colors border border-gray-300"
+                    >
+                      Abbrechen
+                    </button>
+                    <button
+                      onClick={handleSaveProfile}
+                      disabled={upsertTaxProfile.isLoading}
+                      className="flex-1 py-2.5 bg-primary text-white font-medium rounded-lg transition-colors hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      <Save size={16} />
+                      {upsertTaxProfile.isLoading ? 'Speichern...' : 'Speichern'}
+                    </button>
+                  </div>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Spitzensteuersatz: 42% ab 62.810€
-                </p>
-              </div>
+              ) : (
+                /* Compact Display Mode */
+                <div className="mb-5 bg-gray-50 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-medium text-gray-600">Deine Steuerdaten</span>
+                    <button
+                      onClick={() => setIsEditingTax(true)}
+                      className="flex items-center gap-1 text-sm text-primary hover:opacity-80 font-medium"
+                    >
+                      <Pencil size={14} />
+                      Ändern
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-500">Gezahlte Steuern p.a.</span>
+                      <span className="font-semibold text-gray-900">{formatNumber(annualTaxPaid)} €</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-500">Grenzsteuersatz</span>
+                      <span className="font-semibold text-gray-900">{marginalTaxRate}%</span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Strategy Selector */}
               <div className="mb-5">
@@ -236,39 +345,6 @@ export default function SteuerOptimiererPage() {
                   onChange={handleStrategyChange}
                   compact
                 />
-              </div>
-
-              {/* Custom AfA Rate Input */}
-              <div className="mb-5">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  AfA-Satz anpassen
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={customAfaRate !== null ? customAfaRate : (defaultAfaRate || '')}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/[^\d.]/g, '');
-                      if (val === '') {
-                        setCustomAfaRate(null);
-                      } else {
-                        const numVal = Number(val);
-                        setCustomAfaRate(Math.min(20, Math.max(0, numVal)));
-                      }
-                    }}
-                    placeholder={`${defaultAfaRate}`}
-                    className="w-full px-4 py-3 pr-10 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none text-right text-lg font-medium"
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500">
-                    %
-                  </span>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Standard: {defaultAfaRate}% {strategy === 'neubau' && '(Ø degressiv)'}
-                  {strategy === 'bestand' && '(linear)'}
-                  {strategy === 'denkmal' && '(auf ~35% Sanierungskosten)'}
-                </p>
               </div>
 
               {/* Disclaimer */}
@@ -316,7 +392,7 @@ export default function SteuerOptimiererPage() {
                       <div className="flex items-center gap-2">
                         <span className="text-green-600">+ AfA-Abschreibung p.a.</span>
                         <span className="text-xs text-gray-400">
-                          ({effectiveAfaRate}%{strategy === 'denkmal' ? ' auf ~35% Sanier.' : ''})
+                          ({defaultAfaRate}%{strategy === 'denkmal' ? ' auf ~35% Sanier.' : ''})
                         </span>
                       </div>
                       <span className="font-semibold text-green-600">

@@ -12,7 +12,7 @@ const PropertyDataSchema = z.object({
   property_type: z.enum(['apartment', 'house', 'villa', 'commercial']).nullish(),
   title: z.string().nullish(),
   location: z.string().nullish(),
-  postal_code: z.string().nullish(),
+  postal_code: z.number().nullish(),
   street_address: z.string().nullish(),
   price: z.number().nullish(),
   sqm: z.number().nullish(),
@@ -21,7 +21,8 @@ const PropertyDataSchema = z.object({
   condition: z.enum(['new', 'first_occupancy', 'renovated', 'maintained', 'needs_renovation']).nullish(),
   features: z.array(z.string()).nullish(),
   description: z.string().nullish(),
-  floor_level: z.string().nullish(),
+  floor_level: z.union([z.string(), z.number()]).transform(val => val != null ? String(val) : val).nullish(),
+  elevator: z.boolean().nullish(),
   total_floors: z.number().nullish(),
   year_built: z.number().nullish(),
   available_from: z.string().nullish(),
@@ -30,6 +31,8 @@ const PropertyDataSchema = z.object({
   monthly_fee: z.number().nullish(),        // Hausgeld
   monthly_rent: z.number().nullish(),       // Mieteinnahmen (bei Kapitalanlage)
   commission_rate: z.number().nullish(),    // Maklerprovision in %
+  // AfA type - only set explicitly for Denkmal
+  afa_type: z.enum(['bestand', 'altbau', 'neubau', 'denkmal']).nullish(),
 });
 
 export type ExtractedPropertyData = z.infer<typeof PropertyDataSchema>;
@@ -96,6 +99,7 @@ VERFUEGBARE FELDER (verwende diese exakten Feldnamen):
 - bathrooms: Anzahl Badezimmer (Zahl)
 - year_built: Baujahr (Zahl, z.B. 1974) - SEPARATES FELD, nicht Teil der Beschreibung!
 - floor_level: NUR BEI WOHNUNGEN: Etage (String, z.B. "2" oder "EG")
+- elevator: Aufzug vorhanden (Boolean: true/false) - relevant bei Wohnungen
 - total_floors: NUR BEI HAEUSERN: Anzahl der Geschosse (Zahl, z.B. 2). Bei Wohnungen: Gesamtanzahl Etagen im Gebaeude.
 - condition: 'new' | 'first_occupancy' | 'renovated' | 'maintained' | 'needs_renovation'
 - features: Array von Ausstattungen ["Balkon", "Garage", etc.]
@@ -261,6 +265,7 @@ rooms -> Zimmer
 condition -> Zustand
 bathrooms -> Baeder
 floor_level -> Etage
+elevator -> Aufzug
 total_floors -> Stockwerke
 year_built -> Baujahr
 postal_code -> PLZ
@@ -303,6 +308,7 @@ Feldtypen (INTERN - nicht in Antworten verwenden!):
 - condition: 'new' | 'first_occupancy' | 'renovated' | 'maintained' | 'needs_renovation'
 - bathrooms: Anzahl Badezimmer
 - floor_level: NUR BEI WOHNUNGEN (apartment): Etage (z.B. "3" oder "EG") - NICHT bei Haeusern fragen!
+- elevator: Aufzug vorhanden (true/false) - bei Wohnungen relevant
 - total_floors: NUR BEI HAEUSERN (house, villa): Anzahl der Geschosse
 - year_built: Baujahr
 - postal_code: Postleitzahl
@@ -314,6 +320,7 @@ Feldtypen (INTERN - nicht in Antworten verwenden!):
 - monthly_fee: Hausgeld in Euro pro Monat (Zahl, z.B. 170)
 - monthly_rent: Mieteinnahmen in Euro pro Monat bei Kapitalanlage (Zahl, z.B. 1500)
 - commission_rate: Maklerprovision in Prozent (Zahl, z.B. 3.57)
+- afa_type: NUR bei Denkmalschutz setzen: 'denkmal' (sonst wird automatisch berechnet)
 
 WICHTIG - Property-Typ-abhaengige Felder:
 - Bei property_type = 'house' oder 'villa': Frage nach "Anzahl der Geschosse" (total_floors), NICHT nach Etage (floor_level)
@@ -324,6 +331,13 @@ WICHTIG - Provision (commission_rate):
 - Wenn User "provisionsfrei", "keine Provision", "ohne Makler" sagt -> commission_rate: 0
 - Wenn User z.B. "3,57% Provision" oder "Maklergebuehr 3%" sagt -> commission_rate: 3.57
 - Die Provision wird unterhalb des Preises angezeigt, daher ist diese Info wichtig!
+
+WICHTIG - Denkmalschutz (afa_type):
+- WENN User "denkmalgeschuetzt", "Denkmalschutz", "Denkmal-Afa", "unter Denkmalschutz" erwaehnt -> afa_type: 'denkmal'
+- WENN die Beschreibung auf ein historisches Gebaeude hinweist (z.B. "historisch", "Altbau mit Charme", "Gruenderzeit"), frage: "Steht das Gebaeude unter Denkmalschutz?"
+- Bei "ja" -> afa_type: 'denkmal'
+- Bei "nein" oder nicht erwaehnt -> afa_type NICHT setzen (wird automatisch aus Baujahr berechnet)
+- Der AfA-Typ wird fuer Steuerberechnungen verwendet (9% Denkmal-AfA vs 2%/2.5% normal)
 
 REGELN:
 1. Frage NIEMALS nach Feldern, die bereits bekannt sind (oben aufgelistet)!

@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { Bath, Sparkles, DoorClosed, Square, Layers, Euro, Building2, Clock, Flame, Zap, ChevronDown, Star, Eye, Heart, Mail, FileText, Loader2 } from 'lucide-react';
+import { Bath, Sparkles, DoorClosed, Square, Layers, Euro, Building2, Clock, Flame, Zap, ChevronDown, Star, Eye, Heart, Mail, FileText, Loader2, Landmark } from 'lucide-react';
 import { LocationDisplay } from './LocationDisplay';
 import { MarketComparisonBar } from './MarketComparisonBar';
 
@@ -19,16 +19,13 @@ const BuyVsRentCard = dynamic(() => import('./BuyVsRentCard').then(mod => ({ def
   ssr: false,
 });
 
-const PropertyTaxCard = dynamic(() => import('./PropertyTaxCard').then(mod => ({ default: mod.PropertyTaxCard })), {
-  loading: () => <div className="flex items-center justify-center p-8"><Loader2 className="animate-spin text-gray-400" size={24} /></div>,
-  ssr: false,
-});
 // AIInvestmentEvaluation und InvestmentScoreBadge auskommentiert - nur stichpunktartige Bewertung
 // import { AIInvestmentEvaluation, InvestmentScoreBadge } from '@immoflow/ui';
 
 import type { PropertyDocument } from '../create-listing/types';
 import { PropertyDocumentsList } from './PropertyDocumentsList';
 import { DocumentVisibilityManager } from './DocumentVisibilityManager';
+import { SellerKnowledgeManager } from './SellerKnowledgeManager';
 import { trpc } from '@/app/providers/TRPCProvider';
 
 export interface PropertyPreviewData {
@@ -41,7 +38,7 @@ export interface PropertyPreviewData {
   commission_rate?: number;
   location: string;
   address?: string;
-  postal_code?: string;
+  postal_code?: number | string;
   title: string;
   type?: string;
   sqm: number;
@@ -61,6 +58,7 @@ export interface PropertyPreviewData {
   bathrooms?: number;
   total_floors?: number;
   floor_level?: string;
+  elevator?: boolean;
   available_from?: string;
   year_built?: number;
   heating_type?: string;
@@ -191,6 +189,8 @@ export interface PropertyPreviewData {
     email?: string | null;
     bio?: string | null;
   };
+  // AfA type for tax calculations
+  afa_type?: 'bestand' | 'altbau' | 'neubau' | 'denkmal';
   // Additional metadata fields
   property_type?: string;
   created_at?: string;
@@ -403,7 +403,7 @@ export function PropertyPreview({
   const [isCashflowExpanded, setIsCashflowExpanded] = useState(false);
   // State for weitere details accordion - expanded by default when data exists
   const [isWeitereDetailsExpanded, setIsWeitereDetailsExpanded] = useState(false);
-  // State for description accordion - collapsed by default
+  // State for description accordion - initially collapsed
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   // State for AI evaluation accordion
   const [isAIEvaluationExpanded, setIsAIEvaluationExpanded] = useState(false);
@@ -513,16 +513,21 @@ export function PropertyPreview({
 
   // Format floor/total floors (different for apartments vs houses)
   const floorDisplay = (() => {
+    const elevatorSuffix = data.elevator ? ' mit Aufzug' : '';
+
     // For houses: only show total floors (e.g., "2-geschossig")
     if (data.type === 'house' && data.total_floors) {
       return `${data.total_floors}-geschossig`;
     }
-    // For apartments: show floor_level / total_floors (e.g., "3 / 5")
+    // For apartments: show floor_level / total_floors (e.g., "2. OG mit Aufzug")
     if (data.type === 'apartment') {
       if (data.floor_level && data.total_floors) {
-        return `${data.floor_level} / ${data.total_floors}`;
+        return `${data.floor_level} / ${data.total_floors}${elevatorSuffix}`;
       }
-      return data.floor_level || '-';
+      if (data.floor_level) {
+        return `${data.floor_level}${elevatorSuffix}`;
+      }
+      return '-';
     }
     // For other types (land, commercial)
     return '-';
@@ -876,6 +881,7 @@ export function PropertyPreview({
           <BuyVsRentCard
             purchasePrice={simulatedPrice || userPropertyParams?.purchase_price || data.price}
             sqm={data.sqm}
+            location={data.location}
             monthlyRent={data.rental_income?.estimated_market_rent || data.evaluation?.estimated_monthly_rent || data.actual_monthly_rent}
             avgRentPerSqm={data.rental_income?.rent_per_sqm}
             monthlyFee={data.monthly_fee}
@@ -883,23 +889,18 @@ export function PropertyPreview({
             interestRate={data.financing_terms?.interest_rate_90 ?? data.financing_terms?.interest_rate ?? 3.5}
             amortizationRate={data.financing_terms?.amortization_rate ?? 2.0}
             equityPercentage={(userPropertyParams?.equity_percentage != null && userPropertyParams.equity_percentage > 0) ? userPropertyParams.equity_percentage : 20}
+            commissionRate={data.commission_rate}
+            propertyId={propertyId}
+            userParams={userPropertyParams}
+            onSaveParams={onSaveUserPropertyParams}
+            isSavingParams={isSavingUserPropertyParams}
             onPurchasePriceChange={setSimulatedPrice}
             className="mb-6"
           />
         )}
 
-        {/* Steuer-Ersparnis Card - für Buyer/Investor View */}
-        {evaluationViewType === 'buyer' && data.price > 0 && (
-          <div className="mb-6">
-            <PropertyTaxCard
-              purchasePrice={simulatedPrice || userPropertyParams?.purchase_price || data.price}
-              yearBuilt={data.year_built}
-            />
-          </div>
-        )}
-
         {/* Weitere Details Section - Compact Accordion */}
-        {(data.sqm || data.rooms || energyEfficiencyClass || data.available_from || data.year_built || data.bathrooms || data.monthly_fee || data.floor_level || data.total_floors || data.heating_type || data.energy_source || data.energy_certificate || data.usable_area || condition) && (
+        {(data.sqm || data.rooms || energyEfficiencyClass || data.available_from || data.year_built || data.afa_type || data.bathrooms || data.monthly_fee || data.floor_level || data.total_floors || data.heating_type || data.energy_source || data.energy_certificate || data.usable_area || condition) && (
           <div className="mb-6 bg-white rounded-2xl border border-gray-200 overflow-hidden">
             {/* Always Visible - Icons and Values Only */}
             <div
@@ -1009,6 +1010,31 @@ export function PropertyPreview({
                       <div>
                         <p className="text-sm text-gray-500">Baujahr</p>
                         <p className="text-base font-semibold text-gray-900">{data.year_built}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* AfA Type - Depreciation Category */}
+                  {data.afa_type && (
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                        data.afa_type === 'denkmal' ? 'bg-amber-50' :
+                        data.afa_type === 'neubau' ? 'bg-green-50' :
+                        data.afa_type === 'altbau' ? 'bg-purple-50' : 'bg-gray-50'
+                      }`}>
+                        <Landmark size={20} className={
+                          data.afa_type === 'denkmal' ? 'text-amber-600' :
+                          data.afa_type === 'neubau' ? 'text-green-600' :
+                          data.afa_type === 'altbau' ? 'text-purple-600' : 'text-gray-600'
+                        } />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">AfA-Typ</p>
+                        <p className="text-base font-semibold text-gray-900">
+                          {data.afa_type === 'denkmal' ? 'Denkmal (9%)' :
+                           data.afa_type === 'neubau' ? 'Neubau (5% degr.)' :
+                           data.afa_type === 'altbau' ? 'Altbau (2,5%)' : 'Bestand (2%)'}
+                        </p>
                       </div>
                     </div>
                   )}
@@ -1217,6 +1243,13 @@ export function PropertyPreview({
           </div>
         )}
 
+        {/* KI-Wissensbasis - Only for property owner */}
+        {isOwner && propertyId && (
+          <div className="mb-6">
+            <SellerKnowledgeManager propertyId={propertyId} />
+          </div>
+        )}
+
         {/* Objektunterlagen - Documents Management */}
         {(() => {
           const hasDocuments = data.documents && data.documents.length > 0;
@@ -1238,7 +1271,7 @@ export function PropertyPreview({
               {/* Empty State - Show in edit mode when no documents */}
               {showEmptyState && (
                 <div className="mb-6 bg-white rounded-2xl border border-gray-200 overflow-hidden">
-                  <div className="p-6">
+                  <div className="p-4">
                     <div className="flex items-center gap-2 mb-4">
                       <FileText size={20} className="text-gray-700" />
                       <h3 className="text-lg font-semibold text-gray-900">Objektunterlagen</h3>

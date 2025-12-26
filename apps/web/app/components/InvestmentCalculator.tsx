@@ -12,7 +12,9 @@ import {
   Calendar,
   Pencil,
   Check,
+  PiggyBank,
 } from 'lucide-react';
+import { trpc } from '@/app/providers/TRPCProvider';
 
 // Types
 export interface UserParams {
@@ -101,6 +103,28 @@ const GRUNDERWERBSTEUER_SAETZE: Record<string, number> = {
   'thüringen': 6.5,
 };
 
+// AfA-Rate basierend auf Baujahr bestimmen
+const getAfaRate = (yearBuilt?: number): number => {
+  if (!yearBuilt) return 0.02; // Default: Bestand
+  if (yearBuilt >= 2024) return 0.04; // Neubau (Ø degressiv)
+  if (yearBuilt < 1925) return 0.025; // Altbau
+  return 0.02; // Bestand
+};
+
+// Gebäudeanteil basierend auf Baujahr
+const getBuildingRatio = (yearBuilt?: number): number => {
+  if (yearBuilt && yearBuilt >= 2024) return 0.85; // Neubau
+  return 0.80; // Bestand/Altbau
+};
+
+// AfA-Strategie Label
+const getAfaLabel = (yearBuilt?: number): string => {
+  if (!yearBuilt) return 'Bestand 2%';
+  if (yearBuilt >= 2024) return 'Neubau Ø 4%';
+  if (yearBuilt < 1925) return 'Altbau 2,5%';
+  return 'Bestand 2%';
+};
+
 function detectStateFromLocation(location?: string): string | null {
   if (!location) return null;
   const locationLower = location.toLowerCase();
@@ -140,11 +164,18 @@ export function InvestmentCalculator({
   canEdit = true,
   className = '',
 }: InvestmentCalculatorProps) {
+  // Tax-Profil für Grenzsteuersatz laden
+  const { data: taxProfile } = trpc.taxOptimizer.getProfile.useQuery(undefined, {
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
   // Accordion States
   const [isKaufnebenkostenExpanded, setIsKaufnebenkostenExpanded] = useState(false);
   const [isKapitaldienstExpanded, setIsKapitaldienstExpanded] = useState(false);
   const [isAusgabenExpanded, setIsAusgabenExpanded] = useState(false);
   const [isCashflowExpanded, setIsCashflowExpanded] = useState(false);
+  const [isSteuereffektExpanded, setIsSteuereffektExpanded] = useState(false);
 
   // Edit Mode States
   const [isEditMode, setIsEditMode] = useState(false);
@@ -323,6 +354,45 @@ export function InvestmentCalculator({
   };
   const breakEvenYears = calculateBreakEvenYears();
 
+  // Steuereffekt berechnen
+  const steuereffekt = useMemo(() => {
+    if (effectivePurchasePrice <= 0) return null;
+
+    // AfA berechnen
+    const afaRate = getAfaRate(yearBuilt);
+    const buildingRatio = getBuildingRatio(yearBuilt);
+    const gebaeudewert = effectivePurchasePrice * buildingRatio;
+    const afaJaehrlich = gebaeudewert * afaRate;
+    const afaMonatlich = afaJaehrlich / 12;
+
+    // Cashflow jährlich
+    const cashflowJaehrlich = calculatedCashflow * 12;
+
+    // Steuerlicher Gewinn/Verlust (Cashflow - AfA)
+    const steuerlichesErgebnis = cashflowJaehrlich - afaJaehrlich;
+
+    // Grenzsteuersatz aus Profil oder Default 42%
+    const grenzsteuersatz = taxProfile?.marginal_tax_rate
+      ? Number(taxProfile.marginal_tax_rate)
+      : 0.42;
+
+    // Steuereffekt berechnen
+    const jaehrlich = steuerlichesErgebnis * grenzsteuersatz;
+    const monatlich = jaehrlich / 12;
+
+    return {
+      monatlich: Math.round(monatlich),
+      jaehrlich: Math.round(jaehrlich),
+      afaJaehrlich: Math.round(afaJaehrlich),
+      afaMonatlich: Math.round(afaMonatlich),
+      gebaeudewert: Math.round(gebaeudewert),
+      steuerlichesErgebnis: Math.round(steuerlichesErgebnis),
+      grenzsteuersatz: Math.round(grenzsteuersatz * 100),
+      afaRate,
+      buildingRatio,
+    };
+  }, [effectivePurchasePrice, yearBuilt, calculatedCashflow, taxProfile]);
+
   // Reset Edit Mode
   const handleReset = () => {
     setEditPurchasePrice(null);
@@ -369,9 +439,9 @@ export function InvestmentCalculator({
   return (
     <div className={`space-y-0 ${className}`}>
       {/* 1. Gesamtinvestitionskosten */}
-      <div className="pt-4 pb-4 border-b border-gray-100">
+      <div className="border-b border-gray-100">
         <div
-          className="flex items-center justify-between cursor-pointer"
+          className="flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors py-4"
           onClick={() => setIsKaufnebenkostenExpanded(!isKaufnebenkostenExpanded)}
         >
           <div className="flex items-center gap-2">
@@ -489,9 +559,9 @@ export function InvestmentCalculator({
       </div>
 
       {/* 2. Monatliche Rate */}
-      <div className="pt-4 pb-4 border-b border-gray-100">
+      <div className="border-b border-gray-100">
         <div
-          className="flex items-center justify-between cursor-pointer"
+          className="flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors py-4"
           onClick={() => setIsKapitaldienstExpanded(!isKapitaldienstExpanded)}
         >
           <div className="flex items-center gap-2">
@@ -601,9 +671,9 @@ export function InvestmentCalculator({
       </div>
 
       {/* 3. Monatliche Ausgaben */}
-      <div className="pt-4 pb-4 border-b border-gray-100">
+      <div className="border-b border-gray-100">
         <div
-          className="flex items-center justify-between cursor-pointer"
+          className="flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors py-4"
           onClick={() => setIsAusgabenExpanded(!isAusgabenExpanded)}
         >
           <div className="flex items-center gap-2">
@@ -688,9 +758,9 @@ export function InvestmentCalculator({
       </div>
 
       {/* 4. Cashflow / Miete vs. Kauf */}
-      <div className="pt-4 pb-4 border-b border-gray-100">
+      <div className="border-b border-gray-100">
         <div
-          className="flex items-center justify-between cursor-pointer"
+          className="flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors py-4"
           onClick={() => setIsCashflowExpanded(!isCashflowExpanded)}
         >
           <div className="flex items-center gap-2">
@@ -773,7 +843,95 @@ export function InvestmentCalculator({
         )}
       </div>
 
-      {/* 5. Break-Even EK Panel */}
+      {/* 5. Steuereffekt (nur für Investor) */}
+      {mode === 'investor' && steuereffekt !== null && (
+        <div className="border-b border-gray-100">
+          <div
+            className="flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors py-4"
+            onClick={() => setIsSteuereffektExpanded(!isSteuereffektExpanded)}
+          >
+            <div className="flex items-center gap-2">
+              <PiggyBank size={18} className={steuereffekt.monatlich < 0 ? 'text-green-600' : 'text-red-600'} />
+              <h4 className="font-semibold text-gray-900 text-base">Steuereffekt</h4>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className={`text-base font-semibold ${steuereffekt.monatlich < 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {steuereffekt.monatlich < 0 ? '+' : ''}{formatCurrency(Math.abs(steuereffekt.monatlich))}/Mo
+              </span>
+              <ChevronDown
+                size={18}
+                className={`text-gray-400 transition-transform duration-200 ${isSteuereffektExpanded ? 'rotate-180' : ''}`}
+              />
+            </div>
+          </div>
+          {isSteuereffektExpanded && (
+            <div className="space-y-2 mt-3 text-sm">
+              {/* Cashflow */}
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Cashflow / Monat</span>
+                <span className={`font-semibold ${calculatedCashflow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {calculatedCashflow >= 0 ? '+' : ''}{formatCurrency(calculatedCashflow)}
+                </span>
+              </div>
+
+              {/* AfA-Abschreibung */}
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">
+                  − AfA / Monat
+                  <span className="text-xs text-gray-400 ml-1">({getAfaLabel(yearBuilt)})</span>
+                </span>
+                <span className="font-semibold text-green-600">−{formatCurrency(steuereffekt.afaMonatlich)}</span>
+              </div>
+
+              {/* Steuerliches Ergebnis */}
+              <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                <span className="text-gray-900 font-medium">Steuerliches Ergebnis</span>
+                <span className={`font-semibold ${steuereffekt.steuerlichesErgebnis < 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(Math.round(steuereffekt.steuerlichesErgebnis / 12))}
+                </span>
+              </div>
+
+              {/* Grenzsteuersatz */}
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">
+                  × Grenzsteuersatz
+                  {taxProfile?.marginal_tax_rate && (
+                    <span className="text-xs text-primary ml-1">(aus Profil)</span>
+                  )}
+                </span>
+                <span className="font-semibold text-gray-700">{steuereffekt.grenzsteuersatz}%</span>
+              </div>
+
+              {/* Steuereffekt */}
+              <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                <span className="text-gray-900 font-medium">
+                  {steuereffekt.monatlich < 0 ? 'Steuerersparnis / Monat' : 'Steuerlast / Monat'}
+                </span>
+                <span className={`font-semibold ${steuereffekt.monatlich < 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {steuereffekt.monatlich < 0 ? '+' : ''}{formatCurrency(Math.abs(steuereffekt.monatlich))}
+                </span>
+              </div>
+
+              {/* Cashflow nach Steuern */}
+              <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                <span className="text-gray-900 font-bold">Cashflow nach Steuern</span>
+                <span className={`text-lg font-bold ${(calculatedCashflow - steuereffekt.monatlich) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {(calculatedCashflow - steuereffekt.monatlich) >= 0 ? '+' : ''}{formatCurrency(calculatedCashflow - steuereffekt.monatlich)}
+                </span>
+              </div>
+
+              {/* Hinweis */}
+              <p className="text-xs text-gray-400 mt-2 pt-2 border-t border-gray-100">
+                {steuereffekt.monatlich < 0
+                  ? '💡 Die AfA übersteigt den Cashflow → steuerlicher Verlust mindert Ihre Einkommensteuer.'
+                  : '💡 Der Cashflow übersteigt die AfA → Sie zahlen zusätzliche Einkommensteuer.'}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 6. Break-Even EK Panel */}
       {breakEvenEK !== null && (
         <div className="pt-4 pb-4 border-b border-gray-100">
           <div className="flex items-center justify-between">

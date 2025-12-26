@@ -499,10 +499,10 @@ export const messagingRouter = router({
               .then((learned) => {
                 if (learned) {
                   console.log(
-                    `[Messaging] Knowledge learned: ${learned.topic}`
+                    `[Messaging] Knowledge learned: ${learned.info.substring(0, 50)}...`
                   );
-                  // Emit to seller for confirmation
-                  emitKnowledgeLearned(input.conversationId, userId, learned);
+                  // Knowledge is now appended directly to seller_notes
+                  // No need to emit for confirmation
                 }
               })
               .catch((err) => {

@@ -10,10 +10,11 @@ import {
   Newspaper,
   Activity,
   ChevronRight,
+  PiggyBank,
 } from 'lucide-react';
 
 // Types
-type ColorMode = 'yield' | 'growth' | 'risk';
+type ColorMode = 'yield' | 'growth' | 'risk' | 'tax';
 
 interface PropertyMetrics {
   totalInvestment: number;
@@ -36,8 +37,21 @@ interface PortfolioProperty {
   metrics: PropertyMetrics;
 }
 
+interface TaxEffect {
+  annualTaxEffect: number;
+  monthlyTaxEffect: number;
+  breakdown: {
+    annualRent: number;
+    annualInterest: number;
+    annualAfa: number;
+    taxableIncome: number;
+  };
+}
+
 interface PortfolioTreemapProps {
   properties: PortfolioProperty[];
+  taxEffects?: Record<string, TaxEffect>;
+  marginalTaxRate?: number;
 }
 
 // Color mode configuration
@@ -45,6 +59,7 @@ const colorModes: { id: ColorMode; label: string; icon: typeof TrendingUp; color
   { id: 'yield', label: 'Rendite Focus', icon: TrendingUp, color: '#8b5cf6' },
   { id: 'growth', label: 'Wertzuwachs', icon: ArrowUpRight, color: '#22c55e' },
   { id: 'risk', label: 'Risiko Check', icon: ShieldCheck, color: '#ef4444' },
+  { id: 'tax', label: 'Steuer-Effekt', icon: PiggyBank, color: '#f59e0b' },
 ];
 
 // Interpolate between colors based on a value from 0-1
@@ -115,20 +130,43 @@ interface ColorRanges {
   yield: { min: number; max: number };
   growth: { min: number; max: number };
   risk: { min: number; max: number };
+  tax: { min: number; max: number };
 }
 
-function calculateColorRanges(properties: PortfolioProperty[]): ColorRanges {
+// Calculate tax effect for a property (Cashflow - AfA based)
+function calculateTaxEffect(
+  property: PortfolioProperty,
+  taxEffects?: Record<string, TaxEffect>,
+  marginalTaxRate: number = 0.42
+): number {
+  if (!taxEffects || !taxEffects[property.id]) return 0;
+
+  const taxEffect = taxEffects[property.id];
+  const monthlyAfa = taxEffect.breakdown.annualAfa / 12;
+  const steuerlichesErgebnis = property.metrics.monthlyCashflow - monthlyAfa;
+  const steuereffektMonatlich = steuerlichesErgebnis * marginalTaxRate;
+
+  return steuereffektMonatlich;
+}
+
+function calculateColorRanges(
+  properties: PortfolioProperty[],
+  taxEffects?: Record<string, TaxEffect>,
+  marginalTaxRate: number = 0.42
+): ColorRanges {
   if (properties.length === 0) {
     return {
       yield: { min: 0, max: 0 },
       growth: { min: 0, max: 0 },
       risk: { min: 0, max: 0 },
+      tax: { min: 0, max: 0 },
     };
   }
 
   const yields = properties.map(p => p.metrics.grossYield);
   const growths = properties.map(p => calculateValueGrowth(p));
   const risks = properties.map(p => calculateRiskScore(p));
+  const taxes = properties.map(p => calculateTaxEffect(p, taxEffects, marginalTaxRate));
 
   return {
     yield: {
@@ -143,6 +181,10 @@ function calculateColorRanges(properties: PortfolioProperty[]): ColorRanges {
       min: 0,
       max: 100, // Risk score is always 0-100
     },
+    tax: {
+      min: Math.min(...taxes, -500), // Negative = savings
+      max: Math.max(...taxes, 500),   // Positive = tax payment
+    },
   };
 }
 
@@ -150,7 +192,9 @@ function calculateColorRanges(properties: PortfolioProperty[]): ColorRanges {
 function getColorForMode(
   property: PortfolioProperty,
   mode: ColorMode,
-  ranges: ColorRanges
+  ranges: ColorRanges,
+  taxEffects?: Record<string, TaxEffect>,
+  marginalTaxRate: number = 0.42
 ): string {
   switch (mode) {
     case 'yield':
@@ -182,13 +226,28 @@ function getColorForMode(
         true // Inverted: high value = red
       );
 
+    case 'tax':
+      // Negative tax effect (savings) = green, positive (payment) = red
+      const taxEffect = calculateTaxEffect(property, taxEffects, marginalTaxRate);
+      return getGradientColor(
+        taxEffect,
+        ranges.tax.min,
+        ranges.tax.max,
+        true // Inverted: low/negative value (savings) = green
+      );
+
     default:
       return '#9ca3af';
   }
 }
 
 // Get display value for current mode
-function getModeDisplayValue(property: PortfolioProperty, mode: ColorMode): string {
+function getModeDisplayValue(
+  property: PortfolioProperty,
+  mode: ColorMode,
+  taxEffects?: Record<string, TaxEffect>,
+  marginalTaxRate: number = 0.42
+): string {
   switch (mode) {
     case 'yield':
       return `${property.metrics.grossYield.toFixed(1)}%`;
@@ -201,6 +260,10 @@ function getModeDisplayValue(property: PortfolioProperty, mode: ColorMode): stri
       if (score <= 50) return 'Mittel';
       if (score <= 75) return 'Hoch';
       return 'Kritisch';
+    case 'tax':
+      const taxEffect = calculateTaxEffect(property, taxEffects, marginalTaxRate);
+      const isSaving = taxEffect < 0;
+      return `${isSaving ? '+' : ''}${Math.round(Math.abs(taxEffect))} €`;
     default:
       return '';
   }
@@ -387,7 +450,7 @@ function squarify(
   return rects;
 }
 
-export function PortfolioTreemap({ properties }: PortfolioTreemapProps) {
+export function PortfolioTreemap({ properties, taxEffects, marginalTaxRate = 0.42 }: PortfolioTreemapProps) {
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
   const [colorMode, setColorMode] = useState<ColorMode>('yield');
@@ -418,7 +481,10 @@ export function PortfolioTreemap({ properties }: PortfolioTreemapProps) {
   }, [properties, dimensions]);
 
   // Calculate color ranges for gradient
-  const colorRanges = useMemo(() => calculateColorRanges(properties), [properties]);
+  const colorRanges = useMemo(
+    () => calculateColorRanges(properties, taxEffects, marginalTaxRate),
+    [properties, taxEffects, marginalTaxRate]
+  );
 
   if (properties.length === 0) {
     return null;
@@ -438,13 +504,13 @@ export function PortfolioTreemap({ properties }: PortfolioTreemapProps) {
             style={{ height: dimensions.height }}
           >
             {rects.map((rect) => {
-              const bgColor = getColorForMode(rect.property, colorMode, colorRanges);
+              const bgColor = getColorForMode(rect.property, colorMode, colorRanges, taxEffects, marginalTaxRate);
               const textColor = getTextColor(bgColor);
               const isHovered = hoveredId === rect.property.id;
               const isSmall = rect.width < 100 || rect.height < 80;
               const isTiny = rect.width < 60 || rect.height < 50;
 
-              const modeValue = getModeDisplayValue(rect.property, colorMode);
+              const modeValue = getModeDisplayValue(rect.property, colorMode, taxEffects, marginalTaxRate);
               const isLarge = rect.width >= 140 && rect.height >= 100;
 
               return (

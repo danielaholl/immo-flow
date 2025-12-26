@@ -219,6 +219,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
       energy_efficiency_class: (propertyToEdit as any).energy_efficiency_class ?? undefined,
       commission: (propertyToEdit as any).commission_rate ? (typeof (propertyToEdit as any).commission_rate === 'string' ? parseFloat((propertyToEdit as any).commission_rate) : (propertyToEdit as any).commission_rate) : undefined,
       additional_costs: (propertyToEdit as any).monthly_fee ? (typeof (propertyToEdit as any).monthly_fee === 'string' ? parseFloat((propertyToEdit as any).monthly_fee) : (propertyToEdit as any).monthly_fee) : undefined,
+      afa_type: (propertyToEdit as any).afa_type ?? 'bestand',
       // Load seller evaluation if exists (for AIEvaluationPanel in edit mode)
       seller_evaluation: (propertyToEdit as any).seller_evaluation ?? undefined,
     };
@@ -397,8 +398,30 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
       }
     }
 
+    // Ensure postal_code is a number (API expects number)
+    if (converted.postal_code !== undefined && converted.postal_code !== null && typeof converted.postal_code === 'string') {
+      const parsed = parseInt(converted.postal_code, 10);
+      converted.postal_code = isNaN(parsed) ? undefined : parsed;
+    }
+
     return converted;
   };
+
+  // Bestimmt AfA-Typ basierend auf Baujahr
+  // - vor 1925: Altbau (2,5% AfA)
+  // - ab 2024: Neubau (5% degressive AfA)
+  // - dazwischen: Bestand (2% AfA)
+  // - Denkmal: wird explizit gesetzt (via KI-Abfrage)
+  const determineAfaType = useCallback((yearBuilt?: number, currentAfaType?: string): 'bestand' | 'altbau' | 'neubau' | 'denkmal' => {
+    // Wenn bereits Denkmal gesetzt, behalten
+    if (currentAfaType === 'denkmal') return 'denkmal';
+
+    if (!yearBuilt) return 'bestand';
+
+    if (yearBuilt < 1925) return 'altbau';
+    if (yearBuilt >= 2024) return 'neubau';
+    return 'bestand';
+  }, []);
 
   // Übersetzt property_type zu deutschem Begriff
   const formatPropertyType = (type: string): string => {
@@ -444,7 +467,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
     if (data.location) lines.push(`• Ort: ${data.location}`);
     if (data.street_address || data.streetAddress) lines.push(`• Adresse: ${data.street_address || data.streetAddress}`);
     if (postalCode) lines.push(`• PLZ: ${postalCode}`);
-    if (data.price) lines.push(`• Preis: ${data.price.toLocaleString('de-DE')} €`);
+    // Preis wird nicht in der Chat-Zusammenfassung angezeigt (ist bereits in der Vorschau sichtbar)
     if (data.sqm) lines.push(`• Fläche: ${data.sqm} m²`);
     if (data.rooms) lines.push(`• Zimmer: ${data.rooms}`);
     if (data.bathrooms) lines.push(`• Badezimmer: ${data.bathrooms}`);
@@ -595,10 +618,14 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
     setIsSubmitting(true);
 
     try {
+      // Auto-determine afa_type based on year_built
+      const calculatedAfaType = determineAfaType(listingData.year_built, listingData.afa_type);
+
       // Prepare property data and convert German enums to English
       // Note: If no images, we pass empty array - frontend shows PropertyImagePlaceholder
       const propertyData = convertToEnglishEnums({
         ...listingData,
+        afa_type: calculatedAfaType,
         user_id: user?.id,
         images: uploadedImages.length > 0 ? uploadedImages : [],
         video_url: videoUrl || undefined,
@@ -674,8 +701,12 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
     setIsSubmitting(true);
 
     try {
+      // Auto-determine afa_type based on year_built
+      const calculatedAfaType = determineAfaType(listingData.year_built, listingData.afa_type);
+
       const propertyData = convertToEnglishEnums({
         ...listingData,
+        afa_type: calculatedAfaType,
         user_id: user?.id,
         images: uploadedImages.length > 0 ? uploadedImages : [],
         video_url: videoUrl || undefined,
@@ -1527,6 +1558,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
     year_built: listingData.year_built,
     bathrooms: listingData.bathrooms,
     floor_level: listingData.floor_level,
+    elevator: listingData.elevator,
     total_floors: listingData.total_floors,
     available_from: listingData.available_from,
     heating_type: listingData.heating_type,
@@ -1540,6 +1572,8 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
     risks: listingData.risks,
     // Seller evaluation (from KI analysis)
     seller_evaluation: listingData.seller_evaluation,
+    // AfA type for tax calculations - auto-calculated from year_built
+    afa_type: determineAfaType(listingData.year_built, listingData.afa_type),
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     user_id: user?.id || '',
@@ -1553,7 +1587,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
       phone: profile?.phone || null,
     } : undefined,
     // Note: Seller evaluation is shown separately via SellerAnalysis component
-  }), [listingData, uploadedImages, videoUrl, documents, user, profile, hasRequiredFields]);
+  }), [listingData, uploadedImages, videoUrl, documents, user, profile, hasRequiredFields, determineAfaType]);
 
   // Convert messages from Message format to ChatMessage format for UniversalChat
   const convertedMessages: ChatMessage[] = useMemo(() => {
@@ -1699,21 +1733,37 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
                             )}
                           </button>
                         ) : (
-                          /* For Create mode: Single publish button */
-                          <button
-                            onClick={() => handleSubmitAndPublish()}
-                            disabled={isSubmitting}
-                            className="w-full bg-green-600 hover:bg-green-700 text-white py-3 lg:py-4 rounded-xl text-base lg:text-lg font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg"
-                          >
-                            {isSubmitting ? (
-                              <>
-                                <Loader2 size={20} className="lg:w-6 lg:h-6 animate-spin" />
-                                <span>Wird veröffentlicht...</span>
-                              </>
-                            ) : (
-                              <span>Speichern und Veröffentlichen</span>
-                            )}
-                          </button>
+                          /* For Create mode: Two buttons - Save as draft and Publish */
+                          <div className="flex flex-col gap-3">
+                            <button
+                              onClick={() => handleSubmitAndPublish()}
+                              disabled={isSubmitting}
+                              className="w-full bg-green-600 hover:bg-green-700 text-white py-3 lg:py-4 rounded-xl text-base lg:text-lg font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg"
+                            >
+                              {isSubmitting ? (
+                                <>
+                                  <Loader2 size={20} className="lg:w-6 lg:h-6 animate-spin" />
+                                  <span>Wird veröffentlicht...</span>
+                                </>
+                              ) : (
+                                <span>Speichern und Veröffentlichen</span>
+                              )}
+                            </button>
+                            <button
+                              onClick={() => handleSubmit()}
+                              disabled={isSubmitting}
+                              className="w-full bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 py-3 lg:py-4 rounded-xl text-base lg:text-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                              {isSubmitting ? (
+                                <>
+                                  <Loader2 size={20} className="lg:w-6 lg:h-6 animate-spin" />
+                                  <span>Wird gespeichert...</span>
+                                </>
+                              ) : (
+                                <span>Nur Speichern</span>
+                              )}
+                            </button>
+                          </div>
                         )}
                       </div>
                     )}

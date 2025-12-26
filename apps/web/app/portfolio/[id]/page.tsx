@@ -19,7 +19,11 @@ import {
   Pencil,
   Trash2,
   Lock,
+  PiggyBank,
+  Info,
+  Settings,
 } from 'lucide-react';
+import Link from 'next/link';
 
 // Format currency in German locale
 const formatCurrency = (amount: number): string => {
@@ -85,6 +89,8 @@ export default function PropertyDetailPage() {
     { id: propertyId },
     { enabled: !!propertyId }
   );
+
+  const { data: taxEffectsData } = trpc.portfolio.getTaxEffects.useQuery();
 
   const deleteMutation = trpc.portfolio.delete.useMutation({
     onSuccess: () => {
@@ -226,140 +232,237 @@ export default function PropertyDetailPage() {
 
         {/* Details Sections */}
         <div className="space-y-6">
-          {/* Purchase Info */}
+          {/* Purchase Info - Deal-Insights Style */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-blue-100 rounded-xl">
-                <Wallet className="w-5 h-5 text-blue-600" />
-              </div>
-              <h2 className="font-semibold text-gray-900">Kaufdaten</h2>
-            </div>
-
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-500">Kaufpreis</p>
-                <p className="font-semibold text-gray-900">
-                  {formatCurrency(Number(property.purchase_price))}
-                </p>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-xl">
+                  <Wallet className="w-5 h-5 text-blue-600" />
+                </div>
+                <h2 className="font-semibold text-gray-900">Gesamtinvestitionskosten</h2>
               </div>
               {property.purchase_date && (
-                <div>
-                  <p className="text-sm text-gray-500">Kaufdatum</p>
-                  <p className="font-semibold text-gray-900">
-                    {new Date(property.purchase_date).toLocaleDateString('de-DE')}
-                  </p>
-                </div>
+                <span className="text-sm text-gray-500">
+                  {new Date(property.purchase_date).toLocaleDateString('de-DE')}
+                </span>
               )}
-              {property.purchase_costs && (
-                <div>
-                  <p className="text-sm text-gray-500">Kaufnebenkosten</p>
-                  <p className="font-semibold text-gray-900">
-                    {formatCurrency(Number(property.purchase_costs))}
-                  </p>
-                </div>
-              )}
-              {property.renovation_costs && Number(property.renovation_costs) > 0 && (
-                <div>
-                  <p className="text-sm text-gray-500">Renovierungskosten</p>
-                  <p className="font-semibold text-gray-900">
-                    {formatCurrency(Number(property.renovation_costs))}
-                  </p>
-                </div>
-              )}
-              <div>
-                <p className="text-sm text-gray-500">Gesamtinvestition</p>
-                <p className="font-bold text-gray-900">
-                  {formatCurrency(metrics.totalInvestment)}
-                </p>
-              </div>
             </div>
+
+            {(() => {
+              const purchasePrice = Number(property.purchase_price) || 0;
+              const purchaseCosts = Number(property.purchase_costs) || 0;
+              const renovationCosts = Number(property.renovation_costs) || 0;
+
+              // Wenn Kaufnebenkosten gespeichert sind, zeige diese
+              // Sonst berechne mit Standardwerten (~10%)
+              const hasStoredCosts = purchaseCosts > 0;
+
+              // Standardberechnung für Aufschlüsselung
+              const grunderwerbsteuerRate = 5.0; // Default
+              const grunderwerbsteuer = purchasePrice * (grunderwerbsteuerRate / 100);
+              const notarkosten = purchasePrice * 0.015;
+              const grundbuchkosten = purchasePrice * 0.005;
+
+              // Wenn gespeicherte Kosten vorhanden, berechne "Sonstige" als Differenz
+              const calculatedBaseCosts = grunderwerbsteuer + notarkosten + grundbuchkosten;
+              const sonstigeKosten = hasStoredCosts
+                ? Math.max(0, purchaseCosts - calculatedBaseCosts)
+                : 0;
+
+              return (
+                <div className="space-y-3 text-sm">
+                  {/* Kaufpreis */}
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Kaufpreis</span>
+                    <span className="font-semibold text-gray-900">{formatCurrency(purchasePrice)}</span>
+                  </div>
+
+                  {/* Grunderwerbsteuer */}
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">+ Grunderwerbsteuer ({grunderwerbsteuerRate.toFixed(1)}%)</span>
+                    <span className="font-semibold text-gray-700">{formatCurrency(grunderwerbsteuer)}</span>
+                  </div>
+
+                  {/* Notar */}
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">+ Notar (~1,5%)</span>
+                    <span className="font-semibold text-gray-700">{formatCurrency(notarkosten)}</span>
+                  </div>
+
+                  {/* Grundbuch */}
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">+ Grundbuch (~0,5%)</span>
+                    <span className="font-semibold text-gray-700">{formatCurrency(grundbuchkosten)}</span>
+                  </div>
+
+                  {/* Sonstige/Makler (wenn vorhanden) */}
+                  {sonstigeKosten > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">+ Sonstige (Makler etc.)</span>
+                      <span className="font-semibold text-gray-700">{formatCurrency(sonstigeKosten)}</span>
+                    </div>
+                  )}
+
+                  {/* Renovierung (wenn vorhanden) */}
+                  {renovationCosts > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">+ Renovierung</span>
+                      <span className="font-semibold text-gray-700">{formatCurrency(renovationCosts)}</span>
+                    </div>
+                  )}
+
+                  {/* Gesamtinvestition */}
+                  <div className="flex justify-between items-center pt-3 border-t border-gray-200">
+                    <span className="text-gray-900 font-bold">Gesamtinvestition</span>
+                    <span className="text-lg font-bold text-blue-600">{formatCurrency(metrics.totalInvestment)}</span>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
-          {/* Financing */}
+          {/* Financing - Deal-Insights Style */}
           {property.loan_amount && Number(property.loan_amount) > 0 && (
             <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-2 bg-purple-100 rounded-xl">
                   <Landmark className="w-5 h-5 text-purple-600" />
                 </div>
-                <h2 className="font-semibold text-gray-900">Finanzierung</h2>
+                <h2 className="font-semibold text-gray-900">Monatliche Rate</h2>
               </div>
 
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500">Darlehensbetrag</p>
-                  <p className="font-semibold text-gray-900">
-                    {formatCurrency(Number(property.loan_amount))}
-                  </p>
-                </div>
-                {property.interest_rate && (
-                  <div>
-                    <p className="text-sm text-gray-500">Zinssatz</p>
-                    <p className="font-semibold text-gray-900">
-                      {Number(property.interest_rate).toFixed(2)}%
-                    </p>
+              {(() => {
+                const loanAmount = Number(property.loan_amount) || 0;
+                const interestRate = Number(property.interest_rate) || 3.5;
+                const amortizationRate = Number(property.amortization_rate) || 2.0;
+                const eigenkapital = metrics.totalInvestment - loanAmount;
+                const eigenkapitalRate = metrics.totalInvestment > 0
+                  ? (eigenkapital / metrics.totalInvestment) * 100
+                  : 0;
+
+                // Monatliche Beträge berechnen
+                const monatlicheZinsen = Math.round(loanAmount * (interestRate / 100 / 12));
+                const monatlicheTilgung = Math.round(loanAmount * (amortizationRate / 100 / 12));
+
+                return (
+                  <div className="space-y-3 text-sm">
+                    {/* Eigenkapital */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Eigenkapital ({eigenkapitalRate.toFixed(0)}%)</span>
+                      <span className="font-semibold text-gray-900">{formatCurrency(eigenkapital)}</span>
+                    </div>
+
+                    {/* Darlehensbetrag */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Darlehensbetrag</span>
+                      <span className="font-semibold text-gray-700">{formatCurrency(loanAmount)}</span>
+                    </div>
+
+                    {/* Zinsen */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Zinsen ({interestRate.toFixed(2)}%)</span>
+                      <span className="font-semibold text-gray-700">{formatCurrency(monatlicheZinsen)}/Monat</span>
+                    </div>
+
+                    {/* Tilgung */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Tilgung ({amortizationRate.toFixed(1)}%)</span>
+                      <span className="font-semibold text-gray-700">{formatCurrency(monatlicheTilgung)}/Monat</span>
+                    </div>
+
+                    {/* Monatliche Rate */}
+                    <div className="flex justify-between items-center pt-3 border-t border-gray-200">
+                      <span className="text-gray-900 font-bold">Monatliche Rate</span>
+                      <span className="text-lg font-bold text-purple-600">-{formatCurrency(metrics.monthlyLoanPayment)}</span>
+                    </div>
                   </div>
-                )}
-                {property.amortization_rate && (
-                  <div>
-                    <p className="text-sm text-gray-500">Tilgung</p>
-                    <p className="font-semibold text-gray-900">
-                      {Number(property.amortization_rate).toFixed(1)}%
-                    </p>
-                  </div>
-                )}
-                <div>
-                  <p className="text-sm text-gray-500">Monatliche Rate</p>
-                  <p className="font-semibold text-purple-600">
-                    {formatCurrency(metrics.monthlyLoanPayment)}
-                  </p>
-                </div>
-              </div>
+                );
+              })()}
             </div>
           )}
 
-          {/* Rental Income */}
+          {/* Rental Income - Deal-Insights Style (Cashflow) */}
           {(property.monthly_rent || property.monthly_fee) && (
             <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-2 bg-green-100 rounded-xl">
                   <TrendingUp className="w-5 h-5 text-green-600" />
                 </div>
-                <h2 className="font-semibold text-gray-900">Mieteinnahmen</h2>
+                <h2 className="font-semibold text-gray-900">Monatlicher Cashflow</h2>
               </div>
 
-              <div className="grid sm:grid-cols-2 gap-4">
-                {property.monthly_rent && (
-                  <div>
-                    <p className="text-sm text-gray-500">Kaltmiete / Monat</p>
-                    <p className="font-semibold text-green-600">
-                      +{formatCurrency(Number(property.monthly_rent))}
-                    </p>
+              {(() => {
+                const monthlyRent = Number(property.monthly_rent) || 0;
+                const monthlyFee = Number(property.monthly_fee) || 0;
+                const purchasePrice = Number(property.purchase_price) || 0;
+
+                // Nicht-umlegbarer Anteil des Hausgelds (30%)
+                const hausgeldNichtUmlegbar = Math.round(monthlyFee * 0.30);
+
+                // Instandhaltung (1% p.a. / 12)
+                const instandhaltung = Math.round(purchasePrice * 0.01 / 12);
+
+                // Monatliche Kreditrate
+                const monthlyLoanPayment = metrics.monthlyLoanPayment || 0;
+
+                // Ausgaben gesamt (für Cashflow-Berechnung)
+                const ausgabenEffektiv = monthlyLoanPayment + hausgeldNichtUmlegbar + instandhaltung;
+
+                return (
+                  <div className="space-y-3 text-sm">
+                    {/* Mieteinnahmen */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Mieteinnahmen (Kaltmiete)</span>
+                      <span className="font-semibold text-green-600">+{formatCurrency(monthlyRent)}</span>
+                    </div>
+
+                    {/* Kreditrate */}
+                    {monthlyLoanPayment > 0 && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">− Kreditrate</span>
+                        <span className="font-semibold text-gray-700">-{formatCurrency(monthlyLoanPayment)}</span>
+                      </div>
+                    )}
+
+                    {/* Hausgeld (nicht umlegbar) */}
+                    {monthlyFee > 0 && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">− Hausgeld (30% nicht umlegbar)</span>
+                        <span className="font-semibold text-gray-700">-{formatCurrency(hausgeldNichtUmlegbar)}</span>
+                      </div>
+                    )}
+
+                    {/* Instandhaltung */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">− Instandhaltung (1% p.a.)</span>
+                      <span className="font-semibold text-gray-700">-{formatCurrency(instandhaltung)}</span>
+                    </div>
+
+                    {/* Cashflow */}
+                    <div className="flex justify-between items-center pt-3 border-t border-gray-200">
+                      <span className="text-gray-900 font-bold">Cashflow / Monat</span>
+                      <span className={`text-lg font-bold ${getCashflowColor(metrics.monthlyCashflow)}`}>
+                        {metrics.monthlyCashflow >= 0 ? '+' : ''}{formatCurrency(metrics.monthlyCashflow)}
+                      </span>
+                    </div>
+
+                    {/* Zusätzliche Kennzahlen */}
+                    <div className="flex justify-between items-center pt-3 border-t border-gray-100">
+                      <span className="text-gray-500">Faktor</span>
+                      <span className="font-semibold text-gray-700">{metrics.rentMultiplier.toFixed(1)}x</span>
+                    </div>
+
+                    {canAccessAnalytics && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500">Cash-on-Cash Return</span>
+                        <span className={`font-semibold ${getCashflowColor(metrics.cashOnCash)}`}>
+                          {metrics.cashOnCash.toFixed(1)}%
+                        </span>
+                      </div>
+                    )}
                   </div>
-                )}
-                {property.monthly_fee && (
-                  <div>
-                    <p className="text-sm text-gray-500">Hausgeld / Monat</p>
-                    <p className="font-semibold text-red-600">
-                      -{formatCurrency(Number(property.monthly_fee))}
-                    </p>
-                  </div>
-                )}
-                <div>
-                  <p className="text-sm text-gray-500">Faktor</p>
-                  <p className="font-semibold text-gray-900">
-                    {metrics.rentMultiplier.toFixed(1)}x
-                  </p>
-                </div>
-                {canAccessAnalytics && (
-                  <div>
-                    <p className="text-sm text-gray-500">Cash-on-Cash Return</p>
-                    <p className={`font-semibold ${getCashflowColor(metrics.cashOnCash)}`}>
-                      {metrics.cashOnCash.toFixed(1)}%
-                    </p>
-                  </div>
-                )}
-              </div>
+                );
+              })()}
             </div>
           )}
 
@@ -393,6 +496,121 @@ export default function PropertyDetailPage() {
             <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
               <h2 className="font-semibold text-gray-900 mb-3">Notizen</h2>
               <p className="text-gray-600 whitespace-pre-wrap">{property.notes}</p>
+            </div>
+          )}
+
+          {/* Tax Effect Card - Deal-Insights Style */}
+          {taxEffectsData?.taxEffects?.[propertyId] && (
+            <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-amber-100 rounded-xl">
+                  <PiggyBank className="w-5 h-5 text-amber-600" />
+                </div>
+                <h2 className="font-semibold text-gray-900">Steuereffekt</h2>
+              </div>
+
+              {(() => {
+                const taxEffect = taxEffectsData.taxEffects[propertyId];
+                const taxRate = taxEffectsData.marginalTaxRate;
+
+                // AfA monatlich berechnen
+                const monthlyAfa = Math.round(taxEffect.breakdown.annualAfa / 12);
+
+                // Steuerliches Ergebnis = Cashflow - AfA (wie in Deal-Insights)
+                const steuerlichesErgebnisMonatlich = metrics.monthlyCashflow - monthlyAfa;
+
+                // Steuereffekt = Steuerliches Ergebnis × Steuersatz
+                const steuereffektMonatlich = Math.round(steuerlichesErgebnisMonatlich * taxRate);
+                const isSaving = steuereffektMonatlich < 0; // Negativ = Ersparnis
+
+                // Cashflow nach Steuern
+                const cashflowNachSteuern = metrics.monthlyCashflow - steuereffektMonatlich;
+
+                const AFA_LABELS: Record<string, string> = {
+                  altbau: 'Altbau 2,5%',
+                  bestand: 'Bestand 2%',
+                  neubau: 'Neubau 4%',
+                  denkmal: 'Denkmal 9%',
+                };
+
+                return (
+                  <div className="space-y-3 text-sm">
+                    {/* Cashflow */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Cashflow / Monat</span>
+                      <span className={`font-semibold ${getCashflowColor(metrics.monthlyCashflow)}`}>
+                        {metrics.monthlyCashflow >= 0 ? '+' : ''}{formatCurrency(metrics.monthlyCashflow)}
+                      </span>
+                    </div>
+
+                    {/* AfA */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">
+                        − AfA / Monat
+                        <span className="text-xs text-gray-400 ml-1">({AFA_LABELS[taxEffect.afaStrategy] || taxEffect.afaStrategy})</span>
+                      </span>
+                      <span className="font-semibold text-green-600">−{formatCurrency(monthlyAfa)}</span>
+                    </div>
+
+                    {/* Steuerliches Ergebnis */}
+                    <div className="flex justify-between items-center pt-3 border-t border-gray-200">
+                      <span className="text-gray-900 font-medium">Steuerliches Ergebnis</span>
+                      <span className={`font-semibold ${steuerlichesErgebnisMonatlich < 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {formatCurrency(steuerlichesErgebnisMonatlich)}
+                      </span>
+                    </div>
+
+                    {/* Grenzsteuersatz */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">
+                        × Grenzsteuersatz
+                        {taxEffectsData.hasTaxProfile && (
+                          <span className="text-xs text-primary ml-1">(aus Profil)</span>
+                        )}
+                      </span>
+                      <span className="font-semibold text-gray-700">{Math.round(taxRate * 100)}%</span>
+                    </div>
+
+                    {/* Steuerersparnis / Steuerlast */}
+                    <div className="flex justify-between items-center pt-3 border-t border-gray-200">
+                      <span className="text-gray-900 font-medium">
+                        {isSaving ? 'Steuerersparnis / Monat' : 'Steuerlast / Monat'}
+                      </span>
+                      <span className={`font-semibold ${isSaving ? 'text-green-600' : 'text-red-600'}`}>
+                        {isSaving ? '+' : ''}{formatCurrency(Math.abs(steuereffektMonatlich))}
+                      </span>
+                    </div>
+
+                    {/* Cashflow nach Steuern */}
+                    <div className="flex justify-between items-center pt-3 border-t border-gray-200">
+                      <span className="text-gray-900 font-bold">Cashflow nach Steuern</span>
+                      <span className={`text-lg font-bold ${getCashflowColor(cashflowNachSteuern)}`}>
+                        {cashflowNachSteuern >= 0 ? '+' : ''}{formatCurrency(cashflowNachSteuern)}
+                      </span>
+                    </div>
+
+                    {/* Hinweis */}
+                    <p className="text-xs text-gray-400 mt-2 pt-2 border-t border-gray-100">
+                      {steuerlichesErgebnisMonatlich < 0
+                        ? '💡 Die AfA übersteigt den Cashflow → steuerlicher Verlust mindert Ihre Einkommensteuer.'
+                        : '💡 Der Cashflow übersteigt die AfA → Sie zahlen zusätzliche Einkommensteuer.'}
+                    </p>
+
+                    {/* Tax Profile Hint */}
+                    {!taxEffectsData.hasTaxProfile && (
+                      <Link
+                        href="/steuer-optimierer"
+                        className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3 mt-2 hover:bg-amber-100 transition-colors"
+                      >
+                        <Settings size={16} className="text-amber-600" />
+                        <span className="text-xs text-amber-700">
+                          Steuersatz anpassen im Steuer-Optimierer (aktuell: 42% Standard)
+                        </span>
+                      </Link>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>

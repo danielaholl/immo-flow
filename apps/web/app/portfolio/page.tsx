@@ -10,7 +10,7 @@ import { PortfolioPropertyList } from './components/PortfolioPropertyList';
 import { PortfolioEmptyState } from './components/PortfolioEmptyState';
 import { PortfolioCharts } from './components/PortfolioCharts';
 import { PortfolioTreemap } from './components/PortfolioTreemap';
-import { Plus, Lock, TrendingUp } from 'lucide-react';
+import { Plus, Lock, TrendingUp, Calculator, ChevronRight } from 'lucide-react';
 
 export default function PortfolioPage() {
   const router = useRouter();
@@ -19,6 +19,8 @@ export default function PortfolioPage() {
   const { data: properties, isLoading: propertiesLoading } = trpc.portfolio.getAll.useQuery();
   const { data: summary, isLoading: summaryLoading } = trpc.portfolio.getSummary.useQuery();
   const { data: propertyCount } = trpc.portfolio.getPropertyCount.useQuery();
+  const { data: taxProfile } = trpc.taxOptimizer.getProfile.useQuery();
+  const { data: taxEffectsData } = trpc.portfolio.getTaxEffects.useQuery();
 
   const isLoading = propertiesLoading || summaryLoading || subscriptionLoading;
   const hasProperties = properties && properties.length > 0;
@@ -129,10 +131,64 @@ export default function PortfolioPage() {
         ) : (
           <div className="space-y-8">
             {/* Treemap Visualization */}
-            <PortfolioTreemap properties={properties} />
+            <PortfolioTreemap
+              properties={properties}
+              taxEffects={taxEffectsData?.taxEffects}
+              marginalTaxRate={taxEffectsData?.marginalTaxRate}
+            />
 
             {/* Hero Stats */}
             <PortfolioHeroStats summary={summary} canAccessAnalytics={canAccessAnalytics} />
+
+            {/* Tax Optimizer Card */}
+            <button
+              onClick={() => router.push('/steuer-optimierer')}
+              className="w-full bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-md hover:border-gray-200 transition-all group text-left"
+            >
+              {(() => {
+                // Berechne gesamtes steuerliches Ergebnis (Cashflow - AfA) für alle Immobilien
+                let gesamtSteuerlichesErgebnis = 0;
+                const taxRate = taxEffectsData?.marginalTaxRate || 0.42;
+
+                if (properties && taxEffectsData?.taxEffects) {
+                  for (const property of properties) {
+                    const taxEffect = taxEffectsData.taxEffects[property.id];
+                    if (taxEffect) {
+                      const monthlyAfa = taxEffect.breakdown.annualAfa / 12;
+                      const steuerlichesErgebnis = property.metrics.monthlyCashflow - monthlyAfa;
+                      gesamtSteuerlichesErgebnis += steuerlichesErgebnis;
+                    }
+                  }
+                }
+
+                const isVerlust = gesamtSteuerlichesErgebnis < 0;
+                const steuerEffekt = Math.round(gesamtSteuerlichesErgebnis * taxRate);
+
+                return (
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-amber-100 rounded-2xl flex items-center justify-center">
+                      <Calculator size={28} className="text-amber-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-gray-900">Steuer-Optimierer</h3>
+                      {properties && properties.length > 0 && taxEffectsData?.taxEffects ? (
+                        <>
+                          <p className={`text-2xl font-bold ${isVerlust ? 'text-green-600' : 'text-red-600'}`}>
+                            {isVerlust ? 'Steuerersparnis' : 'Steuerlast'}: {isVerlust ? '+' : ''}{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(Math.abs(steuerEffekt))} / Monat
+                          </p>
+                          <p className={`text-sm ${isVerlust ? 'text-green-600' : 'text-red-600'}`}>
+                            {isVerlust ? '+' : ''}{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(Math.abs(steuerEffekt * 12))} / Jahr
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-gray-500">Berechne dein Steuer-Sparpotenzial mit Immobilien</p>
+                      )}
+                    </div>
+                    <ChevronRight size={24} className="text-gray-400 group-hover:translate-x-1 group-hover:text-primary transition-all" />
+                  </div>
+                );
+              })()}
+            </button>
 
             {/* Charts Section (Pro only) */}
             {canAccessCharts ? (
@@ -170,6 +226,8 @@ export default function PortfolioPage() {
               <PortfolioPropertyList
                 properties={properties}
                 canAccessAnalytics={canAccessAnalytics}
+                taxEffects={taxEffectsData?.taxEffects}
+                marginalTaxRate={taxEffectsData?.marginalTaxRate}
               />
             </div>
 

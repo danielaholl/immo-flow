@@ -30,19 +30,25 @@ export const AFA_STRATEGIES = {
     rate: 0.02, // 2% linear AfA
     buildingRatio: 0.80, // 80% building portion
     label: 'Bestand (2% AfA)',
-    description: 'Konservative Strategie für Bestandsimmobilien',
+    description: 'Standard für Gebäude nach 1925',
+  },
+  altbau: {
+    rate: 0.025, // 2.5% linear AfA for buildings before 1925
+    buildingRatio: 0.80, // 80% building portion
+    label: 'Altbau (2,5% AfA)',
+    description: 'Gebäude vor 1925',
   },
   neubau: {
     rate: 0.04, // ~4% durchschnittliche degressive AfA über 10 Jahre (5% degressiv = Ø 4,01% p.a.)
     buildingRatio: 0.85, // 85% building portion (typically higher for new builds)
     label: 'Neubau (5% degr. AfA)',
-    description: 'Aggressive Strategie für Neubauten mit degressiver AfA',
+    description: 'Degressive AfA seit 2024 (Ø 4%)',
   },
   denkmal: {
     rate: 0.09, // 9% for Denkmal-AfA on renovation costs (12 years)
     buildingRatio: 0.35, // ~35% of purchase price as typical renovation costs
     label: 'Denkmal-AfA (9%)',
-    description: 'Steuerersparnis durch Denkmalschutz-Sanierung (9% auf ~35% Sanierungskosten)',
+    description: '9% auf Sanierungskosten',
   },
 } as const;
 
@@ -309,6 +315,97 @@ export function calculatePropertyTaxEffect(
       maintenanceDeduction: Math.round(maintenanceDeduction),
       rentalIncome: Math.round(rentalIncome),
       netTaxLoss: Math.round(netTaxLoss),
+    },
+  };
+}
+
+// ==========================================
+// Portfolio Property Tax Calculation
+// ==========================================
+
+/**
+ * Input for portfolio property tax calculation
+ * Uses actual property data instead of assumptions
+ */
+export interface PortfolioPropertyTaxInput {
+  purchasePrice: number;
+  yearBuilt: number | null;
+  buildingShare: number; // Default 0.80
+  loanAmount: number;
+  interestRate: number; // Actual rate from property (e.g., 3.5 for 3.5%)
+  monthlyRent: number;
+  marginalTaxRate: number; // e.g., 0.42 for 42%
+}
+
+/**
+ * Result of portfolio property tax calculation
+ */
+export interface PortfolioPropertyTaxResult {
+  afaStrategy: AfaStrategy;
+  afaRate: number;
+  annualTaxEffect: number; // Positive = savings, Negative = tax liability
+  monthlyTaxEffect: number;
+  breakdown: {
+    annualRent: number;
+    annualInterest: number;
+    annualAfa: number;
+    taxableIncome: number; // Rent - Interest - AfA (negative = loss)
+  };
+}
+
+/**
+ * Determine AfA strategy based on year built
+ * - < 1925: Altbau (2.5%)
+ * - < 2024: Bestand (2%)
+ * - >= 2024: Neubau (4% degressive)
+ */
+export function determineAfaStrategy(yearBuilt: number | null): AfaStrategy {
+  if (!yearBuilt) return 'bestand';
+  if (yearBuilt < 1925) return 'altbau';
+  if (yearBuilt >= 2024) return 'neubau';
+  return 'bestand';
+}
+
+/**
+ * Calculate tax effect for a portfolio property
+ * Uses actual property data (loan amount, interest rate, rent)
+ *
+ * Calculation:
+ * 1. taxableIncome = annualRent - annualInterest - annualAfa
+ * 2. If taxableIncome < 0 (loss): taxEffect = |taxableIncome| × taxRate (savings)
+ * 3. If taxableIncome > 0 (profit): taxEffect = -taxableIncome × taxRate (liability)
+ */
+export function calculatePortfolioPropertyTax(
+  input: PortfolioPropertyTaxInput
+): PortfolioPropertyTaxResult {
+  const afaStrategy = determineAfaStrategy(input.yearBuilt);
+  const afaRate = AFA_STRATEGIES[afaStrategy].rate;
+
+  // Calculate annual values
+  const annualRent = input.monthlyRent * 12;
+  const annualInterest = input.loanAmount * (input.interestRate / 100);
+  const annualAfa = input.purchasePrice * input.buildingShare * afaRate;
+
+  // Taxable income (without maintenance costs per user requirement)
+  // Negative = tax loss (good), Positive = taxable profit
+  const taxableIncome = annualRent - annualInterest - annualAfa;
+
+  // Tax effect: negative taxableIncome means savings
+  // annualTaxEffect positive = user saves money
+  // annualTaxEffect negative = user owes money
+  const annualTaxEffect = -taxableIncome * input.marginalTaxRate;
+  const monthlyTaxEffect = annualTaxEffect / 12;
+
+  return {
+    afaStrategy,
+    afaRate,
+    annualTaxEffect: Math.round(annualTaxEffect),
+    monthlyTaxEffect: Math.round(monthlyTaxEffect),
+    breakdown: {
+      annualRent: Math.round(annualRent),
+      annualInterest: Math.round(annualInterest),
+      annualAfa: Math.round(annualAfa),
+      taxableIncome: Math.round(taxableIncome),
     },
   };
 }

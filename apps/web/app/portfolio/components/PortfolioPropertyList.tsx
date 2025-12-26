@@ -3,10 +3,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Building2,
   MapPin,
-  TrendingUp,
-  Wallet,
   ChevronRight,
   Home,
   Building,
@@ -39,9 +36,22 @@ interface PortfolioProperty {
   metrics: PropertyMetrics;
 }
 
+interface TaxEffect {
+  annualTaxEffect: number;
+  monthlyTaxEffect: number;
+  breakdown: {
+    annualRent: number;
+    annualInterest: number;
+    annualAfa: number;
+    taxableIncome: number;
+  };
+}
+
 interface PortfolioPropertyListProps {
   properties: PortfolioProperty[];
   canAccessAnalytics: boolean;
+  taxEffects?: Record<string, TaxEffect>;
+  marginalTaxRate?: number;
 }
 
 // Format currency in German locale
@@ -99,6 +109,8 @@ const getYieldColor = (value: number): string => {
 export function PortfolioPropertyList({
   properties,
   canAccessAnalytics,
+  taxEffects,
+  marginalTaxRate = 0.42,
 }: PortfolioPropertyListProps) {
   const router = useRouter();
 
@@ -116,20 +128,20 @@ export function PortfolioPropertyList({
           >
             <div className="flex flex-col lg:flex-row lg:items-center gap-4">
               {/* Property Info */}
-              <div className="flex items-start gap-4 flex-1 min-w-0">
-                <div className="p-3 bg-gray-100 rounded-xl group-hover:bg-gray-200 transition-colors">
-                  <PropertyIcon className="w-6 h-6 text-gray-600" />
+              <div className="flex items-start gap-4 flex-1 min-w-0 group-hover:bg-gray-50 -m-2 p-2 rounded-xl transition-colors">
+                <div className="p-3 bg-gray-100 rounded-xl group-hover:bg-[#FF385C]/10 transition-colors">
+                  <PropertyIcon className="w-6 h-6 text-gray-600 group-hover:text-[#FF385C] transition-colors" />
                 </div>
 
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-gray-900 truncate group-hover:text-[#FF385C] transition-colors">
                     {property.title}
                   </h3>
-                  <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                  <div className="flex items-center gap-2 text-sm text-gray-500 mt-1 group-hover:text-gray-600 transition-colors">
                     <MapPin size={14} />
                     <span className="truncate">{property.location}</span>
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-gray-400 mt-1">
+                  <div className="flex items-center gap-3 text-xs text-gray-400 mt-1 group-hover:text-gray-500 transition-colors">
                     <span>{getPropertyTypeLabel(property.property_type)}</span>
                     <span>•</span>
                     <span>{property.sqm} m²</span>
@@ -138,7 +150,7 @@ export function PortfolioPropertyList({
               </div>
 
               {/* Metrics */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 lg:gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 lg:gap-6">
                 {/* Value */}
                 <div className="text-center lg:text-right">
                   <p className="text-xs text-gray-400 mb-0.5">Wert</p>
@@ -162,6 +174,31 @@ export function PortfolioPropertyList({
                     {metrics.monthlyCashflow >= 0 ? '+' : ''}
                     {formatCurrency(metrics.monthlyCashflow)}
                   </p>
+                </div>
+
+                {/* Steuer-Effekt (Cashflow - AfA basiert, wie in Deal-Insights) */}
+                <div className="text-center lg:text-right">
+                  <p className="text-xs text-gray-400 mb-0.5">Steuer</p>
+                  {taxEffects && taxEffects[property.id] ? (
+                    (() => {
+                      const taxEffect = taxEffects[property.id];
+                      const monthlyAfa = Math.round(taxEffect.breakdown.annualAfa / 12);
+                      // Steuerliches Ergebnis = Cashflow - AfA
+                      const steuerlichesErgebnis = metrics.monthlyCashflow - monthlyAfa;
+                      // Steuereffekt = Steuerliches Ergebnis × Steuersatz
+                      const steuereffektMonatlich = Math.round(steuerlichesErgebnis * marginalTaxRate);
+                      // Negativ = Ersparnis (grün), Positiv = Zahlung (rot)
+                      const isSaving = steuereffektMonatlich < 0;
+
+                      return (
+                        <p className={`font-semibold ${isSaving ? 'text-green-600' : 'text-red-600'}`}>
+                          {isSaving ? '+' : ''}{formatCurrency(Math.abs(steuereffektMonatlich))}
+                        </p>
+                      );
+                    })()
+                  ) : (
+                    <p className="font-semibold text-gray-400">–</p>
+                  )}
                 </div>
 
                 {/* Equity or Faktor */}

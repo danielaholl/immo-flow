@@ -1,7 +1,7 @@
 /**
- * Knowledge Learner Service
- * Extracts factual information from seller chat responses
- * and saves it to the knowledge base for future AI responses
+ * Knowledge Learner Service (vereinfacht)
+ * Extrahiert faktische Informationen aus Verkäufer-Chat-Antworten
+ * und hängt sie an die seller_notes der Property an
  */
 import OpenAI from 'openai';
 import { db } from '../db.js';
@@ -31,10 +31,7 @@ export interface LearnFromChatInput {
 }
 
 export interface LearnedKnowledge {
-  id: string;
-  topic: string;
-  content: string;
-  category: string;
+  info: string;
   confidence: number;
 }
 
@@ -59,23 +56,13 @@ REGELN:
 1. Extrahiere NUR konkrete Fakten ueber die Immobilie
 2. Ignoriere: Grussformeln, Meinungen, vage Aussagen, Fragen, Smalltalk
 3. Die Information muss spezifisch und wiederverwendbar sein
-4. Wenn keine relevanten Fakten vorhanden sind, antworte mit: {"extract": false}
-
-KATEGORIEN:
-- costs: Kosten, Gebuehren, Umlagen, Hausgeld, Renovierungskosten
-- renovation: Sanierungen, Modernisierungen, geplante Massnahmen
-- legal: Rechtliches, Eigentuemerbeschluesse, Mietvertraege
-- technical: Technische Details, Heizung, Fenster, Daemmung
-- neighborhood: Umgebung, Nachbarn, Infrastruktur
-- amenities: Ausstattung, Gemeinschaftseinrichtungen
-- other: Sonstiges
+4. Formuliere die Information als praegnanten, vollstaendigen Satz
+5. Wenn keine relevanten Fakten vorhanden sind, antworte mit: {"extract": false}
 
 AUSGABEFORMAT (JSON):
 {
   "extract": true,
-  "topic": "Kurzer Titel (max 50 Zeichen, z.B. 'Tiefgaragensanierung 2025')",
-  "content": "Praezise Information in 1-2 Saetzen",
-  "category": "eine der obigen Kategorien",
+  "info": "Praezise Information in 1-2 Saetzen (z.B. 'Die Tiefgarage wird 2025 saniert. Sonderumlage: 10.000 Euro.')",
   "confidence": 0.0-1.0 (wie sicher bist du, dass dies ein relevanter Fakt ist?)
 }
 
@@ -83,7 +70,7 @@ BEISPIELE:
 
 Frage: "Gibt es geplante Sanierungen?"
 Antwort: "Ja, die Tiefgarage wird naechstes Jahr saniert. Dafuer ist eine Sonderumlage von 10.000 Euro geplant."
-Ausgabe: {"extract": true, "topic": "Tiefgaragensanierung 2025", "content": "Die Tiefgarage wird 2025 saniert. Sonderumlage: 10.000 Euro.", "category": "renovation", "confidence": 0.95}
+Ausgabe: {"extract": true, "info": "Die Tiefgarage wird 2025 saniert. Sonderumlage: 10.000 Euro.", "confidence": 0.95}
 
 Frage: "Wann kann ich einziehen?"
 Antwort: "Gerne! Die Wohnung ist ab sofort verfuegbar."
@@ -91,7 +78,7 @@ Ausgabe: {"extract": false}
 
 Frage: "Wie sind die Nebenkosten?"
 Antwort: "Die Heizkostenvorauszahlung liegt bei ca. 80 Euro monatlich, je nach Verbrauch."
-Ausgabe: {"extract": true, "topic": "Heizkosten", "content": "Heizkostenvorauszahlung ca. 80 Euro pro Monat, verbrauchsabhaengig.", "category": "costs", "confidence": 0.85}`;
+Ausgabe: {"extract": true, "info": "Heizkostenvorauszahlung ca. 80 Euro pro Monat, verbrauchsabhaengig.", "confidence": 0.85}`;
 
     const client = getOpenAIClient();
     const response = await client.chat.completions.create({
@@ -123,29 +110,17 @@ Ausgabe: {"extract": true, "topic": "Heizkosten", "content": "Heizkostenvorausza
       return null;
     }
 
-    // Save to knowledge base
-    const savedEntry = await saveToKnowledgeBase({
-      propertyId: input.propertyId,
-      userId: input.sellerId,
-      topic: result.topic,
-      content: result.content,
-      category: result.category,
-      confidence: result.confidence,
-      sourceMessageId: input.messageId,
-    });
+    // Append to seller notes
+    const saved = await appendToSellerNotes(input.propertyId, result.info);
 
-    if (savedEntry) {
-      log.info('Knowledge extracted and saved', {
-        topic: result.topic,
-        category: result.category,
+    if (saved) {
+      log.info('Knowledge extracted and appended to seller notes', {
+        info: result.info,
         confidence: result.confidence,
       });
 
       return {
-        id: savedEntry.id,
-        topic: result.topic,
-        content: result.content,
-        category: result.category,
+        info: result.info,
         confidence: result.confidence,
       };
     }
@@ -157,112 +132,48 @@ Ausgabe: {"extract": true, "topic": "Heizkosten", "content": "Heizkostenvorausza
   }
 }
 
-interface SaveKnowledgeInput {
-  propertyId: string;
-  userId: string;
-  topic: string;
-  content: string;
-  category: string;
-  confidence: number;
-  sourceMessageId: string;
-}
-
 /**
- * Save extracted knowledge to the database
- * Uses UPSERT to update existing entries with same topic
+ * Append extracted knowledge to seller_notes
+ * Adds timestamp and [KI] label
  */
-async function saveToKnowledgeBase(
-  input: SaveKnowledgeInput
-): Promise<{ id: string } | null> {
+async function appendToSellerNotes(
+  propertyId: string,
+  newInfo: string
+): Promise<boolean> {
   try {
-    // Use INSERT ... ON CONFLICT to handle duplicate topics
-    const result = await db.query(
-      `INSERT INTO seller_knowledge_base
-        (property_id, user_id, topic, content, category, source_type, source_message_id, confidence_score)
-      VALUES ($1, $2, $3, $4, $5, 'chat_learned', $6, $7)
-      ON CONFLICT (property_id, topic)
-      DO UPDATE SET
-        content = EXCLUDED.content,
-        category = EXCLUDED.category,
-        source_message_id = EXCLUDED.source_message_id,
-        confidence_score = EXCLUDED.confidence_score,
-        updated_at = NOW()
-      RETURNING id`,
-      [
-        input.propertyId,
-        input.userId,
-        input.topic,
-        input.content,
-        input.category,
-        input.sourceMessageId,
-        input.confidence,
-      ]
+    const timestamp = new Date().toLocaleDateString('de-DE');
+    const formattedEntry = `\n\n[${timestamp} - KI] ${newInfo}`;
+
+    await db.query(
+      `UPDATE properties
+       SET seller_notes = COALESCE(seller_notes, '') || $1
+       WHERE id = $2`,
+      [formattedEntry, propertyId]
     );
 
-    return { id: result.rows[0].id };
+    return true;
   } catch (error) {
-    log.error('Failed to save knowledge to database', { error });
-    return null;
+    log.error('Failed to append to seller notes', { error, propertyId });
+    return false;
   }
 }
 
 /**
- * Get knowledge entries for AI context
- * Returns all active entries for a property
+ * Get seller notes for AI context
+ * Returns the seller_notes text from the property
  */
 export async function getKnowledgeForProperty(
   propertyId: string
-): Promise<Array<{ topic: string; content: string; category: string }>> {
+): Promise<string> {
   try {
     const result = await db.query(
-      `SELECT topic, content, category
-      FROM seller_knowledge_base
-      WHERE property_id = $1 AND is_active = true
-      ORDER BY category, created_at DESC`,
+      'SELECT seller_notes FROM properties WHERE id = $1',
       [propertyId]
     );
 
-    return result.rows;
+    return result.rows[0]?.seller_notes || '';
   } catch (error) {
-    log.error('Failed to get knowledge for property', { error, propertyId });
-    return [];
-  }
-}
-
-/**
- * Search knowledge entries by relevance to a question
- * Uses PostgreSQL full-text search
- */
-export async function searchRelevantKnowledge(
-  propertyId: string,
-  question: string,
-  limit: number = 5
-): Promise<Array<{ topic: string; content: string; category: string }>> {
-  try {
-    const result = await db.query(
-      `SELECT
-        topic,
-        content,
-        category,
-        ts_rank(to_tsvector('german', topic || ' ' || content), plainto_tsquery('german', $2)) as rank
-      FROM seller_knowledge_base
-      WHERE property_id = $1
-        AND is_active = true
-        AND to_tsvector('german', topic || ' ' || content) @@ plainto_tsquery('german', $2)
-      ORDER BY rank DESC
-      LIMIT $3`,
-      [propertyId, question, limit]
-    );
-
-    // If no full-text matches, return all entries (fallback)
-    if (result.rows.length === 0) {
-      return getKnowledgeForProperty(propertyId);
-    }
-
-    return result.rows;
-  } catch (error) {
-    log.error('Failed to search knowledge', { error, propertyId });
-    // Fallback to returning all knowledge
-    return getKnowledgeForProperty(propertyId);
+    log.error('Failed to get seller notes for property', { error, propertyId });
+    return '';
   }
 }

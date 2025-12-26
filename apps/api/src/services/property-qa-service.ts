@@ -156,18 +156,12 @@ WICHTIG: Bei Confidence < 0.5 wird die Frage an den Verkäufer weitergeleitet!`;
   }
 }
 
-interface KnowledgeEntry {
-  topic: string;
-  content: string;
-  category: string;
-}
-
 /**
  * Build comprehensive property context for AI
  */
 function buildPropertyContext(
   property: any,
-  sellerKnowledge: KnowledgeEntry[] = []
+  sellerNotes: string = ''
 ): string {
   const sections: string[] = [];
 
@@ -238,12 +232,10 @@ function buildPropertyContext(
     sections.push('');
   }
 
-  // Seller Knowledge Base (private information from seller)
-  if (sellerKnowledge.length > 0) {
+  // Seller Notes (private information from seller)
+  if (sellerNotes && sellerNotes.trim()) {
     sections.push('VERKAEUFER-INFORMATIONEN (vertraulich, vom Eigentuemer bereitgestellt):');
-    sellerKnowledge.forEach((entry) => {
-      sections.push(`- ${entry.topic}: ${entry.content}`);
-    });
+    sections.push(sellerNotes);
     sections.push('');
   }
 

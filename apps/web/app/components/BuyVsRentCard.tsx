@@ -86,6 +86,7 @@ export function BuyVsRentCard({
   onPurchasePriceChange,
 }: BuyVsRentCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isKiFazitExpanded, setIsKiFazitExpanded] = useState(false);
 
   // Robuste Konvertierung (leere Strings und NaN vermeiden)
   const parseNum = (val: unknown, fallback: number): number => {
@@ -355,7 +356,7 @@ export function BuyVsRentCard({
             setIsExpanded(!isExpanded);
           }
         }}
-        className="w-full p-4 sm:p-5 cursor-pointer"
+        className="w-full p-4 sm:p-5 cursor-pointer hover:bg-gray-50 transition-colors"
       >
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2 min-w-0">
@@ -438,7 +439,7 @@ export function BuyVsRentCard({
       {/* Expanded Details - InvestmentCalculator */}
       {isExpanded && (
         <div className="px-4 sm:px-5 pb-4 sm:pb-5 border-t border-gray-100">
-          {/* KI-Fazit */}
+          {/* KI-Fazit - Collapsible */}
           {generateAiFazitMutation.isPending ? (
             <div className="mt-4 mb-4 rounded-xl p-4 border bg-blue-50 border-blue-200">
               <div className="flex items-center gap-3">
@@ -447,90 +448,104 @@ export function BuyVsRentCard({
               </div>
             </div>
           ) : displayFazit ? (
-            <div className="mt-4 mb-4 space-y-3">
-              {/* Fazit */}
-              <div className={`rounded-xl p-4 border ${getFazitBgColor(displayFazit.verdict)}`}>
-                <div className="flex items-start gap-3">
-                  <div
-                    className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: displayFazit.color + '20' }}
-                  >
-                    <Sparkles className="w-4 h-4" style={{ color: displayFazit.color }} />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="text-sm font-semibold text-gray-900">
-                        {aiFazitError ? 'Fazit' : 'KI-Fazit'}
-                      </p>
-                      {propertyId && analysis && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setAiFazit(null);
-                            setFazitRequested(true);
-                            setAiFazitError(false);
-                            generateAiFazitMutation.mutate({
-                              mode: 'eigennutzer',
-                              propertyId: propertyId,
-                              forceRegenerate: true,
-                              purchasePrice: Number(purchasePrice),
-                              monthlyRent: Number(analysis.effectiveMonthlyRent),
-                              breakEvenYears: Number(analysis.breakEvenYears),
-                              totalMonthlyCostBuying: Number(analysis.totalMonthlyCostBuying),
-                              equityPercentage: Number(equityPercentage),
-                              interestRate: Number(interestRate),
-                              loanAmount: Number(analysis.loanAmount),
-                              amortizationRate: Number(amortizationRate),
-                              monthlyMortgage: Number(analysis.monthlyMortgage),
-                              totalInvestment: Number(analysis.totalInvestment),
-                              monthlyFee: Number(effectiveHausgeld),
-                              monthlyMaintenance: Number(analysis.monthlyMaintenance),
-                              equityAmount: Number(analysis.equityAmount),
-                              location: location,
-                              sqm: sqm ? Number(sqm) : undefined,
-                              yearBuilt: yearBuilt ? Number(yearBuilt) : undefined,
-                            });
-                          }}
-                          disabled={generateAiFazitMutation.isPending}
-                          className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1 disabled:opacity-50"
-                        >
-                          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
-                          </svg>
-                          Neu generieren
-                        </button>
-                      )}
+            <div className="mt-4 mb-4">
+              <div className="rounded-xl border overflow-hidden bg-gray-50 border-gray-200">
+                {/* Accordion Header */}
+                <div
+                  className="p-4 cursor-pointer flex items-center justify-between hover:bg-gray-100/50 transition-colors"
+                  onClick={() => setIsKiFazitExpanded(!isKiFazitExpanded)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                      style={{ backgroundColor: displayFazit.color + '20' }}
+                    >
+                      <Sparkles className="w-4 h-4" style={{ color: displayFazit.color }} />
                     </div>
-                    <p className="text-sm text-gray-700 leading-relaxed">{displayFazit.text}</p>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {aiFazitError ? 'Fazit' : 'KI-Fazit'}
+                    </p>
                   </div>
+                  <ChevronDown
+                    size={18}
+                    className={`text-gray-400 transition-transform duration-200 ${isKiFazitExpanded ? 'rotate-180' : ''}`}
+                  />
                 </div>
-              </div>
 
-              {/* Optimierungsvorschläge */}
-              {aiFazit?.suggestions && aiFazit.suggestions.length > 0 && (
-                <div className="rounded-xl p-4 border bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-200">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-indigo-100">
-                      <svg className="w-4 h-4 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                      </svg>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-gray-900 mb-2">
-                        Optimierungspotenzial
-                      </p>
-                      <ul className="space-y-1.5">
-                        {aiFazit.suggestions.map((tip, index) => (
-                          <li key={index} className="text-sm text-gray-700 flex items-start gap-2">
-                            <span className="text-indigo-500 flex-shrink-0">•</span>
-                            <span>{tip}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                {/* Accordion Content */}
+                {isKiFazitExpanded && (
+                  <div className="px-4 pb-4 space-y-3">
+                    {/* Fazit Text */}
+                    <p className="text-sm text-gray-700 leading-relaxed">{displayFazit.text}</p>
+
+                    {/* Optimierungsvorschläge */}
+                    {aiFazit?.suggestions && aiFazit.suggestions.length > 0 && (
+                      <div className="rounded-xl p-3 bg-white/50 border border-indigo-100">
+                        <div className="flex items-start gap-3">
+                          <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 bg-indigo-100">
+                            <svg className="w-3 h-3 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-xs font-semibold text-gray-900 mb-1.5">
+                              Optimierungspotenzial
+                            </p>
+                            <ul className="space-y-1">
+                              {aiFazit.suggestions.map((tip, index) => (
+                                <li key={index} className="text-xs text-gray-700 flex items-start gap-2">
+                                  <span className="text-indigo-500 flex-shrink-0">•</span>
+                                  <span>{tip}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Neu generieren Button */}
+                    {propertyId && analysis && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setAiFazit(null);
+                          setFazitRequested(true);
+                          setAiFazitError(false);
+                          generateAiFazitMutation.mutate({
+                            mode: 'eigennutzer',
+                            propertyId: propertyId,
+                            forceRegenerate: true,
+                            purchasePrice: Number(purchasePrice),
+                            monthlyRent: Number(analysis.effectiveMonthlyRent),
+                            breakEvenYears: Number(analysis.breakEvenYears),
+                            totalMonthlyCostBuying: Number(analysis.totalMonthlyCostBuying),
+                            equityPercentage: Number(equityPercentage),
+                            interestRate: Number(interestRate),
+                            loanAmount: Number(analysis.loanAmount),
+                            amortizationRate: Number(amortizationRate),
+                            monthlyMortgage: Number(analysis.monthlyMortgage),
+                            totalInvestment: Number(analysis.totalInvestment),
+                            monthlyFee: Number(effectiveHausgeld),
+                            monthlyMaintenance: Number(analysis.monthlyMaintenance),
+                            equityAmount: Number(analysis.equityAmount),
+                            location: location,
+                            sqm: sqm ? Number(sqm) : undefined,
+                            yearBuilt: yearBuilt ? Number(yearBuilt) : undefined,
+                          });
+                        }}
+                        disabled={generateAiFazitMutation.isPending}
+                        className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+                        </svg>
+                        Neu generieren
+                      </button>
+                    )}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           ) : null}
           <InvestmentCalculator
