@@ -24,7 +24,7 @@ migrations=(
 for migration in "${migrations[@]}"; do
   echo -e "${BLUE}📝 Running: $migration${NC}"
 
-  if docker exec -i immoflow-postgres-dev psql -U postgres -d immoflow < "$migration"; then
+  if docker exec -i rendito-postgres-dev psql -U postgres -d rendito < "$migration"; then
     echo -e "${GREEN}✅ Success: $migration${NC}\n"
   else
     echo -e "${RED}❌ Failed: $migration${NC}\n"
@@ -36,4 +36,4 @@ echo -e "${GREEN}✅ All migrations completed successfully!${NC}\n"
 
 # Show tables
 echo -e "${BLUE}📊 Database tables:${NC}"
-docker exec immoflow-postgres-dev psql -U postgres -d immoflow -c "\dt"
+docker exec rendito-postgres-dev psql -U postgres -d rendito -c "\dt"

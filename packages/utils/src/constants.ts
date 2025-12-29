@@ -96,11 +96,11 @@ export const AI_SCORE_THRESHOLDS = {
 
 // App config
 export const APP_CONFIG = {
-  name: 'ImmoFlow',
+  name: 'Rendito',
   description: 'TikTok-style Immobilien Investment App',
   version: '1.0.0',
   defaultLanguage: 'de',
-  supportEmail: 'support@immoflow.de',
+  supportEmail: 'support@rendito.de',
   maxImageUploads: 10,
   maxImageSizeMB: 5,
 } as const;

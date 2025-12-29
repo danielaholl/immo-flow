@@ -4,6 +4,7 @@ import { ReactNode } from 'react';
 import { PropertyImageSlideshow } from '../../PropertyImageSlideshow';
 import { MobileDetailHeader } from '../../MobileDetailHeader';
 import { DocumentViewer } from '../../DocumentViewer';
+import { ActionButtonPanel } from '../../ActionButtonPanel';
 import type { PropertyDocument } from '../../../create-listing/types';
 
 export interface PropertyDetailLayoutProps {
@@ -78,7 +79,7 @@ export function PropertyDetailLayout({
         {/* Left - Property Details (Scrollable) */}
         <div className="w-full lg:w-1/2 flex flex-col flex-1 min-h-0">
           {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto p-4 lg:p-8 pb-24 lg:pb-4">
+          <div className="flex-1 overflow-y-auto p-4 lg:p-8">
             {/* Mobile: Image Slideshow at top */}
             <div className="lg:hidden mb-4">
               <div className="h-[50vh]">
@@ -99,28 +100,28 @@ export function PropertyDetailLayout({
             {/* Main Content */}
             {children}
 
-            {/* Mobile: Action Buttons - scrolls with content */}
-            {mobileActionButtons && (
-              <div className="lg:hidden mt-6 bg-white">
-                {mobileActionButtons}
-              </div>
-            )}
-
             {/* Desktop: Action Buttons - scrolls with content (when scrollActionButtons is true) */}
             {scrollActionButtons && desktopActionButtons && (
               <div className="hidden lg:block mt-6 pb-8">
                 {desktopActionButtons}
               </div>
             )}
+
           </div>
 
-          {/* Desktop: Action Buttons - Fixed at bottom with gradient blur (default) */}
-          {!scrollActionButtons && desktopActionButtons && (
-            <div className="hidden lg:block flex-shrink-0 bg-gradient-to-t from-white to-transparent backdrop-blur-[2px] p-4">
-              {desktopActionButtons}
-            </div>
+          {/* Spacer for fixed ActionButtonPanel - ensures scrollbar ends above the panel */}
+          {!scrollActionButtons && (mobileActionButtons || desktopActionButtons) && (
+            <div className="h-20 flex-shrink-0" />
           )}
         </div>
+
+        {/* Action Buttons Panel - Fixed at bottom with blur */}
+        {!scrollActionButtons && (mobileActionButtons || desktopActionButtons) && (
+          <ActionButtonPanel
+            mobileContent={mobileActionButtons}
+            desktopContent={desktopActionButtons}
+          />
+        )}
 
         {/* Right - Image Slideshow or Document Viewer (Desktop only) */}
         <div className="hidden lg:block lg:w-1/2 lg:sticky lg:top-0 lg:h-[calc(100vh-100px)] p-6">

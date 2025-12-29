@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthContext } from '@/app/providers/AuthProvider';
-import type { Property } from '@immoflow/database';
+import type { Property } from '@rendito/database';
 import { Header } from '../components/Header';
 import { FavoriteButton } from '../components/FavoriteButton';
 import { PropertyPreview } from '../components/PropertyPreview';
@@ -13,9 +13,10 @@ import { ShareLinkModal } from '../components/ShareLinkModal';
 import type { PropertyDocument } from '../create-listing/types';
 import { mapToPropertyPreviewData } from '../utils/propertyMapper';
 import { PropertyActionButtons } from '../components/PropertyActionButtons';
-import { InvestmentScoreBadge, PropertyGlassActions, PropertyScoreBadge } from '@immoflow/ui';
-// import { PropertyFeedbackModal } from '@immoflow/ui'; // Component doesn't exist
-import { MapPin, Home, Heart, Plus } from 'lucide-react';
+import { InvestmentScoreBadge, ImageOverlayActions, PropertyScoreBadge } from '@rendito/ui';
+// import { PropertyFeedbackModal } from '@rendito/ui'; // Component doesn't exist
+import { Heart, Plus } from 'lucide-react';
+import { CollapsedThumbnailList } from '../components/CollapsedThumbnailList';
 import { PropertyListThumbnail } from '../components/PropertyListThumbnail';
 import { trpc } from '@/lib/trpc';
 import { useMasterDetailNavigation } from '@/app/hooks/useMasterDetailNavigation';
@@ -300,10 +301,10 @@ export default function FavoritesPage() {
 
   if (authLoading || loading) {
     return (
-      <main className="min-h-screen bg-white">
+      <main className="min-h-screen bg-white dark:bg-[#030712]">
         <Header />
         <div className="flex items-center justify-center h-[calc(100vh-100px)]">
-          <p className="text-gray-500">Lade Favoriten...</p>
+          <p className="text-gray-500 dark:text-gray-400">Lade Favoriten...</p>
         </div>
       </main>
     );
@@ -315,7 +316,7 @@ export default function FavoritesPage() {
     : null;
 
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen bg-white dark:bg-[#030712]">
       <Header />
 
       {/* Action Buttons - reused in mobile and desktop */}
@@ -330,24 +331,25 @@ export default function FavoritesPage() {
             onOpenFeedback={() => setIsPropertyFeedbackModalOpen(true)}
             isDismissLoading={dismissMutation.isLoading}
             isMessageLoading={getOrCreateConversationMutation.isLoading}
-            favoriteButtonLabel="Favorit entfernen"
+            favoriteButtonLabel="Favorit"
             propertyUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/property/${selectedProperty.id}`}
           />
         ) : null;
 
         return (
           <MasterDetailLayout
+            storageKey="favorites"
             hasItems={favorites.length > 0}
             showDetail={!!selectedPropertyId}
             emptyState={
               <div className="text-center py-20">
-                <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Heart size={48} className="text-gray-300" />
+                <div className="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Heart size={48} className="text-gray-300 dark:text-gray-600" />
                 </div>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
                   Noch keine Favoriten
                 </h2>
-                <p className="text-gray-500 mb-6">
+                <p className="text-gray-500 dark:text-gray-400 mb-6">
                   Speichern Sie Immobilien, die Ihnen gefallen, oder importieren Sie Inserate von anderen Portalen
                 </p>
                 <div className="flex items-center justify-center gap-4">
@@ -366,23 +368,9 @@ export default function FavoritesPage() {
               </div>
             }
             mobileHeader={
-              <div className="flex items-center justify-between mb-2">
-                <div>
-                  <h1 className="text-xl font-bold text-gray-900">Meine Favoriten</h1>
-                  <p className="text-gray-500 text-sm">{favorites.length} gespeicherte Immobilien</p>
-                </div>
-                <Link href="/import-listing">
-                  <button className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors">
-                    <Plus size={16} />
-                    <span>Importieren</span>
-                  </button>
-                </Link>
-              </div>
-            }
-            desktopHeader={
-              <>
+              <div className="mb-2">
                 <div className="flex items-center justify-between mb-1">
-                  <h1 className="text-2xl font-bold text-gray-900">Meine Favoriten</h1>
+                  <h1 className="text-xl font-bold text-gray-900 dark:text-white">Favoriten</h1>
                   <Link href="/import-listing">
                     <button className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors">
                       <Plus size={16} />
@@ -390,8 +378,40 @@ export default function FavoritesPage() {
                     </button>
                   </Link>
                 </div>
-                <p className="text-gray-500 text-sm mb-4">{favorites.length} gespeicherte Immobilien</p>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">{favorites.length} gespeicherte Immobilien</p>
+              </div>
+            }
+            desktopHeader={
+              <>
+                <div className="flex items-center justify-between mb-1">
+                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Favoriten</h1>
+                  <Link href="/import-listing">
+                    <button className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors">
+                      <Plus size={16} />
+                      <span>Importieren</span>
+                    </button>
+                  </Link>
+                </div>
+                <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">{favorites.length} gespeicherte Immobilien</p>
               </>
+            }
+            collapsedContent={
+              <CollapsedThumbnailList
+                items={favorites
+                  .filter((f) => f.property)
+                  .map((f) => ({
+                    id: f.property!.id,
+                    title: f.property!.title,
+                    image: f.property!.images?.[0],
+                    propertyType: f.property!.property_type || undefined,
+                  }))}
+                selectedId={selectedPropertyId || lastSelectedId}
+                onSelect={selectItem}
+                actionButton={{
+                  href: '/import-listing',
+                  title: 'Immobilie importieren',
+                }}
+              />
             }
             masterContent={
               <div className="space-y-3">
@@ -443,18 +463,17 @@ export default function FavoritesPage() {
                   mobileActionButtons={ActionButtons}
                   selectedDocument={selectedDocument}
                   onDocumentClose={() => setSelectedDocument(null)}
-                  scrollActionButtons={true}
                   imageOverlay={
                     <>
-                      {/* AI Score Badge */}
+                      {/* AI Score Badge - Ring Variant */}
                       {selectedProperty.ai_score && selectedProperty.ai_score > 0 && (
-                        <div className="absolute top-8 right-3 z-10 pointer-events-none">
-                          <PropertyScoreBadge score={selectedProperty.ai_score} variant="overlay" />
+                        <div className="absolute top-8 right-4 z-10 pointer-events-none">
+                          <PropertyScoreBadge score={selectedProperty.ai_score} variant="ring" />
                         </div>
                       )}
 
-                      {/* Action Buttons - Bottom Right */}
-                      <PropertyGlassActions
+                      {/* Action Buttons - Transparent Overlay Style */}
+                      <ImageOverlayActions
                         className="absolute bottom-5 right-3 z-20"
                         isFavorite={true}
                         onFavorite={() => handleRemoveFavorite(selectedProperty.id)}
@@ -493,7 +512,7 @@ export default function FavoritesPage() {
                   )}
                 </PropertyDetailLayout>
               ) : (
-                <div className="flex-1 flex items-center justify-center text-gray-500">
+                <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
                   Wählen Sie einen Favoriten aus der Liste
                 </div>
               )

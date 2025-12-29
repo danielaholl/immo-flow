@@ -445,11 +445,11 @@ Baujahr: ${property.year_built || 'Unbekannt'}
 
 Erstelle:
 1. HIGHLIGHTS (3-5 kurze, prägnante Stichpunkte über die POSITIVEN Aspekte der Investition)
-2. ZU BEACHTEN (2-4 ausführliche Sätze über RISIKEN oder Nachteile mit konkreter Begründung)
+2. ZU BEACHTEN (2-4 kurze, prägnante Stichpunkte über RISIKEN oder Nachteile)
 
 WICHTIG:
 - Highlights: MAXIMAL 6-8 Wörter pro Punkt
-- Red Flags: Ausführliche Sätze (15-25 Wörter) mit konkreter Erklärung WARUM es ein Risiko ist
+- Red Flags: MAXIMAL 6-8 Wörter pro Punkt (kurz und knapp!)
 - Sei konkret und zahlenbasiert wo möglich
 - Fokus auf Investment-Perspektive
 
@@ -459,11 +459,11 @@ Beispiele für gute Highlights:
 - "Hohe Bruttorendite von 4,8%"
 - "Starkes Wertsteigerungspotential"
 
-Beispiele für gute Red Flags (ausführlich mit Begründung):
-- "Der Kaufpreis liegt 20% über dem regionalen Durchschnitt, was die Rendite erheblich schmälert und einen Wiederverkauf erschweren könnte."
-- "Die Bruttorendite von nur 2,8% liegt deutlich unter dem Marktdurchschnitt von 4%, wodurch sich die Investition erst nach vielen Jahren amortisiert."
-- "Aufgrund des Baujahrs 1965 ist mittelfristig mit erhöhtem Sanierungsbedarf zu rechnen, insbesondere bei Heizung und Fassade."
-- "Die stagnierende Bevölkerungsentwicklung in dieser Region könnte langfristig zu sinkender Nachfrage und Wertverlust führen."
+Beispiele für gute Red Flags (kurz und prägnant):
+- "Kaufpreis 20% über Marktwert"
+- "Niedrige Bruttorendite von 2,8%"
+- "Sanierungsbedarf wegen Baujahr 1965"
+- "Stagnierende Bevölkerungsentwicklung"
 
 Antworte NUR mit einem JSON-Objekt in folgendem Format:
 {

@@ -62,20 +62,20 @@ export function UniversalChat({
   // Default style config
   const {
     userBubble = {
-      bgColor: 'bg-gray-900',
-      textColor: 'text-white',
+      bgColor: 'bg-gray-900 dark:bg-white',
+      textColor: 'text-white dark:text-gray-900',
       borderRadius: 'rounded-xl rounded-br-none',
     },
     botBubble = {
-      bgColor: 'bg-white',
-      textColor: 'text-gray-900',
-      borderColor: 'border border-gray-200',
+      bgColor: 'bg-white dark:bg-gray-800',
+      textColor: 'text-gray-900 dark:text-white',
+      borderColor: 'border border-gray-200 dark:border-gray-700',
       borderRadius: 'rounded-xl rounded-bl-none',
     },
     systemMessage = {
-      bgColor: 'bg-yellow-50',
-      textColor: 'text-yellow-800',
-      borderColor: 'border border-yellow-200',
+      bgColor: 'bg-yellow-50 dark:bg-yellow-900/30',
+      textColor: 'text-yellow-800 dark:text-yellow-200',
+      borderColor: 'border border-yellow-200 dark:border-yellow-700',
     },
   } = style;
 
@@ -228,7 +228,7 @@ export function UniversalChat({
               {!isUser && showSenderNames && msg.senderName && (
                 <div className="flex items-center gap-2 mb-1 ml-1">
                   {msg.sender === 'bot' && <Bot size={16} className="text-primary" />}
-                  <span className="text-sm text-gray-500 font-medium">
+                  <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">
                     {msg.senderName}
                   </span>
                 </div>
@@ -248,7 +248,7 @@ export function UniversalChat({
               {/* Timestamp for text-only messages */}
               {showTimestamps && msg.timestamp && !hasAttachments && (
                 <div className={`mt-1 ${isUser ? 'text-right mr-1' : 'ml-1'}`}>
-                  <span className="text-sm text-gray-500">
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
                     {msg.timestamp.toLocaleTimeString('de-DE', {
                       hour: '2-digit',
                       minute: '2-digit',
@@ -278,7 +278,7 @@ export function UniversalChat({
             {/* Timestamp after attachments */}
             {showTimestamps && msg.timestamp && (
               <div className={`${isUser ? 'text-right mr-1' : 'ml-1'}`}>
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-gray-500 dark:text-gray-400">
                   {msg.timestamp.toLocaleTimeString('de-DE', {
                     hour: '2-digit',
                     minute: '2-digit',
@@ -293,33 +293,33 @@ export function UniversalChat({
   };
 
   return (
-    <div className={`flex flex-col h-full bg-white overflow-hidden ${className}`}>
+    <div className={`flex flex-col h-full bg-white dark:bg-[#030712] overflow-hidden ${className}`}>
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 p-4 flex-shrink-0">
+      <div className="bg-white dark:bg-[#030712] border-b border-gray-200 dark:border-gray-800 p-4 flex-shrink-0">
         <div className="flex items-center gap-4">
           {/* Back Button */}
           {header.showBackButton && (
             <button
               onClick={header.onBackClick}
-              className={`p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors ${header.backButtonMobileOnly ? 'lg:hidden' : ''}`}
+              className={`p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors ${header.backButtonMobileOnly ? 'lg:hidden' : ''}`}
               aria-label="Zurück"
             >
-              <ArrowLeft size={24} className="text-gray-700" />
+              <ArrowLeft size={24} className="text-gray-700 dark:text-gray-300" />
             </button>
           )}
 
           <div className="flex items-center gap-3">
             {header.icon ? (
-              <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+              <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
                 {header.icon}
               </div>
             ) : null}
             <div className="flex-1 min-w-0">
-              <h2 className="font-semibold text-lg text-gray-900 line-clamp-1">
+              <h2 className="font-semibold text-lg text-gray-900 dark:text-white line-clamp-1">
                 {header.title}
               </h2>
               {header.subtitle && (
-                <p className="text-sm text-gray-500">{header.subtitle}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{header.subtitle}</p>
               )}
             </div>
           </div>
@@ -329,7 +329,7 @@ export function UniversalChat({
       {/* Messages Area Wrapper */}
       <div className="flex-1 relative overflow-hidden">
         {/* Scrollable messages area */}
-        <div className="h-full overflow-y-auto overflow-x-hidden p-6 bg-white">
+        <div className="h-full overflow-y-auto overflow-x-hidden p-6 bg-white dark:bg-[#030712]">
           {/* Empty state */}
         {messages.length === 0 && emptyState ? (
           <div className="flex items-center justify-center h-full">
@@ -344,9 +344,9 @@ export function UniversalChat({
               <div className="flex justify-start">
                 <div className={`${botBubble.bgColor} ${botBubble.borderColor} ${botBubble.borderRadius} px-4 py-3`}>
                   <div className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 bg-gray-900 rounded-full animate-[bounce_1s_ease-in-out_infinite]" style={{ animationDelay: '0ms' }} />
-                    <div className="w-2 h-2 bg-gray-900 rounded-full animate-[bounce_1s_ease-in-out_infinite]" style={{ animationDelay: '200ms' }} />
-                    <div className="w-2 h-2 bg-gray-900 rounded-full animate-[bounce_1s_ease-in-out_infinite]" style={{ animationDelay: '400ms' }} />
+                    <div className="w-2 h-2 bg-gray-900 dark:bg-gray-300 rounded-full animate-[bounce_1s_ease-in-out_infinite]" style={{ animationDelay: '0ms' }} />
+                    <div className="w-2 h-2 bg-gray-900 dark:bg-gray-300 rounded-full animate-[bounce_1s_ease-in-out_infinite]" style={{ animationDelay: '200ms' }} />
+                    <div className="w-2 h-2 bg-gray-900 dark:bg-gray-300 rounded-full animate-[bounce_1s_ease-in-out_infinite]" style={{ animationDelay: '400ms' }} />
                   </div>
                 </div>
               </div>
@@ -381,7 +381,7 @@ export function UniversalChat({
       </div>
 
       {/* Input Area - ChatGPT Style */}
-      <div className="bg-white p-4 flex-shrink-0">
+      <div className="bg-white dark:bg-[#030712] p-4 flex-shrink-0">
         {/* Hidden file input */}
         {showFileUpload && (
           <input
@@ -395,7 +395,7 @@ export function UniversalChat({
         )}
 
         {/* ChatGPT-style input container */}
-        <div className="relative flex flex-col bg-white rounded-2xl border border-gray-200 transition-colors">
+        <div className="relative flex flex-col bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 transition-colors">
           {/* Textarea - Top area */}
           <textarea
             ref={textareaRef}
@@ -404,7 +404,7 @@ export function UniversalChat({
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             disabled={disabled || isSending}
-            className="min-w-0 resize-none bg-transparent px-4 pt-3 pb-2 focus:outline-none text-base leading-normal overflow-y-auto"
+            className="min-w-0 resize-none bg-transparent px-4 pt-3 pb-2 focus:outline-none text-base leading-normal overflow-y-auto text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400"
             rows={1}
             style={{ minHeight: '40px', maxHeight: '240px' }}
           />
@@ -417,7 +417,7 @@ export function UniversalChat({
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploading || disabled}
-                  className="p-2 text-gray-900 hover:bg-gray-100 rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="p-2 text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   title="Datei hochladen"
                 >
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -432,7 +432,7 @@ export function UniversalChat({
             <button
               onClick={handleSend}
               disabled={!currentValue.trim() || isSending || disabled}
-              className="w-9 h-9 flex items-center justify-center bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 text-white rounded-full transition-colors disabled:cursor-not-allowed"
+              className="w-9 h-9 flex items-center justify-center bg-gray-900 dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 disabled:bg-gray-300 dark:disabled:bg-gray-600 text-white dark:text-gray-900 rounded-full transition-colors disabled:cursor-not-allowed"
             >
               {isSending ? (
                 <Loader2 className="animate-spin" size={18} />

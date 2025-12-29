@@ -7,8 +7,51 @@ import { router, protectedProcedure, publicProcedure, investorProcedure } from '
 import { query, queryOne } from '../db.js';
 import { evaluatePropertyInvestment } from '../services/property-investment-evaluator.js';
 import { getOpenAIClient, buildSystemPrompt } from '../utils/openai.js';
+import { generateClaudeFazit, generateAIScoreAnalysis, AIScoreAnalysisInput } from '../utils/claude.js';
 
 export const evaluationsRouter = router({
+  // Calculate AI Score for manual input (no property required)
+  calculateManualAIScore: publicProcedure
+    .input(z.object({
+      price: z.number().positive(),
+      location: z.string().min(1),
+      sqm: z.number().positive(),
+      yearBuilt: z.number().optional(),
+      monthlyRent: z.number().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      // Calculate gross yield if rent is provided
+      const grossYield = input.monthlyRent && input.price
+        ? (input.monthlyRent * 12 / input.price) * 100
+        : undefined;
+
+      // Generate AI analysis using Claude Haiku
+      const analysis = await generateAIScoreAnalysis({
+        price: input.price,
+        location: input.location,
+        sqm: input.sqm,
+        yearBuilt: input.yearBuilt,
+        monthlyRent: input.monthlyRent,
+        grossYield,
+      });
+
+      // Calculate overall score as weighted average
+      const overallScore = Math.round(
+        (analysis.factors.location * 0.25) +
+        (analysis.factors.pricePerformance * 0.30) +
+        (analysis.factors.appreciation * 0.20) +
+        (analysis.factors.rentability * 0.25)
+      );
+
+      return {
+        score: overallScore,
+        summary: analysis.summary,
+        factors: analysis.factors,
+        grossYield,
+      };
+    }),
+
+
   // Get evaluation for a property
   getByPropertyId: publicProcedure
     .input(z.object({ propertyId: z.string().uuid() }))
@@ -31,6 +74,88 @@ export const evaluationsRouter = router({
       );
 
       return evaluation;
+    }),
+
+  // Get AI Score Analysis (Claude Haiku) - cached per property
+  getAIScoreAnalysis: publicProcedure
+    .input(z.object({ propertyId: z.string().uuid() }))
+    .query(async ({ input }) => {
+      // Get property with buyer_evaluation
+      const property = await queryOne<{
+        id: string;
+        price: number;
+        location: string;
+        sqm: number;
+        year_built: number | null;
+        actual_monthly_rent: number | null;
+        buyer_evaluation: {
+          ai_score_analysis?: {
+            summary: string;
+            factors: {
+              location: number;
+              pricePerformance: number;
+              appreciation: number;
+              rentability: number;
+            };
+          };
+          rental_income?: { rent_per_sqm?: number };
+        } | null;
+      }>(
+        `SELECT id, price, location, sqm, year_built, actual_monthly_rent, buyer_evaluation
+         FROM properties WHERE id = $1`,
+        [input.propertyId]
+      );
+
+      if (!property) {
+        throw new Error('Property not found');
+      }
+
+      // Check if cached in buyer_evaluation
+      if (property.buyer_evaluation?.ai_score_analysis) {
+        return {
+          ...property.buyer_evaluation.ai_score_analysis,
+          cached: true,
+        };
+      }
+
+      // Calculate monthly rent and gross yield
+      const sqm = Number(property.sqm) || 0;
+      const rentPerSqm = property.buyer_evaluation?.rental_income?.rent_per_sqm;
+      const monthlyRent = rentPerSqm && sqm
+        ? Number(rentPerSqm) * sqm
+        : property.actual_monthly_rent
+          ? Number(property.actual_monthly_rent)
+          : undefined;
+
+      const grossYield = monthlyRent && property.price
+        ? (monthlyRent * 12 / property.price) * 100
+        : undefined;
+
+      // Generate new analysis with Claude Haiku
+      const analysis = await generateAIScoreAnalysis({
+        price: property.price,
+        location: property.location,
+        sqm,
+        yearBuilt: property.year_built ?? undefined,
+        monthlyRent,
+        grossYield,
+      });
+
+      // Cache in buyer_evaluation JSON
+      const updatedBuyerEvaluation = {
+        ...(property.buyer_evaluation || {}),
+        ai_score_analysis: analysis,
+      };
+
+      await query(
+        `UPDATE properties SET buyer_evaluation = $1 WHERE id = $2`,
+        [JSON.stringify(updatedBuyerEvaluation), input.propertyId]
+      );
+
+      return {
+        ...analysis,
+        cached: false,
+      };
     }),
 
   // Create or update evaluation for a property
@@ -449,30 +574,45 @@ ${input.loanAmount !== undefined ? `- Darlehensbetrag: ${input.loanAmount.toLoca
 
 Antworte im angeforderten JSON-Format mit Fazit und Tipps.`;
 
-        const response = await openai.chat.completions.create({
-          model: 'gpt-4o',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userMessage },
-          ],
-          temperature: 0.7,
-          max_tokens: 600,
-          response_format: { type: 'json_object' },
-        });
+        // Run OpenAI and Claude in parallel
+        const [openaiResult, claudeResult] = await Promise.allSettled([
+          // OpenAI request
+          (async () => {
+            const response = await openai.chat.completions.create({
+              model: 'gpt-4o',
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userMessage },
+              ],
+              temperature: 0.7,
+              max_tokens: 600,
+              response_format: { type: 'json_object' },
+            });
+            const rawContent = response.choices[0]?.message?.content?.trim() || '{}';
+            try {
+              const parsed = JSON.parse(rawContent);
+              return { fazit: parsed.fazit || '', tipps: parsed.tipps || [] };
+            } catch {
+              return { fazit: rawContent, tipps: [] };
+            }
+          })(),
+          // Claude request
+          generateClaudeFazit(systemPrompt, userMessage),
+        ]);
 
-        const rawContent = response.choices[0]?.message?.content?.trim() || '{}';
+        // Extract OpenAI result
+        const openaiParsed = openaiResult.status === 'fulfilled'
+          ? openaiResult.value
+          : { fazit: 'OpenAI-Fehler: ' + (openaiResult.reason?.message || 'Unbekannt'), tipps: [] };
 
-        // Parse JSON response
-        let parsedResponse: { fazit?: string; tipps?: string[] } = {};
-        try {
-          parsedResponse = JSON.parse(rawContent);
-        } catch {
-          // Fallback: treat entire response as fazit text
-          parsedResponse = { fazit: rawContent, tipps: [] };
-        }
+        // Extract Claude result
+        const claudeParsed = claudeResult.status === 'fulfilled'
+          ? claudeResult.value
+          : { fazit: 'Claude-Fehler: ' + (claudeResult.reason?.message || 'Unbekannt'), tipps: [] };
 
-        const fazitText = parsedResponse.fazit || '';
-        const suggestions = parsedResponse.tipps || [];
+        // Use OpenAI result as primary (for backwards compatibility)
+        const fazitText = openaiParsed.fazit;
+        const suggestions = openaiParsed.tipps;
 
         // Determine verdict based on key metrics
         let verdict: 'positive' | 'neutral' | 'negative' = 'neutral';
@@ -495,7 +635,7 @@ Antworte im angeforderten JSON-Format mit Fazit und Tipps.`;
           }
         }
 
-        // Save generated fazit to database
+        // Save generated fazit to database (OpenAI only for now)
         const textColumn = input.mode === 'investor' ? 'investor_fazit_text' : 'eigennutzer_fazit_text';
         const tipsColumn = input.mode === 'investor' ? 'investor_fazit_tips' : 'eigennutzer_fazit_tips';
         const verdictColumn = input.mode === 'investor' ? 'investor_fazit_verdict' : 'eigennutzer_fazit_verdict';
@@ -510,12 +650,22 @@ Antworte im angeforderten JSON-Format mit Fazit und Tipps.`;
           [fazitText, JSON.stringify(suggestions), verdict, ctx.user.id, input.propertyId]
         );
 
+        // Return both results for comparison
         return {
           text: fazitText,
           suggestions,
           verdict,
           color: verdict === 'positive' ? '#22C55E' : verdict === 'neutral' ? '#F59E0B' : '#EF4444',
           cached: false,
+          // New: Claude comparison data
+          claude: {
+            text: claudeParsed.fazit,
+            suggestions: claudeParsed.tipps,
+          },
+          openai: {
+            text: openaiParsed.fazit,
+            suggestions: openaiParsed.tipps,
+          },
         };
       } catch (error) {
         console.error('AI Fazit generation error:', error);

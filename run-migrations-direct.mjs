@@ -11,7 +11,7 @@ const { Client } = pg;
 const client = new Client({
   host: 'localhost',
   port: 5432,
-  database: 'immoflow',
+  database: 'rendito',
   user: 'my_macbook',
 });
 

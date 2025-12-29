@@ -1,6 +1,6 @@
-# ImmoFlow E-Mail-Vorlagen
+# Rendito E-Mail-Vorlagen
 
-Diese E-Mail-Vorlagen verwenden das ImmoFlow-Branding im Airbnb-Stil und sind für Supabase Authentication optimiert.
+Diese E-Mail-Vorlagen verwenden das Rendito-Branding im Airbnb-Stil und sind für Supabase Authentication optimiert.
 
 ## 📧 Verfügbare Vorlagen
 
@@ -14,7 +14,7 @@ Diese E-Mail-Vorlagen verwenden das ImmoFlow-Branding im Airbnb-Stil und sind f�
 
 - **Airbnb-Stil** - Minimalistisches, sauberes Design wie die gesamte Plattform
 - **Responsive Design** - Funktioniert auf allen Geräten
-- **ImmoFlow Branding** - Verwendet die Markenfarbe #FF385C (Airbnb Rot/Pink)
+- **Rendito Branding** - Verwendet die Markenfarbe #FF385C (Airbnb Rot/Pink)
 - **Klare Typografie** - Inter-Schriftart mit perfekt abgestimmten Grauwerten
 - **Professionelle Buttons** - Klare CTAs in Markenfarbe
 - **Minimale Eleganz** - Viel Weißraum, subtile Schatten, abgerundete Ecken
@@ -27,7 +27,7 @@ Gehen Sie zu: https://supabase.com/dashboard
 
 ### 2. Projekt auswählen
 
-Wählen Sie Ihr ImmoFlow-Projekt aus
+Wählen Sie Ihr Rendito-Projekt aus
 
 ### 3. E-Mail-Vorlagen bearbeiten
 
@@ -71,7 +71,7 @@ Um ein Logo-Bild hinzuzufügen, ersetzen Sie im Header:
 
 ```html
 <h1 style="margin: 0; color: #222222; font-size: 28px; font-weight: 700;">
-  ImmoFlow
+  Rendito
 </h1>
 ```
 
@@ -79,7 +79,7 @@ Mit:
 
 ```html
 <img src="https://ihr-logo-url.de/logo.png"
-     alt="ImmoFlow"
+     alt="Rendito"
      style="max-width: 200px; height: auto;">
 ```
 
@@ -126,8 +126,8 @@ Alle Vorlagen sind responsive und passen sich automatisch an mobile Geräte an. 
 
 Bei Fragen oder Problemen:
 - Supabase Dokumentation: https://supabase.com/docs/guides/auth/auth-email-templates
-- ImmoFlow Team kontaktieren
+- Rendito Team kontaktieren
 
 ---
 
-© 2025 ImmoFlow. Alle Rechte vorbehalten.
+© 2025 Rendito. Alle Rechte vorbehalten.

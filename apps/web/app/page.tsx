@@ -3,8 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { PropertyCard, SearchBar } from '@immoflow/ui';
-import type { Property } from '@immoflow/database';
+import { PropertyCard, SearchBar } from '@rendito/ui';
+import type { Property } from '@rendito/database';
 import { Header } from './components/Header';
 import { useAuthContext } from './providers/AuthProvider';
 import { trpc } from '@/lib/trpc';
@@ -423,17 +423,17 @@ export default function HomePage() {
   };
 
   return (
-    <main className="min-h-screen bg-white pb-20 lg:pb-0">
+    <main className="min-h-screen bg-white dark:bg-[#030712] pb-20 lg:pb-0">
       {/* Header */}
      <Header />
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-b from-accent-cream to-white py-8 sm:py-12 lg:py-16">
+      <section className="bg-gradient-to-b from-accent-cream to-white dark:from-[#030712] dark:to-[#030712] py-8 sm:py-12 lg:py-16">
         <div className="w-full max-w-5xl mx-auto px-4 text-center">
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 sm:mb-4">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4">
             Weniger suchen. Besser investieren.
           </h2>
-          <p className="text-xl sm:text-2xl lg:text-3xl text-gray-600 max-w-2xl mx-auto mb-6 sm:mb-8">
+          <p className="text-xl sm:text-2xl lg:text-3xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-6 sm:mb-8">
             Dein unfairer Vorteil am Immobilienmarkt.
           </p>
 
@@ -443,20 +443,20 @@ export default function HomePage() {
       </section>
 
       {/* Properties Grid */}
-      <PageContainer noPaddingY className="py-8 sm:py-12 mb-16 lg:mb-0 bg-white">
+      <PageContainer noPaddingY className="py-8 sm:py-12 mb-16 lg:mb-0 bg-white dark:bg-[#030712]">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-4">
           <div>
-            <h3 className="text-2xl sm:text-3xl font-bold text-text-primary mb-2">
+            <h3 className="text-2xl sm:text-3xl font-bold text-text-primary dark:text-white mb-2">
               {searchQuery ? 'Suchergebnisse' : 'Dein persönlicher Feed'}
             </h3>
             {searchQuery && (
               <div className="flex flex-wrap gap-2 items-center">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
                   Suche: <span className="font-medium">&quot;{searchQuery}&quot;</span>
                 </p>
                 <button
                   onClick={clearSearch}
-                  className="ml-2 text-xs text-gray-500 hover:text-gray-700 underline"
+                  className="ml-2 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 underline"
                 >
                   Zurücksetzen
                 </button>
@@ -465,15 +465,15 @@ export default function HomePage() {
           </div>
           <div className="flex items-center gap-3">
             {searchCriteria?.confidence && (
-              <div className="flex items-center gap-1 text-xs text-gray-500">
-                <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+              <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                <svg className="w-4 h-4 text-blue-500 dark:text-blue-400" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z"/>
                 </svg>
                 <span>KI {Math.round(searchCriteria.confidence * 100)}%</span>
               </div>
             )}
             {searchQuery && (
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 {searchTotal} Ergebnis{searchTotal !== 1 ? 'se' : ''}
               </p>
             )}
@@ -486,12 +486,12 @@ export default function HomePage() {
             {getCriteriaDisplayItems().map(({ key, value }) => (
               <span
                 key={key}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent-sky text-gray-700 text-sm font-medium rounded-full border border-blue-200"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent-sky dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-full border border-blue-200 dark:border-gray-700"
               >
                 {value}
                 <button
                   onClick={() => removeCriterion(key)}
-                  className="ml-1 text-gray-500 hover:text-gray-700 transition-colors"
+                  className="ml-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
                   title="Filter entfernen"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -502,7 +502,7 @@ export default function HomePage() {
             ))}
             <button
               onClick={clearSearch}
-              className="inline-flex items-center gap-1 px-3 py-1.5 text-gray-500 text-sm hover:text-accent-aqua transition-colors"
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-gray-500 dark:text-gray-400 text-sm hover:text-accent-aqua dark:hover:text-accent-aqua transition-colors"
             >
               Alle Filter löschen
             </button>
@@ -512,14 +512,14 @@ export default function HomePage() {
         {loading ? (
           <div className="text-center py-12">
             <div className="inline-block w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-            <p className="text-text-secondary">
+            <p className="text-text-secondary dark:text-gray-400">
               {isSearching ? 'Suche nach passenden Immobilien...' : 'Lade Immobilien...'}
             </p>
           </div>
         ) : filteredProperties.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-text-secondary mb-2">Keine Immobilien gefunden</p>
-            <p className="text-text-secondary text-sm mb-4">
+            <p className="text-text-secondary dark:text-gray-400 mb-2">Keine Immobilien gefunden</p>
+            <p className="text-text-secondary dark:text-gray-500 text-sm mb-4">
               {searchQuery
                 ? 'Versuche es mit anderen Suchkriterien oder weniger spezifischen Angaben'
                 : 'Versuche es mit anderen Filterkriterien'
@@ -537,8 +537,6 @@ export default function HomePage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
             {filteredProperties.map((property, index) => {
-              // Show favorite button unless user explicitly owns this property
-              const shouldShowFavoriteButton = !(user && property.seller_id === user.id);
               return (
               <div key={property.id} style={{ position: 'relative' }}>
                 <PropertyCard
@@ -559,19 +557,20 @@ export default function HomePage() {
                     yield: property.yield || undefined,
                     features: (property.features as string[]) || [],
                     energyClass: property.energy_class || undefined,
+                    year_built: property.year_built || undefined,
                   }}
-                  isOwner={user ? property.seller_id === user.id : false}
+                  isOwner={false}
                   isFavorite={favoriteIds.has(property.id)}
-                  onFavorite={shouldShowFavoriteButton ? (e: React.MouseEvent) => {
+                  onFavorite={(e: React.MouseEvent) => {
                     e?.preventDefault?.();
                     e?.stopPropagation?.();
                     handleFavoriteToggle(property.id);
-                  } : undefined}
-                  onDismiss={shouldShowFavoriteButton ? (e: React.MouseEvent) => {
+                  }}
+                  onDismiss={(e: React.MouseEvent) => {
                     e?.preventDefault?.();
                     e?.stopPropagation?.();
                     handleDismiss(property.id);
-                  } : undefined}
+                  }}
                   onShare={(e: React.MouseEvent) => {
                     e?.preventDefault?.();
                     e?.stopPropagation?.();
@@ -593,21 +592,21 @@ export default function HomePage() {
 
         {/* Dismissed Properties Section */}
         {user && dismissedData.length > 0 && (
-          <div className="mt-12 pt-8 border-t border-accent-cream-dark">
+          <div className="mt-12 pt-8 border-t border-accent-cream-dark dark:border-gray-800">
             <button
               onClick={() => setShowDismissed(!showDismissed)}
               className="flex items-center justify-between w-full text-left mb-4 hover:opacity-80 transition-opacity"
             >
               <div>
-                <h3 className="text-2xl font-bold text-text-primary">
+                <h3 className="text-2xl font-bold text-text-primary dark:text-white">
                   Nicht interessiert
                 </h3>
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                   {dismissedData.length} Immobilie{dismissedData.length !== 1 ? 'n' : ''} ausgeblendet
                 </p>
               </div>
               <svg
-                className={`w-6 h-6 text-gray-500 transition-transform ${showDismissed ? 'rotate-180' : ''}`}
+                className={`w-6 h-6 text-gray-500 dark:text-gray-400 transition-transform ${showDismissed ? 'rotate-180' : ''}`}
                 fill="none"
                 stroke="currentColor"
                 strokeWidth={2}
@@ -679,12 +678,12 @@ export default function HomePage() {
       </PageContainer>
 
       {/* Footer */}
-      <footer className="bg-secondary text-text-inverse py-12 mt-20">
+      <footer className="bg-gray-900 dark:bg-gray-950 text-white py-12 mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div>
-              <h4 className="text-lg font-bold mb-4">Nestando</h4>
-              <p className="text-sm opacity-80">
+              <h4 className="text-lg font-bold mb-4">Rendito</h4>
+              <p className="text-sm text-gray-400">
                 Die moderne Plattform für Immobilien-Investment in Deutschland
               </p>
             </div>
@@ -692,17 +691,17 @@ export default function HomePage() {
               <h4 className="text-lg font-bold mb-4">Links</h4>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <Link href="/about" className="opacity-80 hover:opacity-100">
+                  <Link href="/about" className="text-gray-400 hover:text-white transition-colors">
                     Über uns
                   </Link>
                 </li>
                 <li>
-                  <Link href="/contact" className="opacity-80 hover:opacity-100">
+                  <Link href="/contact" className="text-gray-400 hover:text-white transition-colors">
                     Kontakt
                   </Link>
                 </li>
                 <li>
-                  <Link href="/imprint" className="opacity-80 hover:opacity-100">
+                  <Link href="/imprint" className="text-gray-400 hover:text-white transition-colors">
                     Impressum
                   </Link>
                 </li>
@@ -712,20 +711,20 @@ export default function HomePage() {
               <h4 className="text-lg font-bold mb-4">Rechtliches</h4>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <Link href="/privacy" className="opacity-80 hover:opacity-100">
+                  <Link href="/privacy" className="text-gray-400 hover:text-white transition-colors">
                     Datenschutz
                   </Link>
                 </li>
                 <li>
-                  <Link href="/terms" className="opacity-80 hover:opacity-100">
+                  <Link href="/terms" className="text-gray-400 hover:text-white transition-colors">
                     AGB
                   </Link>
                 </li>
               </ul>
             </div>
           </div>
-          <div className="mt-8 pt-8 border-t border-white/20 text-center text-sm opacity-80">
-            © {new Date().getFullYear()} Nestando. Alle Rechte vorbehalten.
+          <div className="mt-8 pt-8 border-t border-gray-800 text-center text-sm text-gray-400">
+            © {new Date().getFullYear()} Rendito. Alle Rechte vorbehalten.
           </div>
         </div>
       </footer>

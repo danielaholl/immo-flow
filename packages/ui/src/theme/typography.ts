@@ -1,5 +1,5 @@
 /**
- * Typography system for ImmoFlow
+ * Typography system for Rendito
  */
 
 export const typography = {

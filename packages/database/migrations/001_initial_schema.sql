@@ -1,4 +1,4 @@
--- ImmoFlow Database Schema
+-- Rendito Database Schema
 -- Version: 001 - Initial Schema
 -- Description: Core tables for properties, agents, bookings, and favorites
 
@@ -283,6 +283,6 @@ CREATE TRIGGER update_property_favorites_count
 
 -- Insert sample agent (you can remove this in production)
 -- INSERT INTO agents (name, email, company, rating) VALUES
---   ('Max Mustermann', 'max@immoflow.de', 'ImmoFlow GmbH', 4.8);
+--   ('Max Mustermann', 'max@rendito.de', 'Rendito GmbH', 4.8);
 
 -- Note: Add sample properties after setting up authentication

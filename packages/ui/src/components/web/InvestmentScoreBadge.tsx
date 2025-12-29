@@ -54,7 +54,7 @@ interface InvestmentScoreBadgeProps {
  * Anzeige: 1-5 Skala (intern 0-100)
  * 5 = top, 4 = gut, 3 = ok, 2 = schwach, 1 = nein
  *
- * @deprecated Use PropertyScoreBadge from @immoflow/ui instead.
+ * @deprecated Use PropertyScoreBadge from @rendito/ui instead.
  */
 export function InvestmentScoreBadge({
   score,
@@ -99,7 +99,7 @@ export function InvestmentScoreBadge({
 }
 
 /**
- * @deprecated Use AIInvestmentEvaluation from @immoflow/ui instead
+ * @deprecated Use AIInvestmentEvaluation from @rendito/ui instead
  * This component has been replaced by a unified AIInvestmentEvaluation component
  * that includes all features plus AI analysis texts and better configurability.
  */

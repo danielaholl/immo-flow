@@ -1,22 +1,7 @@
 import { useState, memo } from 'react';
 import { MapPin, Eye, Heart, Clock, X, Download } from 'lucide-react';
-import { PropertyImagePlaceholder } from '@immoflow/ui';
+import { PropertyImagePlaceholder, PropertyScoreBadge } from '@rendito/ui';
 import Image from 'next/image';
-
-// Score von 0-100 auf 1-5 konvertieren
-function toDisplayScore(score: number): number {
-  if (score >= 80) return 5;
-  if (score >= 60) return 4;
-  if (score >= 40) return 3;
-  if (score >= 20) return 2;
-  return 1;
-}
-
-function getScoreColor(displayScore: number): string {
-  if (displayScore >= 4) return '#22C55E'; // grün
-  if (displayScore === 3) return '#F59E0B'; // gelb
-  return '#EF4444'; // rot
-}
 
 export interface PropertyListThumbnailProps {
   // Required
@@ -113,17 +98,17 @@ export const PropertyListThumbnail = memo(function PropertyListThumbnail({
 
   return (
     <div
-      className={`group relative bg-white border rounded-xl overflow-hidden transition-all h-36 ${
+      className={`group relative bg-white dark:bg-gray-900 border rounded-xl overflow-hidden transition-all h-36 ${
         isSelected
           ? 'border-primary ring-2 ring-primary/20'
-          : 'border-gray-200 hover:border-gray-300'
+          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
       }`}
     >
       {/* Delete Button - Top right */}
       {onDelete && (
         <button
           onClick={onDelete}
-          className="absolute top-2 right-2 z-20 w-7 h-7 bg-white/80 backdrop-blur-sm text-gray-500 hover:text-red-500 hover:bg-white rounded-full flex items-center justify-center transition-all shadow-md opacity-0 group-hover:opacity-100"
+          className="absolute top-2 right-2 z-20 w-7 h-7 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm text-gray-500 dark:text-gray-400 hover:text-red-500 hover:bg-white dark:hover:bg-gray-800 rounded-full flex items-center justify-center transition-all shadow-md opacity-0 group-hover:opacity-100"
           title={deleteTooltip}
         >
           <X size={16} />
@@ -139,7 +124,7 @@ export const PropertyListThumbnail = memo(function PropertyListThumbnail({
 
       <div className="flex h-full cursor-pointer" onClick={onClick}>
         {/* Thumbnail - Full height */}
-        <div className="relative w-28 flex-shrink-0 bg-gray-100">
+        <div className="relative w-28 flex-shrink-0 bg-gray-100 dark:bg-gray-800">
           {image && !imageError ? (
             <Image
               src={image}
@@ -167,31 +152,10 @@ export const PropertyListThumbnail = memo(function PropertyListThumbnail({
             />
           )}
 
-          {/* Badge - AI Score (2-stellig, 0-100) - oben rechts */}
+          {/* Badge - AI Score Ring - oben rechts */}
           {aiScore !== undefined && aiScore > 0 && (
-            <div
-              className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-lg"
-              style={{
-                backdropFilter: 'blur(2px)',
-                WebkitBackdropFilter: 'blur(2px)',
-                border: '1px solid rgba(255, 255, 255, 0.5)',
-              }}
-            >
-              <div
-                className="w-3 h-3 rounded-full flex-shrink-0"
-                style={{
-                  backgroundColor: getScoreColor(toDisplayScore(aiScore)),
-                }}
-              />
-              <span
-                className="text-base font-bold leading-none"
-                style={{
-                  color: 'rgba(255, 255, 255, 0.95)',
-                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
-                }}
-              >
-                {Math.round(aiScore)}
-              </span>
+            <div className="absolute top-1 right-1">
+              <PropertyScoreBadge score={aiScore} variant="ring" size="sm" />
             </div>
           )}
 
@@ -246,11 +210,11 @@ export const PropertyListThumbnail = memo(function PropertyListThumbnail({
           )}
 
           {/* Title */}
-          <h3 className="font-medium text-gray-900 text-sm truncate mt-0.5">{title}</h3>
+          <h3 className="font-medium text-gray-900 dark:text-white text-sm truncate mt-0.5">{title}</h3>
 
           {/* Location */}
           {displayLocation && (
-            <p className="text-xs text-gray-500 mt-1 flex items-center gap-1 truncate">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1 truncate">
               <MapPin size={12} className="flex-shrink-0" />
               <span className="truncate">{displayLocation}</span>
             </p>
@@ -258,14 +222,14 @@ export const PropertyListThumbnail = memo(function PropertyListThumbnail({
 
           {/* Role Info (for messages) */}
           {roleLabel && roleValue && (
-            <div className="text-xs text-gray-600 mt-1">
+            <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
               <span className="font-medium">{roleLabel}:</span>{' '}
               <span className="truncate">{roleValue}</span>
             </div>
           )}
 
           {/* Bottom Row - Property Stats or Date */}
-          <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+          <div className="flex items-center gap-2 mt-2 text-xs text-gray-500 dark:text-gray-400">
             {/* Property details */}
             {rooms !== undefined && sqm !== undefined && price !== undefined && (
               <>

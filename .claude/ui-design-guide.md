@@ -1,4 +1,4 @@
-# ImmoFlow UI Design Guide
+# Rendito UI Design Guide
 
 ## Farbsystem
 

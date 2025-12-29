@@ -6,7 +6,7 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-background">
       {/* Sidebar */}
       <aside className="fixed left-0 top-0 h-full w-64 bg-surface border-r border-border p-6">
-        <h1 className="text-2xl font-bold text-primary mb-8">ImmoFlow Admin</h1>
+        <h1 className="text-2xl font-bold text-primary mb-8">Rendito Admin</h1>
 
         <nav className="space-y-2">
           <a

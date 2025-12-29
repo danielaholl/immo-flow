@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { Text } from 'react-native';
-import { colors } from '@immoflow/ui';
+import { colors } from '@rendito/ui';
 
 export default function TabLayout() {
   return (

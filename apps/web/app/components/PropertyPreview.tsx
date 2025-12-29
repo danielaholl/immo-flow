@@ -1,26 +1,14 @@
 'use client';
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import dynamic from 'next/dynamic';
-import { Bath, Sparkles, DoorClosed, Square, Layers, Euro, Building2, Clock, Flame, Zap, ChevronDown, Star, Eye, Heart, Mail, FileText, Loader2, Landmark } from 'lucide-react';
+import { Bath, Sparkles, DoorClosed, Square, Layers, Euro, Building2, Clock, Flame, Zap, ChevronDown, ChevronRight, Star, Eye, Heart, Mail, FileText, Loader2, Landmark, TrendingDown, TrendingUp, Equal, Info, ArrowUpDown, Calendar, Wallet, FileCheck, TreePine, Calculator } from 'lucide-react';
+import { PropertyScoreBadge } from '@rendito/ui';
 import { LocationDisplay } from './LocationDisplay';
 import { MarketComparisonBar } from './MarketComparisonBar';
 
-// Dynamic imports for heavy components - reduces initial bundle size
-// AIEvaluationPanel removed - market comparison now provides all data
-
-const KeyMetricsPanel = dynamic(() => import('./KeyMetricsPanel').then(mod => ({ default: mod.KeyMetricsPanel })), {
-  loading: () => <div className="flex items-center justify-center p-8"><Loader2 className="animate-spin text-gray-400" size={24} /></div>,
-  ssr: false,
-});
-
-const BuyVsRentCard = dynamic(() => import('./BuyVsRentCard').then(mod => ({ default: mod.BuyVsRentCard })), {
-  loading: () => <div className="flex items-center justify-center p-8"><Loader2 className="animate-spin text-gray-400" size={24} /></div>,
-  ssr: false,
-});
 
 // AIInvestmentEvaluation und InvestmentScoreBadge auskommentiert - nur stichpunktartige Bewertung
-// import { AIInvestmentEvaluation, InvestmentScoreBadge } from '@immoflow/ui';
+// import { AIInvestmentEvaluation, InvestmentScoreBadge } from '@rendito/ui';
 
 import type { PropertyDocument } from '../create-listing/types';
 import { PropertyDocumentsList } from './PropertyDocumentsList';
@@ -391,9 +379,9 @@ export function PropertyPreview({
   // State for selected document
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | undefined>();
 
-  // Handle document click - memoized to prevent re-renders
-  const handleDocumentClick = useCallback((document: PropertyDocument) => {
-    setSelectedDocumentId(document.id);
+  // Handle document click - memoized to prevent re-renders, supports toggle (null to close)
+  const handleDocumentClick = useCallback((document: PropertyDocument | null) => {
+    setSelectedDocumentId(document?.id);
     onDocumentSelect?.(document);
   }, [onDocumentSelect]);
 
@@ -401,8 +389,6 @@ export function PropertyPreview({
   const [isRentalIncomeExpanded, setIsRentalIncomeExpanded] = useState(false);
   // State for cashflow accordion
   const [isCashflowExpanded, setIsCashflowExpanded] = useState(false);
-  // State for weitere details accordion - expanded by default when data exists
-  const [isWeitereDetailsExpanded, setIsWeitereDetailsExpanded] = useState(false);
   // State for description accordion - initially collapsed
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   // State for AI evaluation accordion
@@ -411,6 +397,8 @@ export function PropertyPreview({
   const [isHighlightsExpanded, setIsHighlightsExpanded] = useState(false);
   // State for market comparison accordion
   const [isMarketComparisonExpanded, setIsMarketComparisonExpanded] = useState(false);
+  // State for all details panel (shown when clicking the details card)
+  const [isAllDetailsExpanded, setIsAllDetailsExpanded] = useState(false);
   // State for price optimization suggestion
   const [showPriceSuggestion, setShowPriceSuggestion] = useState(false);
   // State for simulated price (when user drags the slider)
@@ -543,7 +531,7 @@ export function PropertyPreview({
         <div className="sticky top-4 z-10 flex flex-wrap justify-end gap-2 mb-4">
           {/* Views Badge */}
           {data.total_views !== undefined && data.total_views > 0 && (
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-gray-100 text-gray-700">
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
               <Eye size={16} />
               {data.total_views}
             </span>
@@ -551,7 +539,7 @@ export function PropertyPreview({
 
           {/* Favorites Badge */}
           {data.favorites_count !== undefined && data.favorites_count > 0 && (
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-pink-100 text-pink-700">
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-pink-100 dark:bg-pink-900/40 text-pink-700 dark:text-pink-300">
               <Heart size={16} />
               {data.favorites_count}
             </span>
@@ -559,16 +547,16 @@ export function PropertyPreview({
 
           {/* Rating Badge */}
           {data.avg_rating !== undefined && data.rating_count !== undefined && data.rating_count > 0 && (
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300">
               <Star size={16} fill="currentColor" />
               {Number(data.avg_rating).toFixed(1)}
-              <span className="text-yellow-600">({data.rating_count})</span>
+              <span className="text-yellow-600 dark:text-yellow-400">({data.rating_count})</span>
             </span>
           )}
 
           {/* Average Suggested Price Badge */}
           {data.avg_suggested_price !== undefined && data.avg_suggested_price > 0 && (
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-green-100 text-green-800">
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300">
               <Euro size={16} />
               Ø {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(data.avg_suggested_price)}
             </span>
@@ -585,83 +573,46 @@ export function PropertyPreview({
 
       {/* Property Details */}
       <div>
-        {/* Property Title and Type Badge */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between gap-3 mb-2">
-            {/* Property Type Badge - Glass Style Rose */}
-            <span className="inline-flex px-3 py-1 rounded-full text-sm font-medium bg-rose-100/60 text-rose-700 backdrop-blur-sm border border-rose-200 shadow-sm">
+        {/* Price Card - Premium Gradient */}
+        <div className="mb-6 p-4 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700">
+          {/* Property Type, Title, Location */}
+          <div className="mb-4">
+            <span className="inline-flex px-3 py-1 rounded-full text-sm font-medium bg-rose-100/60 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 backdrop-blur-sm border border-rose-200 dark:border-rose-800 shadow-sm mb-2">
               {getPropertyTypeLabel(data.type)}
             </span>
-            {/* Right side: Days Online Badge */}
-            <div className="flex items-center gap-2">
-              {/* Days Online Badge */}
-              {data.days_online !== undefined && (
-                <span className="inline-flex items-center justify-center h-10 px-3 rounded-full text-sm font-semibold bg-teal-50 text-teal-700 border border-teal-200 shadow-sm">
-                  {data.days_online === 0 ? 'Neu' : `+${data.days_online}T`}
-                </span>
-              )}
-            </div>
+            <h2 className="font-semibold text-gray-900 dark:text-white text-lg leading-tight mb-2">{data.title}</h2>
+            <LocationDisplay
+              location={data.location}
+              address={data.address}
+              postalCode={data.postal_code}
+              showAddress={shouldShowAddress}
+              onRequestAddress={onRequestAddress}
+              linkToMaps={true}
+              isOwner={isOwner}
+            />
           </div>
-          <h2 className="font-semibold text-gray-900" style={{ fontSize: '22px' }}>
-            {getPropertyTitle()}
-          </h2>
-        </div>
 
-        {/* Location - Full Address (Straße, PLZ Ort) or just Location */}
-        <div className="mb-6">
-          <LocationDisplay
-            location={data.location}
-            address={data.address}
-            postalCode={data.postal_code}
-            showAddress={shouldShowAddress}
-            onRequestAddress={onRequestAddress}
-            linkToMaps={true}
-            isOwner={isOwner}
-          />
-        </div>
-
-        {/* Price Card - Premium Gradient */}
-        <div className="mb-6 p-6 bg-white rounded-2xl border border-gray-200">
           {/* Price and Price per sqm - Responsive Layout */}
-          <div className="flex flex-wrap justify-between items-start gap-4 mb-4">
+          <div className="flex flex-wrap justify-between items-center gap-4 pt-4 border-t border-gray-100 dark:border-gray-800">
             {/* Left: Kaufpreis */}
             <div>
-              <p className="text-sm text-gray-500 mb-2">Kaufpreis</p>
-              <h1 className="font-bold text-gray-900" style={{ fontSize: '40px', lineHeight: '1' }}>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Kaufpreis</p>
+              <h1 className="font-bold text-gray-900 dark:text-white" style={{ fontSize: '40px', lineHeight: '1' }}>
                 {data.price > 0 ? formatPrice(data.price) : '-'}
               </h1>
             </div>
 
             {/* Right: Preis pro m² */}
             <div className="text-right">
-              <p className="text-sm text-gray-500 mb-1">Preis pro m²</p>
-              {(() => {
-                // Determine color based on view type and market comparison
-                let priceColor = 'text-gray-900'; // Default
-
-                if (evaluationViewType === 'buyer') {
-                  const marketAvgPrice = marketData?.marketAvgPricePerSqm || sellerAnalysisMarketAverage || data.evaluation?.market_average_price_per_sqm;
-                  if (marketAvgPrice && pricePerSqm > 0) {
-                    const difference = ((pricePerSqm - marketAvgPrice) / marketAvgPrice) * 100;
-                    if (difference < -3) {
-                      priceColor = 'text-green-600'; // Under market = good for buyer
-                    } else if (difference > 3) {
-                      priceColor = 'text-red-600'; // Over market = bad for buyer
-                    }
-                  }
-                }
-
-                return (
-                  <h2 className={`font-bold ${priceColor}`} style={{ fontSize: '28px', lineHeight: '1' }}>
-                    {pricePerSqm > 0 ? formatPrice(pricePerSqm) : '-'}
-                  </h2>
-                );
-              })()}
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Preis pro m²</p>
+              <h2 className="font-bold text-gray-900 dark:text-white" style={{ fontSize: '28px', lineHeight: '1' }}>
+                {pricePerSqm > 0 ? formatPrice(pricePerSqm) : '-'}
+              </h2>
             </div>
           </div>
 
           {/* Commission */}
-          <p className={`text-base mt-3 ${
+          <p className={`text-base mt-1 ${
             data.commission_rate != null && data.commission_rate > 0
               ? 'text-gray-600'
               : 'text-green-600 font-medium'
@@ -673,495 +624,321 @@ export function PropertyPreview({
 
         </div>
 
-        {/* Market Comparison Card - Show when price is entered */}
-        {data.price > 0 && data.sqm > 0 && data.location && (
-          <div className="mb-6 bg-white rounded-2xl border border-gray-200 overflow-hidden">
-            {/* Header - Always Visible */}
-            <div
-              className="p-6 flex items-center justify-between cursor-pointer"
-              onClick={() => setIsMarketComparisonExpanded(!isMarketComparisonExpanded)}
-            >
-              <div className="flex items-center gap-3">
-                {/* AI Score Badge */}
-                <div className={`w-14 h-14 rounded-xl flex flex-col items-center justify-center border-2 ${
-                  data.ai_investment_score !== undefined && data.ai_investment_score >= 70
-                    ? 'bg-green-50 border-green-300'
-                    : data.ai_investment_score !== undefined && data.ai_investment_score >= 50
-                      ? 'bg-yellow-50 border-yellow-300'
-                      : data.ai_investment_score !== undefined && data.ai_investment_score > 0
-                        ? 'bg-red-50 border-red-300'
-                        : 'bg-gray-50 border-gray-300'
-                }`}>
-                  <span className={`text-xl font-bold ${
-                    data.ai_investment_score !== undefined && data.ai_investment_score >= 70
-                      ? 'text-green-600'
-                      : data.ai_investment_score !== undefined && data.ai_investment_score >= 50
-                        ? 'text-yellow-600'
-                        : data.ai_investment_score !== undefined
-                          ? 'text-red-600'
-                          : 'text-gray-400'
-                  }`}>
-                    {data.ai_investment_score !== undefined ? Math.round(data.ai_investment_score) : '—'}
+        {/* Property Details Cards - Wohnfläche, Zimmer, Baujahr, Details */}
+        {(() => {
+          // Berechne Details-Count vorab für Grid-Layout (inkl. Energie und Geschoss)
+          const detailsCount = [
+            energyEfficiencyClass,
+            data.floor_level || data.total_floors,
+            data.bathrooms && data.bathrooms > 0,
+            conditionLabel,
+            typeof data.elevator === 'boolean',
+            data.heating_type,
+            data.energy_source,
+            data.energy_certificate,
+            data.monthly_fee && data.monthly_fee > 0,
+            data.available_from,
+            data.afa_type,
+            data.type === 'house' && data.plot_size && data.plot_size > 0,
+            data.usable_area && data.usable_area > 0,
+          ].filter(Boolean).length;
+
+          return (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          {/* Wohnfläche */}
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-3 text-center">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 flex items-center justify-center gap-1.5">
+              <Square size={24} className="text-blue-500" />
+              Wohnfläche
+            </p>
+            <p className="text-xl font-semibold text-gray-900 dark:text-white">
+              {data.sqm ? `${Math.ceil(data.sqm)} m²` : '–'}
+            </p>
+          </div>
+
+          {/* Zimmer */}
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-3 text-center">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 flex items-center justify-center gap-1.5">
+              <DoorClosed size={24} className="text-violet-500" />
+              Zimmer
+            </p>
+            <p className="text-xl font-semibold text-gray-900 dark:text-white">
+              {data.rooms
+                ? (data.rooms % 1 === 0
+                    ? Math.floor(data.rooms)
+                    : data.rooms.toFixed(1).replace('.', ','))
+                : '–'}
+            </p>
+          </div>
+
+          {/* Baujahr */}
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-3 text-center">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 flex items-center justify-center gap-1.5">
+              <Building2 size={24} className="text-amber-500" />
+              Baujahr
+            </p>
+            <p className="text-xl font-semibold text-gray-900 dark:text-white">
+              {data.year_built ? data.year_built : '–'}
+            </p>
+          </div>
+
+          {/* Alle Details - Clickable Card */}
+          <div
+            onClick={() => setIsAllDetailsExpanded(!isAllDetailsExpanded)}
+            className={`bg-white dark:bg-gray-900 rounded-xl border p-3 text-center cursor-pointer transition-all duration-200 ${
+              isAllDetailsExpanded
+                ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-950'
+                : 'border-gray-200 dark:border-gray-700 hover:border-indigo-300 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/50'
+            }`}
+          >
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 flex items-center justify-center gap-1.5">
+              <Info size={24} className="text-indigo-500" />
+              Details
+            </p>
+            <p className="text-xl font-semibold text-indigo-600 dark:text-indigo-400">
+              +{detailsCount}
+            </p>
+          </div>
+        </div>
+          );
+        })()}
+
+        {/* All Details Panel - Expandable */}
+        {isAllDetailsExpanded && (
+          <div className="mb-6 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* Energieeffizienzklasse */}
+              {energyEfficiencyClass && (
+                <div className="flex items-center gap-2">
+                  <Zap size={20} className="text-green-500" />
+                  <span className="text-base font-medium text-gray-900 dark:text-white">Energieeffizienz {energyEfficiencyClass}</span>
+                </div>
+              )}
+
+              {/* Geschoss */}
+              {(data.floor_level || data.total_floors) && (
+                <div className="flex items-center gap-2">
+                  <Layers size={20} className="text-purple-500" />
+                  <span className="text-base font-medium text-gray-900 dark:text-white">
+                    {data.floor_level && data.total_floors
+                      ? `${data.floor_level}/${data.total_floors} Geschoss`
+                      : data.floor_level
+                        ? `${data.floor_level}`
+                        : `${data.total_floors} Geschosse`}
                   </span>
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 bg-green-500 rounded-full animate-pulse flex-shrink-0" />
-                    <h3 className="font-semibold text-gray-900 text-base sm:text-lg">Smart-Check</h3>
-                  </div>
-                  {(() => {
-                    const marketAvgPrice = marketData?.marketAvgPricePerSqm || sellerAnalysisMarketAverage || data.evaluation?.market_average_price_per_sqm || 3500;
-                    const difference = ((pricePerSqm - marketAvgPrice) / marketAvgPrice) * 100;
-                    const percentDiff = Math.abs(Math.round(difference));
+              )}
 
-                    if (percentDiff <= 3) {
-                      return <p className="text-sm text-blue-600 font-medium">Marktgerecht</p>;
-                    } else if (difference < 0) {
-                      return <p className="text-sm text-green-600 font-medium">{percentDiff}% unter Marktdurchschnitt</p>;
-                    } else {
-                      return <p className="text-sm text-orange-600 font-medium">{percentDiff}% über Marktdurchschnitt</p>;
-                    }
-                  })()}
+              {/* Badezimmer */}
+              {data.bathrooms && data.bathrooms > 0 && (
+                <div className="flex items-center gap-2">
+                  <Bath size={20} className="text-cyan-600" />
+                  <span className="text-base font-medium text-gray-900 dark:text-white">{data.bathrooms} Badezimmer</span>
                 </div>
-              </div>
-              <ChevronDown
-                className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isMarketComparisonExpanded ? 'rotate-180' : ''}`}
-              />
+              )}
+
+              {/* Zustand */}
+              {conditionLabel && (
+                <div className="flex items-center gap-2">
+                  <Sparkles size={20} className="text-purple-600" />
+                  <span className="text-base font-medium text-gray-900 dark:text-white">{conditionLabel}</span>
+                </div>
+              )}
+
+              {/* Aufzug */}
+              {typeof data.elevator === 'boolean' && (
+                <div className="flex items-center gap-2">
+                  <ArrowUpDown size={20} className="text-green-600" />
+                  <span className="text-base font-medium text-gray-900 dark:text-white">{data.elevator ? 'Mit Aufzug' : 'Ohne Aufzug'}</span>
+                </div>
+              )}
+
+              {/* Heizungsart */}
+              {data.heating_type && (
+                <div className="flex items-center gap-2">
+                  <Flame size={20} className="text-orange-600" />
+                  <span className="text-base font-medium text-gray-900 dark:text-white">{heatingTypeLabel}</span>
+                </div>
+              )}
+
+              {/* Energiequelle */}
+              {data.energy_source && (
+                <div className="flex items-center gap-2">
+                  <Zap size={20} className="text-yellow-600" />
+                  <span className="text-base font-medium text-gray-900 dark:text-white">{energySourceLabel}</span>
+                </div>
+              )}
+
+              {/* Energieausweis */}
+              {data.energy_certificate && (
+                <div className="flex items-center gap-2">
+                  <FileCheck size={20} className="text-teal-600" />
+                  <span className="text-base font-medium text-gray-900 dark:text-white">{energyCertificateLabel}</span>
+                </div>
+              )}
+
+              {/* Hausgeld */}
+              {data.monthly_fee && data.monthly_fee > 0 && (
+                <div className="flex items-center gap-2">
+                  <Wallet size={20} className="text-rose-600" />
+                  <span className="text-base font-medium text-gray-900 dark:text-white">
+                    {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(data.monthly_fee)} Hausgeld
+                  </span>
+                </div>
+              )}
+
+              {/* Verfügbar ab */}
+              {data.available_from && (
+                <div className="flex items-center gap-2">
+                  <Calendar size={20} className="text-indigo-600" />
+                  <span className="text-base font-medium text-gray-900 dark:text-white">{availableFromLabel}</span>
+                </div>
+              )}
+
+              {/* AfA-Typ */}
+              {data.afa_type && (
+                <div className="flex items-center gap-2">
+                  <Calculator size={20} className={
+                    data.afa_type === 'denkmal' ? 'text-amber-600' :
+                    data.afa_type === 'neubau' ? 'text-green-600' :
+                    data.afa_type === 'altbau' ? 'text-purple-600' : 'text-gray-600'
+                  } />
+                  <span className="text-base font-medium text-gray-900 dark:text-white">
+                    AfA {data.afa_type === 'denkmal' ? 'Denkmal (9%)' :
+                     data.afa_type === 'neubau' ? 'Neubau (5%)' :
+                     data.afa_type === 'altbau' ? 'Altbau (2,5%)' : 'Bestand (2%)'}
+                  </span>
+                </div>
+              )}
+
+              {/* Grundstückfläche (nur für Häuser) */}
+              {data.type === 'house' && data.plot_size && data.plot_size > 0 && (
+                <div className="flex items-center gap-2">
+                  <TreePine size={20} className="text-green-600" />
+                  <span className="text-base font-medium text-gray-900 dark:text-white">{data.plot_size} m² Grundstück</span>
+                </div>
+              )}
+
+              {/* Nutzfläche */}
+              {data.usable_area && data.usable_area > 0 && (
+                <div className="flex items-center gap-2">
+                  <Layers size={20} className="text-gray-600 dark:text-gray-400" />
+                  <span className="text-base font-medium text-gray-900 dark:text-white">{data.usable_area} m² Nutzfläche</span>
+                </div>
+              )}
             </div>
-
-            {/* Expanded Content */}
-            {isMarketComparisonExpanded && (
-              <div className="px-6 pb-6 border-t border-gray-200 pt-4">
-                {(() => {
-                  const marketAvgPrice = marketData?.marketAvgPricePerSqm || sellerAnalysisMarketAverage || data.evaluation?.market_average_price_per_sqm || 3500;
-                  const difference = ((pricePerSqm - marketAvgPrice) / marketAvgPrice) * 100;
-                  const deviationPercent = Math.round(difference);
-
-                  let pricePosition: 'sehr_guenstig' | 'guenstig' | 'marktgerecht' | 'teuer' | 'sehr_teuer';
-                  if (deviationPercent <= -15) {
-                    pricePosition = 'sehr_guenstig';
-                  } else if (deviationPercent <= -5) {
-                    pricePosition = 'guenstig';
-                  } else if (deviationPercent <= 5) {
-                    pricePosition = 'marktgerecht';
-                  } else if (deviationPercent <= 15) {
-                    pricePosition = 'teuer';
-                  } else {
-                    pricePosition = 'sehr_teuer';
-                  }
-
-                  // Determine viewType for MarketComparisonBar
-                  const marketViewType = evaluationViewType === 'seller'
-                    ? 'seller'
-                    : (data.buyer_evaluation?.buyer_selfuse ? 'buyer_selfuse' : 'buyer_investor');
-
-                  // Get monthly rent for Eigennutzer buy vs rent calculation
-                  const estimatedMonthlyRent = data.rental_income?.estimated_market_rent
-                    || data.evaluation?.estimated_monthly_rent
-                    || data.actual_monthly_rent;
-
-                  return (
-                    <>
-                      <MarketComparisonBar
-                        deviationPercent={deviationPercent}
-                        pricePosition={pricePosition}
-                        currentPricePerSqm={simulatedPrice ? Math.round(simulatedPrice / data.sqm) : pricePerSqm}
-                        currentTotalPrice={simulatedPrice || undefined}
-                        marketAvgPricePerSqm={marketAvgPrice}
-                        sqm={data.sqm}
-                        rooms={data.rooms}
-                        location={data.location}
-                        isInteractive={true}
-                        viewType={evaluationViewType === 'seller' ? 'seller' : 'buyer_selfuse'}
-                        onPriceChange={(newPrice) => setSimulatedPrice(newPrice)}
-                        // API data for market comparison
-                        marketingDurationMin={marketData?.marketingDurationMin}
-                        marketingDurationMax={marketData?.marketingDurationMax}
-                        aiScore={marketData?.aiScore}
-                      />
-
-                      {/* Price Suggestion for Sellers */}
-                      {evaluationViewType === 'seller' && (
-                        <div className="mt-6 pt-4 border-t border-gray-100">
-                          {!showPriceSuggestion ? (
-                            <div className="flex justify-center">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setShowPriceSuggestion(true);
-                                }}
-                                className="py-3 px-6 bg-gradient-to-r from-[#FF385C] to-[#E31C5F] hover:from-[#E31C5F] hover:to-[#C81E4E] text-white rounded-full transition-all flex items-center justify-center gap-2 text-sm font-semibold shadow-lg shadow-[#FF385C]/30 hover:shadow-xl hover:shadow-[#FF385C]/40 hover:-translate-y-0.5"
-                              >
-                                <Sparkles size={16} />
-                                KI-Preisoptimierung
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-4">
-                              <div className="flex items-start gap-3">
-                                <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
-                                  <Sparkles size={16} className="text-purple-600" />
-                                </div>
-                                <div>
-                                  <p className="text-sm font-medium text-gray-900 mb-2">Preisempfehlung der KI</p>
-                                  {(() => {
-                                    const suggestedPrice = Math.round(marketAvgPrice * data.sqm);
-                                    const suggestedMin = Math.round(suggestedPrice * 0.95);
-                                    const suggestedMax = Math.round(suggestedPrice * 1.05);
-
-                                    return (
-                                      <>
-                                        <p className="text-2xl font-bold text-gray-900 mb-1">
-                                          {formatPrice(suggestedPrice)}
-                                        </p>
-                                        <p className="text-xs text-gray-500">
-                                          Optimale Preisspanne: {formatPrice(suggestedMin)} – {formatPrice(suggestedMax)}
-                                        </p>
-                                        {deviationPercent > 10 && (
-                                          <p className="text-xs text-orange-600 mt-2">
-                                            Tipp: Eine Preisanpassung könnte die Vermarktungszeit verkürzen.
-                                          </p>
-                                        )}
-                                        {deviationPercent < -10 && (
-                                          <p className="text-xs text-green-600 mt-2">
-                                            Tipp: Sie könnten den Preis erhöhen und sind immer noch unter Markt.
-                                          </p>
-                                        )}
-                                      </>
-                                    );
-                                  })()}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                    </>
-                  );
-                })()}
-              </div>
-            )}
           </div>
         )}
 
-        {/* Deal-Insights - nur für Buyer View */}
-        {evaluationViewType === 'buyer' && (
-          <KeyMetricsPanel
-            aiScore={data.ai_investment_score}
-            grossYield={data.buyer_evaluation?.buyer_investor?.grossYield}
-            rentMultiplier={data.buyer_evaluation?.buyer_investor?.rentMultiplier}
-            purchasePrice={simulatedPrice || userPropertyParams?.purchase_price || data.price}
-            commissionRate={data.commission_rate}
-            location={data.location}
-            financingTerms={data.financing_terms ? {
-              interestRate: data.financing_terms.interest_rate_90 ?? data.financing_terms.interest_rate,
-              amortizationRate: data.financing_terms.amortization_rate,
-              loanToValue: data.financing_terms.loan_to_value,
-            } : undefined}
-            sqm={data.sqm}
-            estimatedRentPerSqm={data.rental_income?.rent_per_sqm}
-            monthlyFee={data.monthly_fee}
-            yearBuilt={data.year_built}
-            estimatedRent={data.rental_income?.estimated_market_rent || data.evaluation?.estimated_monthly_rent || data.actual_monthly_rent}
-            estimatedOperatingCosts={data.cashflow_calculation?.non_transferable_fee}
-            onTriggerEvaluation={onTriggerEvaluation ? () => onTriggerEvaluation('buyer_investor') : undefined}
-            isLoading={isGeneratingEvaluation}
-            propertyId={propertyId}
-            userParams={userPropertyParams}
-            onSaveParams={onSaveUserPropertyParams}
-            isSavingParams={isSavingUserPropertyParams}
-            onPurchasePriceChange={setSimulatedPrice}
-            className="mb-6"
-          />
-        )}
-
-        {/* Kaufen vs. Mieten Card - für Eigennutzer */}
-        {evaluationViewType === 'buyer' && (
-          <BuyVsRentCard
-            purchasePrice={simulatedPrice || userPropertyParams?.purchase_price || data.price}
-            sqm={data.sqm}
-            location={data.location}
-            monthlyRent={data.rental_income?.estimated_market_rent || data.evaluation?.estimated_monthly_rent || data.actual_monthly_rent}
-            avgRentPerSqm={data.rental_income?.rent_per_sqm}
-            monthlyFee={data.monthly_fee}
-            yearBuilt={data.year_built}
-            interestRate={data.financing_terms?.interest_rate_90 ?? data.financing_terms?.interest_rate ?? 3.5}
-            amortizationRate={data.financing_terms?.amortization_rate ?? 2.0}
-            equityPercentage={(userPropertyParams?.equity_percentage != null && userPropertyParams.equity_percentage > 0) ? userPropertyParams.equity_percentage : 20}
-            commissionRate={data.commission_rate}
-            propertyId={propertyId}
-            userParams={userPropertyParams}
-            onSaveParams={onSaveUserPropertyParams}
-            isSavingParams={isSavingUserPropertyParams}
-            onPurchasePriceChange={setSimulatedPrice}
-            className="mb-6"
-          />
-        )}
-
-        {/* Weitere Details Section - Compact Accordion */}
-        {(data.sqm || data.rooms || energyEfficiencyClass || data.available_from || data.year_built || data.afa_type || data.bathrooms || data.monthly_fee || data.floor_level || data.total_floors || data.heating_type || data.energy_source || data.energy_certificate || data.usable_area || condition) && (
-          <div className="mb-6 bg-white rounded-2xl border border-gray-200 overflow-hidden">
-            {/* Always Visible - Icons and Values Only */}
-            <div
-              className="p-6 flex items-center justify-between gap-4 cursor-pointer"
-              onClick={() => setIsWeitereDetailsExpanded(!isWeitereDetailsExpanded)}
-            >
-              <div className="flex flex-wrap gap-6 items-center">
-                {/* Living Area */}
-                {data.sqm && data.sqm > 0 && (
-                  <div className="flex items-center gap-2">
-                    <Square size={20} className="text-green-600" />
-                    <span className="text-base font-semibold text-gray-900">{data.sqm} m²</span>
-                  </div>
-                )}
-
-                {/* Rooms */}
-                {data.rooms && data.rooms > 0 && (
-                  <div className="flex items-center gap-2">
-                    <DoorClosed size={20} className="text-green-600" />
-                    <span className="text-base font-semibold text-gray-900">{data.rooms} Zimmer</span>
-                  </div>
-                )}
-
-                {/* Year Built & Energy Efficiency Class - Combined */}
-                {(data.year_built || energyEfficiencyClass) && (
-                  <div className="flex items-center gap-2">
-                    <Building2 size={20} className="text-gray-600" />
-                    <span className="text-base font-semibold text-gray-900">
-                      {data.year_built && `Bj. ${data.year_built}`}
-                      {data.year_built && energyEfficiencyClass && ' • '}
-                      {energyEfficiencyClass && `Energie ${energyEfficiencyClass}`}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Expand/Collapse Icon */}
-              <ChevronDown
-                className={`w-5 h-5 text-gray-400 transition-transform duration-200 flex-shrink-0 ${isWeitereDetailsExpanded ? 'rotate-180' : ''}`}
-              />
-            </div>
-
-            {/* Expanded Details - Show on Click */}
-            {isWeitereDetailsExpanded && (
-              <div className="px-6 pb-6 border-t border-gray-200 pt-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* === WICHTIGSTE MERKMALE === */}
-
-                  {/* Living Area */}
-                  {data.sqm && data.sqm > 0 && (
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
-                        <Square size={20} className="text-green-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Wohnfläche</p>
-                        <p className="text-base font-semibold text-gray-900">{data.sqm} m²</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Plot Size (Grundstückfläche) - Only for houses */}
-                  {data.type === 'house' && data.plot_size && data.plot_size > 0 && (
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
-                        <Layers size={20} className="text-green-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Grundstückfläche</p>
-                        <p className="text-base font-semibold text-gray-900">{data.plot_size} m²</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Rooms */}
-                  {data.rooms && data.rooms > 0 && (
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
-                        <DoorClosed size={20} className="text-green-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Zimmer</p>
-                        <p className="text-base font-semibold text-gray-900">{data.rooms}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Energy Efficiency Class */}
-                  {energyEfficiencyClass && (
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-yellow-50 rounded-lg flex items-center justify-center">
-                        <Zap size={20} className="text-yellow-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Energieeffizienzklasse</p>
-                        <p className="text-base font-semibold text-gray-900">{energyEfficiencyClass}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Year Built */}
-                  {data.year_built && (
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gray-50 rounded-lg flex items-center justify-center">
-                        <Building2 size={20} className="text-gray-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Baujahr</p>
-                        <p className="text-base font-semibold text-gray-900">{data.year_built}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* AfA Type - Depreciation Category */}
-                  {data.afa_type && (
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                        data.afa_type === 'denkmal' ? 'bg-amber-50' :
-                        data.afa_type === 'neubau' ? 'bg-green-50' :
-                        data.afa_type === 'altbau' ? 'bg-purple-50' : 'bg-gray-50'
+        {/* AI-Analyse & Cashflow Cards - Not shown for owner */}
+        {propertyId && !isOwner && (
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            {/* AI-Analyse Card */}
+            {data.ai_investment_score !== undefined && data.ai_investment_score > 0 && (
+              <a
+                href={`/property/${propertyId}/ai-score`}
+                className={`flex-1 rounded-xl border overflow-hidden block cursor-pointer hover:shadow-md transition-shadow p-4 ${
+                  data.ai_investment_score >= 85
+                    ? 'bg-green-100 dark:bg-green-900/40 border-green-300 dark:border-green-700'
+                    : data.ai_investment_score >= 60
+                      ? 'bg-emerald-50 dark:bg-emerald-900/40 border-emerald-200 dark:border-emerald-700'
+                      : data.ai_investment_score >= 40
+                        ? 'bg-amber-50 dark:bg-amber-900/40 border-amber-200 dark:border-amber-700'
+                        : 'bg-rose-50 dark:bg-rose-900/40 border-rose-200 dark:border-rose-700'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {/* AI Score Ring Badge */}
+                    <PropertyScoreBadge score={data.ai_investment_score} variant="ring" />
+                    <div>
+                      <p className="text-lg font-bold text-gray-900 dark:text-white">AI-Analyse</p>
+                      <p className={`text-sm font-medium ${
+                        data.ai_investment_score >= 85
+                          ? 'text-green-600 dark:text-green-400'
+                          : data.ai_investment_score >= 60
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : data.ai_investment_score >= 40
+                              ? 'text-amber-600 dark:text-amber-400'
+                              : 'text-rose-600 dark:text-rose-400'
                       }`}>
-                        <Landmark size={20} className={
-                          data.afa_type === 'denkmal' ? 'text-amber-600' :
-                          data.afa_type === 'neubau' ? 'text-green-600' :
-                          data.afa_type === 'altbau' ? 'text-purple-600' : 'text-gray-600'
-                        } />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">AfA-Typ</p>
-                        <p className="text-base font-semibold text-gray-900">
-                          {data.afa_type === 'denkmal' ? 'Denkmal (9%)' :
-                           data.afa_type === 'neubau' ? 'Neubau (5% degr.)' :
-                           data.afa_type === 'altbau' ? 'Altbau (2,5%)' : 'Bestand (2%)'}
-                        </p>
-                      </div>
+                        Score {(data.ai_investment_score / 10).toFixed(1)} / 10 – {
+                          data.ai_investment_score >= 85 ? 'Sehr gut' :
+                          data.ai_investment_score >= 60 ? 'Gut' :
+                          data.ai_investment_score >= 40 ? 'OK' : 'Schwach'}
+                      </p>
                     </div>
-                  )}
-
-                  {/* Bathrooms */}
-                  {data.bathrooms && data.bathrooms > 0 && (
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                        <Bath size={20} className="text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Badezimmer</p>
-                        <p className="text-base font-semibold text-gray-900">{data.bathrooms}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Condition */}
-                  {conditionLabel && (
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                        <Sparkles size={20} className="text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Zustand</p>
-                        <p className="text-base font-semibold text-gray-900">{conditionLabel}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Monthly Fee */}
-                  {data.monthly_fee && data.monthly_fee > 0 && (
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
-                        <Euro size={20} className="text-green-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Hausgeld</p>
-                        <p className="text-base font-semibold text-gray-900">
-                          {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(data.monthly_fee)}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Available From */}
-                  {data.available_from && (
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center">
-                        <Clock size={20} className="text-indigo-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Verfügbar ab</p>
-                        <p className="text-base font-semibold text-gray-900">{availableFromLabel}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* === ZUSÄTZLICHE DETAILS === */}
-
-                  {/* Floor Level */}
-                  {(data.floor_level || data.total_floors) && (
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
-                        <Building2 size={20} className="text-purple-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">{floorLabel}</p>
-                        <p className="text-base font-semibold text-gray-900">{floorDisplay}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Heating Type */}
-                  {data.heating_type && (
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center">
-                        <Flame size={20} className="text-orange-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Heizungsart</p>
-                        <p className="text-base font-semibold text-gray-900">{heatingTypeLabel}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Energy Source */}
-                  {data.energy_source && (
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-yellow-50 rounded-lg flex items-center justify-center">
-                        <Zap size={20} className="text-yellow-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Energiequelle</p>
-                        <p className="text-base font-semibold text-gray-900">{energySourceLabel}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Energy Certificate */}
-                  {data.energy_certificate && (
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
-                        <Zap size={20} className="text-teal-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Energieausweis</p>
-                        <p className="text-base font-semibold text-gray-900">{energyCertificateLabel}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Usable Area */}
-                  {data.usable_area && data.usable_area > 0 && (
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gray-50 rounded-lg flex items-center justify-center">
-                        <Layers size={20} className="text-gray-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Nutzfläche</p>
-                        <p className="text-base font-semibold text-gray-900">{data.usable_area} m²</p>
-                      </div>
-                    </div>
-                  )}
+                  </div>
+                  <ChevronRight size={20} className="text-gray-400" />
                 </div>
-              </div>
+              </a>
             )}
+
+            {/* Rendite-Rechner Card - Farbe basierend auf Rendite */}
+            {(() => {
+              const rendite = data.yield_metrics?.brutto_rendite ?? data.evaluation?.gross_yield_percentage;
+
+              // Karten-Farbe basierend auf Rendite: >= 7% hell grün, 5-7% grün, 3-5% amber, <3% rot
+              const getCardColors = () => {
+                if (rendite !== undefined && rendite !== null) {
+                  if (rendite >= 7) return {
+                    border: 'border-green-300 dark:border-green-700',
+                    bg: 'bg-green-100 dark:bg-green-900/40',
+                    iconColor: 'text-green-600 dark:text-green-400'
+                  };
+                  if (rendite >= 5) return {
+                    border: 'border-emerald-200 dark:border-emerald-700',
+                    bg: 'bg-emerald-50 dark:bg-emerald-900/40',
+                    iconColor: 'text-emerald-600 dark:text-emerald-400'
+                  };
+                  if (rendite >= 3) return {
+                    border: 'border-amber-200 dark:border-amber-700',
+                    bg: 'bg-amber-50 dark:bg-amber-900/40',
+                    iconColor: 'text-amber-600 dark:text-amber-400'
+                  };
+                  return {
+                    border: 'border-rose-200 dark:border-rose-700',
+                    bg: 'bg-rose-50 dark:bg-rose-900/40',
+                    iconColor: 'text-rose-600 dark:text-rose-400'
+                  };
+                }
+                return {
+                  border: 'border-blue-200 dark:border-blue-700',
+                  bg: 'bg-blue-50 dark:bg-blue-900/40',
+                  iconColor: 'text-blue-600 dark:text-blue-400'
+                };
+              };
+
+              const cardColors = getCardColors();
+
+              return (
+                <a
+                  href={`/property/${propertyId}/calculator`}
+                  className={`flex-1 rounded-xl border ${cardColors.border} ${cardColors.bg} overflow-hidden block cursor-pointer hover:shadow-md transition-shadow p-4`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Calculator size={40} className={`${cardColors.iconColor} flex-shrink-0`} />
+                      <div>
+                        <p className="text-lg font-bold text-gray-900 dark:text-white">Rendite-Rechner</p>
+                        {rendite !== undefined && rendite !== null ? (
+                          <p className={`text-sm font-medium ${
+                            rendite >= 7 ? 'text-green-600 dark:text-green-400' :
+                            rendite >= 5 ? 'text-emerald-600 dark:text-emerald-400' :
+                            rendite >= 3 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'
+                          }`}>
+                            {rendite.toFixed(1)}% Rendite
+                          </p>
+                        ) : (
+                          <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Berechnung starten →</p>
+                        )}
+                      </div>
+                    </div>
+                    <ChevronRight size={20} className="text-gray-400" />
+                  </div>
+                </a>
+              );
+            })()}
           </div>
         )}
 
@@ -1174,18 +951,18 @@ export function PropertyPreview({
             : data.description;
 
           return (
-            <div className="mb-6 bg-white rounded-2xl border border-gray-200 overflow-hidden p-6">
+            <div className="mb-6 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden p-4">
               {/* Important Notes - Show if exists */}
               {data.important_notes && (
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl mb-4">
-                  <p className="text-base text-gray-700 leading-relaxed">
+                <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl mb-4">
+                  <p className="text-base text-gray-700 dark:text-gray-300 leading-relaxed">
                     {data.important_notes}
                   </p>
                 </div>
               )}
 
               {/* Description Text - whitespace-pre-line preserves newlines for structured content */}
-              <p className="text-gray-700 leading-relaxed text-base whitespace-pre-line">
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base whitespace-pre-line">
                 {isDescriptionExpanded || !isLongDescription ? data.description : previewText}
               </p>
 
@@ -1193,7 +970,7 @@ export function PropertyPreview({
               {isLongDescription && (
                 <button
                   onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
-                  className="mt-3 text-sm font-medium text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                  className="mt-3 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 flex items-center gap-1"
                 >
                   {isDescriptionExpanded ? 'Weniger anzeigen' : 'Mehr anzeigen'}
                   <ChevronDown
@@ -1270,21 +1047,17 @@ export function PropertyPreview({
 
               {/* Empty State - Show in edit mode when no documents */}
               {showEmptyState && (
-                <div className="mb-6 bg-white rounded-2xl border border-gray-200 overflow-hidden">
-                  <div className="p-4">
-                    <div className="flex items-center gap-2 mb-4">
-                      <FileText size={20} className="text-gray-700" />
-                      <h3 className="text-lg font-semibold text-gray-900">Objektunterlagen</h3>
-                    </div>
-                    <div className="bg-gray-50 rounded-xl p-6 text-center">
-                      <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
-                        <FileText size={24} className="text-gray-400" />
-                      </div>
-                      <p className="text-gray-600 mb-2">Noch keine Unterlagen hochgeladen</p>
-                      <p className="text-sm text-gray-500">
-                        Lade PDFs, Grundrisse oder Energieausweise über das Chat-Feld hoch.
-                      </p>
-                    </div>
+                <div className="mb-6 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                  <div className="p-4 flex items-center gap-2">
+                    <FileText size={20} className="text-gray-700 dark:text-gray-300" />
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Objektunterlagen</h3>
+                  </div>
+                  <div className="p-6 text-center text-gray-500 dark:text-gray-400">
+                    <FileText size={48} className="mx-auto mb-2 text-gray-300 dark:text-gray-600" />
+                    <p>Noch keine Unterlagen hochgeladen</p>
+                    <p className="text-sm mt-1">
+                      Lade PDFs, Grundrisse oder Energieausweise über das Chat-Feld hoch.
+                    </p>
                   </div>
                 </div>
               )}
@@ -1314,10 +1087,10 @@ export function PropertyPreview({
 
         {/* Anbieter Info - Only show when owner data exists */}
         {!hideProviderInfo && data.owner && (
-          <div className="mb-6 bg-white rounded-2xl border border-gray-200 p-6">
+          <div className="mb-6 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-start gap-4">
               {/* Avatar */}
-              <div className="w-14 h-14 rounded-full overflow-hidden flex-shrink-0 bg-gray-100">
+              <div className="w-14 h-14 rounded-full overflow-hidden flex-shrink-0 bg-gray-100 dark:bg-gray-800">
                 {data.owner?.avatar_url ? (
                   <img
                     src={data.owner.avatar_url}
@@ -1325,7 +1098,7 @@ export function PropertyPreview({
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-500 text-lg font-semibold">
+                  <div className="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-lg font-semibold">
                     {(data.owner?.first_name?.[0] || data.owner?.last_name?.[0] || 'A').toUpperCase()}
                   </div>
                 )}
@@ -1333,20 +1106,20 @@ export function PropertyPreview({
 
               {/* Name, Bio und E-Mail */}
               <div className="flex flex-col gap-1 min-w-0 flex-1">
-                <p className="text-base font-semibold text-gray-900">
+                <p className="text-base font-semibold text-gray-900 dark:text-white">
                   {data.owner?.first_name || data.owner?.last_name
                     ? `${data.owner.first_name || ''} ${data.owner.last_name || ''}`.trim()
                     : 'Privater Anbieter'}
                 </p>
                 {data.owner?.bio && (
-                  <p className="text-sm text-gray-600 line-clamp-2">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
                     {data.owner.bio}
                   </p>
                 )}
                 {(data.owner?.email || data.owner_profile?.email) && (
                   <a
                     href={`mailto:${data.owner?.email || data.owner_profile?.email}`}
-                    className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-primary transition-colors mt-1"
+                    className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-primary transition-colors mt-1"
                   >
                     <Mail size={14} />
                     <span>{data.owner?.email || data.owner_profile?.email}</span>
@@ -1360,7 +1133,7 @@ export function PropertyPreview({
         {/* Empty State */}
         {!data.title && !data.location && !data.description && data.price === 0 && (
           <div className="text-center py-8">
-            <p className="text-gray-400 text-sm">
+            <p className="text-gray-400 dark:text-gray-500 text-sm">
               Die Vorschau wird aktualisiert, sobald Sie Informationen eingeben
             </p>
           </div>

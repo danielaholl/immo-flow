@@ -10,7 +10,7 @@ import type { PropertyDocument } from '@/app/create-listing/types';
 import { MobileDetailHeader } from '@/app/components/MobileDetailHeader';
 import { PageContainer } from '@/app/components/PageContainer';
 import { ArrowLeft, Share2, ExternalLink } from 'lucide-react';
-import { PropertyScoreBadge } from '@immoflow/ui';
+import { PropertyScoreBadge } from '@rendito/ui';
 import { trpc } from '@/lib/trpc';
 
 export default function SharedPropertyPage() {

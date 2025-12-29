@@ -1,5 +1,5 @@
 /**
- * Spacing system for ImmoFlow
+ * Spacing system for Rendito
  * Based on 4px grid
  */
 

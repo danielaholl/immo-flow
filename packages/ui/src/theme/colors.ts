@@ -1,5 +1,5 @@
 /**
- * Color system for ImmoFlow
+ * Color system for Rendito
  * Consistent colors across all platforms (iOS, Android, Web)
  */
 

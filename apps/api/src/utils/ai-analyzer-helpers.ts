@@ -3,7 +3,7 @@
  * Utility functions for AI-powered property analysis
  */
 import { openai } from './openai.js';
-import { createLogger } from '@immoflow/utils';
+import { createLogger } from '@rendito/utils';
 import type { ScrapedPropertyData } from '../services/property-scraper.js';
 import type {
   AIRating,

@@ -41,16 +41,16 @@ logs-web: ## Show Web logs (dev)
 	docker-compose -f docker-compose.dev.yml logs -f web
 
 shell-api: ## Shell into API container (dev)
-	docker exec -it immoflow-api-dev sh
+	docker exec -it rendito-api-dev sh
 
 shell-web: ## Shell into Web container (dev)
-	docker exec -it immoflow-web-dev sh
+	docker exec -it rendito-web-dev sh
 
 shell-db: ## Shell into PostgreSQL (dev)
-	docker exec -it immoflow-postgres-dev psql -U postgres -d immoflow
+	docker exec -it rendito-postgres-dev psql -U postgres -d rendito
 
 migrate: ## Run database migrations (dev)
-	docker exec -it immoflow-api-dev pnpm run migrate
+	docker exec -it rendito-api-dev pnpm run migrate
 
 restart-api: ## Restart API container (dev)
 	docker-compose -f docker-compose.dev.yml restart api

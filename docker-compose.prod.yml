@@ -3,7 +3,7 @@ version: '3.9'
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: immoflow-postgres-prod
+    container_name: rendito-postgres-prod
     restart: always
     environment:
       POSTGRES_DB: ${DB_NAME}
@@ -26,7 +26,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: immoflow-redis-prod
+    container_name: rendito-redis-prod
     restart: always
     ports:
       - "6379:6379"
@@ -48,7 +48,7 @@ services:
     build:
       context: .
       dockerfile: docker/api/Dockerfile.prod
-    container_name: immoflow-api-prod
+    container_name: rendito-api-prod
     restart: always
     ports:
       - "4000:4000"
@@ -78,7 +78,7 @@ services:
     build:
       context: .
       dockerfile: docker/web/Dockerfile.prod
-    container_name: immoflow-web-prod
+    container_name: rendito-web-prod
     restart: always
     ports:
       - "3000:3000"

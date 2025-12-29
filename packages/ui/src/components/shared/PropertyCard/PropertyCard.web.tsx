@@ -7,7 +7,7 @@ import { colors } from '../../../theme';
 import type { PropertyCardProps } from './PropertyCard.types';
 import { usePropertyCardLogic } from './PropertyCard.logic';
 import { PropertyImageSlideshow } from '../PropertyImageSlideshow';
-import { PropertyGlassActions } from '../../web/PropertyGlassActions';
+import { ImageOverlayActions } from '../../web/ImageOverlayActions';
 import { PropertyScoreBadge } from '../../web/PropertyScoreBadge';
 import { PropertyInfoOverlay } from '../PropertyInfoOverlay';
 
@@ -44,16 +44,17 @@ export function PropertyCard({
         className="h-full"
         overlay={
           <>
-            {/* AI Score Badge - Reusable Component */}
+            {/* AI Score Badge - Ring Variant */}
             {logic.score !== undefined && logic.score !== null && (
               <div className="absolute top-8 right-3 z-10 pointer-events-none">
-                <PropertyScoreBadge score={logic.score} variant="overlay" />
+                <PropertyScoreBadge score={logic.score} variant="ring" />
               </div>
             )}
 
-            {/* Action Buttons - Reusable Components */}
-            <PropertyGlassActions
+            {/* Action Buttons - Transparent Overlay Style */}
+            <ImageOverlayActions
               className="absolute bottom-5 right-3 z-20"
+              direction="horizontal"
               isFavorite={isFavorite}
               onFavorite={(e) => onFavorite?.(e as any)}
               onMessage={(e) => onMessage?.(e as any)}
@@ -78,6 +79,7 @@ export function PropertyCard({
 
             {/* Property Info Overlay with Gradient Background */}
             <PropertyInfoOverlay
+              propertyType={property.propertyType}
               title={property.title}
               location={property.location}
               address={property.address}
@@ -87,6 +89,7 @@ export function PropertyCard({
               rooms={property.rooms}
               sqm={property.sqm}
               formattedPricePerSqm={logic.formattedPricePerSqm}
+              yearBuilt={property.year_built}
               showGradient={true}
             />
           </>

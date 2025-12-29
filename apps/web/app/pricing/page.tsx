@@ -72,7 +72,7 @@ export default function PricingPage() {
 
     // Contact form for enterprise/special plans
     if (plan.isContactForm) {
-      window.location.href = 'mailto:kontakt@nestando.de?subject=' + encodeURIComponent(`${plan.name} Anfrage`);
+      window.location.href = 'mailto:kontakt@rendito.de?subject=' + encodeURIComponent(`${plan.name} Anfrage`);
       return;
     }
 
@@ -88,15 +88,15 @@ export default function PricingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#030712]">
       <Header />
 
       {/* Hero Section */}
       <section className="pt-24 pb-12 text-center px-4">
-        <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
+        <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-4">
           Wähle deinen Plan
         </h1>
-        <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+        <p className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
           Starte kostenlos und upgrade jederzeit. Keine versteckten Kosten.
         </p>
       </section>
@@ -107,7 +107,7 @@ export default function PricingPage() {
       {/* Error Message */}
       {checkoutError && (
         <div className="max-w-md mx-auto px-4 mb-4">
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-center">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl text-center">
             {checkoutError}
           </div>
         </div>
@@ -116,9 +116,9 @@ export default function PricingPage() {
       {/* Loading Overlay */}
       {isCheckoutLoading && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 flex flex-col items-center gap-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 flex flex-col items-center gap-4">
             <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-            <p className="text-gray-700 font-medium">Weiterleitung zu Stripe...</p>
+            <p className="text-gray-700 dark:text-gray-300 font-medium">Weiterleitung zu Stripe...</p>
           </div>
         </div>
       )}
@@ -139,7 +139,7 @@ export default function PricingPage() {
 
       {/* Trust badges */}
       <section className="max-w-4xl mx-auto px-4 py-8">
-        <div className="flex flex-wrap justify-center items-center gap-8 text-gray-500 text-sm">
+        <div className="flex flex-wrap justify-center items-center gap-8 text-gray-500 dark:text-gray-400 text-sm">
           <div className="flex items-center gap-2">
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
               <path
@@ -190,7 +190,7 @@ export default function PricingPage() {
             Bereit für smarteres Investieren?
           </h2>
           <p className="text-gray-400 mb-8 max-w-2xl mx-auto">
-            Starte heute kostenlos und entdecke, wie ImmoFlow deine
+            Starte heute kostenlos und entdecke, wie Rendito deine
             Immobilien-Investments auf das nächste Level bringt.
           </p>
           <button

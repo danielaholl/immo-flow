@@ -2,7 +2,7 @@
 -- Run this in Supabase SQL Editor: https://supabase.com/dashboard → SQL Editor
 
 -- Create test user with confirmed email
--- Email: demo@immoflow.de
+-- Email: demo@rendito.de
 -- Password: Demo1234!
 
 -- Note: You need to replace 'YOUR_PROJECT_REF' with your actual project reference

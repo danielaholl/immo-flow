@@ -3,9 +3,9 @@ version: '3.9'
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: immoflow-postgres-dev
+    container_name: rendito-postgres-dev
     environment:
-      POSTGRES_DB: immoflow
+      POSTGRES_DB: rendito
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
@@ -20,7 +20,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: immoflow-redis-dev
+    container_name: rendito-redis-dev
     ports:
       - "6379:6379"
     command: redis-server --appendonly yes
@@ -34,7 +34,7 @@ services:
     build:
       context: .
       dockerfile: docker/api/Dockerfile.dev
-    container_name: immoflow-api-dev
+    container_name: rendito-api-dev
     ports:
       - "4000:4000"
     volumes:
@@ -49,7 +49,7 @@ services:
       - PORT=4000
       - DB_HOST=postgres
       - DB_PORT=5432
-      - DB_NAME=immoflow
+      - DB_NAME=rendito
       - DB_USER=postgres
       - DB_PASSWORD=postgres
       - REDIS_HOST=redis
@@ -66,7 +66,7 @@ services:
     build:
       context: .
       dockerfile: docker/web/Dockerfile.dev
-    container_name: immoflow-web-dev
+    container_name: rendito-web-dev
     ports:
       - "3000:3000"
     volumes:

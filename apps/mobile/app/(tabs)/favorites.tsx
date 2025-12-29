@@ -1,7 +1,7 @@
 import { View, FlatList, StyleSheet, Text } from 'react-native';
 import { useRouter } from 'expo-router';
-import { PropertyCard, colors, spacing } from '@immoflow/ui';
-import { useFavorites, useAuth } from '@immoflow/database';
+import { PropertyCard, colors, spacing } from '@rendito/ui';
+import { useFavorites, useAuth } from '@rendito/database';
 
 export default function FavoritesScreen() {
   const router = useRouter();

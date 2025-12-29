@@ -47,7 +47,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: immoflow_test
+          POSTGRES_DB: rendito_test
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -59,7 +59,7 @@ jobs:
     env:
       DB_HOST: localhost
       DB_PORT: 5432
-      DB_NAME: immoflow_test
+      DB_NAME: rendito_test
       DB_USER: postgres
       DB_PASSWORD: postgres
       JWT_SECRET: test-jwt-secret-for-ci-at-least-32-chars-long
@@ -88,11 +88,11 @@ jobs:
       - name: Run database migrations
         run: |
           for file in packages/database/migrations/*.sql; do
-            PGPASSWORD=postgres psql -h localhost -U postgres -d immoflow_test -f "$file" || echo "Migration failed"
+            PGPASSWORD=postgres psql -h localhost -U postgres -d rendito_test -f "$file" || echo "Migration failed"
           done
 
       - name: Run tests
-        run: pnpm test:run --filter @immoflow/api || echo "No tests configured yet"
+        run: pnpm test:run --filter @rendito/api || echo "No tests configured yet"
 
   # Build
   build:
@@ -118,7 +118,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build packages
-        run: pnpm build --filter @immoflow/api || echo "Build not configured"
+        run: pnpm build --filter @rendito/api || echo "Build not configured"
 
   # Security Audit
   security:

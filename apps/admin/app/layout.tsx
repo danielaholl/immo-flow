@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'ImmoFlow Admin - Makler Dashboard',
+  title: 'Rendito Admin - Makler Dashboard',
   description: 'Dashboard für Immobilienmakler - Verwalte deine Properties',
 };
 

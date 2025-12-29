@@ -33,6 +33,7 @@ interface PortfolioProperty {
   current_value: number | null;
   monthly_rent: number | null;
   monthly_fee: number | null;
+  ai_score: number | null;
   metrics: PropertyMetrics;
 }
 
@@ -106,6 +107,14 @@ const getYieldColor = (value: number): string => {
   return 'text-red-600';
 };
 
+// Get AI score color (matching PropertyScoreBadge thresholds)
+const getAiScoreColor = (value: number): string => {
+  if (value >= 85) return 'text-[#06d551]'; // Sehr gut - Custom bright green
+  if (value >= 60) return 'text-green-600'; // Gut
+  if (value >= 40) return 'text-yellow-600'; // OK
+  return 'text-red-600'; // Schwach
+};
+
 export function PortfolioPropertyList({
   properties,
   canAccessAnalytics,
@@ -124,24 +133,24 @@ export function PortfolioPropertyList({
           <div
             key={property.id}
             onClick={() => router.push(`/portfolio/${property.id}`)}
-            className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md hover:border-gray-200 transition-all cursor-pointer group"
+            className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5 shadow-sm hover:shadow-md hover:border-gray-200 dark:hover:border-gray-700 transition-all cursor-pointer group"
           >
             <div className="flex flex-col lg:flex-row lg:items-center gap-4">
               {/* Property Info */}
-              <div className="flex items-start gap-4 flex-1 min-w-0 group-hover:bg-gray-50 -m-2 p-2 rounded-xl transition-colors">
-                <div className="p-3 bg-gray-100 rounded-xl group-hover:bg-[#FF385C]/10 transition-colors">
-                  <PropertyIcon className="w-6 h-6 text-gray-600 group-hover:text-[#FF385C] transition-colors" />
+              <div className="flex items-start gap-4 flex-1 min-w-0 group-hover:bg-gray-50 dark:group-hover:bg-gray-800 -m-2 p-2 rounded-xl transition-colors">
+                <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-xl group-hover:bg-[#FF385C]/10 transition-colors">
+                  <PropertyIcon className="w-6 h-6 text-gray-600 dark:text-gray-400 group-hover:text-[#FF385C] transition-colors" />
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-gray-900 truncate group-hover:text-[#FF385C] transition-colors">
+                  <h3 className="font-semibold text-gray-900 dark:text-white truncate group-hover:text-[#FF385C] transition-colors">
                     {property.title}
                   </h3>
-                  <div className="flex items-center gap-2 text-sm text-gray-500 mt-1 group-hover:text-gray-600 transition-colors">
+                  <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mt-1 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">
                     <MapPin size={14} />
                     <span className="truncate">{property.location}</span>
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-gray-400 mt-1 group-hover:text-gray-500 transition-colors">
+                  <div className="flex items-center gap-3 text-xs text-gray-400 dark:text-gray-500 mt-1 group-hover:text-gray-500 dark:group-hover:text-gray-400 transition-colors">
                     <span>{getPropertyTypeLabel(property.property_type)}</span>
                     <span>•</span>
                     <span>{property.sqm} m²</span>
@@ -150,18 +159,18 @@ export function PortfolioPropertyList({
               </div>
 
               {/* Metrics */}
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 lg:gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 lg:gap-6">
                 {/* Value */}
                 <div className="text-center lg:text-right">
-                  <p className="text-xs text-gray-400 mb-0.5">Wert</p>
-                  <p className="font-semibold text-gray-900">
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">Wert</p>
+                  <p className="font-semibold text-gray-900 dark:text-white">
                     {formatCurrency(metrics.currentValue)}
                   </p>
                 </div>
 
                 {/* Rendite */}
                 <div className="text-center lg:text-right">
-                  <p className="text-xs text-gray-400 mb-0.5">Rendite</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">Rendite</p>
                   <p className={`font-semibold ${getYieldColor(metrics.grossYield)}`}>
                     {metrics.grossYield.toFixed(1)}%
                   </p>
@@ -169,7 +178,7 @@ export function PortfolioPropertyList({
 
                 {/* Cashflow */}
                 <div className="text-center lg:text-right">
-                  <p className="text-xs text-gray-400 mb-0.5">Cashflow</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">Cashflow</p>
                   <p className={`font-semibold ${getCashflowColor(metrics.monthlyCashflow)}`}>
                     {metrics.monthlyCashflow >= 0 ? '+' : ''}
                     {formatCurrency(metrics.monthlyCashflow)}
@@ -178,7 +187,7 @@ export function PortfolioPropertyList({
 
                 {/* Steuer-Effekt (Cashflow - AfA basiert, wie in Deal-Insights) */}
                 <div className="text-center lg:text-right">
-                  <p className="text-xs text-gray-400 mb-0.5">Steuer</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">Steuer</p>
                   {taxEffects && taxEffects[property.id] ? (
                     (() => {
                       const taxEffect = taxEffects[property.id];
@@ -197,7 +206,7 @@ export function PortfolioPropertyList({
                       );
                     })()
                   ) : (
-                    <p className="font-semibold text-gray-400">–</p>
+                    <p className="font-semibold text-gray-400 dark:text-gray-500">–</p>
                   )}
                 </div>
 
@@ -205,18 +214,30 @@ export function PortfolioPropertyList({
                 <div className="text-center lg:text-right">
                   {canAccessAnalytics ? (
                     <>
-                      <p className="text-xs text-gray-400 mb-0.5">Eigenkapital</p>
-                      <p className="font-semibold text-gray-900">
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">Eigenkapital</p>
+                      <p className="font-semibold text-gray-900 dark:text-white">
                         {formatCurrency(metrics.equity)}
                       </p>
                     </>
                   ) : (
                     <>
-                      <p className="text-xs text-gray-400 mb-0.5">Faktor</p>
-                      <p className="font-semibold text-gray-900">
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">Faktor</p>
+                      <p className="font-semibold text-gray-900 dark:text-white">
                         {metrics.rentMultiplier.toFixed(1)}x
                       </p>
                     </>
+                  )}
+                </div>
+
+                {/* AI Score */}
+                <div className="text-center lg:text-right">
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">AI-Score</p>
+                  {property.ai_score != null ? (
+                    <p className={`font-semibold ${getAiScoreColor(property.ai_score)}`}>
+                      {(property.ai_score / 10).toFixed(1)}
+                    </p>
+                  ) : (
+                    <p className="font-semibold text-gray-400 dark:text-gray-500">–</p>
                   )}
                 </div>
               </div>

@@ -10,7 +10,7 @@ const { Pool } = pg;
 const pool = new Pool({
   host: 'localhost',
   port: 5432,
-  database: 'immoflow',
+  database: 'rendito',
   user: 'my_macbook',
   password: 'dummy',
 });

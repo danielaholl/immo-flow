@@ -1,5 +1,5 @@
 module.exports = {
   root: true,
-  extends: ['@immoflow/eslint-config'],
+  extends: ['@rendito/eslint-config'],
   ignorePatterns: ['node_modules/', 'dist/', '.next/', '.expo/', 'build/'],
 };

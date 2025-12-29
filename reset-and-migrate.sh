@@ -12,7 +12,7 @@ echo -e "${BLUE}🗄️  Resetting database and running migrations...${NC}\n"
 
 # Drop all tables and schemas
 echo -e "${BLUE}🧹 Dropping all tables and schemas...${NC}"
-docker exec -i immoflow-postgres-dev psql -U postgres -d immoflow <<EOF
+docker exec -i rendito-postgres-dev psql -U postgres -d rendito <<EOF
 -- Drop all tables in public schema
 DROP SCHEMA IF EXISTS public CASCADE;
 CREATE SCHEMA public;
@@ -46,7 +46,7 @@ migrations=(
 for migration in "${migrations[@]}"; do
   echo -e "${BLUE}📝 Running: $migration${NC}"
 
-  if docker exec -i immoflow-postgres-dev psql -U postgres -d immoflow < "$migration" 2>&1 | grep -v "NOTICE:" | grep -v "^$"; then
+  if docker exec -i rendito-postgres-dev psql -U postgres -d rendito < "$migration" 2>&1 | grep -v "NOTICE:" | grep -v "^$"; then
     echo -e "${GREEN}✅ Success: $migration${NC}\n"
   else
     echo -e "${RED}❌ Failed: $migration${NC}\n"
@@ -58,9 +58,9 @@ echo -e "${GREEN}✅ All migrations completed successfully!${NC}\n"
 
 # Show tables
 echo -e "${BLUE}📊 Database tables:${NC}"
-docker exec immoflow-postgres-dev psql -U postgres -d immoflow -c "\dt"
+docker exec rendito-postgres-dev psql -U postgres -d rendito -c "\dt"
 
 echo -e "\n${BLUE}📊 Tables in auth schema:${NC}"
-docker exec immoflow-postgres-dev psql -U postgres -d immoflow -c "\dt auth.*"
+docker exec rendito-postgres-dev psql -U postgres -d rendito -c "\dt auth.*"
 
 echo -e "\n${GREEN}✅ Database is ready!${NC}"

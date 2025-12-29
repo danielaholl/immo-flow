@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Sparkles, RefreshCw, Home, Euro, Target, AlertTriangle, CheckCircle, ChevronDown } from 'lucide-react';
-import { InvestmentScoreBadge } from '@immoflow/ui';
+import { InvestmentScoreBadge } from '@rendito/ui';
 
 // Utility: Score von 0-100 auf 1-5 konvertieren
 const toDisplayScore = (score: number): number => {

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Heart, X, MessageSquare, Pencil, Power, Share2 } from 'lucide-react';
+import { GlassButton, GlassPrimaryButton } from '@rendito/ui';
 
 interface PropertyActionButtonsProps {
   // Mode
@@ -68,41 +69,37 @@ export function PropertyActionButtons({
   // Default favorite button label
   const defaultFavoriteLabel = isFavorite ? 'Favorit' : 'Favorit';
   const finalFavoriteLabel = favoriteButtonLabel || defaultFavoriteLabel;
+
   if (isOwner) {
     // Owner Mode: Bearbeiten + Teilen + Deaktivieren
     return (
       <div className={`flex flex-col sm:flex-row gap-3 ${className}`}>
-          <button
-            onClick={onEdit}
-            className="flex-1 bg-primary text-white font-semibold py-4 px-6 rounded-xl hover:opacity-90 transition-colors flex items-center justify-center gap-2"
-          >
-            <Pencil size={20} />
-            Bearbeiten
-          </button>
-          <button
-            onClick={onShare}
-            className="flex-1 bg-white border-2 border-gray-300 text-gray-700 font-semibold py-4 px-6 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-          >
-            <Share2 size={20} />
-            Teilen
-          </button>
-          <button
-            onClick={onDeactivate}
-            disabled={isDeactivateLoading}
-            className="flex-1 bg-white border-2 border-gray-300 text-gray-700 font-semibold py-4 px-6 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isDeactivateLoading ? (
-              <>
-                <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                Wird deaktiviert...
-              </>
-            ) : (
-              <>
-                <Power size={20} />
-                Deaktivieren
-              </>
-            )}
-          </button>
+        <GlassPrimaryButton
+          iconLeft={<Pencil />}
+          onClick={onEdit}
+          fullWidth
+          size="lg"
+        >
+          Bearbeiten
+        </GlassPrimaryButton>
+        <GlassButton
+          iconLeft={<Share2 />}
+          onClick={onShare}
+          fullWidth
+          size="lg"
+        >
+          Teilen
+        </GlassButton>
+        <GlassButton
+          iconLeft={<Power />}
+          onClick={onDeactivate}
+          disabled={isDeactivateLoading}
+          loading={isDeactivateLoading}
+          fullWidth
+          size="lg"
+        >
+          {isDeactivateLoading ? 'Wird deaktiviert...' : 'Deaktivieren'}
+        </GlassButton>
       </div>
     );
   }
@@ -111,59 +108,51 @@ export function PropertyActionButtons({
   return (
     <>
       <div className={`flex flex-wrap gap-3 ${className}`}>
-          <button
+        <div className="flex-1 min-w-[140px]">
+          <GlassButton
+            iconLeft={<Heart className="text-red-500" fill={isFavorite ? 'currentColor' : 'none'} />}
             onClick={onToggleFavorite}
-            className={`flex-1 min-w-[140px] font-semibold py-4 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 ${
-              isFavorite
-                ? 'bg-primary text-white hover:opacity-90'
-                : 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50'
-            }`}
+            fullWidth
+            size="lg"
           >
-            <Heart size={20} fill={isFavorite ? 'currentColor' : 'none'} />
-            <span className="truncate">{finalFavoriteLabel}</span>
-          </button>
-          <button
+            {finalFavoriteLabel}
+          </GlassButton>
+        </div>
+        <div className="flex-1 min-w-[140px]">
+          <GlassButton
+            iconLeft={<X />}
             onClick={onDismiss}
             disabled={isDismissLoading}
-            className="flex-1 min-w-[140px] bg-white border-2 border-gray-300 text-gray-700 font-semibold py-4 px-4 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            loading={isDismissLoading}
+            fullWidth
+            size="lg"
           >
-            {isDismissLoading ? (
-              <>
-                <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                <span className="truncate">Wird verarbeitet...</span>
-              </>
-            ) : (
-              <>
-                <X size={20} />
-                <span className="truncate">Kein Interesse</span>
-              </>
-            )}
-          </button>
-          <button
+            {isDismissLoading ? 'Wird verarbeitet...' : 'Kein Interesse'}
+          </GlassButton>
+        </div>
+        <div className="flex-1 min-w-[140px]">
+          <GlassButton
+            iconLeft={<MessageSquare className="text-green-500" />}
             onClick={onStartMessage}
             disabled={isMessageLoading}
-            className="flex-1 min-w-[140px] bg-green-600 text-white font-semibold py-4 px-4 rounded-xl hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            loading={isMessageLoading}
+            fullWidth
+            size="lg"
           >
-            {isMessageLoading ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span className="truncate">Wird gestartet...</span>
-              </>
-            ) : (
-              <>
-                <MessageSquare size={20} />
-                <span className="truncate">Nachricht</span>
-              </>
-            )}
-          </button>
-          <button
+            {isMessageLoading ? 'Wird gestartet...' : 'Nachricht'}
+          </GlassButton>
+        </div>
+        <div className="flex-1 min-w-[140px]">
+          <GlassButton
+            iconLeft={<Share2 className="text-blue-500" />}
             onClick={handleBuyerShare}
             disabled={!propertyUrl}
-            className="flex-1 min-w-[140px] bg-white border-2 border-gray-300 text-gray-700 font-semibold py-4 px-4 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            fullWidth
+            size="lg"
           >
-            <Share2 size={20} />
-            <span className="truncate">Teilen</span>
-          </button>
+            Teilen
+          </GlassButton>
+        </div>
       </div>
 
       {/* Copied Toast */}

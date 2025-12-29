@@ -49,7 +49,7 @@ export function SearchBar({ onSearch, className, placeholder }: SearchBarProps) 
     return (
       <div className={className || ''}>
         {/* Search Field */}
-        <div className="bg-white rounded-full shadow-lg border border-gray-200 hover:shadow-xl hover:border-accent-aqua transition-all">
+        <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-full shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl hover:border-accent-aqua dark:hover:border-accent-aqua transition-all">
           <div className="flex items-center">
             {/* Natural Language Input */}
             <div className="flex-1 px-4 sm:px-6 py-4 sm:py-5 flex items-center gap-3">
@@ -69,7 +69,7 @@ export function SearchBar({ onSearch, className, placeholder }: SearchBarProps) 
                 placeholder={desktopPlaceholder}
                 rows={1}
                 disabled={isLoading}
-                className="w-full resize-none outline-none text-gray-900 placeholder-gray-500 text-base sm:text-xl leading-tight max-h-24 overflow-y-auto disabled:opacity-50 bg-transparent text-center"
+                className="w-full resize-none outline-none text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-base sm:text-xl leading-tight max-h-24 overflow-y-auto disabled:opacity-50 bg-transparent text-center"
                 style={{ minHeight: '28px' }}
               />
             </div>

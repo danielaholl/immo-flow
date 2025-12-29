@@ -5,23 +5,80 @@
 /* Import Inter font */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-/* Accent Color Variables (from placeholder_house.png inspiration) */
+/* Theme Variables - Light Mode (Default) */
 :root {
-  /* Pool water - refreshing, clean, trust */
+  /* Background colors */
+  --bg-primary: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-elevated: #ffffff;
+  --bg-muted: #f1f5f9;
+
+  /* Border colors */
+  --border-color: #e2e8f0;
+  --border-light: #f1f5f9;
+
+  /* Text colors */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --text-inverse: #ffffff;
+
+  /* Accent colors (from placeholder_house.png inspiration) */
   --accent-aqua: #7DD3E8;
   --accent-aqua-light: #B5E8F0;
   --accent-aqua-50: #E8F9FC;
-  /* Warm white - soft backgrounds */
   --accent-cream: #FFFFFF;
   --accent-cream-dark: #FFFFFF;
-  /* Sky blue - calm, professional */
   --accent-sky: #E8F4F8;
-  /* Cherry blossom - soft highlights */
   --accent-blush: #FFFFFF;
   --accent-blush-dark: #FFFFFF;
-  /* Primary glow effect */
+
+  /* Glow effects */
   --glow-primary: 0 0 24px rgba(255, 56, 92, 0.3);
   --glow-aqua: 0 0 24px rgba(125, 211, 232, 0.3);
+
+  /* Input/Form colors */
+  --input-bg: #f8fafc;
+  --input-border: #e2e8f0;
+  --input-focus: #FF385C;
+}
+
+/* Theme Variables - Dark Mode */
+.dark {
+  /* Background colors */
+  --bg-primary: #030712;
+  --bg-card: #111827;
+  --bg-elevated: #1f2937;
+  --bg-muted: #1f2937;
+
+  /* Border colors */
+  --border-color: #1f2937;
+  --border-light: #374151;
+
+  /* Text colors */
+  --text-primary: #ffffff;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+  --text-inverse: #0f172a;
+
+  /* Accent colors adjusted for dark mode */
+  --accent-aqua: #67e8f9;
+  --accent-aqua-light: #22d3ee;
+  --accent-aqua-50: #164e63;
+  --accent-cream: #111827;
+  --accent-cream-dark: #1f2937;
+  --accent-sky: #1e3a5f;
+  --accent-blush: #1f2937;
+  --accent-blush-dark: #111827;
+
+  /* Glow effects for dark mode */
+  --glow-primary: 0 0 24px rgba(255, 56, 92, 0.4);
+  --glow-aqua: 0 0 24px rgba(103, 232, 249, 0.4);
+
+  /* Input/Form colors */
+  --input-bg: #1f2937;
+  --input-border: #374151;
+  --input-focus: #fb7185;
 }
 
 * {

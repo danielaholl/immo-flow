@@ -19,6 +19,36 @@ export default function AddPropertyPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<PropertyFormData>(initialPropertyFormData);
   const [errors, setErrors] = useState<Partial<Record<keyof PropertyFormData, string>>>({});
+  const [aiScore, setAiScore] = useState<number | null>(null);
+  const [aiScoreLoading, setAiScoreLoading] = useState(false);
+
+  const calculateAiScoreMutation = trpc.portfolio.calculateAiScore.useMutation({
+    onSuccess: (data) => {
+      setAiScore(data.overallScore);
+      setAiScoreLoading(false);
+    },
+    onError: () => {
+      setAiScoreLoading(false);
+    },
+  });
+
+  const handleCalculateAiScore = () => {
+    // Validate required fields for AI calculation
+    if (!formData.purchasePrice || !formData.location || !formData.sqm) {
+      return;
+    }
+
+    setAiScoreLoading(true);
+    calculateAiScoreMutation.mutate({
+      propertyData: {
+        purchasePrice: parseFloat(formData.purchasePrice),
+        location: formData.location,
+        sqm: parseFloat(formData.sqm),
+        yearBuilt: formData.yearBuilt ? parseInt(formData.yearBuilt, 10) : undefined,
+        monthlyRent: formData.monthlyRent ? parseFloat(formData.monthlyRent) : undefined,
+      },
+    });
+  };
 
   const createMutation = trpc.portfolio.create.useMutation({
     onSuccess: () => {
@@ -65,7 +95,11 @@ export default function AddPropertyPage() {
   };
 
   const handleSubmit = () => {
-    createMutation.mutate(formDataToApiInput(formData));
+    const apiInput = formDataToApiInput(formData);
+    createMutation.mutate({
+      ...apiInput,
+      aiScore: aiScore ?? undefined,
+    });
   };
 
   return (
@@ -132,6 +166,9 @@ export default function AddPropertyPage() {
             formData={formData}
             errors={errors}
             updateField={updateField}
+            aiScore={aiScore}
+            aiScoreLoading={aiScoreLoading}
+            onCalculateAiScore={handleCalculateAiScore}
           />
 
           {/* Navigation Buttons */}

@@ -31,6 +31,7 @@ export interface Property {
   yield?: number;
   features?: string[];
   energyClass?: string;
+  year_built?: number;
 }
 
 export interface PropertyCardProps {

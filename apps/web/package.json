@@ -9,10 +9,10 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@immoflow/api": "workspace:*",
-    "@immoflow/database": "workspace:*",
-    "@immoflow/ui": "workspace:*",
-    "@immoflow/utils": "workspace:*",
+    "@rendito/api": "workspace:*",
+    "@rendito/database": "workspace:*",
+    "@rendito/ui": "workspace:*",
+    "@rendito/utils": "workspace:*",
     "@stripe/stripe-js": "^8.6.0",
     "@tanstack/react-query": "4.42.0",
     "@trpc/client": "^10.45.0",
@@ -30,8 +30,8 @@
     "use-debounce": "^10.0.6"
   },
   "devDependencies": {
-    "@immoflow/tailwind-config": "workspace:*",
-    "@immoflow/typescript-config": "workspace:*",
+    "@rendito/tailwind-config": "workspace:*",
+    "@rendito/typescript-config": "workspace:*",
     "@types/jsonwebtoken": "^9.0.5",
     "@types/node": "^20.0.0",
     "@types/react": "^18.2.0",

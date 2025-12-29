@@ -1,5 +1,5 @@
 /**
- * Formatting utilities for ImmoFlow
+ * Formatting utilities for Rendito
  * Handles price, date, area, and other number formatting for German locale
  */
 

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "ImmoFlow",
-    "slug": "immoflow",
+    "name": "Rendito",
+    "slug": "rendito",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -11,18 +11,18 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.immoflow.app"
+      "bundleIdentifier": "com.rendito.app"
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#FF385C"
       },
-      "package": "com.immoflow.app"
+      "package": "com.rendito.app"
     },
     "web": {
       "bundler": "metro"
     },
-    "scheme": "immoflow",
+    "scheme": "rendito",
     "plugins": [
       "expo-router"
     ]

@@ -1,8 +1,28 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-// import { AIInvestmentEvaluation, PropertyFeedbackModal } from '@immoflow/ui'; // Components don't exist
+
+// Hook to check if screen is mobile (below lg breakpoint)
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024); // lg breakpoint
+    };
+
+    // Check on mount
+    checkMobile();
+
+    // Listen for resize
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  return isMobile;
+}
+// import { AIInvestmentEvaluation, PropertyFeedbackModal } from '@rendito/ui'; // Components don't exist
 import { useAuthContext } from '@/app/providers/AuthProvider';
 import { Header } from '@/app/components/Header';
 import { PropertyImageSlideshow } from '@/app/components/PropertyImageSlideshow';
@@ -13,11 +33,12 @@ import { PropertyPreview } from '@/app/components/PropertyPreview';
 import type { PropertyDocument } from '@/app/create-listing/types';
 import { mapToPropertyPreviewData } from '@/app/utils/propertyMapper';
 import { PropertyActionButtons } from '@/app/components/PropertyActionButtons';
+import { ActionButtonPanel } from '@/app/components/ActionButtonPanel';
 import { ShareLinkModal } from '@/app/components/ShareLinkModal';
 import { MobileDetailHeader } from '@/app/components/MobileDetailHeader';
 import { PageContainer } from '@/app/components/PageContainer';
 import { ArrowLeft } from 'lucide-react';
-import { InvestmentScoreBadge, PropertyScoreBadge, PropertyGlassActions } from '@immoflow/ui';
+import { InvestmentScoreBadge, PropertyScoreBadge, ImageOverlayActions } from '@rendito/ui';
 import { trpc } from '@/lib/trpc';
 import { useAuthGuard } from '@/app/hooks/useAuthGuard';
 import { LoginPromptModal } from '@/app/components/LoginPromptModal';
@@ -39,6 +60,7 @@ export default function PropertyPage() {
   const router = useRouter();
   const { user } = useAuthContext();
   const { canAccess, plan } = useSubscription();
+  const isMobile = useIsMobile();
   const [hasConsent, setHasConsent] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [consentLoading, setConsentLoading] = useState(false);
@@ -94,13 +116,16 @@ export default function PropertyPage() {
   // Check if this is teaser mode (non-authenticated user)
   const isTeaserMode = property?.requiresAuth ?? false;
 
-  // Check if current user is the owner of this property (early check for query optimization)
+  // Check if current user is the owner of this property (for backend-only checks like pending approvals)
   const isOwner = user && property && property.user_id === user.id;
 
-  // Fetch favorite status - only for non-owners (owners can't favorite their own properties)
+  // For UI display: always show as buyer view (owner can see their property from buyer perspective)
+  const isOwnerForUI = false;
+
+  // Fetch favorite status - now enabled for all users including owners
   const { data: isFavoriteData } = trpc.favorites.isFavorite.useQuery(
     { propertyId: params.id as string },
-    { enabled: !!user && !!params.id && !isOwner }
+    { enabled: !!user && !!params.id }
   );
   const isFavorite = isFavoriteData?.isFavorite ?? false;
 
@@ -379,9 +404,6 @@ export default function PropertyPage() {
   };
 
   const handleToggleFavorite = async () => {
-    // Owners can't favorite their own properties
-    if (isOwner) return;
-
     if (!user) {
       setShowLoginModal(true);
       return;
@@ -417,9 +439,6 @@ export default function PropertyPage() {
 
   const handleFavoriteToggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
-
-    // Owners can't favorite their own properties
-    if (isOwner) return;
 
     if (!user) {
       setShowLoginModal(true);
@@ -505,8 +524,8 @@ export default function PropertyPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-white flex items-center justify-center">
-        <p className="text-gray-500">Lade Property...</p>
+      <main className="min-h-screen bg-white dark:bg-[#030712] flex items-center justify-center">
+        <p className="text-gray-500 dark:text-gray-400">Lade Property...</p>
       </main>
     );
   }
@@ -517,13 +536,13 @@ export default function PropertyPage() {
 
   // Convert property data to PropertyPreview format using central mapper
   const propertyPreviewData = mapToPropertyPreviewData(property as any, {
-    isOwner: Boolean(isOwner),
+    isOwner: isOwnerForUI,
     aiEvaluation: aiEvaluation ?? undefined,
     buyerEvaluation: buyerEvaluation,
   });
 
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen bg-white dark:bg-[#030712]">
       <Header />
 
       {/* Mobile Detail Header - Only shown on mobile */}
@@ -539,18 +558,18 @@ export default function PropertyPage() {
         {/* Left Column - Property Details (Scrollable) */}
         <div className="w-full lg:w-1/2 flex flex-col lg:h-[calc(100vh-80px)] order-2 lg:order-1 relative">
           {/* Sticky Back Button Header - Only shown on desktop */}
-          <div className="hidden lg:flex items-center sticky top-0 bg-white/70 backdrop-blur-xl z-40 py-4 pr-6 -mb-16">
+          <div className="hidden lg:flex items-center sticky top-0 bg-white/70 dark:bg-[#030712]/70 backdrop-blur-xl z-40 py-4 pr-6 -mb-16">
             <button
               onClick={() => router.back()}
-              className="flex items-center gap-2 p-2 hover:bg-gray-100/80 rounded-lg transition-colors"
+              className="flex items-center gap-2 p-2 hover:bg-gray-100/80 dark:hover:bg-gray-800/80 rounded-lg transition-colors"
               aria-label="Zurück"
             >
-              <ArrowLeft size={24} className="text-gray-900" />
-              <span className="text-gray-900 font-medium">Zurück</span>
+              <ArrowLeft size={24} className="text-gray-900 dark:text-white" />
+              <span className="text-gray-900 dark:text-white font-medium">Zurück</span>
             </button>
           </div>
-          {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto py-4 lg:pt-16 lg:pb-4 pr-0 lg:pr-6">
+          {/* Scrollable Content - pr-3 provides space for scrollbar */}
+          <div className="flex-1 overflow-y-auto py-4 lg:pt-16 pr-3">
 
             {/* Property Preview Component */}
             <PropertyPreview
@@ -561,13 +580,13 @@ export default function PropertyPage() {
               isGeneratingEvaluation={isEvaluating}
               className="!shadow-none !rounded-none !bg-transparent"
               hasConsent={hasConsent}
-              isOwner={Boolean(isOwner)}
+              isOwner={isOwnerForUI}
               consentLoading={consentLoading}
               isUserLoggedIn={Boolean(user)}
               onGrantConsent={handleGrantConsent}
               showConsentSection={false}
               propertyId={property.id}
-              evaluationViewType={isOwner ? "seller" : "buyer"}
+              evaluationViewType="buyer"
               onTriggerEvaluation={handleTriggerEvaluation}
               showEvaluationButton={true}
               showCTAs={false}
@@ -585,30 +604,16 @@ export default function PropertyPage() {
               isSavingUserPropertyParams={saveUserPropertyParamsMutation.isLoading}
             />
 
-            {/* CTA Buttons - scrolls with content */}
-            <div className="mt-6 pb-8">
-              <PropertyActionButtons
-                isOwner={Boolean(isOwner)}
-                isFavorite={isFavorite}
-                onToggleFavorite={handleToggleFavorite}
-                onDismiss={handleDismiss}
-                onStartMessage={handleStartMessage}
-                onOpenFeedback={() => setIsPropertyFeedbackModalOpen(true)}
-                onEdit={() => router.push(`/edit-listing/${property.id}`)}
-                onDeactivate={handleDeactivate}
-                onShare={() => setIsShareModalOpen(true)}
-                isDismissLoading={dismissMutation.isLoading}
-                isMessageLoading={getOrCreateConversationMutation.isLoading}
-                isDeactivateLoading={deactivateMutation.isLoading}
-                propertyUrl={typeof window !== 'undefined' ? `${window.location.origin}/property/${property.id}` : ''}
-              />
-            </div>
           </div>
+
+          {/* Spacer for fixed ActionButtonPanel - ensures scrollbar ends above the panel */}
+          <div className="h-20 flex-shrink-0" />
         </div>
 
         {/* Right Column - Property Card with Slideshow or Document Viewer */}
+        {/* On mobile, always show slideshow (documents open in new tab) */}
         <div className="w-full lg:w-1/2 lg:sticky lg:top-20 h-[50vh] lg:h-[calc(100vh-80px)] py-4 lg:py-6 pl-0 lg:pl-6 order-1 lg:order-2">
-          {selectedDocument ? (
+          {selectedDocument && !isMobile ? (
             <DocumentViewer
               document={selectedDocument}
               onClose={() => setSelectedDocument(null)}
@@ -624,20 +629,24 @@ export default function PropertyPage() {
               propertyType={property.property_type || undefined}
               overlay={
                 <>
-                  {/* AI-Score Badge - Top Right (PropertyScoreBadge Component) */}
+                  {/* AI-Score Badge - Top Right (Ring Variant) - Klickbar für AI-Score-Seite */}
                   {(() => {
                     const aiScore = property.ai_investment_score ?? property.ai_score;
                     if (!aiScore) return null;
 
                     return (
-                      <div className="absolute top-14 right-6 z-20">
-                        <PropertyScoreBadge score={aiScore} variant="overlay" />
+                      <div
+                        className="absolute top-8 right-4 z-20 cursor-pointer hover:scale-105 transition-transform"
+                        onClick={() => router.push(`/property/${params.id}/ai-score`)}
+                        title="Zur detaillierten KI-Analyse"
+                      >
+                        <PropertyScoreBadge score={aiScore} variant="ring" />
                       </div>
                     );
                   })()}
 
-                  {/* Action Buttons - Bottom Right - Reusable Components */}
-                  <PropertyGlassActions
+                  {/* Action Buttons - Transparent Overlay Style */}
+                  <ImageOverlayActions
                     className="absolute bottom-5 right-3 z-20"
                     isFavorite={isFavorite}
                     onFavorite={handleFavoriteToggle}
@@ -652,6 +661,25 @@ export default function PropertyPage() {
         </div>
         </div>
       </PageContainer>
+
+      {/* Action Button Panel - Fixed at bottom with blur */}
+      <ActionButtonPanel layout="split">
+        <PropertyActionButtons
+          isOwner={isOwnerForUI}
+          isFavorite={isFavorite}
+          onToggleFavorite={handleToggleFavorite}
+          onDismiss={handleDismiss}
+          onStartMessage={handleStartMessage}
+          onOpenFeedback={() => setIsPropertyFeedbackModalOpen(true)}
+          onEdit={() => router.push(`/edit-listing/${property.id}`)}
+          onDeactivate={handleDeactivate}
+          onShare={() => setIsShareModalOpen(true)}
+          isDismissLoading={dismissMutation.isLoading}
+          isMessageLoading={getOrCreateConversationMutation.isLoading}
+          isDeactivateLoading={deactivateMutation.isLoading}
+          propertyUrl={typeof window !== 'undefined' ? `${window.location.origin}/property/${property.id}` : ''}
+        />
+      </ActionButtonPanel>
 
       {/* Commission Consent Dialog */}
       <CommissionConsentDialog
@@ -703,7 +731,7 @@ export default function PropertyPage() {
 
       {/* Contact Success Toast */}
       {showContactSuccess && (
-        <div className="fixed bottom-6 right-6 z-50 bg-green-500 text-white px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 animate-slide-up">
+        <div className="fixed bottom-6 right-6 z-50 bg-green-500 dark:bg-green-600 text-white px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 animate-slide-up">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>

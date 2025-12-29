@@ -1,6 +1,6 @@
 import { View, StyleSheet, Text, ScrollView } from 'react-native';
-import { Button, Avatar, colors, spacing } from '@immoflow/ui';
-import { useAuth } from '@immoflow/database';
+import { Button, Avatar, colors, spacing } from '@rendito/ui';
+import { useAuth } from '@rendito/database';
 
 /**
  * Profile Screen

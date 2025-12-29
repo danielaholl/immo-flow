@@ -28,4 +28,6 @@ export {
   type GlassButtonSize,
 } from './web/GlassButton';
 export { PropertyGlassActions, type PropertyGlassActionsProps } from './web/PropertyGlassActions';
+export { ImageOverlayButton, type ImageOverlayButtonProps, type ImageOverlayButtonVariant, type ImageOverlayButtonSize } from './web/ImageOverlayButton';
+export { ImageOverlayActions, type ImageOverlayActionsProps } from './web/ImageOverlayActions';
 export * from './web/PropertyImagePlaceholder';

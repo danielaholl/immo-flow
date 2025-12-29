@@ -5,7 +5,7 @@
 import { chromium } from 'playwright';
 import * as cheerio from 'cheerio';
 import type { ScrapedPropertyData } from '../property-scraper.js';
-import { createLogger } from '@immoflow/utils';
+import { createLogger } from '@rendito/utils';
 import {
   parsePrice,
   parseNumber,

@@ -15,14 +15,14 @@ interface FAQItemProps {
 
 function FAQItem({ question, answer, isOpen, onToggle }: FAQItemProps) {
   return (
-    <div className="border-b border-gray-200 last:border-0">
+    <div className="border-b border-gray-200 dark:border-gray-700 last:border-0">
       <button
         onClick={onToggle}
         className="w-full py-5 flex items-center justify-between text-left hover:text-primary transition-colors"
       >
-        <span className="font-medium text-gray-900">{question}</span>
+        <span className="font-medium text-gray-900 dark:text-white">{question}</span>
         <ChevronDown
-          className={`w-5 h-5 text-gray-500 transition-transform duration-200 ${
+          className={`w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform duration-200 ${
             isOpen ? 'rotate-180' : ''
           }`}
         />
@@ -32,7 +32,7 @@ function FAQItem({ question, answer, isOpen, onToggle }: FAQItemProps) {
           isOpen ? 'max-h-40 pb-5' : 'max-h-0'
         }`}
       >
-        <p className="text-gray-600">{answer}</p>
+        <p className="text-gray-600 dark:text-gray-300">{answer}</p>
       </div>
     </div>
   );
@@ -65,10 +65,10 @@ export default function PricingFAQ({ userType }: PricingFAQProps) {
 
   return (
     <section className="max-w-3xl mx-auto px-4 py-16">
-      <h2 className="text-3xl font-bold text-gray-900 text-center mb-8">
+      <h2 className="text-3xl font-bold text-gray-900 dark:text-white text-center mb-8">
         Häufig gestellte Fragen
       </h2>
-      <div className="bg-white rounded-2xl shadow-md p-6">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-md dark:shadow-gray-900/50 p-6">
         {faqs.map((faq, index) => (
           <FAQItem
             key={index}

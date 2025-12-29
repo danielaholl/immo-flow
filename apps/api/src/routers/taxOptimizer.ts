@@ -189,6 +189,39 @@ export const taxOptimizerRouter = router({
       return properties;
     }),
 
+  // Get all properties sorted by price (for tax optimizer - sorted by savings in frontend)
+  getAllPropertiesForTaxOptimizer: publicProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(20).default(6),
+      })
+    )
+    .query(async ({ input }) => {
+      const properties = await query(
+        `SELECT
+           p.id,
+           p.title,
+           p.price,
+           p.location,
+           p.sqm,
+           p.rooms,
+           p.images,
+           p.ai_investment_score,
+           p.year_built,
+           p.property_type
+         FROM properties p
+         WHERE
+           p.status = 'active'
+           AND (p.is_external = false OR p.is_community_shared = true)
+         ORDER BY
+           p.price DESC
+         LIMIT $1`,
+        [input.limit]
+      );
+
+      return properties;
+    }),
+
   // Get cashflow improvement scenarios
   getCashflowScenarios: publicProcedure
     .input(

@@ -14,14 +14,14 @@
     "composite": true,
     "baseUrl": ".",
     "paths": {
-      "@immoflow/ui": ["packages/ui/src"],
-      "@immoflow/ui/*": ["packages/ui/src/*"],
-      "@immoflow/database": ["packages/database/src"],
-      "@immoflow/database/*": ["packages/database/src/*"],
-      "@immoflow/utils": ["packages/utils/src"],
-      "@immoflow/utils/*": ["packages/utils/src/*"],
-      "@immoflow/api": ["packages/api/src"],
-      "@immoflow/api/*": ["packages/api/src/*"]
+      "@rendito/ui": ["packages/ui/src"],
+      "@rendito/ui/*": ["packages/ui/src/*"],
+      "@rendito/database": ["packages/database/src"],
+      "@rendito/database/*": ["packages/database/src/*"],
+      "@rendito/utils": ["packages/utils/src"],
+      "@rendito/utils/*": ["packages/utils/src/*"],
+      "@rendito/api": ["packages/api/src"],
+      "@rendito/api/*": ["packages/api/src/*"]
     }
   },
   "references": [

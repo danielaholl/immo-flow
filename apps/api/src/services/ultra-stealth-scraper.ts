@@ -13,7 +13,7 @@ import * as fs from 'fs';
 chromium.use(StealthPlugin());
 
 // Cookie storage file
-const COOKIE_FILE = path.join(os.tmpdir(), 'immoflow-cookies.json');
+const COOKIE_FILE = path.join(os.tmpdir(), 'rendito-cookies.json');
 
 // ImmobilienScout24 credentials from environment
 const IMMOSCOUT24_EMAIL = process.env.IMMOSCOUT24_EMAIL;

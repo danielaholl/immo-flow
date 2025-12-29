@@ -7,7 +7,9 @@ import {
   Landmark,
   Home,
   AlertCircle,
+  Sparkles,
 } from 'lucide-react';
+import { PropertyScoreBadge } from '@rendito/ui';
 
 type PropertyType = 'apartment' | 'house' | 'commercial' | 'multi_family';
 type PropertyCondition = 'new' | 'renovated' | 'good' | 'needs_work';
@@ -70,6 +72,7 @@ export const FORM_STEPS = [
   { id: 'purchase', label: 'Kaufdaten', icon: Wallet },
   { id: 'financing', label: 'Finanzierung', icon: Landmark },
   { id: 'rental', label: 'Mieteinnahmen', icon: Home },
+  { id: 'ai-analysis', label: 'AI-Analyse', icon: Sparkles },
 ];
 
 const propertyTypes: { value: PropertyType; label: string }[] = [
@@ -92,6 +95,9 @@ interface PropertyFormStepProps {
   errors: Partial<Record<keyof PropertyFormData, string>>;
   updateField: (field: keyof PropertyFormData, value: string) => void;
   isEdit?: boolean;
+  aiScore?: number | null;
+  aiScoreLoading?: boolean;
+  onCalculateAiScore?: () => void;
 }
 
 export function PropertyFormStep({
@@ -100,6 +106,9 @@ export function PropertyFormStep({
   errors,
   updateField,
   isEdit = false,
+  aiScore,
+  aiScoreLoading,
+  onCalculateAiScore,
 }: PropertyFormStepProps) {
   switch (step) {
     case 0:
@@ -614,6 +623,123 @@ export function PropertyFormStep({
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      );
+
+    case 4:
+      return (
+        <div className="space-y-6">
+          <h2 className="text-xl font-semibold text-gray-900">AI-Analyse</h2>
+          <p className="text-gray-500">
+            Lasse deine Immobilie von unserer KI analysieren und erhalte eine Bewertung.
+          </p>
+
+          <div className="space-y-6">
+            {/* AI Score Display */}
+            <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-6 border border-amber-100">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-amber-100 rounded-xl">
+                  <Sparkles className="w-6 h-6 text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">AI-Score</h3>
+                  <p className="text-sm text-gray-500">Investment-Bewertung deiner Immobilie</p>
+                </div>
+              </div>
+
+              {aiScoreLoading ? (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <div className="w-12 h-12 border-4 border-amber-200 border-t-amber-500 rounded-full animate-spin mb-4" />
+                  <p className="text-gray-600 font-medium">Analysiere Immobilie...</p>
+                  <p className="text-sm text-gray-400 mt-1">Dies kann einen Moment dauern</p>
+                </div>
+              ) : aiScore != null ? (
+                <div className="flex flex-col items-center py-4">
+                  {/* Score Badge */}
+                  <div className="mb-4">
+                    <PropertyScoreBadge score={aiScore} variant="overlay" />
+                  </div>
+
+                  {/* Score as X.X / 10 */}
+                  <div className={`text-5xl font-bold mb-2 ${
+                    aiScore >= 85 ? 'text-[#06d551]' : aiScore >= 60 ? 'text-green-600' : aiScore >= 40 ? 'text-yellow-600' : 'text-red-600'
+                  }`}>
+                    {(aiScore / 10).toFixed(1)} <span className="text-2xl text-gray-400">/ 10</span>
+                  </div>
+                  <p className={`text-lg font-medium ${
+                    aiScore >= 85 ? 'text-[#06d551]' : aiScore >= 60 ? 'text-green-600' : aiScore >= 40 ? 'text-yellow-600' : 'text-red-600'
+                  }`}>
+                    {aiScore >= 85 ? 'Sehr gutes Investment' : aiScore >= 60 ? 'Gutes Investment' : aiScore >= 40 ? 'Solides Investment' : 'Vorsicht geboten'}
+                  </p>
+                  <div className="mt-4 bg-white/50 rounded-xl p-4 w-full">
+                    <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          aiScore >= 85 ? 'bg-[#06d551]' : aiScore >= 60 ? 'bg-green-500' : aiScore >= 40 ? 'bg-yellow-500' : 'bg-red-500'
+                        }`}
+                        style={{ width: `${aiScore}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-400 mt-1">
+                      <span>0</span>
+                      <span>5</span>
+                      <span>10</span>
+                    </div>
+                  </div>
+                  {/* Recalculate button */}
+                  <button
+                    type="button"
+                    onClick={onCalculateAiScore}
+                    className="mt-4 inline-flex items-center gap-2 px-4 py-2 text-amber-600 bg-amber-100 rounded-lg text-sm font-medium hover:bg-amber-200 transition-colors"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Neu berechnen
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <p className="text-gray-500 mb-4">
+                    Klicke auf den Button, um die AI-Analyse zu starten.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={onCalculateAiScore}
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-amber-500 text-white rounded-xl font-medium hover:bg-amber-600 transition-colors"
+                  >
+                    <Sparkles className="w-5 h-5" />
+                    AI-Score berechnen
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Summary of entered data */}
+            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+              <h4 className="font-medium text-gray-700 mb-3">Zusammenfassung</h4>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="text-gray-400">Objekt:</span>
+                  <span className="ml-2 text-gray-700">{formData.title}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400">Ort:</span>
+                  <span className="ml-2 text-gray-700">{formData.location}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400">Kaufpreis:</span>
+                  <span className="ml-2 text-gray-700">
+                    {formData.purchasePrice ? `${parseInt(formData.purchasePrice).toLocaleString('de-DE')} €` : '–'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-400">Kaltmiete:</span>
+                  <span className="ml-2 text-gray-700">
+                    {formData.monthlyRent ? `${parseInt(formData.monthlyRent).toLocaleString('de-DE')} €` : '–'}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       );

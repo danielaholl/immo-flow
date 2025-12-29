@@ -57,28 +57,28 @@ export function InterestedPartiesList({ propertyId, defaultExpanded = true }: In
   const deniedRequests = requests?.filter((r: DocumentAccessRequest) => r.status === 'denied') || [];
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+    <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
       {/* Header */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+        className="w-full p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <Users size={20} className="text-gray-700" />
-          <h3 className="text-lg font-semibold text-gray-900">Interessenten</h3>
+          <Users size={20} className="text-gray-700 dark:text-gray-300" />
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Interessenten</h3>
           {(pendingCount?.count ?? 0) > 0 && (
             <span className="bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
               {pendingCount?.count} neu
             </span>
           )}
-          <span className="text-sm text-gray-500 font-normal">
+          <span className="text-sm text-gray-500 dark:text-gray-400 font-normal">
             ({requests?.length || 0} gesamt)
           </span>
         </div>
         {isExpanded ? (
-          <ChevronUp size={20} className="text-gray-500" />
+          <ChevronUp size={20} className="text-gray-500 dark:text-gray-400" />
         ) : (
-          <ChevronDown size={20} className="text-gray-500" />
+          <ChevronDown size={20} className="text-gray-500 dark:text-gray-400" />
         )}
       </button>
 
@@ -86,11 +86,11 @@ export function InterestedPartiesList({ propertyId, defaultExpanded = true }: In
         <>
           {isLoading ? (
             <div className="p-6 text-center">
-              <Loader2 size={24} className="animate-spin mx-auto text-gray-400" />
+              <Loader2 size={24} className="animate-spin mx-auto text-gray-400 dark:text-gray-500" />
             </div>
           ) : !requests || requests.length === 0 ? (
-            <div className="p-6 text-center text-gray-500">
-              <User size={48} className="mx-auto mb-2 text-gray-300" />
+            <div className="p-6 text-center text-gray-500 dark:text-gray-400">
+              <User size={48} className="mx-auto mb-2 text-gray-300 dark:text-gray-600" />
               <p>Noch keine Interessenten</p>
               <p className="text-sm mt-1">Interessenten erscheinen hier, wenn sie Zugriff auf geschützte Unterlagen anfordern.</p>
             </div>
@@ -102,7 +102,7 @@ export function InterestedPartiesList({ propertyId, defaultExpanded = true }: In
                   <button
                     onClick={() => approveAllMutation.mutate({ propertyId })}
                     disabled={approveAllMutation.isPending}
-                    className="w-full flex items-center justify-center gap-2 bg-green-50 text-green-700 py-2 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium"
+                    className="w-full flex items-center justify-center gap-2 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 py-2 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors text-sm font-medium"
                   >
                     {approveAllMutation.isPending ? (
                       <Loader2 size={16} className="animate-spin" />
@@ -117,7 +117,7 @@ export function InterestedPartiesList({ propertyId, defaultExpanded = true }: In
               {/* Pending requests */}
               {pendingRequests.length > 0 && (
                 <div className="px-4 pb-2">
-                  <p className="text-xs text-gray-500 uppercase tracking-wide font-medium mb-2">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium mb-2">
                     Ausstehend ({pendingRequests.length})
                   </p>
                   <div className="space-y-2">
@@ -137,7 +137,7 @@ export function InterestedPartiesList({ propertyId, defaultExpanded = true }: In
               {/* Approved requests */}
               {approvedRequests.length > 0 && (
                 <div className="px-4 pb-2">
-                  <p className="text-xs text-gray-500 uppercase tracking-wide font-medium mb-2">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium mb-2">
                     Genehmigt ({approvedRequests.length})
                   </p>
                   <div className="space-y-2">
@@ -157,7 +157,7 @@ export function InterestedPartiesList({ propertyId, defaultExpanded = true }: In
               {/* Denied requests */}
               {deniedRequests.length > 0 && (
                 <div className="px-4 pb-4">
-                  <p className="text-xs text-gray-500 uppercase tracking-wide font-medium mb-2">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium mb-2">
                     Abgelehnt ({deniedRequests.length})
                   </p>
                   <div className="space-y-2">
@@ -202,43 +202,43 @@ function RequestCard({ request, onRespond, isPending, formatDate, onApproveManua
   return (
     <div className={`p-3 rounded-xl border ${
       request.status === 'pending'
-        ? 'bg-orange-50 border-orange-200'
+        ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800'
         : request.status === 'approved'
-          ? 'bg-green-50 border-green-200'
-          : 'bg-red-50 border-red-200'
+          ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+          : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
     }`}>
       {/* Row 1: Name links, Score rechts */}
       <div className="flex items-center justify-between gap-2 mb-1">
         <div className="flex items-center gap-2 min-w-0">
-          <User size={14} className="text-gray-500 flex-shrink-0" />
-          <span className="font-medium text-gray-900 truncate">{fullName}</span>
+          <User size={14} className="text-gray-500 dark:text-gray-400 flex-shrink-0" />
+          <span className="font-medium text-gray-900 dark:text-white truncate">{fullName}</span>
         </div>
         {score !== null && score !== undefined && (
           <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div className="w-16 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
               <div
                 className={`h-full ${getScoreColor(score)} transition-all`}
                 style={{ width: `${(score / 10) * 100}%` }}
               />
             </div>
-            <span className="text-xs font-medium text-gray-600">{score}/10</span>
+            <span className="text-xs font-medium text-gray-600 dark:text-gray-300">{score}/10</span>
           </div>
         )}
       </div>
 
       {/* Email */}
-      <div className="flex items-center gap-2 text-sm text-gray-600">
+      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
         <Mail size={14} className="flex-shrink-0" />
-        <a href={`mailto:${request.user_email}`} className="hover:text-gray-900 truncate">
+        <a href={`mailto:${request.user_email}`} className="hover:text-gray-900 dark:hover:text-white truncate">
           {request.user_email}
         </a>
       </div>
 
       {/* Phone */}
       {request.user_phone && (
-        <div className="flex items-center gap-2 text-sm text-gray-600">
+        <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
           <Phone size={14} className="flex-shrink-0" />
-          <a href={`tel:${request.user_phone}`} className="hover:text-gray-900">
+          <a href={`tel:${request.user_phone}`} className="hover:text-gray-900 dark:hover:text-white">
             {request.user_phone}
           </a>
         </div>
@@ -247,7 +247,7 @@ function RequestCard({ request, onRespond, isPending, formatDate, onApproveManua
       {/* Row Bottom: Datum links, Buttons rechts */}
       <div className="flex items-center justify-between gap-2 mt-2">
         {/* Date */}
-        <div className="flex items-center gap-2 text-xs text-gray-400">
+        <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
           <Clock size={12} />
           <span>{formatDate(request.requested_at)}</span>
         </div>
@@ -258,7 +258,7 @@ function RequestCard({ request, onRespond, isPending, formatDate, onApproveManua
             <button
               onClick={() => onRespond('approved')}
               disabled={isPending}
-              className="p-1.5 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
+              className="p-1.5 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/70 transition-colors"
               title="Genehmigen"
             >
               {isPending ? (
@@ -270,19 +270,19 @@ function RequestCard({ request, onRespond, isPending, formatDate, onApproveManua
             <button
               onClick={() => onRespond('denied')}
               disabled={isPending}
-              className="p-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+              className="p-1.5 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/70 transition-colors"
               title="Ablehnen"
             >
               <X size={14} />
             </button>
           </div>
         ) : request.status === 'denied' ? (
-          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-400">
             Abgelehnt
           </span>
         ) : request.status === 'approved' && onApproveManualDocs ? (
           request.manual_docs_approved ? (
-            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400">
               Vollzugriff
             </span>
           ) : (
@@ -292,7 +292,7 @@ function RequestCard({ request, onRespond, isPending, formatDate, onApproveManua
                 onApproveManualDocs();
               }}
               disabled={isApprovingManualDocs}
-              className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 hover:bg-orange-200 transition-colors"
+              className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-400 hover:bg-orange-200 dark:hover:bg-orange-900/70 transition-colors"
             >
               {isApprovingManualDocs ? (
                 <Loader2 size={10} className="animate-spin inline" />

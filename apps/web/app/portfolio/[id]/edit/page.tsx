@@ -24,12 +24,32 @@ export default function EditPropertyPage() {
   const [formData, setFormData] = useState<PropertyFormData>(initialPropertyFormData);
   const [errors, setErrors] = useState<Partial<Record<keyof PropertyFormData, string>>>({});
   const [isInitialized, setIsInitialized] = useState(false);
+  const [aiScore, setAiScore] = useState<number | null>(null);
+  const [aiScoreLoading, setAiScoreLoading] = useState(false);
 
   // Fetch existing property data
   const { data: property, isLoading: propertyLoading } = trpc.portfolio.getById.useQuery(
     { id: propertyId },
     { enabled: !!propertyId }
   );
+
+  const calculateAiScoreMutation = trpc.portfolio.calculateAiScore.useMutation({
+    onSuccess: (data) => {
+      setAiScore(data.overallScore);
+      setAiScoreLoading(false);
+    },
+    onError: () => {
+      setAiScoreLoading(false);
+    },
+  });
+
+  const handleCalculateAiScore = () => {
+    setAiScoreLoading(true);
+    // Use property ID for existing properties
+    calculateAiScoreMutation.mutate({
+      propertyId,
+    });
+  };
 
   const updateMutation = trpc.portfolio.update.useMutation({
     onSuccess: () => {
@@ -47,6 +67,10 @@ export default function EditPropertyPage() {
   useEffect(() => {
     if (property && !isInitialized) {
       setFormData(propertyToFormData(property));
+      // Initialize AI score from property if exists
+      if (property.ai_score != null) {
+        setAiScore(Number(property.ai_score));
+      }
       setIsInitialized(true);
     }
   }, [property, isInitialized]);
@@ -83,9 +107,13 @@ export default function EditPropertyPage() {
   };
 
   const handleSubmit = () => {
+    const apiInput = formDataToApiInput(formData);
     updateMutation.mutate({
       id: propertyId,
-      data: formDataToApiInput(formData),
+      data: {
+        ...apiInput,
+        aiScore: aiScore ?? undefined,
+      },
     });
   };
 
@@ -189,6 +217,9 @@ export default function EditPropertyPage() {
             errors={errors}
             updateField={updateField}
             isEdit={true}
+            aiScore={aiScore}
+            aiScoreLoading={aiScoreLoading}
+            onCalculateAiScore={handleCalculateAiScore}
           />
 
           {/* Navigation Buttons */}

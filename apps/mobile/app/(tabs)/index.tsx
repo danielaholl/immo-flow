@@ -1,8 +1,8 @@
 import { View, FlatList, StyleSheet, Text, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { PropertyCard } from '@immoflow/ui';
-import { useProperties, useFavorites, useAuth } from '@immoflow/database';
-import { colors, spacing } from '@immoflow/ui';
+import { PropertyCard } from '@rendito/ui';
+import { useProperties, useFavorites, useAuth } from '@rendito/database';
+import { colors, spacing } from '@rendito/ui';
 
 /**
  * Discover Screen - Main feed with TikTok-style property cards

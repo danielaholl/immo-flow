@@ -60,13 +60,13 @@ importers:
 
   apps/admin:
     dependencies:
-      '@immoflow/api':
+      '@rendito/api':
         specifier: workspace:*
         version: link:../../packages/api
-      '@immoflow/database':
+      '@rendito/database':
         specifier: workspace:*
         version: link:../../packages/database
-      '@immoflow/utils':
+      '@rendito/utils':
         specifier: workspace:*
         version: link:../../packages/utils
       next:
@@ -79,10 +79,10 @@ importers:
         specifier: ^18.2.0
         version: 18.3.1(react@18.2.0)
     devDependencies:
-      '@immoflow/tailwind-config':
+      '@rendito/tailwind-config':
         specifier: workspace:*
         version: link:../../packages/config/tailwind-config
-      '@immoflow/typescript-config':
+      '@rendito/typescript-config':
         specifier: workspace:*
         version: link:../../packages/config/typescript-config
       '@types/node':
@@ -109,7 +109,10 @@ importers:
 
   apps/api:
     dependencies:
-      '@immoflow/utils':
+      '@anthropic-ai/sdk':
+        specifier: ^0.71.2
+        version: 0.71.2(zod@3.25.76)
+      '@rendito/utils':
         specifier: workspace:*
         version: link:../../packages/utils
       '@trpc/server':
@@ -236,16 +239,16 @@ importers:
 
   apps/mobile:
     dependencies:
-      '@immoflow/api':
+      '@rendito/api':
         specifier: workspace:*
         version: link:../../packages/api
-      '@immoflow/database':
+      '@rendito/database':
         specifier: workspace:*
         version: link:../../packages/database
-      '@immoflow/ui':
+      '@rendito/ui':
         specifier: workspace:*
         version: link:../../packages/ui
-      '@immoflow/utils':
+      '@rendito/utils':
         specifier: workspace:*
         version: link:../../packages/utils
       expo:
@@ -285,7 +288,7 @@ importers:
       '@babel/core':
         specifier: ^7.23.0
         version: 7.28.5
-      '@immoflow/typescript-config':
+      '@rendito/typescript-config':
         specifier: workspace:*
         version: link:../../packages/config/typescript-config
       '@types/react':
@@ -300,16 +303,16 @@ importers:
 
   apps/web:
     dependencies:
-      '@immoflow/api':
+      '@rendito/api':
         specifier: workspace:*
         version: link:../../packages/api
-      '@immoflow/database':
+      '@rendito/database':
         specifier: workspace:*
         version: link:../../packages/database
-      '@immoflow/ui':
+      '@rendito/ui':
         specifier: workspace:*
         version: link:../../packages/ui
-      '@immoflow/utils':
+      '@rendito/utils':
         specifier: workspace:*
         version: link:../../packages/utils
       '@stripe/stripe-js':
@@ -358,10 +361,10 @@ importers:
         specifier: ^10.0.6
         version: 10.0.6(react@18.2.0)
     devDependencies:
-      '@immoflow/tailwind-config':
+      '@rendito/tailwind-config':
         specifier: workspace:*
         version: link:../../packages/config/tailwind-config
-      '@immoflow/typescript-config':
+      '@rendito/typescript-config':
         specifier: workspace:*
         version: link:../../packages/config/typescript-config
       '@types/jsonwebtoken':
@@ -391,7 +394,7 @@ importers:
 
   packages/api:
     dependencies:
-      '@immoflow/database':
+      '@rendito/database':
         specifier: workspace:*
         version: link:../database
       '@sentry/node':
@@ -413,7 +416,7 @@ importers:
         specifier: ^2.34.0
         version: 2.34.0(postcss@8.5.6)
     devDependencies:
-      '@immoflow/typescript-config':
+      '@rendito/typescript-config':
         specifier: workspace:*
         version: link:../config/typescript-config
       '@testing-library/jest-dom':
@@ -476,7 +479,7 @@ importers:
         specifier: ^8.11.3
         version: 8.16.3
     devDependencies:
-      '@immoflow/typescript-config':
+      '@rendito/typescript-config':
         specifier: workspace:*
         version: link:../config/typescript-config
       '@types/pg':
@@ -491,7 +494,7 @@ importers:
 
   packages/ui:
     dependencies:
-      '@immoflow/api':
+      '@rendito/api':
         specifier: workspace:*
         version: link:../api
       lucide-react:
@@ -501,7 +504,7 @@ importers:
         specifier: ^18.2.0
         version: 18.2.0
     devDependencies:
-      '@immoflow/typescript-config':
+      '@rendito/typescript-config':
         specifier: workspace:*
         version: link:../config/typescript-config
       '@types/react':
@@ -529,7 +532,7 @@ importers:
         specifier: ^3.22.4
         version: 3.25.76
     devDependencies:
-      '@immoflow/typescript-config':
+      '@rendito/typescript-config':
         specifier: workspace:*
         version: link:../config/typescript-config
       '@types/node':
@@ -554,6 +557,19 @@ packages:
   /@alloc/quick-lru@5.2.0:
     resolution: {integrity: sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw==}
     engines: {node: '>=10'}
+
+  /@anthropic-ai/sdk@0.71.2(zod@3.25.76):
+    resolution: {integrity: sha512-TGNDEUuEstk/DKu0/TflXAEt+p+p/WhTlFzEnoosvbaDU2LTjm42igSdlL0VijrKpWejtOKxX0b8A7uc+XiSAQ==}
+    hasBin: true
+    peerDependencies:
+      zod: ^3.25.0 || ^4.0.0
+    peerDependenciesMeta:
+      zod:
+        optional: true
+    dependencies:
+      json-schema-to-ts: 3.1.1
+      zod: 3.25.76
+    dev: false
 
   /@apm-js-collab/code-transformer@0.8.2:
     resolution: {integrity: sha512-YRjJjNq5KFSjDUoqu5pFUWrrsvGOxl6c3bu+uMFc9HNNptZ2rNU/TI2nLw4jnhQNtka972Ee2m3uqbvDQtPeCA==}
@@ -9909,6 +9925,14 @@ packages:
       valid-url: 1.0.9
     dev: false
 
+  /json-schema-to-ts@3.1.1:
+    resolution: {integrity: sha512-+DWg8jCJG2TEnpy7kOm/7/AxaYoaRbjVB4LFZLySZlWn8exGs3A4OLJR966cVvU26N7X9TWxl+Jsw7dzAqKT6g==}
+    engines: {node: '>=16'}
+    dependencies:
+      '@babel/runtime': 7.28.4
+      ts-algebra: 2.0.0
+    dev: false
+
   /json-schema-traverse@0.4.1:
     resolution: {integrity: sha512-xbbCH5dCYU5T8LcEhhuh7HJ88HXuW3qsI3Y0zOZFKfZEHcpWiHU/Jxzk629Brsab/mMiHQti9wMP+845RPe3Vg==}
 
@@ -13465,6 +13489,10 @@ packages:
   /triple-beam@1.4.1:
     resolution: {integrity: sha512-aZbgViZrg1QNcG+LULa7nhZpJTZSLm/mXnHXnbAbjmN5aSa0y7V+wvv6+4WaBtpISJzThKy+PIPxc1Nq1EJ9mg==}
     engines: {node: '>= 14.0.0'}
+    dev: false
+
+  /ts-algebra@2.0.0:
+    resolution: {integrity: sha512-FPAhNPFMrkwz76P7cdjdmiShwMynZYN6SgOujD1urY4oNm80Ou9oMdmbR45LotcKOXoy7wSmHkRFE6Mxbrhefw==}
     dev: false
 
   /ts-api-utils@1.4.3(typescript@5.9.3):

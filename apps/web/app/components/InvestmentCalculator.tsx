@@ -187,6 +187,8 @@ export function InvestmentCalculator({
   const [editRenovationCosts, setEditRenovationCosts] = useState<number | null>(null);
   const [editMonthlyFee, setEditMonthlyFee] = useState<number | null>(null);
   const [editMonthlyRent, setEditMonthlyRent] = useState<number | null>(null);
+  const [editAfaRate, setEditAfaRate] = useState<number | null>(null);
+  const [editGrenzsteuersatz, setEditGrenzsteuersatz] = useState<number | null>(null);
 
   // Initialisiere Edit-States aus userParams wenn vorhanden
   useEffect(() => {
@@ -275,7 +277,10 @@ export function InvestmentCalculator({
   const NICHT_UMLEGBAR_ANTEIL = 0.30;
   const hausgeldNichtUmlegbar = Math.ceil(hausgeld * NICHT_UMLEGBAR_ANTEIL);
 
-  // Monatliche Ausgaben
+  // Monatliche Ausgaben (ohne Kapitaldienst - nur Hausgeld + Instandhaltung)
+  const monatlicheAusgabenOhneKredit = hausgeld + instandhaltungskosten;
+  const monatlicheAusgabenOhneKreditEffektiv = hausgeldNichtUmlegbar + instandhaltungskosten;
+  // Alte Variablen für Kompatibilität
   const monatlicheAusgabenGesamt = monatlicheRate + hausgeld + instandhaltungskosten;
   const monatlicheAusgabenEffektiv = monatlicheRate + hausgeldNichtUmlegbar + instandhaltungskosten;
 
@@ -319,50 +324,53 @@ export function InvestmentCalculator({
   const breakEvenEK = calculateBreakEvenEK();
 
   // Break-Even Jahre Berechnung (für Eigennutzer: wann lohnt sich Kaufen vs. Mieten)
+  // Ohne Wertsteigerung - reiner Kostenvergleich
   const calculateBreakEvenYears = (): number | null => {
     if (mieteinnahmen <= 0 || effectivePurchasePrice <= 0) return null;
 
-    const APPRECIATION_RATE = 0.025;   // 2.5% Wertsteigerung p.a.
-    const RENT_INCREASE_RATE = 0.025;  // 2.5% Mietsteigerung p.a.
+    // Kaufnebenkosten sind die "verlorenen" Kosten beim Kauf (keine Wertsteigerung angenommen)
+    const kaufnebenkostenVerlust = kaufnebenkosten;
 
-    let propertyValue = effectivePurchasePrice;
-    let remainingLoan = darlehensbetrag;
-    let currentYearlyRent = mieteinnahmen * 12;
-    let renterAccumulatedSavings = eigenkapital;
+    // Jährliche Kosten Käufer (ohne Tilgung, da Tilgung Vermögensaufbau ist)
+    const jaehrlicheZinsen = darlehensbetrag * (effectiveInterestRate / 100);
+    const jaehrlicheInstandhaltung = instandhaltungskosten * 12;
+    const jaehrlichesHausgeld = hausgeld * 12;
+    const jaehrlicheKaeuferKosten = jaehrlicheZinsen + jaehrlicheInstandhaltung + jaehrlichesHausgeld;
 
-    const yearlyMortgage = monatlicheRate * 12;
-    const yearlyMaintenance = instandhaltungskosten * 12;
-    const yearlyHausgeld = hausgeld * 12;
-    const yearlyBuyerCost = yearlyMortgage + yearlyMaintenance + yearlyHausgeld;
-    const yearlyTilgung = darlehensbetrag * (effectiveAmortizationRate / 100);
+    // Jährliche Kosten Mieter
+    const jaehrlicheMiete = mieteinnahmen * 12;
 
-    for (let year = 1; year <= 40; year++) {
-      currentYearlyRent *= (1 + RENT_INCREASE_RATE);
-      const yearlySavingsFromRenting = Math.max(0, yearlyBuyerCost - currentYearlyRent);
-      renterAccumulatedSavings = renterAccumulatedSavings + yearlySavingsFromRenting;
+    // Jährliche Ersparnis durch Kaufen (wenn positiv = Kaufen günstiger pro Jahr)
+    const jaehrlicheErsparnis = jaehrlicheMiete - jaehrlicheKaeuferKosten;
 
-      remainingLoan = Math.max(0, remainingLoan - yearlyTilgung);
-      propertyValue *= (1 + APPRECIATION_RATE);
-
-      const buyerNetWorth = propertyValue - remainingLoan;
-      if (buyerNetWorth >= renterAccumulatedSavings) {
-        return year;
-      }
+    // Wenn Kaufen teurer als Mieten pro Jahr, lohnt sich Kaufen nie (ohne Wertsteigerung)
+    if (jaehrlicheErsparnis <= 0) {
+      return 99; // Kaufen lohnt sich nie
     }
 
-    return 40; // Kein Break-Even in 40 Jahren
+    // Break-Even: Wann sind die Kaufnebenkosten durch die jährliche Ersparnis amortisiert?
+    const breakEvenJahre = Math.ceil(kaufnebenkostenVerlust / jaehrlicheErsparnis);
+
+    return Math.min(breakEvenJahre, 99);
   };
   const breakEvenYears = calculateBreakEvenYears();
+
+  // Effektive AfA und Grenzsteuersatz (Edit hat Priorität)
+  const defaultAfaRate = getAfaRate(yearBuilt);
+  const defaultGrenzsteuersatz = taxProfile?.marginal_tax_rate
+    ? Number(taxProfile.marginal_tax_rate) * 100
+    : 42;
+  const effectiveAfaRate = editAfaRate !== null ? editAfaRate / 100 : defaultAfaRate;
+  const effectiveGrenzsteuersatz = editGrenzsteuersatz !== null ? editGrenzsteuersatz / 100 : defaultGrenzsteuersatz / 100;
 
   // Steuereffekt berechnen
   const steuereffekt = useMemo(() => {
     if (effectivePurchasePrice <= 0) return null;
 
     // AfA berechnen
-    const afaRate = getAfaRate(yearBuilt);
     const buildingRatio = getBuildingRatio(yearBuilt);
     const gebaeudewert = effectivePurchasePrice * buildingRatio;
-    const afaJaehrlich = gebaeudewert * afaRate;
+    const afaJaehrlich = gebaeudewert * effectiveAfaRate;
     const afaMonatlich = afaJaehrlich / 12;
 
     // Cashflow jährlich
@@ -371,13 +379,8 @@ export function InvestmentCalculator({
     // Steuerlicher Gewinn/Verlust (Cashflow - AfA)
     const steuerlichesErgebnis = cashflowJaehrlich - afaJaehrlich;
 
-    // Grenzsteuersatz aus Profil oder Default 42%
-    const grenzsteuersatz = taxProfile?.marginal_tax_rate
-      ? Number(taxProfile.marginal_tax_rate)
-      : 0.42;
-
     // Steuereffekt berechnen
-    const jaehrlich = steuerlichesErgebnis * grenzsteuersatz;
+    const jaehrlich = steuerlichesErgebnis * effectiveGrenzsteuersatz;
     const monatlich = jaehrlich / 12;
 
     return {
@@ -387,11 +390,11 @@ export function InvestmentCalculator({
       afaMonatlich: Math.round(afaMonatlich),
       gebaeudewert: Math.round(gebaeudewert),
       steuerlichesErgebnis: Math.round(steuerlichesErgebnis),
-      grenzsteuersatz: Math.round(grenzsteuersatz * 100),
-      afaRate,
+      grenzsteuersatz: Math.round(effectiveGrenzsteuersatz * 100),
+      afaRate: effectiveAfaRate,
       buildingRatio,
     };
-  }, [effectivePurchasePrice, yearBuilt, calculatedCashflow, taxProfile]);
+  }, [effectivePurchasePrice, yearBuilt, calculatedCashflow, effectiveAfaRate, effectiveGrenzsteuersatz]);
 
   // Reset Edit Mode
   const handleReset = () => {
@@ -403,6 +406,8 @@ export function InvestmentCalculator({
     setEditRenovationCosts(null);
     setEditMonthlyFee(null);
     setEditMonthlyRent(null);
+    setEditAfaRate(null);
+    setEditGrenzsteuersatz(null);
   };
 
   // Speichern-Handler (für investor-Modus mit Persistenz)
@@ -445,11 +450,11 @@ export function InvestmentCalculator({
           onClick={() => setIsKaufnebenkostenExpanded(!isKaufnebenkostenExpanded)}
         >
           <div className="flex items-center gap-2">
-            <Receipt size={18} className="text-blue-600" />
+            <Receipt size={18} className="text-gray-700" />
             <h4 className="font-semibold text-gray-900 text-base">Gesamtinvestitionskosten</h4>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-base font-semibold text-blue-600">
+            <span className="text-base font-semibold text-gray-900">
               {formatCurrency(gesamtinvestition)}
             </span>
             <ChevronDown
@@ -558,18 +563,18 @@ export function InvestmentCalculator({
         )}
       </div>
 
-      {/* 2. Monatliche Rate */}
+      {/* 2. Kapitaldienst / Monat */}
       <div className="border-b border-gray-100">
         <div
           className="flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors py-4"
           onClick={() => setIsKapitaldienstExpanded(!isKapitaldienstExpanded)}
         >
           <div className="flex items-center gap-2">
-            <Landmark size={18} className="text-red-600" />
-            <h4 className="font-semibold text-gray-900 text-base">Monatliche Rate</h4>
+            <Landmark size={18} className="text-rose-600" />
+            <h4 className="font-semibold text-gray-900 text-base">Kapitaldienst / Monat</h4>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-base font-semibold text-red-600">
+            <span className="text-base font-semibold text-rose-600">
               -{formatCurrency(monatlicheRate)}
             </span>
             <ChevronDown
@@ -661,28 +666,28 @@ export function InvestmentCalculator({
               <span className="font-semibold text-gray-700 text-right">{formatCurrency(monatlicheTilgung)}/Monat</span>
             </div>
 
-            {/* Monatliche Rate */}
+            {/* Kapitaldienst / Monat */}
             <div className="flex justify-between items-center pt-2 border-t border-gray-200">
-              <span className="text-gray-900 font-bold">Monatliche Rate</span>
-              <span className="text-lg font-bold text-red-600">{formatCurrency(monatlicheRate)}</span>
+              <span className="text-gray-900 font-bold">Kapitaldienst / Monat</span>
+              <span className="text-lg font-bold text-rose-600">{formatCurrency(monatlicheRate)}</span>
             </div>
           </div>
         )}
       </div>
 
-      {/* 3. Monatliche Ausgaben */}
+      {/* 3. Ausgaben / Monat (nur Hausgeld + Instandhaltung) */}
       <div className="border-b border-gray-100">
         <div
           className="flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors py-4"
           onClick={() => setIsAusgabenExpanded(!isAusgabenExpanded)}
         >
           <div className="flex items-center gap-2">
-            <Receipt size={18} className="text-orange-600" />
-            <h4 className="font-semibold text-gray-900 text-base">Monatliche Ausgaben</h4>
+            <Receipt size={18} className="text-rose-600" />
+            <h4 className="font-semibold text-gray-900 text-base">Ausgaben / Monat</h4>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-base font-semibold text-orange-600">
-              -{formatCurrency(monatlicheAusgabenGesamt)}
+            <span className="text-base font-semibold text-rose-600">
+              -{formatCurrency(monatlicheAusgabenOhneKredit)}
             </span>
             <ChevronDown
               size={18}
@@ -692,17 +697,6 @@ export function InvestmentCalculator({
         </div>
         {isAusgabenExpanded && (
           <div className="space-y-2 mt-3 text-sm">
-            {/* Kreditrate */}
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600">
-                Kreditrate
-                <span className="text-xs text-gray-400 ml-1">
-                  ({effectiveInterestRate.toFixed(1)}% + {effectiveAmortizationRate.toFixed(0)}%)
-                </span>
-              </span>
-              <span className="font-semibold text-gray-700">{formatCurrency(monatlicheRate)}</span>
-            </div>
-
             {/* Hausgeld */}
             <div className="grid grid-cols-[155px_115px_1fr] items-center gap-2">
               <span className="text-gray-600">
@@ -725,7 +719,7 @@ export function InvestmentCalculator({
                   </span>
                 ) : null}
               </div>
-              <span className="font-semibold text-gray-700 text-right">{formatCurrency(hausgeld)}</span>
+              <span className="font-semibold text-gray-900 text-right">{formatCurrency(hausgeld)}</span>
             </div>
 
             {/* Instandhaltung */}
@@ -734,13 +728,13 @@ export function InvestmentCalculator({
                 Instandhaltung
                 <span className="text-xs text-gray-400 ml-1">(1% p.a.)</span>
               </span>
-              <span className="font-semibold text-gray-700">{formatCurrency(instandhaltungskosten)}</span>
+              <span className="font-semibold text-gray-900">{formatCurrency(instandhaltungskosten)}</span>
             </div>
 
             {/* Summe Gesamt */}
             <div className="flex justify-between items-center pt-2 border-t border-gray-200">
               <span className="text-gray-900 font-bold">Ausgaben gesamt</span>
-              <span className="text-lg font-bold text-orange-600">{formatCurrency(monatlicheAusgabenGesamt)}</span>
+              <span className="text-lg font-bold text-rose-600">{formatCurrency(monatlicheAusgabenOhneKredit)}</span>
             </div>
 
             {/* Davon nicht umlegbar (nur für Investor) */}
@@ -750,7 +744,7 @@ export function InvestmentCalculator({
                   davon nicht umlegbar
                   <span className="text-xs text-gray-400 ml-1">(für Cashflow)</span>
                 </span>
-                <span className="font-semibold text-gray-700">{formatCurrency(monatlicheAusgabenEffektiv)}</span>
+                <span className="font-semibold text-gray-900">{formatCurrency(monatlicheAusgabenOhneKreditEffektiv)}</span>
               </div>
             )}
           </div>
@@ -765,7 +759,7 @@ export function InvestmentCalculator({
         >
           <div className="flex items-center gap-2">
             {mode === 'investor' ? (
-              <Wallet size={18} className="text-green-600" />
+              <Wallet size={18} className={calculatedCashflow >= 0 ? 'text-emerald-600' : 'text-rose-600'} />
             ) : (
               <Home size={18} className="text-indigo-600" />
             )}
@@ -775,7 +769,7 @@ export function InvestmentCalculator({
           </div>
           <div className="flex items-center gap-3">
             {mieteinnahmen > 0 && (
-              <span className={`text-base font-semibold ${calculatedCashflow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <span className={`text-base font-semibold ${calculatedCashflow >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                 {calculatedCashflow >= 0 ? '+' : ''}{formatCurrency(calculatedCashflow)}
               </span>
             )}
@@ -808,16 +802,27 @@ export function InvestmentCalculator({
                   </span>
                 ) : null}
               </div>
-              <span className="font-semibold text-green-600 text-right">+{formatCurrency(mieteinnahmen)}</span>
+              <span className="font-semibold text-emerald-600 text-right">+{formatCurrency(mieteinnahmen)}</span>
             </div>
 
-            {/* Ausgaben */}
+            {/* Kapitaldienst */}
+            <div className="flex justify-between items-center">
+              <span className="text-gray-600">
+                Kapitaldienst
+                <span className="text-xs text-gray-400 ml-1">
+                  ({effectiveInterestRate.toFixed(1)}% + {effectiveAmortizationRate.toFixed(0)}%)
+                </span>
+              </span>
+              <span className="font-semibold text-rose-600">-{formatCurrency(monatlicheRate)}</span>
+            </div>
+
+            {/* Ausgaben / Monat */}
             <div className="flex justify-between items-center">
               <span className="text-gray-600">
                 {mode === 'investor' ? 'Ausgaben (nicht umlegbar)' : 'Ausgaben / Monat'}
               </span>
-              <span className="font-semibold text-red-600">
-                -{formatCurrency(mode === 'investor' ? monatlicheAusgabenEffektiv : monatlicheAusgabenGesamt)}
+              <span className="font-semibold text-rose-600">
+                -{formatCurrency(mode === 'investor' ? monatlicheAusgabenOhneKreditEffektiv : monatlicheAusgabenOhneKredit)}
               </span>
             </div>
 
@@ -826,7 +831,7 @@ export function InvestmentCalculator({
               <span className="text-gray-900 font-bold">
                 {mode === 'investor' ? 'Cashflow / Monat' : 'Differenz / Monat'}
               </span>
-              <span className={`text-lg font-bold ${calculatedCashflow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <span className={`text-lg font-bold ${calculatedCashflow >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                 {calculatedCashflow >= 0 ? '+' : ''}{formatCurrency(calculatedCashflow)}
               </span>
             </div>
@@ -851,11 +856,11 @@ export function InvestmentCalculator({
             onClick={() => setIsSteuereffektExpanded(!isSteuereffektExpanded)}
           >
             <div className="flex items-center gap-2">
-              <PiggyBank size={18} className={steuereffekt.monatlich < 0 ? 'text-green-600' : 'text-red-600'} />
+              <PiggyBank size={18} className={steuereffekt.monatlich < 0 ? 'text-emerald-600' : 'text-rose-600'} />
               <h4 className="font-semibold text-gray-900 text-base">Steuereffekt</h4>
             </div>
             <div className="flex items-center gap-3">
-              <span className={`text-base font-semibold ${steuereffekt.monatlich < 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <span className={`text-base font-semibold ${steuereffekt.monatlich < 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                 {steuereffekt.monatlich < 0 ? '+' : ''}{formatCurrency(Math.abs(steuereffekt.monatlich))}/Mo
               </span>
               <ChevronDown
@@ -869,37 +874,71 @@ export function InvestmentCalculator({
               {/* Cashflow */}
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">Cashflow / Monat</span>
-                <span className={`font-semibold ${calculatedCashflow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <span className={`font-semibold ${calculatedCashflow >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                   {calculatedCashflow >= 0 ? '+' : ''}{formatCurrency(calculatedCashflow)}
                 </span>
               </div>
 
               {/* AfA-Abschreibung */}
-              <div className="flex justify-between items-center">
+              <div className="grid grid-cols-[155px_115px_1fr] items-center gap-2">
                 <span className="text-gray-600">
                   − AfA / Monat
-                  <span className="text-xs text-gray-400 ml-1">({getAfaLabel(yearBuilt)})</span>
+                  {!isEditMode && <span className="text-xs text-gray-400 ml-1">({getAfaLabel(yearBuilt)})</span>}
                 </span>
-                <span className="font-semibold text-green-600">−{formatCurrency(steuereffekt.afaMonatlich)}</span>
+                <div className="flex justify-center">
+                  {isEditMode ? (
+                    <span className="relative inline-flex items-center">
+                      <input
+                        type="number"
+                        value={editAfaRate ?? ''}
+                        onChange={(e) => setEditAfaRate(e.target.value === '' ? null : Number(e.target.value))}
+                        placeholder={String(defaultAfaRate * 100)}
+                        className="w-24 pl-2 pr-7 py-1.5 border border-[#DDDDDD] rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none"
+                        min="0"
+                        max="10"
+                        step="0.5"
+                      />
+                      <span className="absolute right-2 text-gray-500 text-sm pointer-events-none">%</span>
+                    </span>
+                  ) : null}
+                </div>
+                <span className="font-semibold text-emerald-600 text-right">−{formatCurrency(steuereffekt.afaMonatlich)}</span>
               </div>
 
               {/* Steuerliches Ergebnis */}
               <div className="flex justify-between items-center pt-2 border-t border-gray-200">
                 <span className="text-gray-900 font-medium">Steuerliches Ergebnis</span>
-                <span className={`font-semibold ${steuereffekt.steuerlichesErgebnis < 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <span className={`font-semibold ${steuereffekt.steuerlichesErgebnis < 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                   {formatCurrency(Math.round(steuereffekt.steuerlichesErgebnis / 12))}
                 </span>
               </div>
 
               {/* Grenzsteuersatz */}
-              <div className="flex justify-between items-center">
+              <div className="grid grid-cols-[155px_115px_1fr] items-center gap-2">
                 <span className="text-gray-600">
                   × Grenzsteuersatz
-                  {taxProfile?.marginal_tax_rate && (
+                  {!isEditMode && taxProfile?.marginal_tax_rate && (
                     <span className="text-xs text-primary ml-1">(aus Profil)</span>
                   )}
                 </span>
-                <span className="font-semibold text-gray-700">{steuereffekt.grenzsteuersatz}%</span>
+                <div className="flex justify-center">
+                  {isEditMode ? (
+                    <span className="relative inline-flex items-center">
+                      <input
+                        type="number"
+                        value={editGrenzsteuersatz ?? ''}
+                        onChange={(e) => setEditGrenzsteuersatz(e.target.value === '' ? null : Number(e.target.value))}
+                        placeholder={String(defaultGrenzsteuersatz)}
+                        className="w-24 pl-2 pr-7 py-1.5 border border-[#DDDDDD] rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none"
+                        min="0"
+                        max="50"
+                        step="1"
+                      />
+                      <span className="absolute right-2 text-gray-500 text-sm pointer-events-none">%</span>
+                    </span>
+                  ) : null}
+                </div>
+                <span className="font-semibold text-gray-900 text-right">{steuereffekt.grenzsteuersatz}%</span>
               </div>
 
               {/* Steuereffekt */}
@@ -907,7 +946,7 @@ export function InvestmentCalculator({
                 <span className="text-gray-900 font-medium">
                   {steuereffekt.monatlich < 0 ? 'Steuerersparnis / Monat' : 'Steuerlast / Monat'}
                 </span>
-                <span className={`font-semibold ${steuereffekt.monatlich < 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <span className={`font-semibold ${steuereffekt.monatlich < 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                   {steuereffekt.monatlich < 0 ? '+' : ''}{formatCurrency(Math.abs(steuereffekt.monatlich))}
                 </span>
               </div>
@@ -915,7 +954,7 @@ export function InvestmentCalculator({
               {/* Cashflow nach Steuern */}
               <div className="flex justify-between items-center pt-2 border-t border-gray-200">
                 <span className="text-gray-900 font-bold">Cashflow nach Steuern</span>
-                <span className={`text-lg font-bold ${(calculatedCashflow - steuereffekt.monatlich) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <span className={`text-lg font-bold ${(calculatedCashflow - steuereffekt.monatlich) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                   {(calculatedCashflow - steuereffekt.monatlich) >= 0 ? '+' : ''}{formatCurrency(calculatedCashflow - steuereffekt.monatlich)}
                 </span>
               </div>
@@ -959,14 +998,14 @@ export function InvestmentCalculator({
                 <h4 className="font-semibold text-gray-900 text-base">Break-Even</h4>
                 <span className="text-xs text-gray-400">(Kaufen vs. Mieten)</span>
               </div>
-              <span className={`text-base font-semibold ${breakEvenYears <= 15 ? 'text-green-600' : breakEvenYears <= 25 ? 'text-yellow-600' : 'text-red-600'}`}>
+              <span className={`text-base font-semibold ${breakEvenYears <= 15 ? 'text-emerald-600' : breakEvenYears <= 25 ? 'text-amber-600' : 'text-rose-600'}`}>
                 {breakEvenYears} Jahre
               </span>
             </div>
           </div>
           {/* Annahmen */}
           <p className="text-xs text-gray-400 text-center pt-3">
-            Annahmen: 2,5% Wertsteigerung, 2,5% Mietsteigerung p.a.
+            Break-Even = Kaufnebenkosten ÷ jährliche Ersparnis (Miete − Zinsen − Hausgeld − Instandhaltung)
           </p>
         </>
       )}
@@ -1008,6 +1047,7 @@ export function InvestmentCalculator({
                   setIsKapitaldienstExpanded(true);
                   setIsAusgabenExpanded(true);
                   setIsCashflowExpanded(true);
+                  setIsSteuereffektExpanded(true);
                   // Edit-States mit aktuellen Werten initialisieren
                   setEditPurchasePrice(effectivePurchasePrice);
                   setEditEquityPercent(effectiveEquityPercent);
@@ -1017,6 +1057,8 @@ export function InvestmentCalculator({
                   setEditRenovationCosts(effectiveRenovationCosts);
                   setEditMonthlyFee(hausgeld);
                   setEditMonthlyRent(mieteinnahmen);
+                  setEditAfaRate(effectiveAfaRate * 100);
+                  setEditGrenzsteuersatz(effectiveGrenzsteuersatz * 100);
                   setIsEditMode(true);
                 }}
                 className="py-3 px-6 bg-gradient-to-r from-[#FF385C] to-[#E31C5F] hover:from-[#E31C5F] hover:to-[#C81E4E] text-white rounded-full transition-all flex items-center justify-center gap-2 text-sm font-semibold shadow-lg shadow-[#FF385C]/30 hover:shadow-xl hover:shadow-[#FF385C]/40 hover:-translate-y-0.5"

@@ -2,94 +2,169 @@
  * PropertyScoreBadge Component
  * Einheitlicher Badge für AI Investment Score
  *
- * Anzeige: 1-5 Skala (intern 0-100)
- * - 5 = top / sofort interessant (>= 80)
- * - 4 = gut / sehr prüfenswert (>= 60)
- * - 3 = ok / nur bei gutem Preis (>= 40)
- * - 2 = schwach / nur Spezialfall (>= 20)
- * - 1 = nein (< 20)
+ * Schwellenwerte:
+ * - 85-100: hell leuchtendes grün (Sehr gut)
+ * - 60-84: grün (Gut)
+ * - 40-59: gelb (OK)
+ * - <40: rot (Schwach)
+ *
+ * Varianten:
+ * - overlay: Klassisches Badge mit Icon + Text
+ * - ring: Apple Watch Style Progress-Ring
  */
 
 import React from 'react';
+import { Brain } from 'lucide-react';
 
 interface PropertyScoreBadgeProps {
-  /** Score auf 0-100 Skala (wird als 1-5 angezeigt) */
+  /** Score auf 0-100 Skala */
   score: number;
-  variant?: 'overlay' | 'inline';
-}
-
-// Score von 0-100 auf 1-5 konvertieren
-function toDisplayScore(score: number): number {
-  if (score >= 80) return 5;
-  if (score >= 60) return 4;
-  if (score >= 40) return 3;
-  if (score >= 20) return 2;
-  return 1;
+  variant?: 'overlay' | 'inline' | 'ring';
+  /** Größe des Badges (nur für ring-Variante) */
+  size?: 'sm' | 'md';
 }
 
 interface BadgeInfo {
   label: string;
-  badgeColor: string;
-  dotColor: string;
+  color: string;
+  colorLight: string;
 }
 
-function getBadgeInfo(displayScore: number): BadgeInfo {
-  if (displayScore >= 4) {
-    // 4-5: grün (gut/top)
+function getBadgeInfo(score: number): BadgeInfo {
+  if (score >= 85) {
     return {
-      label: displayScore === 5 ? 'Top' : 'Gut',
-      badgeColor: '#22C55E',
-      dotColor: '#22C55E',
+      label: 'Sehr gut',
+      color: '#06d551', // Custom bright green
+      colorLight: '#6ee89a', // Lighter version
     };
-  } else if (displayScore === 3) {
-    // 3: gelb (ok)
+  } else if (score >= 60) {
+    return {
+      label: 'Gut',
+      color: '#22C55E', // green-500
+      colorLight: '#86EFAC', // green-300
+    };
+  } else if (score >= 40) {
     return {
       label: 'OK',
-      badgeColor: '#F59E0B',
-      dotColor: '#F59E0B',
+      color: '#F59E0B', // amber-500
+      colorLight: '#FCD34D', // amber-300
     };
   } else {
-    // 1-2: rot (schwach/nein)
     return {
-      label: displayScore === 2 ? 'Schwach' : 'Nein',
-      badgeColor: '#EF4444',
-      dotColor: '#EF4444',
+      label: 'Schwach',
+      color: '#EF4444', // red-500
+      colorLight: '#FCA5A5', // red-300
     };
   }
 }
 
-export function PropertyScoreBadge({ score, variant = 'overlay' }: PropertyScoreBadgeProps) {
-  const displayScore = toDisplayScore(score);
-  const { dotColor } = getBadgeInfo(displayScore);
-  // Score als 2-stellige Zahl (0-100) anzeigen
-  const twoDigitScore = Math.round(score);
+export function PropertyScoreBadge({ score, variant = 'overlay', size: sizeProp = 'md' }: PropertyScoreBadgeProps) {
+  const { color, colorLight } = getBadgeInfo(score);
+  const roundedScore = Math.round(score);
 
+  // Ring Variant - Apple Watch Style
+  if (variant === 'ring') {
+    // Size configuration
+    const isSmall = sizeProp === 'sm';
+    const ringSize = isSmall ? 52 : 64;
+    const strokeWidth = isSmall ? 7 : 10;
+    const radius = (ringSize - strokeWidth * 2) / 2;
+    const circumference = 2 * Math.PI * radius;
+    const strokeDashoffset = circumference - (score / 100) * circumference;
+
+    return (
+      <div className="relative" style={{ width: ringSize, height: ringSize }}>
+        {/* SVG Ring */}
+        <svg
+          width={ringSize}
+          height={ringSize}
+          className="transform -rotate-90"
+        >
+          {/* Background Ring */}
+          <circle
+            cx={ringSize / 2}
+            cy={ringSize / 2}
+            r={radius}
+            stroke="rgba(255, 255, 255, 0.3)"
+            strokeWidth={strokeWidth}
+            fill="none"
+          />
+          {/* Progress Ring */}
+          <circle
+            cx={ringSize / 2}
+            cy={ringSize / 2}
+            r={radius}
+            stroke={color}
+            strokeWidth={strokeWidth}
+            fill="none"
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeDashoffset}
+            strokeLinecap="round"
+            className="transition-all duration-500 ease-out"
+          />
+        </svg>
+        {/* Center Content - smaller than ring */}
+        <div
+          className="absolute flex items-center justify-center rounded-full"
+          style={{
+            top: strokeWidth + 2,
+            left: strokeWidth + 2,
+            right: strokeWidth + 2,
+            bottom: strokeWidth + 2,
+            background: 'rgba(0, 0, 0, 0.6)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+          }}
+        >
+          <span
+            className={`font-bold text-white tabular-nums ${isSmall ? 'text-sm' : 'text-base'}`}
+            style={{ textShadow: '0 1px 2px rgba(0, 0, 0, 0.5)' }}
+          >
+            {(score / 10).toFixed(1)}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // Default Overlay Variant
   return (
     <div
-      className="h-[52px] rounded-full flex items-center gap-2 px-4"
+      className="rounded-lg flex items-center gap-2 px-3 py-2"
       style={{
-        backdropFilter: 'blur(4px)',
-        WebkitBackdropFilter: 'blur(4px)',
-        border: '1px solid rgba(255, 255, 255, 0.5)',
-        background: 'rgba(0, 0, 0, 0.3)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        border: '1px solid rgba(255, 255, 255, 0.3)',
+        background: 'rgba(0, 0, 0, 0.4)',
       }}
     >
-      {/* Ampel-Dot */}
+      {/* Brain Icon with gradient background - glow effect */}
       <div
-        className="w-4 h-4 rounded-full flex-shrink-0"
+        className="w-10 h-10 rounded-xl flex items-center justify-center"
         style={{
-          backgroundColor: dotColor,
-          boxShadow: `0 0 8px ${dotColor}`,
-        }}
-      />
-      {/* Score in weiß (2-stellig) */}
-      <div
-        className="text-[28px] font-bold leading-none text-white"
-        style={{
-          textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+          background: `linear-gradient(135deg, ${color} 0%, ${colorLight} 100%)`,
         }}
       >
-        {twoDigitScore}
+        <Brain
+          size={22}
+          color="black"
+          strokeWidth={2}
+        />
+      </div>
+      {/* Label and Score */}
+      <div className="flex flex-col">
+        <span
+          className="text-[11.5px] font-semibold text-white/80 leading-none uppercase"
+          style={{ letterSpacing: '0.05em' }}
+        >
+          AI-Score
+        </span>
+        <span
+          className="text-sm font-bold text-white leading-none mt-0.5"
+          style={{ textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}
+        >
+          {(score / 10).toFixed(1)} / 10
+        </span>
       </div>
     </div>
   );

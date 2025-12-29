@@ -58,29 +58,29 @@ export function SellerKnowledgeManager({
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+    <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
       {/* Header */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+        className="w-full p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <Brain size={20} className="text-purple-600" />
-          <h3 className="text-lg font-semibold text-gray-900">KI-Wissensbasis</h3>
+          <Brain size={20} className="text-purple-600 dark:text-purple-400" />
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">KI-Wissensbasis</h3>
         </div>
         {isExpanded ? (
-          <ChevronUp size={20} className="text-gray-500" />
+          <ChevronUp size={20} className="text-gray-500 dark:text-gray-400" />
         ) : (
-          <ChevronDown size={20} className="text-gray-500" />
+          <ChevronDown size={20} className="text-gray-500 dark:text-gray-400" />
         )}
       </button>
 
       {/* Content */}
       {isExpanded && (
-        <div className="border-t border-gray-200">
+        <div className="border-t border-gray-200 dark:border-gray-800">
           {/* Description */}
-          <div className="p-4 bg-purple-50 border-b border-purple-100">
-            <p className="text-sm text-purple-800">
+          <div className="p-4 bg-purple-50 dark:bg-purple-900/30 border-b border-purple-100 dark:border-purple-800">
+            <p className="text-sm text-purple-800 dark:text-purple-300">
               Informationen fuer den KI-Assistenten. Wird auch automatisch aus Chat-Antworten ergaenzt.
             </p>
           </div>
@@ -88,7 +88,7 @@ export function SellerKnowledgeManager({
           {/* Loading State */}
           {isLoading ? (
             <div className="p-8 text-center">
-              <Loader2 size={32} className="animate-spin text-gray-400 mx-auto" />
+              <Loader2 size={32} className="animate-spin text-gray-400 dark:text-gray-500 mx-auto" />
             </div>
           ) : isEditing ? (
             /* Edit Mode */
@@ -96,19 +96,19 @@ export function SellerKnowledgeManager({
               <textarea
                 value={editedNotes}
                 onChange={(e) => setEditedNotes(e.target.value)}
-                className="w-full h-64 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-700"
+                className="w-full h-64 p-4 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-700 dark:text-gray-200"
                 placeholder="z.B. Die Tiefgarage wird 2025 saniert (Sonderumlage 10.000 EUR). Die Heizung wurde 2020 erneuert. Das Bad ist original von 1995..."
                 maxLength={50000}
                 autoFocus
               />
               <div className="mt-2 flex justify-between items-center">
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-gray-500 dark:text-gray-400">
                   {editedNotes.length.toLocaleString('de-DE')} / 50.000 Zeichen
                 </span>
                 <div className="flex gap-2">
                   <button
                     onClick={handleCancel}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                    className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
                   >
                     Abbrechen
                   </button>
@@ -135,21 +135,21 @@ export function SellerKnowledgeManager({
           ) : (
             /* View Mode */
             <div className="p-4">
-              <div className="bg-gray-50 rounded-lg p-4 relative">
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 relative">
                 {!hasContent && (
-                  <div className="text-gray-400 italic">
+                  <div className="text-gray-400 dark:text-gray-500 italic">
                     Noch keine Informationen hinterlegt.
                   </div>
                 )}
                 {hasContent && (
                   <div className="pr-24">
-                    <div className="whitespace-pre-wrap text-gray-700">
+                    <div className="whitespace-pre-wrap text-gray-700 dark:text-gray-300">
                       {displayText}
                     </div>
                     {isLongText && (
                       <button
                         onClick={() => setIsTextExpanded(!isTextExpanded)}
-                        className="text-purple-600 hover:text-purple-800 text-sm mt-2"
+                        className="text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 text-sm mt-2"
                       >
                         {isTextExpanded ? 'Weniger anzeigen' : 'Mehr anzeigen'}
                       </button>
@@ -158,7 +158,7 @@ export function SellerKnowledgeManager({
                 )}
                 <button
                   onClick={handleStartEdit}
-                  className="absolute top-2 right-2 flex items-center gap-1 px-3 py-1.5 text-sm text-purple-600 hover:bg-purple-100 rounded-lg transition-colors"
+                  className="absolute top-2 right-2 flex items-center gap-1 px-3 py-1.5 text-sm text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/50 rounded-lg transition-colors"
                 >
                   <Pencil size={14} />
                   Bearbeiten

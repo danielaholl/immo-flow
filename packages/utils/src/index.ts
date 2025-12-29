@@ -1,6 +1,6 @@
 /**
- * @immoflow/utils
- * Shared utilities for ImmoFlow monorepo
+ * @rendito/utils
+ * Shared utilities for Rendito monorepo
  */
 
 export * from './formatting';

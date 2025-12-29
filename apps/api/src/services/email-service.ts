@@ -3,7 +3,7 @@
  * Handles sending emails for notifications
  */
 
-import { createLogger } from '@immoflow/utils';
+import { createLogger } from '@rendito/utils';
 
 const log = createLogger('email-service');
 
@@ -100,7 +100,7 @@ export async function sendMessageNotificationEmail(
 
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
           <p style="font-size: 12px; color: #999;">
-            ImmoFlow - Deine Immobilienplattform
+            Rendito - Deine Immobilienplattform
           </p>
         </div>
       </body>
@@ -120,7 +120,7 @@ ${notification.propertyTitle}
 
 Bitte antworte hier: ${notification.conversationUrl}
 
-ImmoFlow - Deine Immobilienplattform
+Rendito - Deine Immobilienplattform
   `;
 
   return sendEmail({
@@ -169,7 +169,7 @@ export async function sendSellerQuestionNotificationEmail(
 
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
           <p style="font-size: 12px; color: #999;">
-            ImmoFlow - Deine Immobilienplattform
+            Rendito - Deine Immobilienplattform
           </p>
         </div>
       </body>
@@ -189,7 +189,7 @@ ${propertyTitle}
 
 Bitte antworten Sie der Frage: ${conversationUrl}
 
-ImmoFlow - Deine Immobilienplattform
+Rendito - Deine Immobilienplattform
   `;
 
   return sendEmail({
@@ -236,7 +236,7 @@ export async function sendBuyerReplyNotificationEmail(
 
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
           <p style="font-size: 12px; color: #999;">
-            ImmoFlow - Deine Immobilienplattform
+            Rendito - Deine Immobilienplattform
           </p>
         </div>
       </body>
@@ -256,7 +256,7 @@ ${propertyTitle}
 
 Antwort ansehen: ${conversationUrl}
 
-ImmoFlow - Deine Immobilienplattform
+Rendito - Deine Immobilienplattform
   `;
 
   return sendEmail({

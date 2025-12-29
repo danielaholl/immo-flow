@@ -1,6 +1,6 @@
 /**
  * Socket.io Client
- * Real-time messaging client for ImmoFlow
+ * Real-time messaging client for Rendito
  */
 import { io, Socket } from 'socket.io-client';
 

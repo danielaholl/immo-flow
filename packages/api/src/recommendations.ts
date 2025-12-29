@@ -3,8 +3,8 @@
  * TikTok-style personalized property recommendations
  * Migrated to use PostgreSQL directly
  */
-import { query, queryOne, queryWithUser } from '@immoflow/database';
-import type { Database } from '@immoflow/database';
+import { query, queryOne, queryWithUser } from '@rendito/database';
+import type { Database } from '@rendito/database';
 
 // =====================================================
 // TYPES

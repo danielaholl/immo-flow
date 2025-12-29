@@ -23,7 +23,7 @@ export default function PricingCard({
   // Teaser-Karte hat spezielles Styling
   if (isTeaser) {
     return (
-      <div className="relative bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl p-6 flex flex-col h-full border-2 border-dashed border-indigo-300 transition-all duration-200 hover:border-indigo-400">
+      <div className="relative bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-indigo-900/30 dark:to-indigo-800/30 rounded-2xl p-6 flex flex-col h-full border-2 border-dashed border-indigo-300 dark:border-indigo-600 transition-all duration-200 hover:border-indigo-400 dark:hover:border-indigo-500">
         <div className="absolute -top-3 left-1/2 -translate-x-1/2">
           <span className="bg-indigo-500 text-white text-sm font-medium px-4 py-1 rounded-full whitespace-nowrap">
             Tipp
@@ -31,13 +31,13 @@ export default function PricingCard({
         </div>
 
         <div className="mb-4">
-          <h3 className="text-xl font-bold text-indigo-900">{name}</h3>
-          <p className="text-indigo-700 text-sm mt-1">{description}</p>
+          <h3 className="text-xl font-bold text-indigo-900 dark:text-indigo-100">{name}</h3>
+          <p className="text-indigo-700 dark:text-indigo-300 text-sm mt-1">{description}</p>
         </div>
 
         <div className="mb-6">
-          <span className="text-3xl font-bold text-indigo-900">ab {price}€</span>
-          <span className="text-indigo-600 ml-1">/{period}</span>
+          <span className="text-3xl font-bold text-indigo-900 dark:text-indigo-100">ab {price}€</span>
+          <span className="text-indigo-600 dark:text-indigo-400 ml-1">/{period}</span>
         </div>
 
         <button
@@ -50,8 +50,8 @@ export default function PricingCard({
 
         <ul className="mt-6 space-y-3 flex-grow">
           {features.map((feature, i) => (
-            <li key={i} className="flex items-start gap-3 text-indigo-700 text-sm">
-              <Check className="w-5 h-5 text-indigo-500 flex-shrink-0 mt-0.5" />
+            <li key={i} className="flex items-start gap-3 text-indigo-700 dark:text-indigo-300 text-sm">
+              <Check className="w-5 h-5 text-indigo-500 dark:text-indigo-400 flex-shrink-0 mt-0.5" />
               <span>{feature}</span>
             </li>
           ))}
@@ -63,8 +63,8 @@ export default function PricingCard({
   return (
     <div
       className={`
-        relative bg-white rounded-2xl p-6 flex flex-col h-full
-        ${isPopular ? 'ring-2 ring-primary shadow-lg scale-105' : 'shadow-md hover:shadow-lg'}
+        relative bg-white dark:bg-gray-900 rounded-2xl p-6 flex flex-col h-full
+        ${isPopular ? 'ring-2 ring-primary shadow-lg scale-105' : 'shadow-md hover:shadow-lg dark:shadow-gray-900/50'}
         transition-all duration-200
       `}
     >
@@ -84,19 +84,19 @@ export default function PricingCard({
       )}
 
       <div className="mb-4">
-        <h3 className="text-xl font-bold text-gray-900">{name}</h3>
-        <p className="text-gray-500 text-sm mt-1">{description}</p>
+        <h3 className="text-xl font-bold text-gray-900 dark:text-white">{name}</h3>
+        <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">{description}</p>
       </div>
 
       <div className="mb-6">
         {price === 0 && period !== 'Monat' ? (
           <>
-            <span className="text-2xl font-bold text-gray-900">{period}</span>
+            <span className="text-2xl font-bold text-gray-900 dark:text-white">{period}</span>
           </>
         ) : (
           <>
-            <span className="text-4xl font-bold text-gray-900">{price}€</span>
-            <span className="text-gray-500 ml-1">/{period}</span>
+            <span className="text-4xl font-bold text-gray-900 dark:text-white">{price}€</span>
+            <span className="text-gray-500 dark:text-gray-400 ml-1">/{period}</span>
           </>
         )}
       </div>
@@ -108,10 +108,10 @@ export default function PricingCard({
           w-full py-3 px-4 rounded-xl font-semibold transition-colors duration-200
           ${
             isCurrentPlan
-              ? 'bg-green-100 text-green-700 cursor-default'
+              ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 cursor-default'
               : isPopular
                 ? 'bg-primary text-white hover:bg-primary/90'
-                : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-700'
           }
         `}
       >
@@ -120,7 +120,7 @@ export default function PricingCard({
 
       <ul className="mt-6 space-y-3 flex-grow">
         {features.map((feature, i) => (
-          <li key={i} className="flex items-start gap-3 text-gray-600 text-sm">
+          <li key={i} className="flex items-start gap-3 text-gray-600 dark:text-gray-300 text-sm">
             <Check className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
             <span>{feature}</span>
           </li>

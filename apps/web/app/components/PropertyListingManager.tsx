@@ -10,7 +10,7 @@ import { useAuthContext } from '@/app/providers/AuthProvider';
 import { PropertyPreview, PropertyPreviewData } from './PropertyPreview';
 import { SlideshowManagerProvider } from './SlideshowManagerContext';
 import { PropertyImageSlideshow } from './PropertyImageSlideshow';
-import { PropertyImagePlaceholder } from '@immoflow/ui';
+import { PropertyImagePlaceholder } from '@rendito/ui';
 import { trpc } from '@/lib/trpc';
 import { MessageSquare, Eye, Images, Loader2, Sparkles } from 'lucide-react';
 import { useConversationalAI } from '../create-listing/hooks/useConversationalAI';

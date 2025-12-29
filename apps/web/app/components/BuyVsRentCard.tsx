@@ -256,12 +256,15 @@ export function BuyVsRentCard({
     suggestions?: string[];
     verdict: 'positive' | 'neutral' | 'negative';
     color: string;
+    claude?: { text: string; suggestions: string[] };
+    openai?: { text: string; suggestions: string[] };
   } | null>(null);
   const [fazitRequested, setFazitRequested] = useState(false);
   const [aiFazitError, setAiFazitError] = useState(false);
+  const [showClaudeFazit, setShowClaudeFazit] = useState(false);
 
   const generateAiFazitMutation = trpc.evaluations.generateAiFazit.useMutation({
-    onSuccess: (data: { text: string; suggestions?: string[]; verdict: 'positive' | 'neutral' | 'negative'; color: string }) => {
+    onSuccess: (data: { text: string; suggestions?: string[]; verdict: 'positive' | 'neutral' | 'negative'; color: string; claude?: { text: string; suggestions: string[] }; openai?: { text: string; suggestions: string[] } }) => {
       setAiFazit(data);
     },
     onError: () => {
@@ -475,34 +478,67 @@ export function BuyVsRentCard({
                 {/* Accordion Content */}
                 {isKiFazitExpanded && (
                   <div className="px-4 pb-4 space-y-3">
-                    {/* Fazit Text */}
-                    <p className="text-sm text-gray-700 leading-relaxed">{displayFazit.text}</p>
-
-                    {/* Optimierungsvorschläge */}
-                    {aiFazit?.suggestions && aiFazit.suggestions.length > 0 && (
-                      <div className="rounded-xl p-3 bg-white/50 border border-indigo-100">
-                        <div className="flex items-start gap-3">
-                          <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 bg-indigo-100">
-                            <svg className="w-3 h-3 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                            </svg>
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-xs font-semibold text-gray-900 mb-1.5">
-                              Optimierungspotenzial
-                            </p>
-                            <ul className="space-y-1">
-                              {aiFazit.suggestions.map((tip, index) => (
-                                <li key={index} className="text-xs text-gray-700 flex items-start gap-2">
-                                  <span className="text-indigo-500 flex-shrink-0">•</span>
-                                  <span>{tip}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
+                    {/* Tabs für OpenAI vs Claude Vergleich */}
+                    {aiFazit?.claude && aiFazit?.openai && (
+                      <div className="flex gap-2 mb-3">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setShowClaudeFazit(false); }}
+                          className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                            !showClaudeFazit
+                              ? 'bg-green-100 text-green-700 border border-green-300'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          OpenAI (GPT-4o)
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setShowClaudeFazit(true); }}
+                          className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                            showClaudeFazit
+                              ? 'bg-orange-100 text-orange-700 border border-orange-300'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          Claude (Haiku)
+                        </button>
                       </div>
                     )}
+
+                    {/* Fazit Text - zeigt je nach Tab OpenAI oder Claude */}
+                    <p className="text-sm text-gray-700 leading-relaxed">
+                      {showClaudeFazit && aiFazit?.claude ? aiFazit.claude.text : displayFazit.text}
+                    </p>
+
+                    {/* Optimierungsvorschläge */}
+                    {(() => {
+                      const currentSuggestions = showClaudeFazit && aiFazit?.claude
+                        ? aiFazit.claude.suggestions
+                        : aiFazit?.suggestions;
+                      return currentSuggestions && currentSuggestions.length > 0 && (
+                        <div className="rounded-xl p-3 bg-white/50 border border-indigo-100">
+                          <div className="flex items-start gap-3">
+                            <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 bg-indigo-100">
+                              <svg className="w-3 h-3 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                              </svg>
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-xs font-semibold text-gray-900 mb-1.5">
+                                Optimierungspotenzial
+                              </p>
+                              <ul className="space-y-1">
+                                {currentSuggestions.map((tip, index) => (
+                                  <li key={index} className="text-xs text-gray-700 flex items-start gap-2">
+                                    <span className="text-indigo-500 flex-shrink-0">•</span>
+                                    <span>{tip}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     {/* Neu generieren Button */}
                     {propertyId && analysis && (

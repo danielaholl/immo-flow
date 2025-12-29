@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthContext } from '@/app/providers/AuthProvider';
 import { trpc } from '@/app/providers/TRPCProvider';
-import { PropertyCard } from '@immoflow/ui';
-import type { Property } from '@immoflow/database';
+import { PropertyCard } from '@rendito/ui';
+import type { Property } from '@rendito/database';
 import { Header } from '../components/Header';
 
 export default function SuggestionsPage() {

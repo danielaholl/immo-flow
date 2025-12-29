@@ -149,7 +149,7 @@ export function ChatAssistant({ onSearch, className = '', propertyId }: ChatAssi
           </div>
 
           <p className="text-[11px] text-gray-500 text-center mt-3 font-medium">
-            ImmoFlow nutzt KI. Prüfe wichtige Informationen.
+            Rendito nutzt KI. Prüfe wichtige Informationen.
           </p>
         </div>
       </div>

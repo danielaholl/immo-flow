@@ -1,5 +1,5 @@
 {
-  "extends": "@immoflow/typescript-config/nextjs.json",
+  "extends": "@rendito/typescript-config/nextjs.json",
   "compilerOptions": {
     "skipLibCheck": true,
     "paths": {

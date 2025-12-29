@@ -1,6 +1,6 @@
 /**
- * @immoflow/api
- * API functions for ImmoFlow
+ * @rendito/api
+ * API functions for Rendito
  * All functions now use PostgreSQL directly
  */
 

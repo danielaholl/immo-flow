@@ -4,13 +4,11 @@ import { useEffect, useState, useRef, useMemo } from 'react';
 import { useAuthContext } from '../providers/AuthProvider';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { trpc } from '@/lib/trpc';
-import { MessageSquare, Home, MapPin, Euro, Loader2, Brain, Check, X, Pencil } from 'lucide-react';
+import { MessageSquare, Loader2, Brain, Check, X, Pencil } from 'lucide-react';
 import Link from 'next/link';
 import { Header } from '../components/Header';
 import { PropertyListThumbnail } from '../components/PropertyListThumbnail';
-import { PropertyPreview } from '../components/PropertyPreview';
-import { PropertyImageSlideshow } from '../components/PropertyImageSlideshow';
-import { SlideshowManagerProvider } from '../components/SlideshowManagerContext';
+import { CollapsedThumbnailList } from '../components/CollapsedThumbnailList';
 import { joinConversation, leaveConversation, onNewMessage, offNewMessage, sendTypingIndicator, onTypingIndicator, offTypingIndicator, onTypingStop, offTypingStop, onKnowledgeLearned, offKnowledgeLearned } from '@/lib/socket';
 import { UniversalChat } from '../components/UniversalChat';
 import type { ChatMessage } from '../components/UniversalChat/types';
@@ -143,11 +141,6 @@ export default function MessagesPage() {
 
   const selectedConversation = conversations?.find((c) => c.id === selectedConversationId);
 
-  // Fetch property details for the selected conversation (with owner info for avatar)
-  const { data: propertyDetails } = trpc.properties.getByIdWithOwner.useQuery(
-    { id: selectedConversation?.propertyId || '' },
-    { enabled: !!selectedConversation?.propertyId }
-  );
 
   // Track last selected ID for visual indication on mobile
   useEffect(() => {
@@ -362,7 +355,7 @@ export default function MessagesPage() {
 
   if (authLoading || conversationsLoading) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-white dark:bg-[#030712]">
         <Header />
         <div className="flex items-center justify-center" style={{ minHeight: 'calc(100vh - 80px)' }}>
           <Loader2 className="animate-spin text-primary" size={48} />
@@ -376,21 +369,22 @@ export default function MessagesPage() {
   }
 
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen bg-white dark:bg-[#030712]">
       <Header />
 
       <MasterDetailLayout
+        storageKey="messages"
         hasItems={!!conversations && conversations.length > 0}
         showDetail={!!selectedConversationId}
         emptyState={
           <div className="text-center py-20">
-            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <MessageSquare size={48} className="text-gray-400" />
+            <div className="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+              <MessageSquare size={48} className="text-gray-400 dark:text-gray-600" />
             </div>
-            <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
               Noch keine Nachrichten
             </h2>
-            <p className="text-gray-500 mb-6">
+            <p className="text-gray-500 dark:text-gray-400 mb-6">
               Sie haben noch keine Konversationen gestartet. Finden Sie interessante Immobilien und stellen Sie Fragen direkt an die Verkäufer.
             </p>
             <Link href="/">
@@ -403,7 +397,7 @@ export default function MessagesPage() {
         desktopHeader={
           <>
             <div className="flex items-center justify-between mb-4">
-              <h1 className="text-2xl font-bold text-gray-900">Nachrichten</h1>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Nachrichten</h1>
             </div>
 
             {/* Filter Buttons */}
@@ -412,8 +406,8 @@ export default function MessagesPage() {
                 onClick={() => setConversationFilter('all')}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                   conversationFilter === 'all'
-                    ? 'bg-gray-900 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                 }`}
               >
                 Alle ({conversations?.length || 0})
@@ -422,8 +416,8 @@ export default function MessagesPage() {
                 onClick={() => setConversationFilter('unread')}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                   conversationFilter === 'unread'
-                    ? 'bg-gray-900 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                 }`}
               >
                 Ungelesen ({unreadConversationsCount})
@@ -433,8 +427,19 @@ export default function MessagesPage() {
         }
         mobileHeader={
           <div className="flex items-center justify-between mb-2">
-            <h1 className="text-xl font-bold text-gray-900">Nachrichten</h1>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Nachrichten</h1>
           </div>
+        }
+        collapsedContent={
+          <CollapsedThumbnailList
+            items={filteredConversations.map((conv) => ({
+              id: conv.id,
+              title: conv.propertyTitle || 'Immobilie',
+              image: conv.propertyImages?.[0],
+            }))}
+            selectedId={selectedConversationId || lastSelectedId}
+            onSelect={setSelectedConversationId}
+          />
         }
         masterContent={
           <>
@@ -444,8 +449,8 @@ export default function MessagesPage() {
                 onClick={() => setConversationFilter('all')}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                   conversationFilter === 'all'
-                    ? 'bg-gray-900 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                 }`}
               >
                 Alle ({conversations?.length || 0})
@@ -454,8 +459,8 @@ export default function MessagesPage() {
                 onClick={() => setConversationFilter('unread')}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                   conversationFilter === 'unread'
-                    ? 'bg-gray-900 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                 }`}
               >
                 Ungelesen ({unreadConversationsCount})
@@ -497,7 +502,7 @@ export default function MessagesPage() {
         detailContent={
           <div className="flex h-full overflow-hidden">
             {/* Chat Column */}
-            <div className="w-full lg:w-1/2 h-full flex flex-col bg-gray-50 overflow-hidden pb-8 lg:pb-0">
+            <div className="w-full h-full flex flex-col bg-gray-50 dark:bg-[#030712] overflow-hidden pb-8 lg:pb-0">
               {selectedConversationId && selectedConversation ? (
                 (() => {
                   const isBuyer = selectedConversation.role === 'buyer';
@@ -510,16 +515,16 @@ export default function MessagesPage() {
                     <>
                       {/* Knowledge Learned Notification */}
                       {learnedKnowledge && learnedKnowledge.conversationId === selectedConversationId && !isBuyer && (
-                        <div className="bg-purple-50 border-b border-purple-200 p-3">
+                        <div className="bg-purple-50 dark:bg-purple-900/30 border-b border-purple-200 dark:border-purple-700 p-3">
                           <div className="flex items-start gap-3">
-                            <div className="flex-shrink-0 w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                              <Brain size={16} className="text-purple-600" />
+                            <div className="flex-shrink-0 w-8 h-8 bg-purple-100 dark:bg-purple-800 rounded-full flex items-center justify-center">
+                              <Brain size={16} className="text-purple-600 dark:text-purple-300" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-purple-900">
+                              <p className="text-sm font-medium text-purple-900 dark:text-purple-100">
                                 Neue Information zur Wissensbasis hinzugefuegt
                               </p>
-                              <p className="text-sm text-purple-700 mt-0.5">
+                              <p className="text-sm text-purple-700 dark:text-purple-300 mt-0.5">
                                 <span className="font-medium">{learnedKnowledge.learned.topic}:</span>{' '}
                                 {learnedKnowledge.learned.content.substring(0, 100)}
                                 {learnedKnowledge.learned.content.length > 100 ? '...' : ''}
@@ -534,14 +539,14 @@ export default function MessagesPage() {
                                 </button>
                                 <Link
                                   href={`/my-properties?property=${selectedConversation.propertyId}`}
-                                  className="flex items-center gap-1 px-2 py-1 text-xs bg-white text-purple-700 border border-purple-300 rounded hover:bg-purple-50 transition-colors"
+                                  className="flex items-center gap-1 px-2 py-1 text-xs bg-white dark:bg-gray-800 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-600 rounded hover:bg-purple-50 dark:hover:bg-gray-700 transition-colors"
                                 >
                                   <Pencil size={12} />
                                   Bearbeiten
                                 </Link>
                                 <button
                                   onClick={() => setLearnedKnowledge(null)}
-                                  className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                                  className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
                                 >
                                   <X size={12} />
                                   Schliessen
@@ -557,7 +562,7 @@ export default function MessagesPage() {
                       header={{
                         title: selectedConversation.propertyTitle,
                         subtitle: `${isBuyer ? 'Verkäufer' : 'Interessent'}: ${displayName}`,
-                        icon: <MessageSquare size={20} className="text-gray-600" />,
+                        icon: <MessageSquare size={20} className="text-gray-600 dark:text-gray-400" />,
                         showBackButton: true,
                         backButtonMobileOnly: true,
                         onBackClick: () => setSelectedConversationId(null),
@@ -591,122 +596,19 @@ export default function MessagesPage() {
               ) : (
                 <div className="h-full flex items-center justify-center px-6">
                   <div className="text-center">
-                    <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <MessageSquare size={48} className="text-gray-400" />
+                    <div className="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <MessageSquare size={48} className="text-gray-400 dark:text-gray-600" />
                     </div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
                       Keine Konversation ausgewählt
                     </h3>
-                    <p className="text-gray-600 text-base">
+                    <p className="text-gray-600 dark:text-gray-400 text-base">
                       Wählen Sie eine Konversation aus der Liste links aus, um Ihre Nachrichten zu sehen.
                     </p>
                   </div>
                 </div>
               )}
             </div>
-
-            {/* Property Preview Column (Desktop only) */}
-            <SlideshowManagerProvider>
-              <div className="hidden lg:flex lg:w-1/2 h-full flex-col bg-white border-l border-gray-200 overflow-hidden">
-                {selectedConversationId && selectedConversation ? (
-                  <div className="h-full overflow-y-auto">
-                    {/* Image Slideshow - Scrolls with content */}
-                    <div className="w-full">
-                      <div className="w-full aspect-[4/3] rounded-none overflow-hidden">
-                        <PropertyImageSlideshow
-                          images={selectedConversation.propertyImages}
-                          title={selectedConversation.propertyTitle}
-                          duration={4000}
-                          showCounter={true}
-                          showProgressBars={true}
-                          aspectRatio="auto"
-                          rounded="none"
-                          className="h-full"
-                          slideshowId={`messages-property-${selectedConversation.propertyId}`}
-                          propertyType={propertyDetails?.property_type || undefined}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Property Preview */}
-                    <div className="p-4">
-                        {propertyDetails ? (
-                          <PropertyPreview
-                            data={{
-                              id: propertyDetails.id,
-                              images: propertyDetails.images || [],
-                              price: propertyDetails.price || 0,
-                              location: propertyDetails.location || '',
-                              address: propertyDetails.address,
-                              postal_code: propertyDetails.postal_code,
-                              title: propertyDetails.title || '',
-                              type: propertyDetails.property_type,
-                              sqm: propertyDetails.sqm || 0,
-                              rooms: propertyDetails.rooms || 0,
-                              plot_size: propertyDetails.plot_size,
-                              description: propertyDetails.description || '',
-                              features: propertyDetails.features,
-                              highlights: propertyDetails.highlights,
-                              year_built: propertyDetails.year_built,
-                              bathrooms: propertyDetails.bathrooms,
-                              floor_level: propertyDetails.floor_level,
-                              total_floors: propertyDetails.total_floors,
-                              heating_type: propertyDetails.heating_type,
-                              energy_efficiency_class: propertyDetails.energy_efficiency_class,
-                              condition: propertyDetails.condition,
-                              available_from: propertyDetails.available_from,
-                              monthly_fee: propertyDetails.monthly_fee,
-                              commission_rate: propertyDetails.commission_rate,
-                              owner: propertyDetails.owner,
-                              days_online: (propertyDetails as any).days_online,
-                            }}
-                            showConsentSection={false}
-                          />
-                        ) : (
-                          <div className="space-y-4">
-                            {/* Quick Property Info from conversation data */}
-                            <div>
-                              <h3 className="font-semibold text-gray-900 text-lg mb-2">
-                                {selectedConversation.propertyTitle}
-                              </h3>
-                              <div className="flex items-center gap-2 text-gray-600 text-sm mb-3">
-                                <MapPin size={16} />
-                                <span>{selectedConversation.propertyCity}</span>
-                              </div>
-                              <div className="flex items-center gap-2 text-primary font-bold text-xl">
-                                <Euro size={20} />
-                                <span>
-                                  {new Intl.NumberFormat('de-DE', {
-                                    style: 'currency',
-                                    currency: 'EUR',
-                                    maximumFractionDigits: 0,
-                                  }).format(selectedConversation.propertyPrice || 0)}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Loading skeleton */}
-                            <div className="animate-pulse space-y-3">
-                              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                              <div className="h-20 bg-gray-200 rounded"></div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                  </div>
-                ) : (
-                  <div className="flex-1 flex items-center justify-center p-6">
-                    <div className="text-center">
-                      <Home size={64} className="text-gray-300 mx-auto mb-3" />
-                      <p className="text-gray-500 text-base">
-                        Wählen Sie eine Konversation, um das Inserat zu sehen
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </SlideshowManagerProvider>
           </div>
         }
         height="calc(100vh - 80px)"

@@ -38,77 +38,24 @@ export interface GlassButtonProps {
   subtleBorder?: boolean;
 }
 
-const variantConfig: Record<GlassButtonVariant, { color: string; hoverBg: string }> = {
-  default: {
-    color: 'rgba(255, 255, 255, 1)',
-    hoverBg: 'rgba(255, 255, 255, 0.1)',
-  },
-  danger: {
-    color: 'rgba(239, 68, 68, 1)', // red-500
-    hoverBg: 'rgba(239, 68, 68, 0.15)',
-  },
-  success: {
-    color: 'rgba(34, 197, 94, 1)', // green-500
-    hoverBg: 'rgba(34, 197, 94, 0.15)',
-  },
-  warning: {
-    color: 'rgba(245, 158, 11, 1)', // amber-500
-    hoverBg: 'rgba(245, 158, 11, 0.15)',
-  },
-  primary: {
-    color: 'rgba(59, 130, 246, 1)', // blue-500
-    hoverBg: 'rgba(59, 130, 246, 0.15)',
-  },
-  favorite: {
-    color: '#FF385C', // coral accent
-    hoverBg: 'rgba(255, 56, 92, 0.15)',
-  },
+// Apple Glass variant classes with light mode border support
+const variantClasses: Record<GlassButtonVariant, string> = {
+  default: 'bg-gray-100/60 dark:bg-white/10 hover:bg-gray-200/70 dark:hover:bg-white/20 border-gray-300 dark:border-white/20 text-gray-700 dark:text-gray-200',
+  primary: 'bg-blue-500/20 hover:bg-blue-500/30 border-blue-200/50 dark:border-white/30 text-blue-600 dark:text-blue-400',
+  success: 'bg-green-500/20 hover:bg-green-500/30 border-green-200/50 dark:border-white/30 text-green-600 dark:text-green-400',
+  danger: 'bg-red-500/10 hover:bg-red-500/20 border-red-200/50 dark:border-red-500/30 text-red-600 dark:text-red-400',
+  warning: 'bg-amber-500/20 hover:bg-amber-500/30 border-amber-200/50 dark:border-white/30 text-amber-600 dark:text-amber-400',
+  favorite: 'bg-[#FF385C]/20 hover:bg-[#FF385C]/30 border-red-200/50 dark:border-white/30 text-[#FF385C]',
 };
 
-const sizeConfig: Record<GlassButtonSize, {
-  padding: string;
-  paddingIconOnly: string;
-  fontSize: string;
-  fontWeight: string;
-  iconSize: number;
-  iconSizeIconOnly: number;
-  gap: string;
-  minHeight: string;
-  sizeIconOnly: number;
-}> = {
-  sm: {
-    padding: '6px 12px',
-    paddingIconOnly: '12px',
-    fontSize: '13px',
-    fontWeight: '600',
-    iconSize: 14,
-    iconSizeIconOnly: 20,
-    gap: '6px',
-    minHeight: '32px',
-    sizeIconOnly: 44,
-  },
-  md: {
-    padding: '10px 16px',
-    paddingIconOnly: '14px',
-    fontSize: '14px',
-    fontWeight: '600',
-    iconSize: 16,
-    iconSizeIconOnly: 24,
-    gap: '8px',
-    minHeight: '40px',
-    sizeIconOnly: 52,
-  },
-  lg: {
-    padding: '12px 20px',
-    paddingIconOnly: '16px',
-    fontSize: '15px',
-    fontWeight: '700',
-    iconSize: 18,
-    iconSizeIconOnly: 28,
-    gap: '10px',
-    minHeight: '48px',
-    sizeIconOnly: 60,
-  },
+// Base classes for all buttons
+const baseClasses = 'backdrop-blur-xl border font-medium rounded-2xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-95 disabled:hover:scale-100';
+
+// Size-specific classes
+const sizeClasses: Record<GlassButtonSize, { button: string; iconSize: number; iconOnlySize: string }> = {
+  sm: { button: 'py-2 px-3 text-xs min-h-[32px]', iconSize: 14, iconOnlySize: 'w-10 h-10' },
+  md: { button: 'py-3 px-4 text-sm min-h-[40px]', iconSize: 16, iconOnlySize: 'w-12 h-12' },
+  lg: { button: 'py-4 px-5 text-sm min-h-[48px]', iconSize: 18, iconOnlySize: 'w-14 h-14' },
 };
 
 export function GlassButton({
@@ -128,11 +75,9 @@ export function GlassButton({
   iconOnly = false,
   subtleBorder = false,
 }: GlassButtonProps) {
-  const { color, hoverBg } = variantConfig[variant];
-  const sizeStyles = sizeConfig[size];
   const isDisabled = disabled || loading;
-  const currentIconSize = iconOnly ? sizeStyles.iconSizeIconOnly : sizeStyles.iconSize;
-  const borderColor = subtleBorder ? 'rgba(255, 255, 255, 0.5)' : color;
+  const sizeConfig = sizeClasses[size];
+  const iconSize = sizeConfig.iconSize;
 
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
@@ -141,29 +86,38 @@ export function GlassButton({
     }
   };
 
-  // Clone icons with proper size and color
+  // Clone icons with proper size (preserve existing className for custom colors!)
   const renderIcon = (icon: React.ReactNode) => {
     if (!icon) return null;
     if (React.isValidElement(icon)) {
-      return React.cloneElement(icon as React.ReactElement<{ size?: number; color?: string; style?: React.CSSProperties }>, {
-        size: currentIconSize,
-        color: color,
-        style: { flexShrink: 0 },
+      const existingClassName = (icon.props as { className?: string })?.className || '';
+      return React.cloneElement(icon as React.ReactElement<{ size?: number; className?: string }>, {
+        size: iconSize,
+        className: `flex-shrink-0 ${existingClassName}`.trim(),
       });
     }
     return icon;
   };
 
+  // Build button classes
+  const buttonClasses = `
+    ${baseClasses}
+    ${variantClasses[variant]}
+    ${iconOnly ? `${sizeConfig.iconOnlySize} rounded-full p-0` : sizeConfig.button}
+    ${fullWidth ? 'w-full' : ''}
+    ${subtleBorder ? '!border-white/50' : ''}
+    ${className}
+  `.trim().replace(/\s+/g, ' ');
+
   const buttonContent = (
     <>
       {loading ? (
         <svg
-          className="animate-spin"
-          width={currentIconSize}
-          height={currentIconSize}
+          className="animate-spin flex-shrink-0"
+          width={iconSize}
+          height={iconSize}
           viewBox="0 0 24 24"
           fill="none"
-          style={{ color }}
         >
           <circle
             className="opacity-25"
@@ -182,11 +136,7 @@ export function GlassButton({
       ) : (
         <>
           {renderIcon(iconLeft)}
-          {children && !iconOnly && (
-            <span style={{ color, fontSize: sizeStyles.fontSize, fontWeight: sizeStyles.fontWeight }}>
-              {children}
-            </span>
-          )}
+          {children && !iconOnly && <span>{children}</span>}
           {renderIcon(iconRight)}
         </>
       )}
@@ -200,35 +150,7 @@ export function GlassButton({
         onClick={handleClick}
         disabled={isDisabled}
         aria-label={ariaLabel || (typeof children === 'string' ? children : undefined)}
-        className={`
-          flex items-center justify-center
-          cursor-pointer
-          transition-all duration-200
-          hover:scale-[1.02] active:scale-95
-          disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100
-          ${iconOnly ? 'rounded-full' : 'rounded-full'}
-          ${fullWidth ? 'w-full' : ''}
-          ${className}
-        `}
-        style={{
-          ...(iconOnly
-            ? { width: sizeStyles.sizeIconOnly, height: sizeStyles.sizeIconOnly }
-            : { padding: sizeStyles.padding, minHeight: sizeStyles.minHeight }
-          ),
-          gap: sizeStyles.gap,
-          backdropFilter: 'blur(4px)',
-          WebkitBackdropFilter: 'blur(4px)',
-          border: `1px solid ${borderColor}`,
-          background: 'transparent',
-        }}
-        onMouseEnter={(e) => {
-          if (!isDisabled) {
-            e.currentTarget.style.background = hoverBg;
-          }
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'transparent';
-        }}
+        className={buttonClasses}
       >
         {buttonContent}
       </button>
@@ -238,12 +160,8 @@ export function GlassButton({
         <div
           className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 rounded-lg
                      text-xs font-medium text-white whitespace-nowrap
-                     opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50"
-          style={{
-            background: 'rgba(0, 0, 0, 0.85)',
-            backdropFilter: 'blur(8px)',
-            WebkitBackdropFilter: 'blur(8px)',
-          }}
+                     opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50
+                     bg-gray-900/85 backdrop-blur-md"
         >
           {tooltip}
         </div>

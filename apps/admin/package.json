@@ -12,13 +12,13 @@
     "next": "14.0.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "@immoflow/database": "workspace:*",
-    "@immoflow/api": "workspace:*",
-    "@immoflow/utils": "workspace:*"
+    "@rendito/database": "workspace:*",
+    "@rendito/api": "workspace:*",
+    "@rendito/utils": "workspace:*"
   },
   "devDependencies": {
-    "@immoflow/typescript-config": "workspace:*",
-    "@immoflow/tailwind-config": "workspace:*",
+    "@rendito/typescript-config": "workspace:*",
+    "@rendito/tailwind-config": "workspace:*",
     "@types/node": "^20.0.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",

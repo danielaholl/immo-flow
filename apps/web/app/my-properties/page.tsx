@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthContext } from '@/app/providers/AuthProvider';
-import type { Property } from '@immoflow/database';
+import type { Property } from '@rendito/database';
 import { Header } from '../components/Header';
 import { PropertyPreview } from '../components/PropertyPreview';
 import { AIEvaluationPanel, type SellerEvaluation } from '../components/AIEvaluationPanel';
@@ -14,7 +14,9 @@ import { DeletePropertyModal } from '../components/DeletePropertyModal';
 import { InterestedPartiesList } from '../components/InterestedPartiesList';
 import { ShareLinkModal } from '../components/ShareLinkModal';
 import { Home, Plus, Pencil, Power, Trash2, Share2 } from 'lucide-react';
+import { GlassButton } from '@rendito/ui';
 import { PropertyListThumbnail } from '../components/PropertyListThumbnail';
+import { CollapsedThumbnailList } from '../components/CollapsedThumbnailList';
 import { trpc } from '@/lib/trpc';
 import { useMasterDetailNavigation } from '@/app/hooks/useMasterDetailNavigation';
 import { MasterDetailLayout, PropertyDetailLayout } from '../components/layouts/MasterDetailLayout';
@@ -268,10 +270,10 @@ export default function MyPropertiesPage() {
 
   if (authLoading || loading) {
     return (
-      <main className="min-h-screen bg-white">
+      <main className="min-h-screen bg-white dark:bg-[#030712]">
         <Header />
         <div className="flex items-center justify-center h-[calc(100vh-100px)]">
-          <p className="text-gray-500">Lade Immobilien...</p>
+          <p className="text-gray-500 dark:text-gray-400">Lade Immobilien...</p>
         </div>
       </main>
     );
@@ -283,94 +285,113 @@ export default function MyPropertiesPage() {
     : null;
 
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen bg-white dark:bg-[#030712]">
       <Header />
 
       {/* Action Buttons - reused in mobile and desktop */}
       {(() => {
         const ActionButtons = selectedProperty ? (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="flex flex-wrap gap-3">
             {/* 1. Bearbeiten Button */}
-            <button
-              onClick={() => router.push(`/edit-listing/${selectedProperty.id}`)}
-              className="bg-primary text-white font-semibold py-3 px-3 rounded-xl hover:opacity-90 transition-colors inline-flex items-center justify-center gap-2 text-sm"
-            >
-              <Pencil size={16} />
-              <span>Bearbeiten</span>
-            </button>
+            <div className="flex-1 min-w-[140px]">
+              <GlassButton
+                iconLeft={<Pencil className="text-blue-500" />}
+                onClick={() => router.push(`/edit-listing/${selectedProperty.id}`)}
+                fullWidth
+                size="lg"
+              >
+                Bearbeiten
+              </GlassButton>
+            </div>
 
             {/* 2. Veröffentlichen/Aktivieren/Deaktivieren Button */}
-            {selectedProperty.status === 'pending' ? (
-              <button
-                onClick={() => handleActivate(selectedProperty.id)}
-                disabled={activateMutation.isLoading}
-                className="bg-green-500 text-white font-semibold py-3 px-3 rounded-xl hover:bg-green-600 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
-              >
-                <Power size={16} />
-                <span>{activateMutation.isLoading ? '...' : 'Veröffentlichen'}</span>
-              </button>
-            ) : selectedProperty.status === 'archived' ? (
-              <button
-                onClick={() => handleActivate(selectedProperty.id)}
-                disabled={activateMutation.isLoading}
-                className="bg-green-500 text-white font-semibold py-3 px-3 rounded-xl hover:bg-green-600 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
-              >
-                <Power size={16} />
-                <span>{activateMutation.isLoading ? '...' : 'Aktivieren'}</span>
-              </button>
-            ) : (
-              <button
-                onClick={() => handleDeactivateClick({
+            <div className="flex-1 min-w-[140px]">
+              {selectedProperty.status === 'pending' ? (
+                <GlassButton
+                  iconLeft={<Power className="text-green-500" />}
+                  onClick={() => handleActivate(selectedProperty.id)}
+                  disabled={activateMutation.isLoading}
+                  loading={activateMutation.isLoading}
+                  fullWidth
+                  size="lg"
+                >
+                  Veröffentlichen
+                </GlassButton>
+              ) : selectedProperty.status === 'archived' ? (
+                <GlassButton
+                  iconLeft={<Power className="text-green-500" />}
+                  onClick={() => handleActivate(selectedProperty.id)}
+                  disabled={activateMutation.isLoading}
+                  loading={activateMutation.isLoading}
+                  fullWidth
+                  size="lg"
+                >
+                  Aktivieren
+                </GlassButton>
+              ) : (
+                <GlassButton
+                  iconLeft={<Power />}
+                  onClick={() => handleDeactivateClick({
+                    id: selectedProperty.id,
+                    title: selectedProperty.title,
+                    price: selectedProperty.price,
+                  })}
+                  disabled={deactivateMutation.isLoading}
+                  loading={deactivateMutation.isLoading}
+                  fullWidth
+                  size="lg"
+                >
+                  Deaktivieren
+                </GlassButton>
+              )}
+            </div>
+
+            {/* 3. Löschen Button */}
+            <div className="flex-1 min-w-[140px]">
+              <GlassButton
+                iconLeft={<Trash2 className="text-red-500" />}
+                onClick={() => handleDeleteClick({
                   id: selectedProperty.id,
                   title: selectedProperty.title,
                   price: selectedProperty.price,
                 })}
-                disabled={deactivateMutation.isLoading}
-                className="bg-white border-2 border-gray-300 text-gray-700 font-semibold py-3 px-3 rounded-xl hover:border-gray-400 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
+                disabled={deleteMutation.isLoading}
+                loading={deleteMutation.isLoading}
+                fullWidth
+                size="lg"
               >
-                <Power size={16} />
-                <span>{deactivateMutation.isLoading ? '...' : 'Deaktivieren'}</span>
-              </button>
-            )}
-
-            {/* 3. Löschen Button */}
-            <button
-              onClick={() => handleDeleteClick({
-                id: selectedProperty.id,
-                title: selectedProperty.title,
-                price: selectedProperty.price,
-              })}
-              disabled={deleteMutation.isLoading}
-              className="bg-white border-2 border-red-300 text-red-600 font-semibold py-3 px-3 rounded-xl hover:bg-red-50 hover:border-red-400 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
-            >
-              <Trash2 size={16} />
-              <span>{deleteMutation.isLoading ? '...' : 'Löschen'}</span>
-            </button>
+                Löschen
+              </GlassButton>
+            </div>
 
             {/* 4. Teilen Button */}
-            <button
-              onClick={() => setShareModalOpen(true)}
-              className="bg-white border-2 border-gray-300 text-gray-700 font-semibold py-3 px-3 rounded-xl hover:border-gray-400 transition-colors inline-flex items-center justify-center gap-2 text-sm"
-            >
-              <Share2 size={16} />
-              <span>Teilen</span>
-            </button>
+            <div className="flex-1 min-w-[140px]">
+              <GlassButton
+                iconLeft={<Share2 className="text-blue-500" />}
+                onClick={() => setShareModalOpen(true)}
+                fullWidth
+                size="lg"
+              >
+                Teilen
+              </GlassButton>
+            </div>
           </div>
         ) : null;
 
         return (
           <MasterDetailLayout
+            storageKey="my-properties"
             hasItems={properties.length > 0}
             showDetail={!!selectedPropertyId}
             emptyState={
               <div className="text-center py-20">
-                <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Home size={48} className="text-gray-300" />
+                <div className="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Home size={48} className="text-gray-300 dark:text-gray-600" />
                 </div>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
                   Noch keine Immobilien
                 </h2>
-                <p className="text-gray-500 mb-6">
+                <p className="text-gray-500 dark:text-gray-400 mb-6">
                   Erstellen Sie Ihr erstes Immobilienangebot
                 </p>
                 <Link href="/create-listing">
@@ -384,7 +405,7 @@ export default function MyPropertiesPage() {
             mobileHeader={
               <div className="flex items-center justify-between mb-2">
                 <div>
-                  <h1 className="text-xl font-bold text-gray-900">Meine Inserate</h1>
+                  <h1 className="text-xl font-bold text-gray-900 dark:text-white">Meine Inserate</h1>
                 </div>
                 <Link href="/create-listing">
                   <button className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors">
@@ -398,7 +419,7 @@ export default function MyPropertiesPage() {
               <>
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Meine Inserate</h1>
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Meine Inserate</h1>
                   </div>
                   <Link href="/create-listing">
                     <button className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors">
@@ -414,8 +435,8 @@ export default function MyPropertiesPage() {
                     onClick={() => setStatusFilter('all')}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                       statusFilter === 'all'
-                        ? 'bg-gray-900 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
                     Alle ({properties.length})
@@ -424,8 +445,8 @@ export default function MyPropertiesPage() {
                     onClick={() => setStatusFilter('active')}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                       statusFilter === 'active'
-                        ? 'bg-gray-900 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
                     Aktiv ({properties.filter(p => p.status === 'active').length})
@@ -434,14 +455,30 @@ export default function MyPropertiesPage() {
                     onClick={() => setStatusFilter('archived')}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                       statusFilter === 'archived'
-                        ? 'bg-gray-900 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
                     Deaktiviert ({properties.filter(p => p.status === 'archived').length})
                   </button>
                 </div>
               </>
+            }
+            collapsedContent={
+              <CollapsedThumbnailList
+                items={sortedProperties.map((p) => ({
+                  id: p.id,
+                  title: p.title,
+                  image: p.images?.[0],
+                  propertyType: p.property_type || undefined,
+                }))}
+                selectedId={selectedPropertyId || lastSelectedId}
+                onSelect={selectItem}
+                actionButton={{
+                  href: '/create-listing',
+                  title: 'Neues Inserat erstellen',
+                }}
+              />
             }
             masterContent={
               <>
@@ -451,8 +488,8 @@ export default function MyPropertiesPage() {
                     onClick={() => setStatusFilter('all')}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                       statusFilter === 'all'
-                        ? 'bg-gray-900 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
                     Alle ({properties.length})
@@ -461,8 +498,8 @@ export default function MyPropertiesPage() {
                     onClick={() => setStatusFilter('active')}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                       statusFilter === 'active'
-                        ? 'bg-gray-900 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
                     Aktiv ({properties.filter(p => p.status === 'active').length})
@@ -471,8 +508,8 @@ export default function MyPropertiesPage() {
                     onClick={() => setStatusFilter('archived')}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                       statusFilter === 'archived'
-                        ? 'bg-gray-900 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
                     Deaktiviert ({properties.filter(p => p.status === 'archived').length})
@@ -551,13 +588,13 @@ export default function MyPropertiesPage() {
                   <div className="mt-6">
                     <InterestedPartiesList
                       propertyId={selectedProperty.id}
-                      defaultExpanded={true}
+                      defaultExpanded={false}
                     />
                   </div>
 
                 </PropertyDetailLayout>
               ) : (
-                <div className="flex-1 flex items-center justify-center text-gray-500">
+                <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
                   {sortedProperties.length === 0 ? (
                     <div className="text-center">
                       <p>Keine Immobilien mit diesem Status</p>

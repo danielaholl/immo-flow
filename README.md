@@ -1,10 +1,10 @@
-# ImmoFlow - TikTok-Style Immobilien Investment App
+# Rendito - TikTok-Style Immobilien Investment App
 
 > Ein modernes Monorepo für eine Immobilien-Investment-Plattform mit React Native Web, Next.js und Supabase.
 
 ## Projekt-Übersicht
 
-ImmoFlow ist eine TikTok-style Immobilien-App für den deutschen Markt mit:
+Rendito ist eine TikTok-style Immobilien-App für den deutschen Markt mit:
 
 - 📱 **Mobile App** (iOS/Android via Expo)
 - 🌐 **Web App** (SEO-optimiert mit Next.js 14)
@@ -34,7 +34,7 @@ ImmoFlow ist eine TikTok-style Immobilien-App für den deutschen Markt mit:
 ## Projekt-Struktur
 
 ```
-immoflow/
+rendito/
 ├── apps/
 │   ├── web/              # Next.js 14 Web App
 │   ├── mobile/           # Expo App (iOS/Android)
@@ -64,7 +64,7 @@ immoflow/
 
 1. **Repository klonen**
    ```bash
-   cd immoflow
+   cd rendito
    ```
 
 2. **Dependencies installieren**
@@ -226,44 +226,44 @@ pnpm generate-types
 
 ## Packages
 
-### @immoflow/ui
+### @rendito/ui
 
 Shared UI Components (Button, PropertyCard, Input, Avatar, Badge)
 
 ```tsx
-import { Button, PropertyCard } from '@immoflow/ui';
+import { Button, PropertyCard } from '@rendito/ui';
 
 <Button variant="primary" onPress={() => {}}>
   Click me
 </Button>
 ```
 
-### @immoflow/database
+### @rendito/database
 
 Supabase Client, Types und React Hooks
 
 ```tsx
-import { useProperties, useFavorites, useAuth } from '@immoflow/database';
+import { useProperties, useFavorites, useAuth } from '@rendito/database';
 
 const { properties, loading } = useProperties({ limit: 10 });
 ```
 
-### @immoflow/api
+### @rendito/api
 
 Server-side API Functions
 
 ```tsx
-import { getProperties, createProperty } from '@immoflow/api';
+import { getProperties, createProperty } from '@rendito/api';
 
 const properties = await getProperties({ location: 'Berlin' });
 ```
 
-### @immoflow/utils
+### @rendito/utils
 
 Utilities für Formatting, Validation und Constants
 
 ```tsx
-import { formatPrice, formatArea } from '@immoflow/utils';
+import { formatPrice, formatArea } from '@rendito/utils';
 
 formatPrice(350000); // "350.000 €"
 formatArea(85.5);    // "85,5 m²"
@@ -454,7 +454,7 @@ pnpm build
 
 Bei Fragen:
 - GitHub Issues
-- Email: support@immoflow.de
+- Email: support@rendito.de
 
 ---
 

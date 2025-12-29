@@ -45,8 +45,8 @@ export default function PaymentCancelPage() {
 
           <p className="text-sm text-gray-500 mt-6">
             Hast du Fragen? Kontaktiere uns unter{' '}
-            <a href="mailto:support@nestando.de" className="text-primary hover:underline">
-              support@nestando.de
+            <a href="mailto:support@rendito.de" className="text-primary hover:underline">
+              support@rendito.de
             </a>
           </p>
         </div>

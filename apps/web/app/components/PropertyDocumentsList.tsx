@@ -1,10 +1,30 @@
 'use client';
 
-import { useState, useEffect, memo } from 'react';
+import { useState, useEffect, memo, useCallback } from 'react';
 import Image from 'next/image';
-import { FileText, Layout, Zap, File, ChevronRight, ChevronDown, Loader2, Lock, LockOpen, FileCheck, MapPin, BookOpen, Eye, Clock, UserCheck } from 'lucide-react';
+import { FileText, Layout, Zap, File, ChevronRight, ChevronDown, ChevronUp, Loader2, Lock, LockOpen, FileCheck, MapPin, BookOpen, Eye, Clock, UserCheck } from 'lucide-react';
 import type { PropertyDocument, DocumentCategory, DocumentVisibility } from '../create-listing/types';
 import { truncateFilename } from '../create-listing/utils/documentUtils';
+
+// Hook to check if screen is mobile (below lg breakpoint)
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024); // lg breakpoint
+    };
+
+    // Check on mount
+    checkMobile();
+
+    // Listen for resize
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  return isMobile;
+}
 
 // Visibility configuration for owner grouping
 const VISIBILITY_ORDER: DocumentVisibility[] = ['public', 'auto_approved', 'manual_approval'];
@@ -23,7 +43,7 @@ interface PropertyDocumentsListProps {
   propertyId?: string;
   /** Number of documents (from DB) - used to decide if lazy loading is needed */
   documentsCount?: number;
-  onDocumentClick: (document: PropertyDocument) => void;
+  onDocumentClick: (document: PropertyDocument | null) => void;
   selectedDocumentId?: string;
   defaultExpanded?: boolean;
   /** Whether user has access to auto_approved documents (after consent) */
@@ -83,6 +103,22 @@ export function PropertyDocumentsList({
 }: PropertyDocumentsListProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [shouldFetch, setShouldFetch] = useState(false);
+  const isMobile = useIsMobile();
+
+  // Handle document click - on mobile, open in new tab; on desktop, use callback with toggle
+  const handleDocumentClick = useCallback((doc: PropertyDocument) => {
+    if (isMobile) {
+      // On mobile, open document URL in new tab
+      window.open(doc.url, '_blank', 'noopener,noreferrer');
+    } else {
+      // On desktop: Toggle - if already selected, close; otherwise show
+      if (selectedDocumentId === doc.id) {
+        onDocumentClick(null);
+      } else {
+        onDocumentClick(doc);
+      }
+    }
+  }, [isMobile, onDocumentClick, selectedDocumentId]);
 
   // Reset shouldFetch when propertyId changes
   useEffect(() => {
@@ -145,9 +181,12 @@ export function PropertyDocumentsList({
   }
 
   return (
-    <div className="mb-6 bg-white rounded-2xl border border-gray-200 overflow-hidden">
-      {/* Header with separate clickable Lock and Accordion */}
-      <div className="w-full p-6 flex items-center justify-between">
+    <div className="mb-6 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      {/* Header */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+      >
         <div className="flex items-center gap-2">
           {/* Lock/Unlock indicator - clickable, before title */}
           {!isOwner && hasProtectedDocuments && !isLoadingDocuments && (
@@ -159,61 +198,58 @@ export function PropertyDocumentsList({
                 <LockOpen size={20} className="text-green-600" />
               </span>
             ) : (
-              <button
-                type="button"
+              <span
+                role="button"
+                tabIndex={0}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  // Trigger access flow first, then expand
                   onRequestDocumentAccess?.();
                   if (!isExpanded) setIsExpanded(true);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onRequestDocumentAccess?.();
+                    if (!isExpanded) setIsExpanded(true);
+                  }
                 }}
                 className="relative z-10 flex items-center justify-center w-10 h-10 rounded-full bg-amber-50 hover:bg-amber-100 border border-amber-300 hover:border-amber-400 transition-all shadow-sm hover:shadow-md cursor-pointer"
                 title="Unterlagen freischalten"
               >
                 <Lock size={20} className="text-amber-600" />
-              </button>
+              </span>
             )
           )}
-          {/* Accordion trigger area */}
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-2 hover:opacity-70 transition-opacity"
-          >
-            <FileText size={20} className="text-gray-700" />
-            <h3 className="text-lg font-semibold text-gray-900">Objektunterlagen</h3>
-            {isLoadingDocuments ? (
-              <Loader2 size={16} className="text-gray-400 animate-spin" />
-            ) : (
-              <span className="text-sm text-gray-500 font-normal">
-                ({documentCount} {documentCount === 1 ? 'Datei' : 'Dateien'})
-              </span>
-            )}
-          </button>
+          <FileText size={20} className="text-gray-700 dark:text-gray-300" />
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Objektunterlagen</h3>
+          {isLoadingDocuments ? (
+            <Loader2 size={16} className="text-gray-400 animate-spin" />
+          ) : (
+            <span className="text-sm text-gray-500 dark:text-gray-400 font-normal">
+              <span className="lg:hidden">({documentCount})</span>
+              <span className="hidden lg:inline">({documentCount} {documentCount === 1 ? 'Datei' : 'Dateien'})</span>
+            </span>
+          )}
         </div>
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-        >
-          <ChevronDown
-            size={20}
-            className={`text-gray-500 transition-transform duration-200 ${
-              isExpanded ? 'rotate-180' : ''
-            }`}
-          />
-        </button>
-      </div>
+        {isExpanded ? (
+          <ChevronUp size={20} className="text-gray-500 dark:text-gray-400" />
+        ) : (
+          <ChevronDown size={20} className="text-gray-500 dark:text-gray-400" />
+        )}
+      </button>
 
       {/* Collapsible Content */}
       {isLoadingDocuments && isExpanded ? (
         <div className="px-6 pb-6">
           <div className="space-y-2">
             {[1, 2].map((i) => (
-              <div key={i} className="flex items-center gap-3 p-2 rounded-xl bg-gray-50 animate-pulse">
-                <div className="w-12 h-12 rounded-lg bg-gray-200" />
+              <div key={i} className="flex items-center gap-3 p-2 rounded-xl bg-gray-50 dark:bg-gray-800 animate-pulse">
+                <div className="w-12 h-12 rounded-lg bg-gray-200 dark:bg-gray-700" />
                 <div className="flex-1">
-                  <div className="h-4 bg-gray-200 rounded w-24 mb-1" />
-                  <div className="h-3 bg-gray-200 rounded w-16" />
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 mb-1" />
+                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-16" />
                 </div>
               </div>
             ))}
@@ -222,7 +258,7 @@ export function PropertyDocumentsList({
       ) : !hasDocuments ? (
         isExpanded && (
           <div className="px-6 pb-6">
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               Keine Unterlagen vorhanden.
             </p>
           </div>
@@ -230,7 +266,7 @@ export function PropertyDocumentsList({
       ) : isExpanded ? (
         <div className="px-6 pb-6">
           {/* Einheitliches Design für Owner und Käufer - flache Liste */}
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-gray-200 dark:divide-gray-700">
             {[...documents]
               .sort((a, b) => {
                 const order = { public: 0, auto_approved: 1, manual_approval: 2 };
@@ -260,25 +296,26 @@ export function PropertyDocumentsList({
                 };
 
                 const accessInfo = getAccessInfo();
+                const isSelected = selectedDocumentId === doc.id;
 
                 return (
                   <button
                     key={doc.id}
-                    onClick={() => isAccessible && onDocumentClick(doc)}
+                    onClick={() => isAccessible && handleDocumentClick(doc)}
                     disabled={!isAccessible}
-                    className={`w-full flex items-center gap-3 py-2 px-2 transition-all bg-white ${
+                    className={`w-full flex items-center gap-3 py-2 px-2 transition-all ${
                       !isAccessible
-                        ? 'cursor-not-allowed opacity-75'
-                        : selectedDocumentId === doc.id
-                          ? 'bg-gray-100'
-                          : 'hover:bg-gray-50'
+                        ? 'cursor-not-allowed opacity-75 bg-white dark:bg-gray-900'
+                        : isSelected
+                          ? 'bg-gray-900 dark:bg-gray-700'
+                          : 'bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800'
                     }`}
                   >
                     <div className="w-12 h-12 overflow-hidden flex-shrink-0 relative">
                       {thumbnailSrc && isAccessible ? (
                         <Image src={thumbnailSrc} alt={doc.filename} fill sizes="48px" className="object-cover" />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                        <div className={`w-full h-full flex items-center justify-center ${isSelected ? 'bg-gray-800 dark:bg-gray-600' : 'bg-gray-100 dark:bg-gray-800'}`}>
                           {!isAccessible ? (
                             <Lock size={24} className="text-gray-400" />
                           ) : (
@@ -289,16 +326,16 @@ export function PropertyDocumentsList({
                     </div>
                     <div className="flex-1 text-left min-w-0">
                       <p className={`text-sm font-medium ${
-                        !isAccessible ? 'text-gray-500' : 'text-gray-900'
+                        !isAccessible ? 'text-gray-500 dark:text-gray-400' : isSelected ? 'text-white' : 'text-gray-900 dark:text-white'
                       }`}>
                         {isAccessible ? truncateFilename(doc.filename.replace(/\.[^/.]+$/, ''), 10) : categoryLabels[doc.category]}
                       </p>
-                      <p className={`text-xs ${accessInfo.color}`}>
+                      <p className={`text-xs ${isSelected ? 'text-gray-300' : accessInfo.color}`}>
                         {accessInfo.text}
                       </p>
                     </div>
                     {isAccessible && (
-                      <ChevronRight size={16} className="text-gray-400" />
+                      <ChevronRight size={16} className={isSelected ? 'text-white' : 'text-gray-400'} />
                     )}
                   </button>
                 );

@@ -13,7 +13,7 @@ const __dirname = path.dirname(__filename);
 const pool = new Pool({
   host: 'localhost',
   port: 5432,
-  database: 'immoflow',
+  database: 'rendito',
   user: process.env.USER || 'my_macbook',
   password: '',
 });

@@ -17,7 +17,7 @@ const __dirname = dirname(__filename);
 const pool = new Pool({
   host: 'localhost',
   port: 5432,
-  database: 'immoflow',
+  database: 'rendito',
   user: 'postgres',
   password: 'postgres',
 });

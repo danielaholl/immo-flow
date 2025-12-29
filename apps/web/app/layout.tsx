@@ -4,9 +4,10 @@ import { AuthProvider } from './providers/AuthProvider';
 import { SlideshowManagerProvider } from './components/SlideshowManagerContext';
 import { TRPCProvider } from './providers/TRPCProvider';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { ThemeProvider } from './providers/ThemeProvider';
 
 export const metadata: Metadata = {
-  title: 'Nestando - Smart investieren. Gemeinsam.',
+  title: 'Rendito - Smart investieren. Gemeinsam.',
   description:
     'Smart investieren. Gemeinsam. Entdecke Immobilien, erhalte AI-Analysen und finde dein perfektes Investment.',
   keywords: ['Immobilien', 'Investment', 'Deutschland', 'Wohnung kaufen', 'Haus kaufen'],
@@ -22,16 +23,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="de">
-      <body>
+    <html lang="de" suppressHydrationWarning>
+      <body className="bg-slate-50 dark:bg-[#030712] text-slate-900 dark:text-white transition-colors">
         <ErrorBoundary>
-          <TRPCProvider>
-            <AuthProvider>
-              <SlideshowManagerProvider>
-                {children}
-              </SlideshowManagerProvider>
-            </AuthProvider>
-          </TRPCProvider>
+          <ThemeProvider>
+            <TRPCProvider>
+              <AuthProvider>
+                <SlideshowManagerProvider>
+                  {children}
+                </SlideshowManagerProvider>
+              </AuthProvider>
+            </TRPCProvider>
+          </ThemeProvider>
         </ErrorBoundary>
       </body>
     </html>

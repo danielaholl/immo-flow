@@ -3,10 +3,10 @@ const nextConfig = {
   output: 'standalone',
   reactStrictMode: true,
   transpilePackages: [
-    '@immoflow/ui',
-    '@immoflow/database',
-    '@immoflow/api',
-    '@immoflow/utils',
+    '@rendito/ui',
+    '@rendito/database',
+    '@rendito/api',
+    '@rendito/utils',
     'react-native-web',
   ],
   experimental: {

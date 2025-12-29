@@ -1,5 +1,5 @@
 /** @type {import('tailwindcss').Config} */
-const sharedConfig = require('@immoflow/tailwind-config');
+const sharedConfig = require('@rendito/tailwind-config');
 
 module.exports = {
   ...sharedConfig,

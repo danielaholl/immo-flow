@@ -9,6 +9,7 @@ import {
   calculatePortfolioPropertyTax,
   type PortfolioPropertyTaxResult,
 } from '../services/tax-calculator.js';
+import { generateAIScoreAnalysis } from '../utils/claude.js';
 
 // Input schema for creating/updating portfolio properties
 const portfolioPropertySchema = z.object({
@@ -51,6 +52,9 @@ const portfolioPropertySchema = z.object({
   // Metadata
   notes: z.string().optional(),
   status: z.enum(['active', 'sold', 'archived']).optional(),
+
+  // AI Score
+  aiScore: z.number().int().min(0).max(100).optional(),
 });
 
 // Helper to calculate annual appreciation rate
@@ -177,7 +181,7 @@ export const portfolioRouter = router({
           current_value, appreciation_rate_pa,
           loan_amount, interest_rate, amortization_rate, repayment_free_years, loan_start_date, loan_term_years, fixed_rate_until,
           monthly_rent, monthly_fee, vacancy_rate,
-          notes, status
+          notes, status, ai_score
         ) VALUES (
           $1, $2, $3, $4, $5, $6,
           $7, $8, $9, $10,
@@ -185,7 +189,7 @@ export const portfolioRouter = router({
           $15, $16,
           $17, $18, $19, $20, $21, $22, $23,
           $24, $25, $26,
-          $27, $28
+          $27, $28, $29
         ) RETURNING *`,
         [
           ctx.user.id,
@@ -216,6 +220,7 @@ export const portfolioRouter = router({
           input.vacancyRate || null,
           input.notes || null,
           input.status || 'active',
+          input.aiScore || null,
         ]
       );
 
@@ -338,6 +343,7 @@ export const portfolioRouter = router({
         vacancyRate: 'vacancy_rate',
         notes: 'notes',
         status: 'status',
+        aiScore: 'ai_score',
       };
 
       for (const [key, dbField] of Object.entries(fieldMapping)) {
@@ -432,6 +438,7 @@ export const portfolioRouter = router({
         totalAnnualCashflow: 0,
         averageYield: 0,
         averageCashOnCash: 0,
+        averageAiScore: null,
       };
     }
 
@@ -446,6 +453,8 @@ export const portfolioRouter = router({
     let weightedAppreciationSum = 0;
     let totalPurchasePrice = 0;
     let totalCurrentValue = 0;
+    let aiScoreSum = 0;
+    let aiScoreCount = 0;
 
     for (const p of properties) {
       const metrics = calculateMetrics(p);
@@ -466,6 +475,13 @@ export const portfolioRouter = router({
       weightedAppreciationSum += appreciationRate * currentValue;
       totalPurchasePrice += purchasePrice;
       totalCurrentValue += currentValue;
+
+      // AI Score
+      const aiScore = p.ai_score != null ? Number(p.ai_score) : null;
+      if (aiScore != null) {
+        aiScoreSum += aiScore;
+        aiScoreCount++;
+      }
     }
 
     const averageYield = totalPurchasePrice > 0
@@ -481,6 +497,11 @@ export const portfolioRouter = router({
       ? Math.round((weightedAppreciationSum / totalCurrentValue) * 100) / 100
       : 1.0;
 
+    // Average AI Score
+    const averageAiScore = aiScoreCount > 0
+      ? Math.round(aiScoreSum / aiScoreCount)
+      : null;
+
     return {
       totalProperties: properties.length,
       totalValue: Math.round(totalValue),
@@ -493,6 +514,7 @@ export const portfolioRouter = router({
       averageYield,
       averageCashOnCash,
       averageAppreciationRate,
+      averageAiScore,
     };
   }),
 
@@ -815,4 +837,105 @@ export const portfolioRouter = router({
       },
     };
   }),
+
+  // Calculate AI Score for a portfolio property
+  calculateAiScore: protectedProcedure
+    .input(z.object({
+      propertyId: z.string().uuid().optional(),
+      // Or provide property data directly (for new properties not yet saved)
+      propertyData: z.object({
+        purchasePrice: z.number().positive(),
+        location: z.string().min(1),
+        sqm: z.number().positive(),
+        yearBuilt: z.number().int().min(1800).max(2030).optional(),
+        monthlyRent: z.number().min(0).optional(),
+      }).optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      let propertyData: {
+        price: number;
+        location: string;
+        sqm: number;
+        yearBuilt?: number;
+        monthlyRent?: number;
+        grossYield?: number;
+      };
+
+      // If propertyId provided, load from database
+      if (input.propertyId) {
+        const property = await queryOne(
+          `SELECT purchase_price, location, sqm, year_built, monthly_rent
+           FROM portfolio_properties WHERE id = $1 AND user_id = $2`,
+          [input.propertyId, ctx.user.id]
+        );
+
+        if (!property) {
+          throw new Error('PROPERTY_NOT_FOUND');
+        }
+
+        const purchasePrice = Number(property.purchase_price) || 0;
+        const monthlyRent = Number(property.monthly_rent) || 0;
+        const annualRent = monthlyRent * 12;
+        const grossYield = purchasePrice > 0 ? (annualRent / purchasePrice) * 100 : undefined;
+
+        propertyData = {
+          price: purchasePrice,
+          location: property.location || '',
+          sqm: Number(property.sqm) || 0,
+          yearBuilt: property.year_built ? Number(property.year_built) : undefined,
+          monthlyRent: monthlyRent > 0 ? monthlyRent : undefined,
+          grossYield,
+        };
+      } else if (input.propertyData) {
+        // Use provided property data
+        const { purchasePrice, location, sqm, yearBuilt, monthlyRent } = input.propertyData;
+        const annualRent = (monthlyRent || 0) * 12;
+        const grossYield = purchasePrice > 0 && annualRent > 0
+          ? (annualRent / purchasePrice) * 100
+          : undefined;
+
+        propertyData = {
+          price: purchasePrice,
+          location,
+          sqm,
+          yearBuilt,
+          monthlyRent,
+          grossYield,
+        };
+      } else {
+        throw new Error('Either propertyId or propertyData must be provided');
+      }
+
+      // Generate AI analysis using Claude
+      const analysis = await generateAIScoreAnalysis(propertyData);
+
+      // Calculate overall score as weighted average of factors
+      const weights = {
+        location: 0.30,
+        pricePerformance: 0.25,
+        appreciation: 0.20,
+        rentability: 0.25,
+      };
+
+      const overallScore = Math.round(
+        analysis.factors.location * weights.location +
+        analysis.factors.pricePerformance * weights.pricePerformance +
+        analysis.factors.appreciation * weights.appreciation +
+        analysis.factors.rentability * weights.rentability
+      );
+
+      // If propertyId provided, update the database
+      if (input.propertyId) {
+        await query(
+          `UPDATE portfolio_properties SET ai_score = $1, updated_at = NOW() WHERE id = $2`,
+          [overallScore, input.propertyId]
+        );
+      }
+
+      return {
+        overallScore,
+        summary: analysis.summary,
+        factors: analysis.factors,
+      };
+    }),
 });

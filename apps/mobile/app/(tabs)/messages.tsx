@@ -1,5 +1,5 @@
 import { View, StyleSheet, Text } from 'react-native';
-import { colors, spacing } from '@immoflow/ui';
+import { colors, spacing } from '@rendito/ui';
 
 /**
  * Messages Screen - Placeholder for chat functionality

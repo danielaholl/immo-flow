@@ -1,4 +1,8 @@
+export type PropertyType = 'apartment' | 'house' | 'villa' | 'commercial' | 'land' | 'office' | 'retail' | 'industrial' | 'parking' | 'multi_family';
+
 export interface PropertyInfoOverlayProps {
+  /** Property type */
+  propertyType?: PropertyType;
   /** Property title */
   title: string;
   /** City/Location */
@@ -17,6 +21,8 @@ export interface PropertyInfoOverlayProps {
   sqm?: number;
   /** Formatted price per sqm */
   formattedPricePerSqm?: string;
+  /** Year built */
+  yearBuilt?: number;
   /** Additional CSS classes */
   className?: string;
   /** Whether to show the gradient background */

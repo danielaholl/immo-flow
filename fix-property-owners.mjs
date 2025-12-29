@@ -5,7 +5,7 @@ const { Pool } = pg;
 const pool = new Pool({
   host: 'localhost',
   port: 5432,
-  database: 'immoflow',
+  database: 'rendito',
   user: process.env.USER || 'my_macbook',
   password: '',
 });
@@ -17,7 +17,7 @@ async function fixPropertyOwners() {
     console.log('🔧 Fixing property owners...\n');
 
     // 1. Create demo seller user if not exists
-    const demoEmail = 'demo-seller@immoflow.de';
+    const demoEmail = 'demo-seller@rendito.de';
     // Pre-hashed password for 'Demo123!' (bcrypt hash)
     const demoPassword = '$2a$10$YourHashHere'; // This will be ignored if user exists
 
@@ -56,7 +56,7 @@ async function fixPropertyOwners() {
            last_name = EXCLUDED.last_name,
            company = EXCLUDED.company,
            phone = EXCLUDED.phone`,
-      [userId, 'Demo', 'Verkäufer', 'ImmoFlow Demo GmbH', '+49 30 12345678']
+      [userId, 'Demo', 'Verkäufer', 'Rendito Demo GmbH', '+49 30 12345678']
     );
     console.log('   ✅ Profile created\n');
 

@@ -1,5 +1,5 @@
 {
-  "name": "@immoflow/api",
+  "name": "@rendito/api",
   "version": "0.0.0",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -8,7 +8,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@immoflow/database": "workspace:*",
+    "@rendito/database": "workspace:*",
     "@sentry/node": "^10.29.0",
     "@sentry/profiling-node": "^10.29.0",
     "@sentry/tracing": "^7.120.4",
@@ -17,7 +17,7 @@
     "isomorphic-dompurify": "^2.34.0"
   },
   "devDependencies": {
-    "@immoflow/typescript-config": "workspace:*",
+    "@rendito/typescript-config": "workspace:*",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",

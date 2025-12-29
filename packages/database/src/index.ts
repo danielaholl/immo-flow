@@ -1,5 +1,5 @@
 /**
- * @immoflow/database
+ * @rendito/database
  * PostgreSQL client and types
  */
 

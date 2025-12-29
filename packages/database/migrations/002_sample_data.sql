@@ -1,4 +1,4 @@
--- Sample Data for ImmoFlow
+-- Sample Data for Rendito
 -- Use this for development/testing
 
 -- Insert sample properties

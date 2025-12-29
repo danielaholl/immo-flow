@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Image, StyleSheet, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { Property } from '@immoflow/database';
-import { getPropertyById, incrementPropertyViews } from '@immoflow/api';
-import { Button, Badge, colors, spacing } from '@immoflow/ui';
-import { formatPrice, formatArea, formatRooms } from '@immoflow/utils';
+import { Property } from '@rendito/database';
+import { getPropertyById, incrementPropertyViews } from '@rendito/api';
+import { Button, Badge, colors, spacing } from '@rendito/ui';
+import { formatPrice, formatArea, formatRooms } from '@rendito/utils';
 
 /**
  * Property Details Screen
