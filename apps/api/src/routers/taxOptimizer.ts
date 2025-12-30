@@ -10,6 +10,7 @@ import {
   calculateTargetPropertyPrice,
   calculatePropertyTaxEffect,
   calculateCashflowScenarios,
+  calculateOptimalPortfolio,
   AFA_STRATEGIES,
   DEFAULT_PARAMS,
   type AfaStrategy,
@@ -121,6 +122,34 @@ export const taxOptimizerRouter = router({
       });
     }),
 
+  // Calculate optimal portfolio for cashflow-neutral tax optimization
+  // Returns the portfolio where tax = 0 AND cashflow = 0
+  calculateOptimal: publicProcedure
+    .input(
+      z.object({
+        annualTaxPaid: z.number().min(0).max(10000000),
+        marginalTaxRate: z.number().min(0.1).max(0.5),
+        strategy: afaStrategySchema,
+        interestRate: z.number().min(0).max(0.15).optional(),
+        tilgungRate: z.number().min(0).max(0.10).optional(), // 0-10% Tilgung
+        rentalYield: z.number().min(0).max(0.15).optional(),
+        maintenanceRate: z.number().min(0).max(0.05).optional(),
+        ltvRatio: z.number().min(0).max(1.5).optional(), // Optional: Override calculated LTV
+      })
+    )
+    .query(({ input }) => {
+      return calculateOptimalPortfolio({
+        annualTaxPaid: input.annualTaxPaid,
+        marginalTaxRate: input.marginalTaxRate,
+        strategy: input.strategy,
+        interestRate: input.interestRate,
+        tilgungRate: input.tilgungRate,
+        rentalYield: input.rentalYield,
+        maintenanceRate: input.maintenanceRate,
+        ltvRatioOverride: input.ltvRatio,
+      });
+    }),
+
   // Calculate tax effect for a specific property
   calculatePropertyEffect: publicProcedure
     .input(
@@ -208,7 +237,10 @@ export const taxOptimizerRouter = router({
            p.images,
            p.ai_investment_score,
            p.year_built,
-           p.property_type
+           p.property_type,
+           p.afa_type,
+           p.afa_rate,
+           p.building_ratio
          FROM properties p
          WHERE
            p.status = 'active'

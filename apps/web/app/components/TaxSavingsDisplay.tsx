@@ -8,8 +8,6 @@ interface TaxSavingsDisplayProps {
   currentTax: number;
   optimizedTax?: number;
   isLoading?: boolean;
-  customPortfolioValue?: number | null;
-  onCustomPortfolioChange?: (value: number | null) => void;
   marginalTaxRate?: number;
   strategy?: 'bestand' | 'altbau' | 'neubau' | 'denkmal';
   breakdown?: {
@@ -19,6 +17,15 @@ interface TaxSavingsDisplayProps {
     rentalIncome: number;
     netTaxLoss: number;
   };
+  taxTarget?: 'optimal' | 'zero' | 'custom';
+  interestRate?: number;
+  rentalYield?: number;
+  maintenanceRate?: number;
+  equityRate?: number;
+  tilgungRate?: number;
+  isOptimal?: boolean;
+  isCashflowNeutral?: boolean;
+  monthlyCashflow?: number;
 }
 
 function formatCurrency(value: number): string {
@@ -49,65 +56,60 @@ const AFA_STRATEGIES = {
   denkmal: { rate: 0.09, buildingRatio: 0.35 },
 } as const;
 
-// Calculate tax savings for a given portfolio value
-function calculateTaxSavingsForPortfolio(
-  portfolioValue: number,
-  marginalTaxRate: number,
-  strategy: keyof typeof AFA_STRATEGIES
-) {
-  const strategyDetails = AFA_STRATEGIES[strategy];
-  const ltvRatio = 1.0;
-  const interestRate = 0.04;
-  const rentalYield = 0.03;
-  const maintenanceRate = 0.005;
-
-  const interestDeduction = portfolioValue * ltvRatio * interestRate;
-  const depreciationDeduction = portfolioValue * strategyDetails.buildingRatio * strategyDetails.rate;
-  const maintenanceDeduction = portfolioValue * maintenanceRate;
-  const rentalIncome = portfolioValue * rentalYield;
-  const netTaxLoss = interestDeduction + depreciationDeduction + maintenanceDeduction - rentalIncome;
-  const annualTaxSavings = netTaxLoss * marginalTaxRate;
-
-  return {
-    annualTaxSavings: Math.round(annualTaxSavings),
-    monthlyTaxSavings: Math.round(annualTaxSavings / 12),
-  };
-}
-
 export function TaxSavingsDisplay({
   targetPortfolioValue,
   currentTax,
   optimizedTax = 0,
   isLoading = false,
-  customPortfolioValue,
-  onCustomPortfolioChange,
   marginalTaxRate = 0.42,
   strategy = 'neubau',
   breakdown,
+  taxTarget = 'optimal',
+  interestRate = 0.04,
+  rentalYield = 0.03,
+  maintenanceRate = 0.005,
+  equityRate = 0.2,
+  tilgungRate = 0.02,
+  isOptimal = false,
+  isCashflowNeutral = false,
+  monthlyCashflow = 0,
 }: TaxSavingsDisplayProps) {
-  const effectivePortfolioValue = customPortfolioValue ?? targetPortfolioValue;
-  const isUsingCustomValue = customPortfolioValue !== null && customPortfolioValue !== undefined;
-
-  // Calculate savings
-  const customSavings = useMemo(() => {
-    if (effectivePortfolioValue <= 0) return null;
-    return calculateTaxSavingsForPortfolio(effectivePortfolioValue, marginalTaxRate, strategy);
-  }, [effectivePortfolioValue, marginalTaxRate, strategy]);
-
-  const savings = currentTax - optimizedTax;
-  const savingsPercent = currentTax > 0 ? Math.round((savings / currentTax) * 100) : 0;
-
   // Calculate breakdown values
   const strategyDetails = AFA_STRATEGIES[strategy];
-  const buildingValue = Math.round(effectivePortfolioValue * strategyDetails.buildingRatio);
-  const landValue = Math.round(effectivePortfolioValue * (1 - strategyDetails.buildingRatio));
-  const afaPerYear = breakdown?.depreciationDeduction ?? Math.round(effectivePortfolioValue * strategyDetails.buildingRatio * strategyDetails.rate);
+  const buildingValue = Math.round(targetPortfolioValue * strategyDetails.buildingRatio);
+  const landValue = Math.round(targetPortfolioValue * (1 - strategyDetails.buildingRatio));
+  const afaPerYear = breakdown?.depreciationDeduction ?? Math.round(targetPortfolioValue * strategyDetails.buildingRatio * strategyDetails.rate);
+
+  // Calculate detailed breakdown first (needed for custom mode)
+  const ltvRatio = 1 - equityRate;
+  const detailedBreakdown = useMemo(() => {
+    const depreciationDeduction = targetPortfolioValue * strategyDetails.buildingRatio * strategyDetails.rate;
+    const interestDeduction = targetPortfolioValue * ltvRatio * interestRate;
+    const maintenanceDeduction = targetPortfolioValue * maintenanceRate;
+    const tilgungDeduction = targetPortfolioValue * ltvRatio * tilgungRate;
+    const rentalIncomeValue = targetPortfolioValue * rentalYield;
+    const netTaxLoss = depreciationDeduction + interestDeduction + maintenanceDeduction - rentalIncomeValue;
+
+    return {
+      depreciationDeduction: Math.round(depreciationDeduction),
+      interestDeduction: Math.round(interestDeduction),
+      maintenanceDeduction: Math.round(maintenanceDeduction),
+      tilgungDeduction: Math.round(tilgungDeduction),
+      rentalIncome: Math.round(rentalIncomeValue),
+      netTaxLoss: Math.round(netTaxLoss),
+      taxSavings: Math.round(netTaxLoss * marginalTaxRate),
+    };
+  }, [targetPortfolioValue, strategyDetails, interestRate, maintenanceRate, tilgungRate, rentalYield, marginalTaxRate, ltvRatio]);
+
+  // Bei 'custom' wird die tatsächliche Ersparnis aus den Einstellungen berechnet
+  const savings = taxTarget === 'custom' ? detailedBreakdown.taxSavings : currentTax - optimizedTax;
+  const savingsPercent = currentTax > 0 ? Math.round((savings / currentTax) * 100) : 0;
 
   // 10 year savings
   const tenYearSavings = savings * 10;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col">
       {/* Portfolio Value Section */}
       <div className="text-center mb-6">
         {/* Circle Icon with Label */}
@@ -119,7 +121,22 @@ export function TaxSavingsDisplay({
           </div>
           <div className="text-left">
             <p className="text-xs text-gray-500">Benötigtes Portfolio für</p>
-            <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Steuerlast = €0</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                {isOptimal ? 'Optimale Steuerersparnis' : taxTarget === 'custom' ? `${savingsPercent}% Steuerersparnis` : 'Steuerlast = €0'}
+              </p>
+              {/* Optimal Badges */}
+              {isOptimal && (
+                <>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-medium rounded-full">
+                    <span className="text-emerald-500">✓</span> Steuer €0
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-medium rounded-full">
+                    <span className="text-emerald-500">✓</span> CF+
+                  </span>
+                </>
+              )}
+            </div>
           </div>
           <button className="ml-auto px-3 py-1.5 bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-medium rounded-lg flex items-center gap-1 hover:bg-emerald-200 dark:hover:bg-emerald-500/30 transition-colors">
             <Share2 size={12} />
@@ -128,49 +145,47 @@ export function TaxSavingsDisplay({
         </div>
 
         {/* Big Portfolio Value */}
-        <div className="mb-4">
-          <p className="text-xs text-gray-500 mb-1">Gesamt-Portfoliowert</p>
-          {isLoading ? (
-            <div className="h-14 flex items-center justify-center">
-              <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : (
-            <p className="text-4xl md:text-5xl font-bold text-emerald-600 dark:text-emerald-400">
-              {formatCompact(effectivePortfolioValue)}
-            </p>
-          )}
-          {effectivePortfolioValue >= 100000 && (
-            <p className="text-xs text-gray-500 mt-1">
-              bei 60% Fremdfinanzierung = €{formatNumber(Math.round(effectivePortfolioValue * 0.4))} Eigenkapital
+        <div className="mt-12 mb-12">
+          <p className={`text-5xl md:text-6xl font-bold text-emerald-600 dark:text-emerald-400 transition-opacity ${isLoading ? 'opacity-50' : 'opacity-100'}`}>
+            {formatCompact(targetPortfolioValue)}
+          </p>
+          {targetPortfolioValue >= 100000 && (
+            <p className="text-sm text-gray-500 mt-2">
+              bei {Math.round(equityRate * 100)}% Eigenkapital = €{formatNumber(Math.round(targetPortfolioValue * equityRate))} EK
             </p>
           )}
         </div>
 
         {/* Portfolio Breakdown */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="text-center">
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          <div className="bg-gray-100 dark:bg-gray-800 rounded-xl p-4 text-center border border-gray-200 dark:border-gray-700">
             <p className="text-xs text-gray-500 mb-1">Benötigtes AfA/Jahr</p>
             <p className="text-lg font-semibold text-gray-900 dark:text-white">€{formatNumber(afaPerYear)}</p>
           </div>
-          <div className="text-center">
-            <p className="text-xs text-gray-500 mb-1">Gebäudewert ({Math.round(strategyDetails.buildingRatio * 100)}%)</p>
-            <p className="text-lg font-semibold text-gray-900 dark:text-white">€{formatNumber(buildingValue)}</p>
+          <div className="bg-gray-100 dark:bg-gray-800 rounded-xl p-4 text-center border border-gray-200 dark:border-gray-700">
+            <p className="text-xs text-gray-500 mb-1">Gebäudewert (80%)</p>
+            <p className="text-lg font-semibold text-gray-900 dark:text-white">€{formatNumber(Math.round(targetPortfolioValue * 0.8))}</p>
           </div>
-          <div className="text-center">
-            <p className="text-xs text-gray-500 mb-1">Grundstückswert</p>
-            <p className="text-lg font-semibold text-gray-900 dark:text-white">€{formatNumber(landValue)}</p>
+          <div className="bg-gray-100 dark:bg-gray-800 rounded-xl p-4 text-center border border-gray-200 dark:border-gray-700">
+            <p className="text-xs text-gray-500 mb-1">Grundstückswert (20%)</p>
+            <p className="text-lg font-semibold text-gray-900 dark:text-white">€{formatNumber(Math.round(targetPortfolioValue * 0.2))}</p>
           </div>
         </div>
       </div>
 
       {/* Savings Card - Red/Orange Gradient */}
-      <div className="bg-gradient-to-r from-rose-500 to-orange-400 rounded-2xl p-5 mb-6">
+      <div className="bg-gradient-to-r from-rose-500 to-orange-400 rounded-2xl p-5 mb-4">
         <div className="flex justify-between items-start">
           <div>
             <p className="text-sm text-white/80 mb-1">Deine jährliche Steuerersparnis</p>
-            <p className="text-4xl font-bold text-white mb-2">
-              {formatCurrency(savings)}
-            </p>
+            <div className="flex items-baseline gap-3 mb-2">
+              <p className="text-4xl font-bold text-white">
+                {formatCurrency(savings)}
+              </p>
+              <span className="text-2xl font-bold text-white/90">
+                ({savingsPercent}%)
+              </span>
+            </div>
             <p className="text-sm text-white/80">
               +{formatCurrency(Math.round(savings / 12))}/Monat mehr netto in der Tasche
             </p>
@@ -185,105 +200,135 @@ export function TaxSavingsDisplay({
         </div>
       </div>
 
-      {/* Tax Comparison - Horizontal Bars */}
-      <div className="bg-gray-100 dark:bg-gray-800/50 rounded-2xl p-5">
-        <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-4">
-          Steuerbelastung: Vorher vs. Nachher
-        </h4>
+      {/* Breakdown Section */}
+      <div>
+          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* Steuerliche Aufschlüsselung Card */}
+            <div className="bg-gray-100 dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Steuerliche Aufschlüsselung</h4>
 
-        {/* Current Tax Bar (Red) */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-600 dark:text-gray-400">Ohne Immobilien</span>
-            <span className="text-sm font-semibold text-rose-500 dark:text-rose-400">{formatCurrency(currentTax)}</span>
-          </div>
-          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden relative">
-            <div
-              className="h-full bg-gradient-to-r from-rose-500 to-rose-400 rounded-lg flex items-center justify-end pr-3"
-              style={{ width: '100%' }}
-            >
-              <span className="text-xs text-white font-medium">100% Steuerlast</span>
+              {(() => {
+                const currentTaxableIncome = Math.round(currentTax / marginalTaxRate);
+                const newTaxableIncome = currentTaxableIncome + detailedBreakdown.rentalIncome - detailedBreakdown.depreciationDeduction - detailedBreakdown.interestDeduction - detailedBreakdown.maintenanceDeduction;
+                const newTax = Math.round(newTaxableIncome * marginalTaxRate);
+                const taxSavingsCalc = currentTax - newTax;
+
+                return (
+                  <div className="space-y-2">
+                    {/* Current taxable income */}
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">Zu versteuerndes Einkommen</span>
+                      <span className="text-gray-900 dark:text-white font-medium">€{formatNumber(currentTaxableIncome)}</span>
+                    </div>
+
+                    {/* Rental income */}
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">+ Mieteinnahmen ({(rentalYield * 100).toFixed(1)}%)</span>
+                      <span className="text-red-500 font-medium">+€{formatNumber(detailedBreakdown.rentalIncome)}</span>
+                    </div>
+
+                    {/* Deductions */}
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">- AfA-Abschreibung ({(strategyDetails.rate * 100).toFixed(0)}%)</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">-€{formatNumber(detailedBreakdown.depreciationDeduction)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">- Zinsabzug ({(interestRate * 100).toFixed(1)}%)</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">-€{formatNumber(detailedBreakdown.interestDeduction)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">- Instandhaltung ({(maintenanceRate * 100).toFixed(1)}%)</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">-€{formatNumber(detailedBreakdown.maintenanceDeduction)}</span>
+                    </div>
+
+                    {/* Divider */}
+                    <div className="border-t border-gray-300 dark:border-gray-600 my-3" />
+
+                    {/* New taxable income */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-900 dark:text-white font-semibold">= Neues zu verst. Einkommen</span>
+                      <span className="text-lg font-bold text-gray-900 dark:text-white">€{formatNumber(newTaxableIncome)}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">× Grenzsteuersatz {(marginalTaxRate * 100).toFixed(0)}%</span>
+                      <span className="text-gray-500 dark:text-gray-400"></span>
+                    </div>
+
+                    {/* New tax */}
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">= Neue Steuerlast</span>
+                      <span className="text-gray-900 dark:text-white font-medium">€{formatNumber(newTax)}</span>
+                    </div>
+
+                    {/* Divider */}
+                    <div className="border-t border-gray-300 dark:border-gray-600 my-3" />
+
+                    {/* Tax savings */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-900 dark:text-white font-semibold">= Steuerersparnis</span>
+                      <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">€{formatNumber(taxSavingsCalc)}</span>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
-          </div>
-        </div>
 
-        {/* Optimized Tax Bar (Green) */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-600 dark:text-gray-400">Mit Immobilien</span>
-            <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(optimizedTax)}</span>
-          </div>
-          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden relative">
-            {/* Progress indicator showing reduction */}
-            <div className="absolute inset-0 flex items-center">
-              <div
-                className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-lg flex items-center justify-center"
-                style={{ width: optimizedTax > 0 ? `${(optimizedTax / currentTax) * 100}%` : '10%', minWidth: '80px' }}
-              >
-                <span className="text-xs text-white font-medium">
-                  {optimizedTax === 0 ? '0%' : `${Math.round((optimizedTax / currentTax) * 100)}%`} Steuerlast
-                </span>
+            {/* Cashflow-Berechnung Card */}
+            <div className="bg-gray-100 dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Cashflow-Berechnung</h4>
+
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Mieteinnahmen</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-medium">+€{formatNumber(detailedBreakdown.rentalIncome)}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Zinsen ({Math.round((1 - equityRate) * 100)}%-{(interestRate * 100).toFixed(1)}%)</span>
+                  <span className="text-red-500 font-medium">-€{formatNumber(detailedBreakdown.interestDeduction)}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Tilgung ({Math.round((1 - equityRate) * 100)}%-{(tilgungRate * 100).toFixed(1)}%)</span>
+                  <span className="text-red-500 font-medium">-€{formatNumber(detailedBreakdown.tilgungDeduction)}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Instandhaltung</span>
+                  <span className="text-red-500 font-medium">-€{formatNumber(detailedBreakdown.maintenanceDeduction)}</span>
+                </div>
+
+                <div className="border-t border-gray-300 dark:border-gray-600 my-3" />
+
+                {(() => {
+                  const cashflow = detailedBreakdown.rentalIncome - detailedBreakdown.interestDeduction - detailedBreakdown.tilgungDeduction - detailedBreakdown.maintenanceDeduction;
+                  const isPositive = cashflow >= 0;
+                  return (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-900 dark:text-white font-semibold">= Cashflow/Jahr</span>
+                      <span className={`text-lg font-bold ${isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                        {isPositive ? '+' : ''}€{formatNumber(cashflow)}
+                      </span>
+                    </div>
+                  );
+                })()}
+
+                {(() => {
+                  const cashflow = detailedBreakdown.rentalIncome - detailedBreakdown.interestDeduction - detailedBreakdown.tilgungDeduction - detailedBreakdown.maintenanceDeduction;
+                  const monthlyCashflow = Math.round(cashflow / 12);
+                  const isPositive = monthlyCashflow >= 0;
+                  return (
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">= Cashflow/Monat</span>
+                      <span className={`font-medium ${isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                        {isPositive ? '+' : ''}€{formatNumber(monthlyCashflow)}
+                      </span>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Savings Summary */}
-        <div className="flex items-center justify-center pt-2">
-          <div className="bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-4 py-2 rounded-full text-sm font-medium">
-            -{savingsPercent}% Steuerersparnis
-          </div>
-        </div>
       </div>
 
-      {/* Was-wäre-wenn Slider */}
-      {onCustomPortfolioChange && targetPortfolioValue > 0 && (
-        <div className="mt-6 bg-gray-100 dark:bg-gray-800/50 rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="text-sm font-medium text-gray-900 dark:text-white">Was wäre wenn?</h4>
-            {isUsingCustomValue && (
-              <button
-                onClick={() => onCustomPortfolioChange(null)}
-                className="text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 dark:hover:text-emerald-300 font-medium"
-              >
-                Zurücksetzen
-              </button>
-            )}
-          </div>
-
-          <input
-            type="range"
-            min={50000}
-            max={Math.max(targetPortfolioValue, 100000)}
-            step={10000}
-            value={effectivePortfolioValue}
-            onChange={(e) => onCustomPortfolioChange(Number(e.target.value))}
-            className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-emerald-500 mb-2"
-          />
-          <div className="flex justify-between text-xs text-gray-500">
-            <span>€50.000</span>
-            <span className="text-emerald-600 dark:text-emerald-400 font-medium">{formatCompact(effectivePortfolioValue)}</span>
-            <span>{formatCompact(Math.max(targetPortfolioValue, 100000))}</span>
-          </div>
-
-          {isUsingCustomValue && customSavings && (
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <div className="bg-white dark:bg-gray-800 rounded-xl p-3 text-center border border-gray-200 dark:border-transparent">
-                <p className="text-xs text-gray-500 mb-1">Jährliche Ersparnis</p>
-                <p className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">
-                  {formatCurrency(customSavings.annualTaxSavings)}
-                </p>
-              </div>
-              <div className="bg-white dark:bg-gray-800 rounded-xl p-3 text-center border border-gray-200 dark:border-transparent">
-                <p className="text-xs text-gray-500 mb-1">Monatlich mehr netto</p>
-                <p className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">
-                  {formatCurrency(customSavings.monthlyTaxSavings)}
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

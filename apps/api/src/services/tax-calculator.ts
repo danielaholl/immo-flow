@@ -63,6 +63,17 @@ export const DEFAULT_PARAMS = {
   marginalTaxRate: 0.42, // 42% (Spitzensteuersatz)
 } as const;
 
+// Optimal parameters for Cashflow = 0 (minimal EK)
+export const OPTIMAL_PARAMS = {
+  strategy: 'neubau' as AfaStrategy,
+  interestRate: 0.04, // 4% Zins
+  tilgungRate: 0.01, // 1% Tilgung (minimal)
+  maintenanceRate: 0.001, // 0.1% Instandhaltung (Neubau)
+  equityRate: 0.05, // 5% EK (max für optimal)
+  // Mietrendite wird berechnet: LTV * (Zins + Tilgung) + Instand
+  // 0.95 * (4% + 1%) + 0.1% = 4.85%
+} as const;
+
 export interface TaxCalculatorParams {
   annualTaxPaid: number; // Gezahlte Lohnsteuer p.a.
   marginalTaxRate: number; // Grenzsteuersatz (e.g., 0.42)
@@ -255,6 +266,89 @@ export function calculateTargetPropertyPrice(
     strategy: fullParams.strategy,
     strategyDetails,
     params: fullParams,
+  };
+}
+
+/**
+ * Result type for optimal portfolio calculation
+ */
+export interface OptimalPortfolioResult extends TaxCalculatorResult {
+  optimalLtvRatio: number;
+  requiredEquityPercent: number;
+  isCashflowNeutral: boolean;
+  monthlyCashflow: number;
+  tilgungRate: number;
+}
+
+/**
+ * Parameters for optimal portfolio calculation (includes tilgung)
+ */
+export interface OptimalPortfolioParams extends TaxCalculatorParams {
+  tilgungRate?: number; // Tilgungsrate (e.g., 0.02 for 2%)
+  ltvRatioOverride?: number; // Optional: Override the calculated optimal LTV (user-adjusted EK)
+}
+
+/**
+ * Calculate the optimal portfolio for cashflow-neutral tax optimization
+ *
+ * This finds the portfolio where:
+ * - Tax burden is reduced to zero (maximum tax savings)
+ * - Cashflow = 0 (rental income covers interest + tilgung + maintenance)
+ *
+ * The key insight: For Cashflow = 0, we need:
+ *   y = LTV × (i + t) + k
+ *   LTV_optimal = (y - k) / (i + t)
+ */
+export function calculateOptimalPortfolio(
+  params: OptimalPortfolioParams
+): OptimalPortfolioResult {
+  const fullParams = {
+    annualTaxPaid: params.annualTaxPaid,
+    marginalTaxRate: params.marginalTaxRate,
+    strategy: params.strategy,
+    interestRate: params.interestRate ?? DEFAULT_PARAMS.interestRate,
+    tilgungRate: params.tilgungRate ?? 0.02, // Default 2% Tilgung
+    rentalYield: params.rentalYield ?? DEFAULT_PARAMS.rentalYield,
+    maintenanceRate: params.maintenanceRate ?? DEFAULT_PARAMS.maintenanceRate,
+  };
+
+  // Calculate optimal LTV for Cashflow = 0
+  // Formula: LTV_optimal = (y - k) / (i + t)
+  // Cashflow = Miete - Zinsen - Tilgung - Instandhaltung
+  const optimalLtv = (fullParams.rentalYield - fullParams.maintenanceRate) / (fullParams.interestRate + fullParams.tilgungRate);
+
+  // Use override LTV if provided, otherwise use calculated optimal
+  const baseLtv = params.ltvRatioOverride ?? optimalLtv;
+
+  // Clamp LTV between 0 and 1 (can't have negative equity or more than 100% financing)
+  const clampedLtv = Math.max(0, Math.min(baseLtv, 1.0));
+  const requiredEquityPercent = Math.round((1 - clampedLtv) * 100);
+
+  // Check if cashflow-neutral is achievable
+  const isCashflowNeutral = optimalLtv >= 0 && optimalLtv <= 1;
+
+  // Calculate portfolio with optimal LTV
+  const result = calculateTargetPropertyPrice({
+    ...params,
+    ltvRatio: clampedLtv,
+  });
+
+  // Calculate actual monthly cashflow for verification (including tilgung)
+  const annualCashflow = result.targetPortfolioValue * (
+    fullParams.rentalYield -
+    clampedLtv * fullParams.interestRate -
+    clampedLtv * fullParams.tilgungRate -
+    fullParams.maintenanceRate
+  );
+  const monthlyCashflow = Math.round(annualCashflow / 12);
+
+  return {
+    ...result,
+    optimalLtvRatio: clampedLtv,
+    requiredEquityPercent,
+    isCashflowNeutral,
+    monthlyCashflow,
+    tilgungRate: fullParams.tilgungRate,
   };
 }
 

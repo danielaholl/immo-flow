@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Building2, Check, ChevronDown } from 'lucide-react';
+import { Building2, Check, ChevronDown, ImageOff } from 'lucide-react';
 import { trpc } from '@/app/providers/TRPCProvider';
 import { TaxSavingsDisplay } from '../components/TaxSavingsDisplay';
 import { Header } from '../components/Header';
@@ -9,6 +9,27 @@ import Link from 'next/link';
 import Image from 'next/image';
 
 type AfaStrategy = 'bestand' | 'altbau' | 'neubau' | 'denkmal';
+type TaxTarget = 'optimal' | 'zero' | 'custom';
+
+// Standard-Parameter für €0 und 50% Modus
+const DEFAULT_PARAMS = {
+  interestRate: 4,        // 4% Zins
+  tilgungRate: 2,         // 2% Tilgung
+  rentalYield: 3.5,       // 3.5% Mietrendite
+  maintenanceRate: 0.3,   // 0.3% Instandhaltung
+  equityRate: 20,         // 20% EK
+};
+
+// Optimale Parameter für Optimal-Modus (Cashflow = 0)
+const OPTIMAL_PARAMS = {
+  strategy: 'neubau' as AfaStrategy,
+  interestRate: 4,        // 4% Zins
+  tilgungRate: 1,         // 1% Tilgung (minimal)
+  maintenanceRate: 0.1,   // 0.1% Instandhaltung (Neubau)
+  equityRate: 5,          // 5% EK (maximal)
+  // Mietrendite wird berechnet: LTV * (Zins + Tilgung) + Instand
+  // 0.95 * (4% + 1%) + 0.1% = 4.85%
+};
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('de-DE', {
@@ -26,6 +47,9 @@ function formatNumber(value: number): string {
 function formatCompact(value: number): string {
   if (value >= 1000000) {
     return `${(value / 1000000).toFixed(1).replace('.', ',')} Mio.`;
+  }
+  if (value >= 1000) {
+    return `${Math.round(value / 1000)}k`;
   }
   return formatNumber(value);
 }
@@ -46,7 +70,11 @@ interface PropertyMatchCardProps {
 }
 
 function PropertyMatchCard({ property, taxSavings }: PropertyMatchCardProps) {
-  const imageUrl = property.images?.[0] || '/placeholder-property.jpg';
+  const imageUrl = property.images?.[0];
+  const hasImage = Boolean(imageUrl && imageUrl.trim().length > 0);
+  const [imageError, setImageError] = useState(false);
+
+  const showPlaceholder = !hasImage || imageError;
 
   return (
     <Link
@@ -54,15 +82,22 @@ function PropertyMatchCard({ property, taxSavings }: PropertyMatchCardProps) {
       className="block bg-gray-100 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:border-gray-300 dark:hover:border-gray-600 transition-all hover:bg-gray-50 dark:hover:bg-gray-800"
     >
       <div className="relative h-28">
-        <Image
-          src={imageUrl}
-          alt={property.title}
-          fill
-          className="object-cover"
-          sizes="(max-width: 768px) 100vw, 300px"
-        />
+        {!showPlaceholder ? (
+          <Image
+            src={imageUrl!}
+            alt={property.title}
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, 300px"
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <div className="absolute inset-0 w-full h-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+            <ImageOff size={24} className="text-gray-400 dark:text-gray-500" />
+          </div>
+        )}
         {/* Badge */}
-        <div className="absolute top-2 right-2 bg-emerald-500/90 text-white text-xs font-medium px-2 py-1 rounded-full flex items-center gap-1">
+        <div className="absolute top-2 right-2 bg-emerald-500/90 text-white text-xs font-medium px-2 py-1 rounded-full flex items-center gap-1 z-20">
           <Check size={10} />
           Geprüft
         </div>
@@ -97,9 +132,15 @@ export default function SteuerOptimiererPage() {
   const [annualTaxPaid, setAnnualTaxPaid] = useState<number>(42000);
   const [marginalTaxRate, setMarginalTaxRate] = useState<number>(42);
   const [strategy, setStrategy] = useState<AfaStrategy>('neubau');
+  const [taxTarget, setTaxTarget] = useState<TaxTarget>('optimal');
 
-  // Was-wäre-wenn Slider state
-  const [customPortfolioValue, setCustomPortfolioValue] = useState<number | null>(null);
+  // Annahmen State - Default: Standard-Werte
+  const [interestRate, setInterestRate] = useState<number>(DEFAULT_PARAMS.interestRate);
+  const [tilgungRate, setTilgungRate] = useState<number>(DEFAULT_PARAMS.tilgungRate);
+  const [rentalYield, setRentalYield] = useState<number>(DEFAULT_PARAMS.rentalYield);
+  const [maintenanceRate, setMaintenanceRate] = useState<number>(DEFAULT_PARAMS.maintenanceRate);
+  const [equityRate, setEquityRate] = useState<number>(DEFAULT_PARAMS.equityRate);
+
 
   // Load user's tax profile
   const { data: taxProfile } = trpc.taxOptimizer.getProfile.useQuery(undefined, {
@@ -122,10 +163,11 @@ export default function SteuerOptimiererPage() {
     }
   }, [taxProfile]);
 
-  // Track changes to inputs - reset slider when tax data changes
+  // Track changes to inputs
   const handleInputChange = useCallback(() => {
-    setCustomPortfolioValue(null);
+    // Can be used for future input tracking
   }, []);
+
 
   // Get the default AfA rate for the current strategy
   const defaultAfaRate = useMemo(() => {
@@ -133,67 +175,168 @@ export default function SteuerOptimiererPage() {
     return rates[strategy];
   }, [strategy]);
 
-  // Handle strategy change - reset custom value
+  // Handle strategy change
   const handleStrategyChange = useCallback((newStrategy: AfaStrategy) => {
     setStrategy(newStrategy);
-    setCustomPortfolioValue(null); // Reset slider when strategy changes
   }, []);
 
-  // Calculate the target portfolio value
+  // Handle "Optimal" click - set parameters and calculate required rental yield for Cashflow = 0
+  const handleOptimalClick = useCallback(() => {
+    setTaxTarget('optimal');
+    setStrategy(OPTIMAL_PARAMS.strategy);
+    setInterestRate(OPTIMAL_PARAMS.interestRate);
+    setTilgungRate(OPTIMAL_PARAMS.tilgungRate);
+    setMaintenanceRate(OPTIMAL_PARAMS.maintenanceRate);
+    setEquityRate(OPTIMAL_PARAMS.equityRate);
+
+    // Berechne nötige Mietrendite für Cashflow = 0
+    // Formel: Mietrendite = LTV * (Zins + Tilgung) + Instandhaltung
+    const ltv = (100 - OPTIMAL_PARAMS.equityRate) / 100; // 0.95 bei 5% EK
+    const requiredYield = ltv * (OPTIMAL_PARAMS.interestRate + OPTIMAL_PARAMS.tilgungRate) + OPTIMAL_PARAMS.maintenanceRate;
+    setRentalYield(Math.round(requiredYield * 10) / 10); // Auf 0.1% runden
+  }, []);
+
+  // Handle "€0" click - set default parameters
+  const handleZeroClick = useCallback(() => {
+    setTaxTarget('zero');
+    setInterestRate(DEFAULT_PARAMS.interestRate);
+    setTilgungRate(DEFAULT_PARAMS.tilgungRate);
+    setRentalYield(DEFAULT_PARAMS.rentalYield);
+    setMaintenanceRate(DEFAULT_PARAMS.maintenanceRate);
+    setEquityRate(DEFAULT_PARAMS.equityRate);
+  }, []);
+
+  // Handle "Individuell" click - user can adjust parameters themselves
+  const handleCustomClick = useCallback(() => {
+    setTaxTarget('custom');
+    setInterestRate(DEFAULT_PARAMS.interestRate);
+    setTilgungRate(DEFAULT_PARAMS.tilgungRate);
+    setRentalYield(DEFAULT_PARAMS.rentalYield);
+    setMaintenanceRate(DEFAULT_PARAMS.maintenanceRate);
+    setEquityRate(DEFAULT_PARAMS.equityRate);
+    setShowAssumptions(true); // Annahmen automatisch öffnen
+  }, []);
+
+  // Calculate the target portfolio value (for €0 and 50% modes)
   const calculationResult = trpc.taxOptimizer.calculate.useQuery(
     {
       annualTaxPaid,
       marginalTaxRate: marginalTaxRate / 100,
       strategy,
+      ltvRatio: (100 - equityRate) / 100,
+      interestRate: interestRate / 100,
+      rentalYield: rentalYield / 100,
+      maintenanceRate: maintenanceRate / 100,
     },
     {
-      enabled: annualTaxPaid > 0 && marginalTaxRate > 0,
+      enabled: annualTaxPaid > 0 && marginalTaxRate > 0 && taxTarget !== 'optimal',
+    }
+  );
+
+  // Calculate optimal portfolio (cashflow-neutral)
+  // Pass user's equityRate as ltvRatio override so slider changes affect the result
+  const optimalResult = trpc.taxOptimizer.calculateOptimal.useQuery(
+    {
+      annualTaxPaid,
+      marginalTaxRate: marginalTaxRate / 100,
+      strategy,
+      interestRate: interestRate / 100,
+      tilgungRate: tilgungRate / 100,
+      rentalYield: rentalYield / 100,
+      maintenanceRate: maintenanceRate / 100,
+      ltvRatio: (100 - equityRate) / 100, // Pass user's EK as LTV override
+    },
+    {
+      enabled: annualTaxPaid > 0 && marginalTaxRate > 0 && taxTarget === 'optimal',
     }
   );
 
   // Target portfolio value from calculation (for 0€ tax)
-  const targetPortfolioValue = calculationResult.data?.targetPortfolioValue ?? 0;
+  const fullTargetPortfolioValue = calculationResult.data?.targetPortfolioValue ?? 0;
+  const optimalPortfolioValue = optimalResult.data?.targetPortfolioValue ?? 0;
+
+  // Effective equity rate is now always the slider value
+  const effectiveEquityRate = equityRate;
+
+  // Adjust portfolio value based on tax target
+  const targetPortfolioValue = useMemo(() => {
+    if (taxTarget === 'optimal') {
+      return optimalPortfolioValue;
+    }
+    // Bei 'zero' und 'custom' wird das volle Portfolio verwendet
+    return fullTargetPortfolioValue;
+  }, [taxTarget, optimalPortfolioValue, fullTargetPortfolioValue]);
+
+  // Check if calculation is loading
+  const isCalculating = taxTarget === 'optimal' ? optimalResult.isLoading : calculationResult.isLoading;
 
   // Get all properties (independent of portfolio value)
   const allProperties = trpc.taxOptimizer.getAllPropertiesForTaxOptimizer.useQuery(
     { limit: 6 }
   );
 
+  // Helper function to get AfA details - prefers persisted values, falls back to calculation
+  const getAfaDetails = (
+    afaRate: number | null,
+    buildingRatio: number | null,
+    yearBuilt: number | null,
+    afaType: string | null
+  ) => {
+    // Use persisted values if available
+    if (afaRate !== null && buildingRatio !== null) {
+      return { rate: Number(afaRate), buildingRatio: Number(buildingRatio) };
+    }
+
+    // Fallback: Calculate from afa_type if explicitly set
+    if (afaType === 'denkmal') return { rate: 0.09, buildingRatio: 0.35 };
+    if (afaType === 'neubau') return { rate: 0.05, buildingRatio: 0.85 };
+    if (afaType === 'altbau') return { rate: 0.025, buildingRatio: 0.80 };
+    if (afaType === 'bestand') return { rate: 0.02, buildingRatio: 0.80 };
+
+    // Fallback: Calculate from year_built
+    if (!yearBuilt) return { rate: 0.02, buildingRatio: 0.80 };
+    if (yearBuilt < 1925) return { rate: 0.025, buildingRatio: 0.80 };
+    if (yearBuilt >= 2024) return { rate: 0.05, buildingRatio: 0.85 };
+    return { rate: 0.02, buildingRatio: 0.80 };
+  };
+
   // Calculate tax savings for each property, filter by max savings, and sort (highest first)
   const propertiesWithSavings = useMemo(() => {
     if (!allProperties.data) return [];
 
-    const buildingRatio = strategy === 'bestand' ? 0.8 : strategy === 'neubau' ? 0.85 : 0.9;
-    const afaRate = defaultAfaRate / 100;
-    const interestRate = 0.04;
-    const rentalYield = 0.03;
-    const maintenanceRate = 0.005;
+    const ltvRatio = (100 - equityRate) / 100; // Fremdfinanzierung = 100% - Eigenkapital
 
     return allProperties.data
-      .map((property: { id: string; price: number; title: string; location: string; sqm: number; rooms: number; images: string[]; ai_investment_score?: number }) => {
-        const interestDeduction = property.price * 1.0 * interestRate;
-        const depreciationDeduction = property.price * buildingRatio * afaRate;
-        const maintenanceDeduction = property.price * maintenanceRate;
-        const rentalIncome = property.price * rentalYield;
-        const netTaxLoss = interestDeduction + depreciationDeduction + maintenanceDeduction - rentalIncome;
+      .map((property: { id: string; price: number; title: string; location: string; sqm: number; rooms: number; images: string[]; ai_investment_score?: number; year_built?: number | null; afa_type?: string | null; afa_rate?: number | null; building_ratio?: number | null }) => {
+        // Get AfA details - prefer persisted values, fallback to calculation
+        const afaDetails = getAfaDetails(
+          property.afa_rate ?? null,
+          property.building_ratio ?? null,
+          property.year_built ?? null,
+          property.afa_type ?? null
+        );
+
+        const interestDeduction = property.price * ltvRatio * (interestRate / 100);
+        const depreciationDeduction = property.price * afaDetails.buildingRatio * afaDetails.rate;
+        const maintenanceDeduction = property.price * (maintenanceRate / 100);
+        const rentalIncomeValue = property.price * (rentalYield / 100);
+        const netTaxLoss = interestDeduction + depreciationDeduction + maintenanceDeduction - rentalIncomeValue;
         const taxSavings = Math.round(netTaxLoss * (marginalTaxRate / 100));
 
         return {
           ...property,
           taxSavings,
+          afaRate: afaDetails.rate,
         };
       })
       .filter((property) => property.taxSavings <= annualTaxPaid) // Only show properties where savings <= paid taxes
       .sort((a, b) => b.taxSavings - a.taxSavings); // Sort by savings descending
-  }, [allProperties.data, strategy, marginalTaxRate, defaultAfaRate, annualTaxPaid]);
+  }, [allProperties.data, marginalTaxRate, annualTaxPaid, interestRate, rentalYield, maintenanceRate, equityRate]);
 
   const handleTaxChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/[^\d]/g, '');
     setAnnualTaxPaid(value === '' ? 0 : Number(value));
   }, []);
-
-  // Ziel Steuerlast State
-  const [taxTarget, setTaxTarget] = useState<'zero' | 'half' | 'custom'>('zero');
 
   // Show/Hide Annahmen
   const [showAssumptions, setShowAssumptions] = useState(false);
@@ -217,9 +360,9 @@ export default function SteuerOptimiererPage() {
           <div className="h-full grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5 max-w-[1600px] mx-auto">
 
             {/* Left Column - Inputs */}
-            <div className="lg:col-span-3 h-full flex flex-col gap-4">
+            <div className="lg:col-span-3 h-full flex flex-col gap-4 overflow-y-auto pr-1">
               {/* Deine Steuersituation Card */}
-              <div className="bg-white dark:bg-[#111827] rounded-2xl border border-gray-200 dark:border-gray-800 p-5 flex-1 overflow-y-auto">
+              <div className="bg-white dark:bg-[#111827] rounded-2xl border border-gray-200 dark:border-gray-800 p-5">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-5">
                   Deine Steuersituation
                 </h3>
@@ -238,26 +381,13 @@ export default function SteuerOptimiererPage() {
                         handleTaxChange(e);
                         handleInputChange();
                       }}
-                      className="w-full pl-10 pr-4 py-3 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white text-lg font-medium focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                      className="w-full pl-10 pr-14 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white text-lg font-medium focus:ring-2 focus:ring-pink-500 focus:border-orange-400 outline-none"
                     />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 text-sm">/Jahr</span>
                   </div>
-                  <input
-                    type="range"
-                    min={5000}
-                    max={200000}
-                    step={1000}
-                    value={annualTaxPaid}
-                    onChange={(e) => {
-                      setAnnualTaxPaid(Number(e.target.value));
-                      handleInputChange();
-                    }}
-                    className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-                  />
-                  <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>5.000 €</span>
-                    <span className="text-gray-500 dark:text-gray-400">ca. {formatCompact(annualTaxPaid / (marginalTaxRate / 100))} € Einkommen</span>
-                    <span>200.000 €</span>
-                  </div>
+                  <p className="text-xs text-gray-400 dark:text-gray-500">
+                    = ca. {formatCompact(annualTaxPaid / (marginalTaxRate / 100))} € zu versteuerndes Einkommen
+                  </p>
                 </div>
 
                 {/* Tax Rate Display with Slider */}
@@ -265,9 +395,9 @@ export default function SteuerOptimiererPage() {
                   <label className="block text-sm text-gray-600 dark:text-gray-400 mb-2">
                     Dein Grenzsteuersatz
                   </label>
-                  <div className="flex items-center gap-3 mb-3">
-                    <span className="text-3xl font-bold text-gray-900 dark:text-white">{marginalTaxRate}</span>
-                    <span className="text-xl text-gray-500 dark:text-gray-400">%</span>
+                  <div className="flex items-center gap-1 mb-1">
+                    <span className="text-3xl font-bold bg-gradient-to-r from-pink-500 to-orange-400 bg-clip-text text-transparent">{marginalTaxRate}</span>
+                    <span className="text-xl bg-gradient-to-r from-pink-500 to-orange-400 bg-clip-text text-transparent">%</span>
                   </div>
                   <input
                     type="range"
@@ -279,11 +409,10 @@ export default function SteuerOptimiererPage() {
                       setMarginalTaxRate(Number(e.target.value));
                       handleInputChange();
                     }}
-                    className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                    className="w-full h-3 rounded-lg appearance-none cursor-pointer bg-gray-200 dark:bg-gray-700 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gradient-to-r [&::-webkit-slider-thumb]:from-pink-500 [&::-webkit-slider-thumb]:to-orange-400 [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-6 [&::-moz-range-thumb]:h-6 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-gradient-to-r [&::-moz-range-thumb]:from-pink-500 [&::-moz-range-thumb]:to-orange-400 [&::-moz-range-thumb]:shadow-lg [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
                   />
                   <div className="flex justify-between text-xs text-gray-500 mt-1">
                     <span>14%</span>
-                    <span>42%</span>
                     <span>45%</span>
                   </div>
                 </div>
@@ -295,53 +424,37 @@ export default function SteuerOptimiererPage() {
                   </label>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => setTaxTarget('zero')}
+                      onClick={handleOptimalClick}
+                      className={`flex-1 py-2.5 rounded-lg font-medium text-sm transition-all ${
+                        taxTarget === 'optimal'
+                          ? 'bg-gradient-to-br from-green-500 to-teal-500 text-white'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      Optimal
+                    </button>
+                    <button
+                      onClick={handleZeroClick}
                       className={`flex-1 py-2.5 rounded-lg font-medium text-sm transition-all ${
                         taxTarget === 'zero'
-                          ? 'bg-emerald-500 text-white'
+                          ? 'bg-gradient-to-br from-green-500 to-teal-500 text-white'
                           : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                       }`}
                     >
                       €0
                     </button>
                     <button
-                      onClick={() => setTaxTarget('half')}
-                      className={`flex-1 py-2.5 rounded-lg font-medium text-sm transition-all ${
-                        taxTarget === 'half'
-                          ? 'bg-emerald-500 text-white'
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
-                      }`}
-                    >
-                      50%
-                    </button>
-                    <button
-                      onClick={() => setTaxTarget('custom')}
+                      onClick={handleCustomClick}
                       className={`flex-1 py-2.5 rounded-lg font-medium text-sm transition-all ${
                         taxTarget === 'custom'
-                          ? 'bg-emerald-500 text-white'
+                          ? 'bg-gradient-to-br from-green-500 to-teal-500 text-white'
                           : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                       }`}
                     >
-                      Custom
+                      Individuell
                     </button>
                   </div>
                 </div>
-              </div>
-
-              {/* Benötigtes AfA/Jahr Card */}
-              <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-500/20 dark:to-teal-500/10 rounded-2xl border border-emerald-200 dark:border-emerald-500/30 p-5">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Benötigtes AfA/Jahr</span>
-                  <span className="text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-500/20 px-2 py-1 rounded-full">
-                    {strategy === 'bestand' ? '2%' : strategy === 'altbau' ? '2,5%' : strategy === 'neubau' ? '4%' : '9%'} AfA
-                  </span>
-                </div>
-                <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
-                  {formatCurrency(Math.round(targetPortfolioValue * (strategy === 'denkmal' ? 0.35 : strategy === 'neubau' ? 0.85 : 0.8) * (defaultAfaRate / 100)))}
-                </p>
-                <p className="text-xs text-gray-500 mt-2">
-                  um {formatCurrency(annualTaxPaid)} Steuern zu sparen
-                </p>
               </div>
 
               {/* Annahmen Card */}
@@ -358,7 +471,20 @@ export default function SteuerOptimiererPage() {
                 </button>
 
                 {showAssumptions ? (
-                  <div className="mt-4 space-y-3">
+                  <div className="mt-4 space-y-4">
+                    {/* Optimal Badge */}
+                    {taxTarget === 'optimal' && (
+                      <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-500/10 dark:to-teal-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-xl p-3">
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="text-emerald-600 dark:text-emerald-400">✓</span>
+                          <span className="font-medium text-emerald-700 dark:text-emerald-300">Empfohlen für positiven Cashflow</span>
+                        </div>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                          Diese Werte ermöglichen Steuer = €0 mit positivem Cashflow
+                        </p>
+                      </div>
+                    )}
+
                     {/* Strategy Selection */}
                     <div>
                       <label className="block text-xs text-gray-500 mb-2">AfA-Strategie</label>
@@ -381,20 +507,136 @@ export default function SteuerOptimiererPage() {
                         ))}
                       </div>
                     </div>
+
+                    {/* Eigenkapital Slider - Nach AfA-Strategie */}
+                    <div>
+                      <div className="flex justify-between text-xs text-gray-500 mb-1">
+                        <span>Eigenkapital</span>
+                        <span className="text-gray-900 dark:text-white font-medium">{equityRate}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        step={5}
+                        value={equityRate}
+                        onChange={(e) => setEquityRate(Number(e.target.value))}
+                        className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                      />
+                    </div>
+
+                    {/* Zinssatz und Tilgung Slider - nebeneinander */}
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* Zinssatz Slider */}
+                      <div>
+                        <div className="flex justify-between text-xs text-gray-500 mb-1">
+                          <span>Zinssatz</span>
+                          <span className="text-gray-900 dark:text-white font-medium">{interestRate}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={8}
+                          step={0.1}
+                          value={interestRate}
+                          onChange={(e) => setInterestRate(Number(e.target.value))}
+                          className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                        />
+                      </div>
+
+                      {/* Tilgung Slider */}
+                      <div>
+                        <div className="flex justify-between text-xs text-gray-500 mb-1">
+                          <span>Tilgung</span>
+                          <span className="text-gray-900 dark:text-white font-medium">{tilgungRate}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={10}
+                          step={0.5}
+                          value={tilgungRate}
+                          onChange={(e) => setTilgungRate(Number(e.target.value))}
+                          className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Mietrendite und Instandhaltung Slider - nebeneinander */}
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* Mietrendite Slider */}
+                      <div>
+                        <div className="flex justify-between text-xs text-gray-500 mb-1">
+                          <span>Mietrendite</span>
+                          <span className="text-gray-900 dark:text-white font-medium">{rentalYield}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={20}
+                          step={0.5}
+                          value={rentalYield}
+                          onChange={(e) => setRentalYield(Number(e.target.value))}
+                          className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                        />
+                      </div>
+
+                      {/* Instandhaltung Slider */}
+                      <div>
+                        <div className="flex justify-between text-xs text-gray-500 mb-1">
+                          <span>Instandhaltung</span>
+                          <span className="text-gray-900 dark:text-white font-medium">{maintenanceRate}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={1}
+                          step={0.1}
+                          value={maintenanceRate}
+                          onChange={(e) => setMaintenanceRate(Number(e.target.value))}
+                          className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                        />
+                      </div>
+                    </div>
+
                   </div>
                 ) : (
                   <div className="mt-4 space-y-2">
+                    {taxTarget === 'optimal' && (
+                      <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400 mb-2">
+                        <span>✓</span>
+                        <span>Empfohlen für minimales EK</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">AfA-Satz Gebäude</span>
-                      <span className="text-gray-900 dark:text-white">{defaultAfaRate}% p.a.</span>
+                      <span className="text-gray-900 dark:text-white">{defaultAfaRate}%</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Gebäudeanteil</span>
-                      <span className="text-gray-900 dark:text-white">80%</span>
+                      <span className="text-gray-500">Zinssatz</span>
+                      <span className="text-gray-900 dark:text-white">{interestRate}%</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Fremdfinanzierung</span>
-                      <span className="text-gray-900 dark:text-white">80%</span>
+                      <span className="text-gray-500">Tilgung</span>
+                      <span className="text-gray-900 dark:text-white">{tilgungRate}%</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Mietrendite</span>
+                      <span className="text-gray-900 dark:text-white">{rentalYield}%</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Instandhaltung</span>
+                      <span className="text-gray-900 dark:text-white">{maintenanceRate}%</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Eigenkapital</span>
+                      {taxTarget === 'optimal' && optimalResult.data ? (
+                        <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                          {optimalResult.data.requiredEquityPercent}% (berechnet)
+                        </span>
+                      ) : (
+                        <span className="text-gray-900 dark:text-white">{equityRate}%</span>
+                      )}
                     </div>
                   </div>
                 )}
@@ -402,25 +644,32 @@ export default function SteuerOptimiererPage() {
             </div>
 
             {/* Center Column - Results */}
-            <div className="lg:col-span-6 h-full">
-              <div className="bg-white dark:bg-[#111827] rounded-2xl border border-gray-200 dark:border-gray-800 p-5 h-full flex flex-col overflow-y-auto">
+            <div className="lg:col-span-6 h-full min-h-0 overflow-y-auto pr-1">
+              <div className="bg-white dark:bg-[#111827] rounded-2xl border border-gray-200 dark:border-gray-800 p-5">
                 <TaxSavingsDisplay
                   targetPortfolioValue={targetPortfolioValue}
                   currentTax={annualTaxPaid}
                   optimizedTax={0}
-                  isLoading={calculationResult.isLoading}
-                  customPortfolioValue={customPortfolioValue}
-                  onCustomPortfolioChange={setCustomPortfolioValue}
+                  isLoading={isCalculating}
                   marginalTaxRate={marginalTaxRate / 100}
                   strategy={strategy}
-                  breakdown={calculationResult.data?.breakdown}
+                  breakdown={taxTarget === 'optimal' ? optimalResult.data?.breakdown : calculationResult.data?.breakdown}
+                  taxTarget={taxTarget}
+                  interestRate={interestRate / 100}
+                  tilgungRate={tilgungRate / 100}
+                  rentalYield={rentalYield / 100}
+                  maintenanceRate={maintenanceRate / 100}
+                  equityRate={effectiveEquityRate / 100}
+                  isOptimal={taxTarget === 'optimal'}
+                  isCashflowNeutral={optimalResult.data?.isCashflowNeutral}
+                  monthlyCashflow={optimalResult.data?.monthlyCashflow}
                 />
               </div>
             </div>
 
             {/* Right Column - Properties */}
-            <div className="lg:col-span-3 h-full">
-              <div className="bg-white dark:bg-[#111827] rounded-2xl border border-gray-200 dark:border-gray-800 p-5 h-full flex flex-col overflow-y-auto">
+            <div className="lg:col-span-3 h-full min-h-0 overflow-y-auto pr-1">
+              <div className="bg-white dark:bg-[#111827] rounded-2xl border border-gray-200 dark:border-gray-800 p-5 h-full flex flex-col">
                 <div className="mb-4 flex-shrink-0">
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Passende Objekte</h3>
                   <p className="text-xs text-gray-500 mt-1">

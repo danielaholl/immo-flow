@@ -121,12 +121,6 @@ export function Header() {
                           </span>
                         )}
                       </Link>
-                      <Link href="/portfolio" className="text-gray-900 dark:text-white hover:text-primary text-base">
-                        <div className="flex items-center gap-1.5">
-                          <Briefcase size={18} />
-                          <span>Portfolio</span>
-                        </div>
-                      </Link>
                       {/* Profile Avatar */}
                       <Link href="/profile" className="flex items-center hover:opacity-80 transition-opacity">
                         {profile?.avatar_url ? (
@@ -153,18 +147,21 @@ export function Header() {
                         </button>
                         {isProfileMenuOpen && (
                           <div className="absolute top-full right-0 mt-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg py-3 w-[280px] z-50">
+                            {/* Portfolio */}
+                            <Link
+                              href="/portfolio"
+                              className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-900 dark:text-white hover:text-primary"
+                              onClick={() => setIsProfileMenuOpen(false)}
+                            >
+                              <Briefcase size={18} />
+                              <span>Portfolio</span>
+                            </Link>
+                            {/* Divider */}
+                            <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
                             {/* Tools Section */}
                             <div className="px-4 py-1.5">
                               <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tools</p>
                             </div>
-                            <Link
-                              href="/steuer-optimierer"
-                              className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-900 dark:text-white hover:text-primary"
-                              onClick={() => setIsProfileMenuOpen(false)}
-                            >
-                              <Calculator size={18} />
-                              <span>Steuer-Rechner</span>
-                            </Link>
                             <Link
                               href="/ai-score"
                               className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-900 dark:text-white hover:text-primary"
@@ -180,6 +177,14 @@ export function Header() {
                             >
                               <TrendingUp size={18} />
                               <span>Rendite-Rechner</span>
+                            </Link>
+                            <Link
+                              href="/steuer-optimierer"
+                              className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-900 dark:text-white hover:text-primary"
+                              onClick={() => setIsProfileMenuOpen(false)}
+                            >
+                              <Calculator size={18} />
+                              <span>Steuer-Rechner</span>
                             </Link>
                             {/* Divider */}
                             <div className="border-t border-gray-200 dark:border-gray-700 my-2" />

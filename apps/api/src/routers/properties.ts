@@ -14,6 +14,36 @@ import {
   JOIN_STATISTICS,
 } from '../lib/propertyQueryBuilder.js';
 
+// AfA details by type
+const AFA_DETAILS = {
+  bestand: { rate: 0.02, buildingRatio: 0.80 },
+  altbau: { rate: 0.025, buildingRatio: 0.80 },
+  neubau: { rate: 0.05, buildingRatio: 0.85 },
+  denkmal: { rate: 0.09, buildingRatio: 0.35 },
+} as const;
+
+// Helper to calculate afa_type based on year_built
+function calculateAfaType(yearBuilt: number | null | undefined, explicitAfaType?: string | null): string {
+  // Denkmal only if explicitly set (never override)
+  if (explicitAfaType === 'denkmal') return 'denkmal';
+
+  // Calculate from year_built
+  if (!yearBuilt) return 'bestand';
+  if (yearBuilt < 1925) return 'altbau';
+  if (yearBuilt >= 2024) return 'neubau';
+  return 'bestand';
+}
+
+// Helper to get full AfA details (type, rate, buildingRatio)
+function getAfaDetails(yearBuilt: number | null | undefined, explicitAfaType?: string | null) {
+  const afaType = calculateAfaType(yearBuilt, explicitAfaType) as keyof typeof AFA_DETAILS;
+  return {
+    afaType,
+    afaRate: AFA_DETAILS[afaType].rate,
+    buildingRatio: AFA_DETAILS[afaType].buildingRatio,
+  };
+}
+
 // Helper to invalidate feed caches when properties change
 async function invalidateFeedCaches(): Promise<void> {
   try {
@@ -469,6 +499,9 @@ export const propertiesRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
+      // Calculate AfA details based on year_built and afa_type
+      const afaDetails = getAfaDetails(input.year_built, input.afa_type);
+
       const property = await queryOne(
         `INSERT INTO properties (
           user_id, title, description, price, location,
@@ -477,8 +510,8 @@ export const propertiesRouter = router({
           year_built, floor_level, total_floors, bathrooms, usable_area,
           usable_area_ratio, monthly_fee, condition, heating_type,
           energy_source, energy_certificate, energy_efficiency_class,
-          available_from, important_notes, is_external, monthly_rent, afa_type
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36)
+          available_from, important_notes, is_external, monthly_rent, afa_type, afa_rate, building_ratio
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38)
         RETURNING *`,
         [
           ctx.user.id,
@@ -516,7 +549,9 @@ export const propertiesRouter = router({
           input.important_notes,
           input.is_external || false,
           input.monthly_rent,
-          input.afa_type || 'bestand',
+          afaDetails.afaType,
+          afaDetails.afaRate,
+          afaDetails.buildingRatio,
         ]
       );
 
@@ -580,8 +615,8 @@ export const propertiesRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      // Check ownership
-      const existing = await queryOne('SELECT user_id FROM properties WHERE id = $1', [
+      // Check ownership and get current year_built for afa_type calculation
+      const existing = await queryOne('SELECT user_id, year_built, afa_type FROM properties WHERE id = $1', [
         input.id,
       ]);
 
@@ -589,12 +624,24 @@ export const propertiesRouter = router({
         throw new Error('Unauthorized');
       }
 
+      // Determine effective year_built (new value or existing)
+      const effectiveYearBuilt = input.year_built !== undefined ? input.year_built : existing.year_built;
+
+      // Auto-calculate AfA details if year_built is being updated OR if afa_type is explicitly set
+      const shouldRecalculateAfa = input.year_built !== undefined || input.afa_type !== undefined;
+      const afaDetails = shouldRecalculateAfa
+        ? getAfaDetails(effectiveYearBuilt, input.afa_type)
+        : null;
+
       const updates: string[] = [];
       const values: any[] = [];
       let paramCount = 1;
 
       Object.entries(input).forEach(([key, value]) => {
         if (key !== 'id' && value !== undefined) {
+          // Skip afa_type here, we'll add it separately with afa_rate and building_ratio
+          if (key === 'afa_type') return;
+
           updates.push(`${key} = $${paramCount}`);
           // JSONB fields need to be stringified
           if (key === 'documents') {
@@ -605,6 +652,21 @@ export const propertiesRouter = router({
           paramCount++;
         }
       });
+
+      // Add calculated AfA details if we need to update them
+      if (afaDetails !== null) {
+        updates.push(`afa_type = $${paramCount}`);
+        values.push(afaDetails.afaType);
+        paramCount++;
+
+        updates.push(`afa_rate = $${paramCount}`);
+        values.push(afaDetails.afaRate);
+        paramCount++;
+
+        updates.push(`building_ratio = $${paramCount}`);
+        values.push(afaDetails.buildingRatio);
+        paramCount++;
+      }
 
       if (updates.length === 0) {
         return existing;
