@@ -34,14 +34,14 @@ function getBadgeInfo(score: number): BadgeInfo {
   if (score >= 85) {
     return {
       label: 'Sehr gut',
-      color: '#06d551', // Custom bright green
-      colorLight: '#6ee89a', // Lighter version
+      color: '#049939', // Bright vivid green
+      colorLight: '#4AFF82', // Lighter version
     };
   } else if (score >= 60) {
     return {
       label: 'Gut',
-      color: '#22C55E', // green-500
-      colorLight: '#86EFAC', // green-300
+      color: '#00D448', // Strong green
+      colorLight: '#5CFF8A', // green-300
     };
   } else if (score >= 40) {
     return {
@@ -58,7 +58,11 @@ function getBadgeInfo(score: number): BadgeInfo {
   }
 }
 
-export function PropertyScoreBadge({ score, variant = 'overlay', size: sizeProp = 'md' }: PropertyScoreBadgeProps) {
+export function PropertyScoreBadge({
+  score,
+  variant = 'overlay',
+  size: sizeProp = 'md',
+}: PropertyScoreBadgeProps) {
   const { color, colorLight } = getBadgeInfo(score);
   const roundedScore = Math.round(score);
 
@@ -67,7 +71,7 @@ export function PropertyScoreBadge({ score, variant = 'overlay', size: sizeProp 
     // Size configuration
     const isSmall = sizeProp === 'sm';
     const ringSize = isSmall ? 52 : 64;
-    const strokeWidth = isSmall ? 7 : 10;
+    const strokeWidth = isSmall ? 5 : 6;
     const radius = (ringSize - strokeWidth * 2) / 2;
     const circumference = 2 * Math.PI * radius;
     const strokeDashoffset = circumference - (score / 100) * circumference;
@@ -75,11 +79,7 @@ export function PropertyScoreBadge({ score, variant = 'overlay', size: sizeProp 
     return (
       <div className="relative" style={{ width: ringSize, height: ringSize }}>
         {/* SVG Ring */}
-        <svg
-          width={ringSize}
-          height={ringSize}
-          className="transform -rotate-90"
-        >
+        <svg width={ringSize} height={ringSize} className="transform -rotate-90">
           {/* Background Ring */}
           <circle
             cx={ringSize / 2}
@@ -87,6 +87,7 @@ export function PropertyScoreBadge({ score, variant = 'overlay', size: sizeProp 
             r={radius}
             stroke="rgba(255, 255, 255, 0.3)"
             strokeWidth={strokeWidth}
+            strokeLinecap="round"
             fill="none"
           />
           {/* Progress Ring */}
@@ -103,17 +104,15 @@ export function PropertyScoreBadge({ score, variant = 'overlay', size: sizeProp 
             className="transition-all duration-500 ease-out"
           />
         </svg>
-        {/* Center Content - smaller than ring */}
+        {/* Center Content */}
         <div
           className="absolute flex items-center justify-center rounded-full"
           style={{
-            top: strokeWidth + 2,
-            left: strokeWidth + 2,
-            right: strokeWidth + 2,
-            bottom: strokeWidth + 2,
-            background: 'rgba(0, 0, 0, 0.6)',
-            backdropFilter: 'blur(8px)',
-            WebkitBackdropFilter: 'blur(8px)',
+            top: strokeWidth + 4,
+            left: strokeWidth + 4,
+            right: strokeWidth + 4,
+            bottom: strokeWidth + 4,
+            background: 'rgba(0, 0, 0, 0.25)',
           }}
         >
           <span
@@ -145,11 +144,7 @@ export function PropertyScoreBadge({ score, variant = 'overlay', size: sizeProp 
           background: `linear-gradient(135deg, ${color} 0%, ${colorLight} 100%)`,
         }}
       >
-        <Brain
-          size={22}
-          color="black"
-          strokeWidth={2}
-        />
+        <Brain size={22} color="black" strokeWidth={2} />
       </div>
       {/* Label and Score */}
       <div className="flex flex-col">

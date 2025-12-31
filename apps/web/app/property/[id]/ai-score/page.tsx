@@ -18,12 +18,26 @@ import {
   getBuildingRatio,
 } from '../utils/calculator-utils';
 
+// UUID validation helper
+function isValidUUID(str: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
 export default function AIScorePage() {
   const params = useParams();
   const router = useRouter();
   const { user } = useAuthContext();
 
   const propertyId = params.id as string;
+  const isValidPropertyId = Boolean(propertyId && isValidUUID(propertyId));
+
+  // Redirect to home if ID is not a valid UUID
+  useEffect(() => {
+    if (propertyId && !isValidUUID(propertyId)) {
+      router.push('/');
+    }
+  }, [propertyId, router]);
   const [isKiFazitExpanded, setIsKiFazitExpanded] = useState(false);
   const [showClaudeFazit, setShowClaudeFazit] = useState(false);
   const [isSmartCheckExpanded, setIsSmartCheckExpanded] = useState(true);
@@ -33,7 +47,7 @@ export default function AIScorePage() {
   const { data: property, isLoading } = trpc.properties.getByIdWithOwner.useQuery(
     { id: propertyId },
     {
-      enabled: !!propertyId,
+      enabled: isValidPropertyId,
       onError: () => {
         router.push('/');
       },
@@ -43,7 +57,7 @@ export default function AIScorePage() {
   // Fetch user property parameters
   const { data: userPropertyParams } = trpc.userPropertyParameters.get.useQuery(
     { propertyId },
-    { enabled: !!propertyId && !!user }
+    { enabled: isValidPropertyId && !!user }
   );
 
   // Fetch tax profile for steuereffekt calculation
@@ -56,7 +70,7 @@ export default function AIScorePage() {
   const { data: marketData, isLoading: isLoadingMarketData } = trpc.properties.getMarketComparison.useQuery(
     { propertyId },
     {
-      enabled: !!property && !!propertyId,
+      enabled: !!property && isValidPropertyId,
       staleTime: 5 * 60 * 1000,
     }
   );
@@ -65,7 +79,7 @@ export default function AIScorePage() {
   const { data: aiScoreAnalysis, isLoading: isLoadingAIScore } = trpc.evaluations.getAIScoreAnalysis.useQuery(
     { propertyId },
     {
-      enabled: !!propertyId && !!property?.ai_investment_score,
+      enabled: isValidPropertyId && !!property?.ai_investment_score,
       staleTime: Infinity,
     }
   );

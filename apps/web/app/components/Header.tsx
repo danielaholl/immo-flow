@@ -168,15 +168,23 @@ export function Header() {
                               onClick={() => setIsProfileMenuOpen(false)}
                             >
                               <Sparkles size={18} />
-                              <span>AI-Score</span>
+                              <span>AI-Analyse</span>
                             </Link>
                             <Link
-                              href="/property/demo/calculator"
+                              href="/calculator?tab=investor"
                               className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-900 dark:text-white hover:text-primary"
                               onClick={() => setIsProfileMenuOpen(false)}
                             >
                               <TrendingUp size={18} />
                               <span>Rendite-Rechner</span>
+                            </Link>
+                            <Link
+                              href="/calculator?tab=eigennutzer"
+                              className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-900 dark:text-white hover:text-primary"
+                              onClick={() => setIsProfileMenuOpen(false)}
+                            >
+                              <Home size={18} />
+                              <span>Kaufen vs. Mieten</span>
                             </Link>
                             <Link
                               href="/steuer-optimierer"

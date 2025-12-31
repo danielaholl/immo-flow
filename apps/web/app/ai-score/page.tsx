@@ -9,12 +9,7 @@ import { MarketComparisonBar } from '../components/MarketComparisonBar';
 import { trpc } from '@/lib/trpc';
 import { useAuthContext } from '@/app/providers/AuthProvider';
 import {
-  Calculator,
   Sparkles,
-  MapPin,
-  Home,
-  Calendar,
-  Euro,
   Loader2,
   Building2,
   ChevronDown,
@@ -22,7 +17,14 @@ import {
   Check,
   AlertTriangle,
   ArrowLeft,
+  Calculator,
+  Euro,
+  Home,
+  MapPin,
+  Calendar,
+  Square,
 } from 'lucide-react';
+import { PropertyFormData } from '../components/PropertyInputForm';
 import {
   formatCurrency,
   calculateFactorScores,
@@ -32,13 +34,7 @@ import {
   getBuildingRatio,
 } from '../property/[id]/utils/calculator-utils';
 
-interface FormData {
-  price: string;
-  sqm: string;
-  monthlyRent: string;
-  yearBuilt: string;
-  location: string;
-}
+// Using PropertyFormData from PropertyInputForm component
 
 export default function AIScorePage() {
   const searchParams = useSearchParams();
@@ -47,7 +43,7 @@ export default function AIScorePage() {
   const propertyId = searchParams.get('propertyId');
 
   // Form state for manual mode - mit Default-Werten
-  const [formData, setFormData] = useState<FormData>({
+  const [formData, setFormData] = useState<PropertyFormData>({
     price: '350000',
     sqm: '75',
     monthlyRent: '1200',
@@ -246,7 +242,7 @@ export default function AIScorePage() {
   }, [fazitRequested, aiFazit, aiFazitError, investorMetrics, propertyId, propertyData, generateAiFazitMutation]);
 
   // ============= Form handlers =============
-  const handleInputChange = (field: keyof FormData, value: string) => {
+  const handleInputChange = (field: keyof PropertyFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -596,83 +592,132 @@ export default function AIScorePage() {
     <main className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <Header />
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Linke Sidebar - Formular */}
-          <div className="lg:w-72 flex-shrink-0">
-            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sticky top-24">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <Calculator size={20} />
-                Immobiliendaten
-              </h2>
+      <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+          {/* Property Card mit integrierten Formularfeldern */}
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 mb-6">
+            {/* Header-Zeile */}
+            <div className="flex gap-4 items-center">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-gradient-to-br from-[#E31C5F] to-[#FF9500] flex items-center justify-center flex-shrink-0">
+                <Building2 className="w-8 h-8 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                  {manualMetrics.price > 0 ? formatCurrency(manualMetrics.price) : '– €'}
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Immobilien-Analyse
+                </p>
+              </div>
+              {result && (
+                <span className="inline-flex items-center justify-center h-10 px-4 rounded-full text-sm font-medium backdrop-blur-sm bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-200/50 dark:border-emerald-700/50 flex-shrink-0">
+                  Score: {result.score}
+                </span>
+              )}
+            </div>
 
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Kaufpreis *</label>
-                  <div className="relative">
-                    <Euro className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="number"
-                      value={formData.price}
-                      onChange={(e) => handleInputChange('price', e.target.value)}
-                      placeholder="350000"
-                      className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                    />
+            {/* Formular-Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              {/* Kaufpreis */}
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  Kaufpreis *
+                </label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    <Euro size={16} />
                   </div>
+                  <input
+                    type="number"
+                    value={formData.price}
+                    onChange={(e) => handleInputChange('price', e.target.value)}
+                    placeholder="350000"
+                    className="w-full pl-9 pr-3 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent font-semibold"
+                  />
                 </div>
-                <div>
-                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Wohnfläche m² *</label>
-                  <div className="relative">
-                    <Home className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="number"
-                      value={formData.sqm}
-                      onChange={(e) => handleInputChange('sqm', e.target.value)}
-                      placeholder="75"
-                      className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Standort *</label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="text"
-                      value={formData.location}
-                      onChange={(e) => handleInputChange('location', e.target.value)}
-                      placeholder="München"
-                      className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Miete/Monat</label>
-                  <div className="relative">
-                    <Euro className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="number"
-                      value={formData.monthlyRent}
-                      onChange={(e) => handleInputChange('monthlyRent', e.target.value)}
-                      placeholder="1200"
-                      className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Baujahr</label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="number"
-                      value={formData.yearBuilt}
-                      onChange={(e) => handleInputChange('yearBuilt', e.target.value)}
-                      placeholder="1995"
-                      className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                    />
-                  </div>
-                </div>
+              </div>
 
+              {/* Wohnfläche */}
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  Wohnfläche *
+                </label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500">
+                    <Square size={16} />
+                  </div>
+                  <input
+                    type="number"
+                    value={formData.sqm}
+                    onChange={(e) => handleInputChange('sqm', e.target.value)}
+                    placeholder="75"
+                    className="w-full pl-9 pr-12 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent font-semibold"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">m²</span>
+                </div>
+              </div>
+
+              {/* Standort */}
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  Standort *
+                </label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    <MapPin size={16} />
+                  </div>
+                  <input
+                    type="text"
+                    value={formData.location}
+                    onChange={(e) => handleInputChange('location', e.target.value)}
+                    placeholder="München"
+                    className="w-full pl-9 pr-3 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent font-semibold"
+                  />
+                </div>
+              </div>
+
+              {/* Miete/Monat */}
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  Miete/Monat
+                </label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    <Euro size={16} />
+                  </div>
+                  <input
+                    type="number"
+                    value={formData.monthlyRent}
+                    onChange={(e) => handleInputChange('monthlyRent', e.target.value)}
+                    placeholder="1200"
+                    className="w-full pl-9 pr-8 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent font-semibold"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">€</span>
+                </div>
+              </div>
+
+              {/* Baujahr */}
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  Baujahr
+                </label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-500">
+                    <Calendar size={16} />
+                  </div>
+                  <input
+                    type="number"
+                    value={formData.yearBuilt}
+                    onChange={(e) => handleInputChange('yearBuilt', e.target.value)}
+                    placeholder="1995"
+                    min="1800"
+                    max="2030"
+                    className="w-full pl-9 pr-3 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent font-semibold"
+                  />
+                </div>
+              </div>
+
+              {/* Berechnen-Button */}
+              <div className="flex items-end">
                 <button
                   onClick={handleCalculate}
                   disabled={!isFormValid || calculateScore.isPending}
@@ -685,43 +730,17 @@ export default function AIScorePage() {
                   {calculateScore.isPending ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
                   ) : (
-                    <Sparkles className="w-5 h-5" />
+                    <Sparkles size={18} />
                   )}
                   {calculateScore.isPending ? 'Analysiere...' : 'Berechnen'}
                 </button>
-
-                {calculateScore.isError && (
-                  <p className="text-xs text-red-500 text-center">Fehler bei der Berechnung</p>
-                )}
               </div>
             </div>
+
+            {calculateScore.isError && (
+              <p className="text-xs text-red-500 text-center mt-3">Fehler bei der Berechnung</p>
+            )}
           </div>
-
-          {/* Rechter Bereich - Analyse (wie Property AI-Score) */}
-          <div className="flex-1 max-w-4xl">
-            {/* Mini Header */}
-            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 mb-6 flex gap-4 items-center">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-gradient-to-br from-[#E31C5F] to-[#FF9500] flex items-center justify-center flex-shrink-0">
-                <Building2 className="w-8 h-8 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h1 className="font-semibold text-gray-900 dark:text-white truncate">
-                  {formData.location || 'Immobilien-Analyse'}
-                </h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                  {manualMetrics.sqm > 0 ? `${manualMetrics.sqm} m²` : ''}
-                  {manualMetrics.yearBuilt > 0 ? ` · Baujahr ${manualMetrics.yearBuilt}` : ''}
-                </p>
-                <p className="text-lg font-semibold text-gray-900 dark:text-white mt-1">
-                  {manualMetrics.price > 0 ? formatCurrency(manualMetrics.price) : '– €'}
-                </p>
-              </div>
-              {result && (
-                <span className="inline-flex items-center justify-center h-10 px-4 rounded-full text-sm font-medium backdrop-blur-sm bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-200/50 dark:border-emerald-700/50 flex-shrink-0">
-                  Score: {result.score}
-                </span>
-              )}
-            </div>
 
             {/* Marktvergleich Card mit MarketComparisonBar */}
             <div className="mb-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden">
@@ -845,8 +864,6 @@ export default function AIScorePage() {
                 </div>
               </div>
             )}
-          </div>
-        </div>
       </div>
     </main>
   );

@@ -45,6 +45,8 @@ export interface CalculatorProps {
   isSavingParams?: boolean;
   onPurchasePriceChange?: (price: number) => void;
   canEdit?: boolean;
+  /** Start directly in edit/simulation mode */
+  startInEditMode?: boolean;
 }
 
 export interface EditState {
@@ -134,6 +136,10 @@ export interface CalculatorContextValue {
   // Calculated values
   values: CalculatedValues;
 
+  // Collapsible state
+  expandedCards: Record<CardId, boolean>;
+  toggleCardExpansion: (cardId: CardId) => void;
+
   // Actions
   handleReset: () => void;
   handleSave: () => void;
@@ -142,6 +148,9 @@ export interface CalculatorContextValue {
   // Utilities
   formatCurrency: (value: number) => string;
 }
+
+// Card identifiers for collapsible state
+export type CardId = 'investment' | 'financing' | 'cashflow' | 'tax';
 
 // Card common props
 export interface CardProps {

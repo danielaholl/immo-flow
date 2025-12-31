@@ -51,8 +51,7 @@ export function FinancingCard({ className = '' }: CardProps) {
                     equityPercent: e.target.value === '' ? null : Number(e.target.value),
                   }))}
                   placeholder={String(equityPercentage)}
-                  style={{ width: getInputWidth(editState.equityPercent, equityPercentage) }}
-                  className="pl-2 pr-7 py-1.5 border border-[#DDDDDD] dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none"
+                  className="w-[74px] pl-2 pr-7 py-1.5 border border-[#DDDDDD] dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   min="0"
                   max="100"
                   step="1"
@@ -86,8 +85,7 @@ export function FinancingCard({ className = '' }: CardProps) {
                     interestRate: e.target.value === '' ? null : Number(e.target.value),
                   }))}
                   placeholder={String(interestRate)}
-                  style={{ width: getInputWidth(editState.interestRate, interestRate) }}
-                  className="pl-2 pr-7 py-1.5 border border-[#DDDDDD] dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none"
+                  className="w-20 pl-2 pr-7 py-1.5 border border-[#DDDDDD] dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   min="0"
                   max="15"
                   step="0.1"
@@ -115,8 +113,7 @@ export function FinancingCard({ className = '' }: CardProps) {
                     amortizationRate: e.target.value === '' ? null : Number(e.target.value),
                   }))}
                   placeholder={String(amortizationRate)}
-                  style={{ width: getInputWidth(editState.amortizationRate, amortizationRate) }}
-                  className="pl-2 pr-7 py-1.5 border border-[#DDDDDD] dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none"
+                  className="w-[74px] pl-2 pr-7 py-1.5 border border-[#DDDDDD] dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   min="0"
                   max="10"
                   step="0.5"
@@ -133,7 +130,7 @@ export function FinancingCard({ className = '' }: CardProps) {
         {/* Summe */}
         <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700 mt-auto">
           <span className="text-gray-900 dark:text-white font-bold">Kapitaldienst / Monat</span>
-          <span className="text-lg font-bold text-rose-600">{formatCurrency(values.monatlicheRate)}</span>
+          <span className="text-lg font-bold text-rose-600 dark:text-rose-400">{formatCurrency(values.monatlicheRate)}</span>
         </div>
       </div>
     </div>

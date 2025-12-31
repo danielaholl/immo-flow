@@ -1478,6 +1478,182 @@ export const propertiesRouter = router({
       };
     }),
 
+  // Get similar properties for calculator (with mode-specific sorting)
+  getSimilarPropertiesForCalculator: publicProcedure
+    .input(z.object({
+      // Filter criteria
+      sqm: z.number().positive().optional(),
+      location: z.string().optional(),
+      price: z.number().positive().optional(),
+
+      // Mode for sorting
+      mode: z.enum(['investor', 'eigennutzer']),
+
+      // Calculator parameters for eigennutzer calculations
+      equityPercentage: z.number().min(0).max(100).default(20),
+      interestRate: z.number().min(0).max(15).default(4),
+
+      // Exclude current property
+      excludePropertyId: z.string().uuid().optional(),
+
+      // Pagination
+      limit: z.number().min(1).max(20).default(6),
+    }))
+    .query(async ({ input }) => {
+      const conditions: string[] = [];
+      const values: any[] = [];
+      let paramCount = 1;
+
+      // Base conditions only - no strict filtering
+      conditions.push(`status = 'active'`);
+      conditions.push(`(is_external = false OR is_external IS NULL OR is_community_shared = true)`);
+      conditions.push(`sqm > 0`);
+      conditions.push(`price > 0`);
+
+      // Exclude current property
+      if (input.excludePropertyId) {
+        conditions.push(`id != $${paramCount}`);
+        values.push(input.excludePropertyId);
+        paramCount++;
+      }
+
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+      // Get all active properties - we'll score and sort them in JS
+      const sql = `
+        SELECT
+          id,
+          title,
+          price,
+          location,
+          sqm,
+          rooms,
+          images,
+          ai_investment_score,
+          monthly_rent,
+          monthly_fee,
+          year_built,
+          afa_type,
+          afa_rate,
+          building_ratio
+        FROM properties
+        ${whereClause}
+        ORDER BY created_at DESC
+        LIMIT 50
+      `;
+
+      const properties = await query(sql, values);
+
+      // Extract location part for comparison
+      const inputLocationPart = input.location ? input.location.split(',')[0].trim().toLowerCase() : '';
+
+      // Calculate metrics and similarity score for each property
+      const propertiesWithMetrics = properties.map((property: any) => {
+        // Estimate monthly rent if not available
+        const estimatedRentPerSqm = 12; // €12/m² as fallback
+        const monthlyRent = property.monthly_rent || (property.sqm * estimatedRentPerSqm);
+        const annualRent = monthlyRent * 12;
+
+        // Gross yield calculation
+        const grossYield = (annualRent / property.price) * 100;
+
+        // Break-even calculation for eigennutzer
+        const ltvRatio = (100 - input.equityPercentage) / 100;
+        const loanAmount = property.price * ltvRatio;
+        const annualInterest = loanAmount * (input.interestRate / 100);
+        const annualMaintenance = property.price * 0.01; // 1% maintenance
+        const annualHausgeld = (property.monthly_fee || (property.sqm * 3.5)) * 12;
+        const annualOwnerCosts = annualInterest + annualMaintenance + annualHausgeld;
+
+        // Kaufnebenkosten ~10%
+        const purchaseCosts = property.price * 0.10;
+        const equity = property.price * (input.equityPercentage / 100) + purchaseCosts;
+
+        // Annual savings = rent - owner costs
+        const annualSavings = annualRent - annualOwnerCosts;
+
+        // Break-even years = equity / annual savings
+        const breakEvenYears = annualSavings > 0 ? equity / annualSavings : 99;
+
+        // Monthly difference (rent vs. buy cost)
+        const monthlyOwnerCost = annualOwnerCosts / 12;
+        const monthlyDifference = monthlyRent - monthlyOwnerCost;
+
+        // Calculate similarity score (higher = more similar)
+        let similarityScore = 0;
+
+        // Location match (most important - up to 50 points)
+        const propertyLocation = (property.location || '').toLowerCase();
+        if (inputLocationPart && propertyLocation.includes(inputLocationPart)) {
+          similarityScore += 50;
+        } else if (inputLocationPart) {
+          // Partial match - check if any word matches
+          const inputWords = inputLocationPart.split(/\s+/);
+          const locationWords = propertyLocation.split(/\s+/);
+          for (const word of inputWords) {
+            if (word.length > 2 && locationWords.some((lw: string) => lw.includes(word))) {
+              similarityScore += 20;
+              break;
+            }
+          }
+        }
+
+        // Size similarity (up to 30 points)
+        if (input.sqm && property.sqm) {
+          const sqmDiff = Math.abs(property.sqm - input.sqm) / input.sqm;
+          if (sqmDiff <= 0.1) similarityScore += 30; // Within 10%
+          else if (sqmDiff <= 0.2) similarityScore += 25; // Within 20%
+          else if (sqmDiff <= 0.3) similarityScore += 20; // Within 30%
+          else if (sqmDiff <= 0.5) similarityScore += 10; // Within 50%
+        }
+
+        // Price similarity (up to 20 points)
+        if (input.price && property.price) {
+          const priceDiff = Math.abs(property.price - input.price) / input.price;
+          if (priceDiff <= 0.1) similarityScore += 20; // Within 10%
+          else if (priceDiff <= 0.2) similarityScore += 15; // Within 20%
+          else if (priceDiff <= 0.3) similarityScore += 10; // Within 30%
+          else if (priceDiff <= 0.5) similarityScore += 5; // Within 50%
+        }
+
+        return {
+          id: property.id,
+          title: property.title,
+          price: property.price,
+          location: property.location,
+          sqm: property.sqm,
+          rooms: property.rooms,
+          images: property.images || [],
+          ai_investment_score: property.ai_investment_score,
+          // Calculated metrics
+          grossYield: Math.round(grossYield * 10) / 10,
+          breakEvenYears: Math.round(breakEvenYears * 10) / 10,
+          monthlyDifference: Math.round(monthlyDifference),
+          estimatedMonthlyRent: Math.round(monthlyRent),
+          similarityScore,
+        };
+      });
+
+      // First sort by similarity score to get most similar properties
+      propertiesWithMetrics.sort((a: any, b: any) => b.similarityScore - a.similarityScore);
+
+      // Take top candidates (more than limit to have room for mode-based sorting)
+      const topCandidates = propertiesWithMetrics.slice(0, Math.max(input.limit * 2, 12));
+
+      // Then sort by mode-specific metric
+      let sorted;
+      if (input.mode === 'investor') {
+        // Sort by gross yield descending (higher is better)
+        sorted = topCandidates.sort((a: any, b: any) => b.grossYield - a.grossYield);
+      } else {
+        // Eigennutzer: Sort by break-even years ascending (lower is better)
+        sorted = topCandidates.sort((a: any, b: any) => a.breakEvenYears - b.breakEvenYears);
+      }
+
+      // Return only the requested limit
+      return sorted.slice(0, input.limit);
+    }),
+
   // Revoke full access token (owner only)
   revokeFullAccessToken: protectedProcedure
     .input(z.object({

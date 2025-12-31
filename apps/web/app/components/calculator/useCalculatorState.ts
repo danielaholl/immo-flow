@@ -48,6 +48,7 @@ export function useCalculatorState(props: CalculatorProps): CalculatorContextVal
     userParams,
     onSaveParams,
     onPurchasePriceChange,
+    startInEditMode = false,
   } = props;
 
   // Tax profile for marginal tax rate
@@ -57,7 +58,7 @@ export function useCalculatorState(props: CalculatorProps): CalculatorContextVal
   });
 
   // Edit mode state
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(startInEditMode);
   const [editState, setEditState] = useState<EditState>({
     purchasePrice: null,
     equityPercent: null,
@@ -95,6 +96,27 @@ export function useCalculatorState(props: CalculatorProps): CalculatorContextVal
       setEditState((prev) => ({ ...prev, purchasePrice }));
     }
   }, [purchasePrice]);
+
+  // Initialize edit state when starting in edit mode
+  const [hasInitialized, setHasInitialized] = useState(false);
+  useEffect(() => {
+    if (startInEditMode && !hasInitialized && purchasePrice > 0) {
+      setEditState({
+        purchasePrice: purchasePrice,
+        equityPercent: equityPercentage,
+        interestRate: interestRate,
+        amortizationRate: amortizationRate,
+        brokerCommission: commissionRate,
+        renovationCosts: renovationCosts,
+        monthlyFee: monthlyFee ?? null,
+        monthlyRent: monthlyRent ?? null,
+        maintenanceCosts: null,
+        afaRate: null,
+        grenzsteuersatz: null,
+      });
+      setHasInitialized(true);
+    }
+  }, [startInEditMode, hasInitialized, purchasePrice, equityPercentage, interestRate, amortizationRate, commissionRate, renovationCosts, monthlyFee, monthlyRent]);
 
   // Detect state for Grunderwerbsteuer
   const detectedState = detectStateFromLocation(location);

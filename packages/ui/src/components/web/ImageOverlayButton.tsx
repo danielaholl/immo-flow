@@ -3,7 +3,7 @@
 import React from 'react';
 
 export type ImageOverlayButtonVariant = 'default' | 'danger' | 'success' | 'warning' | 'primary' | 'favorite';
-export type ImageOverlayButtonSize = 'sm' | 'md' | 'lg';
+export type ImageOverlayButtonSize = 'sm' | 'md' | 'lg' | 'responsive';
 
 export interface ImageOverlayButtonProps {
   /** Button variant determines border and icon color */
@@ -54,11 +54,18 @@ const variantConfig: Record<ImageOverlayButtonVariant, { color: string; hoverBg:
   },
 };
 
-// Size configuration
-const sizeConfig: Record<ImageOverlayButtonSize, { size: number; iconSize: number }> = {
+// Size configuration for fixed sizes
+const sizeConfig: Record<Exclude<ImageOverlayButtonSize, 'responsive'>, { size: number; iconSize: number }> = {
   sm: { size: 44, iconSize: 20 },
   md: { size: 52, iconSize: 24 },
-  lg: { size: 60, iconSize: 28 },
+  lg: { size: 68, iconSize: 32 },
+};
+
+// Responsive size uses CSS clamp for fluid scaling
+const responsiveSizeConfig = {
+  // Min 44px, scales with container (8% of container width), max 68px
+  size: 'clamp(44px, 8vw, 68px)',
+  iconSize: 'clamp(20px, 3.5vw, 32px)',
 };
 
 export function ImageOverlayButton({
@@ -73,7 +80,8 @@ export function ImageOverlayButton({
   ariaLabel,
 }: ImageOverlayButtonProps) {
   const { color, hoverBg } = variantConfig[variant];
-  const sizeStyles = sizeConfig[size];
+  const isResponsive = size === 'responsive';
+  const sizeStyles = isResponsive ? null : sizeConfig[size];
   const isDisabled = disabled || loading;
 
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -85,15 +93,20 @@ export function ImageOverlayButton({
 
   // Clone icon with proper size and color
   const renderIcon = () => {
+    const iconSize = isResponsive ? 24 : sizeStyles!.iconSize; // Default for responsive, CSS handles actual size
+
     if (loading) {
       return (
         <svg
           className="animate-spin"
-          width={sizeStyles.iconSize}
-          height={sizeStyles.iconSize}
+          width={iconSize}
+          height={iconSize}
           viewBox="0 0 24 24"
           fill="none"
-          style={{ color }}
+          style={{
+            color,
+            ...(isResponsive && { width: responsiveSizeConfig.iconSize, height: responsiveSizeConfig.iconSize }),
+          }}
         >
           <circle
             className="opacity-25"
@@ -114,9 +127,12 @@ export function ImageOverlayButton({
 
     if (React.isValidElement(icon)) {
       return React.cloneElement(icon as React.ReactElement<{ size?: number; color?: string; style?: React.CSSProperties }>, {
-        size: sizeStyles.iconSize,
+        size: iconSize,
         color: color,
-        style: { flexShrink: 0 },
+        style: {
+          flexShrink: 0,
+          ...(isResponsive && { width: responsiveSizeConfig.iconSize, height: responsiveSizeConfig.iconSize }),
+        },
       });
     }
     return icon;
@@ -131,11 +147,11 @@ export function ImageOverlayButton({
         aria-label={ariaLabel}
         className="flex items-center justify-center cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-full"
         style={{
-          width: sizeStyles.size,
-          height: sizeStyles.size,
+          width: isResponsive ? responsiveSizeConfig.size : sizeStyles!.size,
+          height: isResponsive ? responsiveSizeConfig.size : sizeStyles!.size,
           backdropFilter: 'blur(2px)',
           WebkitBackdropFilter: 'blur(2px)',
-          border: '1px solid rgba(255, 255, 255, 0.5)',
+          border: '1.5px solid rgba(255, 255, 255, 0.7)',
           background: 'transparent',
         }}
         onMouseEnter={(e) => {

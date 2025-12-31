@@ -9,6 +9,7 @@ import { FinancingCard } from './FinancingCard';
 import { CashflowCard } from './CashflowCard';
 import { TaxEffectCard } from './TaxEffectCard';
 import { BreakEvenCard } from './BreakEvenCard';
+import { EigennutzerMetrics } from './EigennutzerMetrics';
 
 interface CalculatorCardsProps extends CalculatorProps {
   className?: string;
@@ -19,17 +20,20 @@ interface CalculatorCardsProps extends CalculatorProps {
 }
 
 export function CalculatorCards(props: CalculatorCardsProps) {
-  const { className = '', canEdit = true, onSaveParams, isSavingParams = false, toggleElement, metricsElement } = props;
+  const { className = '', canEdit = true, onSaveParams, isSavingParams = false, toggleElement, metricsElement, startInEditMode = false } = props;
   const calculatorState = useCalculatorState(props);
   const { isEditMode, setIsEditMode, handleReset, handleSave, startSimulation, values } = calculatorState;
 
   if (values.effectivePurchasePrice <= 0) return null;
 
+  // Don't show simulation buttons when startInEditMode is true (permanent edit mode)
+  const showSimulationButtons = canEdit && !startInEditMode;
+
   return (
     <CalculatorContext.Provider value={calculatorState}>
       <div className={`space-y-6 ${className}`}>
         {/* Header Row: Toggle links, Simulation Button rechts */}
-        {canEdit && toggleElement && (
+        {showSimulationButtons && toggleElement && (
           <div className="flex items-center justify-between gap-4 mb-2">
             {/* Toggle links */}
             <div className="flex-shrink-0">
@@ -76,11 +80,20 @@ export function CalculatorCards(props: CalculatorCardsProps) {
           </div>
         )}
 
+        {/* Toggle element without buttons when in permanent edit mode */}
+        {startInEditMode && toggleElement && (
+          <div className="flex items-center justify-start gap-4 mb-2">
+            <div className="flex-shrink-0">
+              {toggleElement}
+            </div>
+          </div>
+        )}
+
         {/* Metrics Element after header */}
-        {metricsElement}
+        {props.mode === 'eigennutzer' ? <EigennutzerMetrics /> : metricsElement}
 
         {/* Fallback: Button zentriert wenn kein Toggle */}
-        {canEdit && !toggleElement && (
+        {showSimulationButtons && !toggleElement && (
           <div className="flex justify-center pt-2">
             {isEditMode ? (
               <div className="flex gap-3">

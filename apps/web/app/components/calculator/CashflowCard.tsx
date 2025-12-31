@@ -5,14 +5,14 @@ import { Wallet, Home, TrendingUp } from 'lucide-react';
 import { useCalculatorContext } from './useCalculatorState';
 import { CardProps } from './types';
 
-// Helper function to calculate dynamic input width based on value
-function getInputWidth(value: number | null, placeholder: number): string {
+// For formatted numbers like "1.200"
+function getFormattedInputWidth(value: number | null, placeholder: number): string {
   const displayValue = value ?? placeholder;
-  const charCount = String(Math.ceil(displayValue)).length + 2; // +2 for extra space
+  const formatted = new Intl.NumberFormat('de-DE').format(Math.ceil(displayValue));
+  const charCount = formatted.length + 2; // +2 for extra space
   const minChars = 4;
   const chars = Math.max(charCount, minChars);
-  // Each character is approximately 12px wide, plus padding for € symbol (32px)
-  return `${chars * 12 + 32}px`;
+  return `${chars * 11 + 32}px`;
 }
 
 export function CashflowCard({ className = '' }: CardProps) {
@@ -73,23 +73,26 @@ export function CashflowCard({ className = '' }: CardProps) {
           <div className="flex items-center gap-2">
             {isEditMode ? (
               <span className="relative inline-flex items-center">
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold mr-1">+</span>
                 <input
-                  type="number"
-                  value={editState.monthlyRent ?? ''}
-                  onChange={(e) => setEditState((prev) => ({
-                    ...prev,
-                    monthlyRent: e.target.value === '' ? null : Number(e.target.value),
-                  }))}
-                  placeholder={String(Math.ceil(calculateRent()))}
-                  style={{ width: getInputWidth(editState.monthlyRent, Math.ceil(calculateRent())) }}
-                  className="pl-2 pr-7 py-1.5 border border-[#DDDDDD] dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none"
-                  min="0"
-                  step="50"
+                  type="text"
+                  value={editState.monthlyRent !== null ? new Intl.NumberFormat('de-DE').format(editState.monthlyRent) : ''}
+                  onChange={(e) => {
+                    const rawValue = e.target.value.replace(/[^\d]/g, '');
+                    setEditState((prev) => ({
+                      ...prev,
+                      monthlyRent: rawValue === '' ? null : Number(rawValue),
+                    }));
+                  }}
+                  placeholder={new Intl.NumberFormat('de-DE').format(Math.ceil(calculateRent()))}
+                  style={{ width: getFormattedInputWidth(editState.monthlyRent, Math.ceil(calculateRent())), color: '#10b981' }}
+                  className="pl-2 pr-7 py-1.5 border border-[#DDDDDD] dark:border-gray-600 dark:bg-gray-800 rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none text-right font-semibold"
                 />
                 <span className="absolute right-2 text-gray-500 dark:text-gray-400 text-sm pointer-events-none">€</span>
               </span>
-            ) : null}
-            <span className="font-semibold text-emerald-600">+{formatCurrency(values.mieteinnahmen)}</span>
+            ) : (
+              <span className="font-semibold text-emerald-600 dark:text-emerald-400">+{formatCurrency(values.mieteinnahmen)}</span>
+            )}
           </div>
         </div>
 
@@ -104,25 +107,28 @@ export function CashflowCard({ className = '' }: CardProps) {
           <div className="flex items-center gap-2">
             {isEditMode ? (
               <span className="relative inline-flex items-center">
+                {mode !== 'investor' && <span className="text-rose-600 dark:text-rose-400 font-semibold mr-1">-</span>}
                 <input
-                  type="number"
-                  value={editState.monthlyFee ?? ''}
-                  onChange={(e) => setEditState((prev) => ({
-                    ...prev,
-                    monthlyFee: e.target.value === '' ? null : Number(e.target.value),
-                  }))}
-                  placeholder={String(Math.ceil(calculateHausgeld()))}
-                  style={{ width: getInputWidth(editState.monthlyFee, Math.ceil(calculateHausgeld())) }}
-                  className="pl-2 pr-7 py-1.5 border border-[#DDDDDD] dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none"
-                  min="0"
-                  step="10"
+                  type="text"
+                  value={editState.monthlyFee !== null ? new Intl.NumberFormat('de-DE').format(editState.monthlyFee) : ''}
+                  onChange={(e) => {
+                    const rawValue = e.target.value.replace(/[^\d]/g, '');
+                    setEditState((prev) => ({
+                      ...prev,
+                      monthlyFee: rawValue === '' ? null : Number(rawValue),
+                    }));
+                  }}
+                  placeholder={new Intl.NumberFormat('de-DE').format(Math.ceil(calculateHausgeld()))}
+                  style={{ width: getFormattedInputWidth(editState.monthlyFee, Math.ceil(calculateHausgeld())) }}
+                  className="pl-2 pr-7 py-1.5 border border-[#DDDDDD] dark:border-gray-600 dark:bg-gray-800 rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none text-right font-semibold text-rose-600 dark:text-rose-400"
                 />
                 <span className="absolute right-2 text-gray-500 dark:text-gray-400 text-sm pointer-events-none">€</span>
               </span>
-            ) : null}
-            <span className={`font-semibold ${mode === 'investor' ? 'text-gray-500 dark:text-gray-400' : 'text-rose-600'}`}>
-              {mode === 'investor' ? '' : '-'}{formatCurrency(values.hausgeld)}
-            </span>
+            ) : (
+              <span className={`font-semibold ${mode === 'investor' ? 'text-gray-500 dark:text-gray-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                {mode === 'investor' ? '' : '-'}{formatCurrency(values.hausgeld)}
+              </span>
+            )}
           </div>
         </div>
 
@@ -133,7 +139,7 @@ export function CashflowCard({ className = '' }: CardProps) {
               davon nicht umlegbar
               <span className="text-xs text-gray-400 ml-1">(30%)</span>
             </span>
-            <span className="font-semibold text-rose-600">
+            <span className="font-semibold text-rose-600 dark:text-rose-400">
               -{formatCurrency(values.hausgeldNichtUmlegbar)}
             </span>
           </div>
@@ -150,23 +156,26 @@ export function CashflowCard({ className = '' }: CardProps) {
           <div className="flex items-center gap-2">
             {isEditMode ? (
               <span className="relative inline-flex items-center">
+                <span className="text-rose-600 dark:text-rose-400 font-semibold mr-1">-</span>
                 <input
-                  type="number"
-                  value={editState.maintenanceCosts ?? ''}
-                  onChange={(e) => setEditState((prev) => ({
-                    ...prev,
-                    maintenanceCosts: e.target.value === '' ? null : Number(e.target.value),
-                  }))}
-                  placeholder={String(values.instandhaltungskosten)}
-                  style={{ width: getInputWidth(editState.maintenanceCosts, values.instandhaltungskosten) }}
-                  className="pl-2 pr-7 py-1.5 border border-[#DDDDDD] dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none"
-                  min="0"
-                  step="10"
+                  type="text"
+                  value={editState.maintenanceCosts !== null ? new Intl.NumberFormat('de-DE').format(editState.maintenanceCosts) : ''}
+                  onChange={(e) => {
+                    const rawValue = e.target.value.replace(/[^\d]/g, '');
+                    setEditState((prev) => ({
+                      ...prev,
+                      maintenanceCosts: rawValue === '' ? null : Number(rawValue),
+                    }));
+                  }}
+                  placeholder={new Intl.NumberFormat('de-DE').format(values.instandhaltungskosten)}
+                  style={{ width: getFormattedInputWidth(editState.maintenanceCosts, values.instandhaltungskosten) }}
+                  className="pl-2 pr-7 py-1.5 border border-[#DDDDDD] dark:border-gray-600 dark:bg-gray-800 rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none text-right font-semibold text-rose-600 dark:text-rose-400"
                 />
                 <span className="absolute right-2 text-gray-500 dark:text-gray-400 text-sm pointer-events-none">€</span>
               </span>
-            ) : null}
-            <span className="font-semibold text-rose-600">-{formatCurrency(values.instandhaltungskosten)}</span>
+            ) : (
+              <span className="font-semibold text-rose-600 dark:text-rose-400">-{formatCurrency(values.instandhaltungskosten)}</span>
+            )}
           </div>
         </div>
 
@@ -178,7 +187,7 @@ export function CashflowCard({ className = '' }: CardProps) {
               ({values.effectiveInterestRate.toFixed(1)}% + {values.effectiveAmortizationRate.toFixed(0)}%)
             </span>
           </span>
-          <span className="font-semibold text-rose-600">-{formatCurrency(values.monatlicheRate)}</span>
+          <span className="font-semibold text-rose-600 dark:text-rose-400">-{formatCurrency(values.monatlicheRate)}</span>
         </div>
 
         {/* Summe */}
@@ -186,7 +195,7 @@ export function CashflowCard({ className = '' }: CardProps) {
           <span className="text-gray-900 dark:text-white font-bold">
             {mode === 'investor' ? 'Cashflow / Monat' : 'Differenz / Monat'}
           </span>
-          <span className={`text-lg font-bold ${isPositive ? 'text-emerald-600' : 'text-rose-600'}`}>
+          <span className={`text-lg font-bold ${isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
             {isPositive ? '+' : ''}{formatCurrency(values.calculatedCashflow)}
           </span>
         </div>

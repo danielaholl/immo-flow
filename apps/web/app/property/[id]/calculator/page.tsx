@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuthContext } from '@/app/providers/AuthProvider';
 import { Header } from '@/app/components/Header';
 import { trpc } from '@/lib/trpc';
-import { ArrowLeft, TrendingUp, Home, Loader2, Brain } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Home, Loader2, Brain, Square, Building2 } from 'lucide-react';
 import Image from 'next/image';
-import { CalculatorCards, SavedParams } from '@/app/components/calculator';
+import { CalculatorCards, SavedParams, SimilarPropertiesSidebar } from '@/app/components/calculator';
 import { PropertyImagePlaceholder } from '@rendito/ui';
 import {
   GRUNDERWERBSTEUER_SAETZE,
@@ -31,6 +31,10 @@ export default function CalculatorPage() {
   const propertyId = params.id as string;
   const initialTab = (searchParams.get('tab') as TabType) || 'investor';
   const [activeTab, setActiveTab] = useState<TabType>(initialTab);
+
+  // Editable property values for calculations
+  const [editableSqm, setEditableSqm] = useState<string>('');
+  const [editableYearBuilt, setEditableYearBuilt] = useState<string>('');
 
   // Fetch property data
   const { data: property, isLoading } = trpc.properties.getByIdWithOwner.useQuery(
@@ -66,12 +70,25 @@ export default function CalculatorPage() {
     saveUserPropertyParamsMutation.mutate({ propertyId, ...params });
   };
 
+  // Initialize editable values when property data loads
+  useEffect(() => {
+    if (property) {
+      setEditableSqm(property.sqm ? String(Math.ceil(property.sqm)) : '');
+      setEditableYearBuilt(property.year_built ? String(property.year_built) : '');
+    }
+  }, [property]);
+
+  // Parsed editable values for calculations
+  const effectiveSqm = editableSqm ? parseFloat(editableSqm) : (property?.sqm ?? 0);
+  const effectiveYearBuilt = editableYearBuilt ? parseInt(editableYearBuilt) : property?.year_built;
+
   // Calculate investor metrics
   const investorMetrics = useMemo(() => {
     if (!property) return null;
 
     const purchasePrice = parseNum(userPropertyParams?.purchase_price ?? property.price, 0);
-    const sqm = property.sqm ?? 0;
+    const sqm = effectiveSqm;
+    const yearBuilt = effectiveYearBuilt;
     const rentPerSqm = property.buyer_evaluation?.rental_income?.rent_per_sqm;
     const calculatedRent = rentPerSqm && sqm ? Number(rentPerSqm) * Number(sqm) : property.actual_monthly_rent;
     const mieteinnahmen = parseNum(userPropertyParams?.monthly_rent ?? calculatedRent, 0);
@@ -87,7 +104,7 @@ export default function CalculatorPage() {
     const calculateHausgeld = (): number => {
       if (property.monthly_fee && Number(property.monthly_fee) > 0) return Number(property.monthly_fee);
       if (sqm) {
-        const hausgeldProQm = property.year_built && Number(property.year_built) >= 1980 ? 2.50 : 3.50;
+        const hausgeldProQm = yearBuilt && Number(yearBuilt) >= 1980 ? 2.50 : 3.50;
         return Number(sqm) * hausgeldProQm;
       }
       return 0;
@@ -118,8 +135,8 @@ export default function CalculatorPage() {
 
     let steuereffekt: { monatlich: number; jaehrlich: number } | undefined;
     if (monthlyCashflow !== undefined && purchasePrice > 0) {
-      const afaRate = getAfaRate(property.year_built ? Number(property.year_built) : undefined);
-      const buildingRatio = getBuildingRatio(property.year_built ? Number(property.year_built) : undefined);
+      const afaRate = getAfaRate(yearBuilt ? Number(yearBuilt) : undefined);
+      const buildingRatio = getBuildingRatio(yearBuilt ? Number(yearBuilt) : undefined);
       const afaJaehrlich = purchasePrice * buildingRatio * afaRate;
       const cashflowJaehrlich = monthlyCashflow * 12;
       const steuerlichesErgebnis = cashflowJaehrlich - afaJaehrlich;
@@ -133,14 +150,15 @@ export default function CalculatorPage() {
       renovierungskosten, hausgeld, gesamtinvestition, eigenkapital, darlehensbetrag,
       monatlicheRate, instandhaltungskosten, monthlyCashflow, grossYield, rentMultiplier, steuereffekt,
     };
-  }, [property, userPropertyParams, taxProfile]);
+  }, [property, userPropertyParams, taxProfile, effectiveSqm, effectiveYearBuilt]);
 
   // Calculate eigennutzer metrics
   const eigennutzerMetrics = useMemo(() => {
     if (!property) return null;
 
     const purchasePrice = parseNum(userPropertyParams?.purchase_price ?? property.price, 0);
-    const sqm = property.sqm ?? 0;
+    const sqm = effectiveSqm;
+    const yearBuilt = effectiveYearBuilt;
     const rentPerSqm = property.buyer_evaluation?.rental_income?.rent_per_sqm;
     const calculatedRent = rentPerSqm && sqm ? Number(rentPerSqm) * Number(sqm) : property.actual_monthly_rent;
     const monthlyRent = parseNum(userPropertyParams?.monthly_rent ?? calculatedRent, 0);
@@ -156,7 +174,7 @@ export default function CalculatorPage() {
     const calculateHausgeld = (): number => {
       if (property.monthly_fee && Number(property.monthly_fee) > 0) return Number(property.monthly_fee);
       if (sqm) {
-        const hausgeldProQm = property.year_built && Number(property.year_built) >= 1980 ? 2.50 : 3.50;
+        const hausgeldProQm = yearBuilt && Number(yearBuilt) >= 1980 ? 2.50 : 3.50;
         return Number(sqm) * hausgeldProQm;
       }
       return 0;
@@ -210,7 +228,7 @@ export default function CalculatorPage() {
       monthlyMortgage, monthlyMaintenance, totalMonthlyCostBuying, breakEvenYears,
       isBuyingBetter: breakEvenYears <= 10,
     };
-  }, [property, userPropertyParams]);
+  }, [property, userPropertyParams, effectiveSqm, effectiveYearBuilt]);
 
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
@@ -271,7 +289,7 @@ export default function CalculatorPage() {
       <Header />
 
       {/* Wrapper für Zurück-Button außerhalb des Inhaltsbereichs */}
-      <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Back Button - links außerhalb des Inhaltsbereichs */}
         <button
           onClick={() => router.back()}
@@ -292,38 +310,79 @@ export default function CalculatorPage() {
           <span className="text-sm font-medium">Zurück</span>
         </button>
 
+        <div className="max-w-5xl mx-auto">
         {/* Property Mini Header - volle Breite */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 mb-6 flex gap-4 items-center">
-          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden flex-shrink-0 relative">
-            {property.images && property.images.length > 0 ? (
-              <Image
-                src={property.images[0]}
-                alt={property.title || 'Immobilie'}
-                fill
-                className="object-cover"
-              />
-            ) : (
-              <PropertyImagePlaceholder
-                className="w-full h-full"
-                propertyType={property.property_type}
-                iconSize={24}
-                showLabel={false}
-              />
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 mb-6">
+          <div className="flex gap-4 items-center">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden flex-shrink-0 relative">
+              {property.images && property.images.length > 0 ? (
+                <Image
+                  src={property.images[0]}
+                  alt={property.title || 'Immobilie'}
+                  fill
+                  className="object-cover"
+                />
+              ) : (
+                <PropertyImagePlaceholder
+                  className="w-full h-full"
+                  propertyType={property.property_type}
+                  iconSize={24}
+                  showLabel={false}
+                />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h1 className="font-semibold text-gray-900 dark:text-white truncate">{property.title}</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{property.location}</p>
+              <p className="text-lg font-semibold text-gray-900 dark:text-white mt-1">
+                {formatCurrency(property.price ?? 0)}
+              </p>
+            </div>
+            {/* Days Online Badge - Glass Style */}
+            {property.days_online !== undefined && (
+              <span className="inline-flex items-center justify-center h-10 px-4 rounded-full text-sm font-medium backdrop-blur-sm bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-200/50 dark:border-blue-700/50 flex-shrink-0">
+                {property.days_online === 0 ? 'Neu' : `Seit ${property.days_online} ${property.days_online === 1 ? 'Tag' : 'Tagen'} online`}
+              </span>
             )}
           </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="font-semibold text-gray-900 dark:text-white truncate">{property.title}</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{property.location}</p>
-            <p className="text-lg font-semibold text-gray-900 dark:text-white mt-1">
-              {formatCurrency(property.price ?? 0)}
-            </p>
+
+          {/* Editable Fields - Wohnfläche & Baujahr */}
+          <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+            {/* Wohnfläche */}
+            <div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mb-1.5 flex items-center gap-1.5">
+                <Square size={14} className="text-blue-500" />
+                <span>Wohnfläche</span>
+              </div>
+              <div className="relative">
+                <input
+                  type="number"
+                  value={editableSqm}
+                  onChange={(e) => setEditableSqm(e.target.value)}
+                  className="w-full px-3 py-2.5 pr-12 text-base font-semibold text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="–"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 pointer-events-none">m²</span>
+              </div>
+            </div>
+
+            {/* Baujahr */}
+            <div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mb-1.5 flex items-center gap-1.5">
+                <Building2 size={14} className="text-amber-500" />
+                <span>Baujahr</span>
+              </div>
+              <input
+                type="number"
+                value={editableYearBuilt}
+                onChange={(e) => setEditableYearBuilt(e.target.value)}
+                className="w-full px-3 py-2.5 text-base font-semibold text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                placeholder="–"
+                min="1800"
+                max="2030"
+              />
+            </div>
           </div>
-          {/* Days Online Badge - Glass Style */}
-          {property.days_online !== undefined && (
-            <span className="inline-flex items-center justify-center h-10 px-4 rounded-full text-sm font-medium backdrop-blur-sm bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-200/50 dark:border-blue-700/50 flex-shrink-0">
-              {property.days_online === 0 ? 'Neu' : `Seit ${property.days_online} ${property.days_online === 1 ? 'Tag' : 'Tagen'} online`}
-            </span>
-          )}
         </div>
 
         {/* Content */}
@@ -553,6 +612,25 @@ export default function CalculatorPage() {
             <p className="text-gray-500 dark:text-gray-400">Keine Daten für Kaufen vs. Mieten Analyse verfügbar</p>
           </div>
         )}
+        </div>
+      </div>
+
+      {/* Horizontale Trennlinie - volle Breite */}
+      <div className="border-t border-gray-200 dark:border-gray-700 my-8" />
+
+      {/* Ähnliche Objekte - volle Breite */}
+      <div className="px-4 sm:px-6 pb-8">
+        <SimilarPropertiesSidebar
+          mode={activeTab}
+          currentSqm={effectiveSqm}
+          currentLocation={property.location}
+          currentPrice={property.price}
+          excludePropertyId={propertyId}
+          equityPercentage={property.buyer_evaluation?.financing_terms?.loan_to_value
+            ? (100 - property.buyer_evaluation.financing_terms.loan_to_value)
+            : 20}
+          interestRate={property.buyer_evaluation?.financing_terms?.interest_rate ?? 3.8}
+        />
       </div>
     </main>
   );

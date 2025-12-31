@@ -116,7 +116,7 @@ export function InvestmentCostCard({ className = '' }: CardProps) {
                   }))}
                   placeholder={String(commissionRate)}
                   style={{ width: getInputWidth(editState.brokerCommission, commissionRate || 0) }}
-                  className="pl-2 pr-7 py-1.5 border border-[#DDDDDD] dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none"
+                  className="pl-2 pr-7 py-1.5 border border-[#DDDDDD] dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   min="0"
                   max="10"
                   step="0.1"
@@ -138,22 +138,24 @@ export function InvestmentCostCard({ className = '' }: CardProps) {
               {isEditMode ? (
                 <span className="relative inline-flex items-center">
                   <input
-                    type="number"
-                    value={editState.renovationCosts ?? ''}
-                    onChange={(e) => setEditState((prev) => ({
-                      ...prev,
-                      renovationCosts: e.target.value === '' ? null : Number(e.target.value),
-                    }))}
+                    type="text"
+                    value={editState.renovationCosts !== null ? new Intl.NumberFormat('de-DE').format(editState.renovationCosts) : ''}
+                    onChange={(e) => {
+                      const rawValue = e.target.value.replace(/[^\d]/g, '');
+                      setEditState((prev) => ({
+                        ...prev,
+                        renovationCosts: rawValue === '' ? null : Number(rawValue),
+                      }));
+                    }}
                     placeholder="0"
-                    style={{ width: getInputWidth(editState.renovationCosts, values.effectiveRenovationCosts || 0) }}
-                    className="pl-2 pr-7 py-1.5 border border-[#DDDDDD] dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none"
-                    min="0"
-                    step="1000"
+                    style={{ width: `calc(${getFormattedInputWidth(editState.renovationCosts, values.effectiveRenovationCosts || 0)} * 1.15)` }}
+                    className="pl-2 pr-7 py-1.5 border border-[#DDDDDD] dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none text-right"
                   />
                   <span className="absolute right-2 text-gray-500 dark:text-gray-400 text-sm pointer-events-none">€</span>
                 </span>
-              ) : null}
-              <span className="font-semibold text-gray-700 dark:text-gray-300">{formatCurrency(values.effectiveRenovationCosts)}</span>
+              ) : (
+                <span className="font-semibold text-gray-700 dark:text-gray-300">{formatCurrency(values.effectiveRenovationCosts)}</span>
+              )}
             </div>
           </div>
         )}

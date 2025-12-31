@@ -37,7 +37,7 @@ export function MarketComparisonBar({
   rooms = 0,
   location = '',
   onPriceChange,
-  isInteractive = true,
+  isInteractive = false,
   className = '',
   viewType = 'seller',
   marketingDurationMin: apiMarketingMin,
@@ -426,27 +426,7 @@ export function MarketComparisonBar({
       {/* Gradient Bar with Marker */}
       <div
         ref={barRef}
-        className={`relative h-10 rounded-full overflow-visible bg-gradient-to-r from-green-500 via-yellow-400 to-red-500 ${
-          isInteractive ? 'cursor-pointer' : ''
-        }`}
-        onClick={(e) => {
-          if (!isInteractive || isDragging) return;
-          const rect = barRef.current?.getBoundingClientRect();
-          if (rect) {
-            const x = e.clientX - rect.left;
-            const percentage = (x / rect.width) * 100;
-            const newDeviation = Math.round((percentage - 50) * 0.9);
-            const clampedDeviation = Math.max(-45, Math.min(45, newDeviation));
-            setLocalDeviationPercent(clampedDeviation);
-            setExternalTotalPrice(null); // Reset external price when slider is clicked
-
-            if (onPriceChange && sqm > 0) {
-              const newPricePerSqm = Math.round(marketAvgPricePerSqm * (1 + clampedDeviation / 100));
-              const newPrice = newPricePerSqm * sqm;
-              onPriceChange(newPrice, newPricePerSqm);
-            }
-          }
-        }}
+        className="relative h-10 rounded-full overflow-visible bg-gradient-to-r from-green-500 via-yellow-400 to-red-500"
       >
         {/* Market Average Line */}
         <div
@@ -456,21 +436,14 @@ export function MarketComparisonBar({
 
         {/* Current Price Marker - Glass Design */}
         <div
-          className={`absolute top-1/2 w-8 h-8 rounded-full backdrop-blur-md transition-all ${
-            isInteractive ? 'cursor-grab active:cursor-grabbing hover:scale-110' : ''
-          } ${isDragging ? 'scale-115' : ''}`}
+          className="absolute top-1/2 w-8 h-8 rounded-full backdrop-blur-md"
           style={{
             left: `${markerPosition}%`,
             transform: `translateX(-50%) translateY(-50%)`,
             background: 'linear-gradient(135deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.1) 100%)',
             border: '1.5px solid rgba(255, 255, 255, 0.6)',
-            boxShadow: isDragging
-              ? 'inset 0 1px 2px rgba(255,255,255,0.8), inset 0 -1px 2px rgba(0,0,0,0.1), 0 4px 16px rgba(0,0,0,0.2)'
-              : 'inset 0 1px 2px rgba(255,255,255,0.8), inset 0 -1px 2px rgba(0,0,0,0.1), 0 2px 8px rgba(0,0,0,0.15)',
-            animation: isInteractive && !isDragging ? 'wiggle 2.5s ease-in-out infinite' : 'none',
+            boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.8), inset 0 -1px 2px rgba(0,0,0,0.1), 0 2px 8px rgba(0,0,0,0.15)',
           }}
-          onMouseDown={handleDragStart}
-          onTouchStart={handleDragStart}
         />
       </div>
 
@@ -509,35 +482,21 @@ export function MarketComparisonBar({
 
           {/* Negotiation Price - Only when above market */}
           {negotiationPrice && (
-            <div className="bg-gradient-to-r from-amber-50/40 to-orange-50/40 rounded-xl p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
-                    <TrendingDown size={16} className="text-amber-600" />
-                  </div>
-                  <span className="text-sm font-semibold text-gray-900">Verhandlungsempfehlung</span>
+            <div className="bg-gradient-to-r from-amber-50/40 to-orange-50/40 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 bg-white dark:bg-gray-800 rounded-lg flex items-center justify-center shadow-sm">
+                  <TrendingDown size={16} className="text-amber-600 dark:text-amber-400" />
                 </div>
-                {onPriceChange && sqm > 0 && (
-                  <button
-                    onClick={() => {
-                      const newPricePerSqm = Math.round(negotiationPrice.suggestedOffer / sqm);
-                      onPriceChange(negotiationPrice.suggestedOffer, newPricePerSqm);
-                      setExternalTotalPrice(null);
-                    }}
-                    className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium rounded-lg transition-colors"
-                  >
-                    Simulieren
-                  </button>
-                )}
+                <span className="text-sm font-semibold text-gray-900 dark:text-white">Verhandlungsempfehlung</span>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-xs text-gray-500">Empfohlenes Angebot</p>
-                  <p className="text-lg font-bold text-gray-900">{formatPrice(negotiationPrice.suggestedOffer)}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Empfohlenes Angebot</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-white">{formatPrice(negotiationPrice.suggestedOffer)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Mögliche Ersparnis</p>
-                  <p className="text-lg font-bold text-green-600">{formatPrice(negotiationPrice.potentialSavings)}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Mögliche Ersparnis</p>
+                  <p className="text-lg font-bold text-green-600 dark:text-green-400">{formatPrice(negotiationPrice.potentialSavings)}</p>
                 </div>
               </div>
             </div>

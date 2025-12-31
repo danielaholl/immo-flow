@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { Bath, Sparkles, DoorClosed, Square, Layers, Euro, Building2, Clock, Flame, Zap, ChevronDown, ChevronRight, Star, Eye, Heart, Mail, FileText, Loader2, Landmark, TrendingDown, TrendingUp, Equal, Info, ArrowUpDown, Calendar, Wallet, FileCheck, TreePine, Calculator } from 'lucide-react';
+import { Bath, Sparkles, DoorClosed, Square, Layers, Euro, Building2, Clock, Flame, Zap, ChevronDown, ChevronRight, Star, Eye, Heart, Mail, FileText, Loader2, Landmark, TrendingDown, TrendingUp, Equal, Info, ArrowUpDown, Calendar, Wallet, FileCheck, TreePine, Calculator, Home } from 'lucide-react';
 import { PropertyScoreBadge } from '@rendito/ui';
 import { LocationDisplay } from './LocationDisplay';
 import { MarketComparisonBar } from './MarketComparisonBar';
@@ -837,7 +837,7 @@ export function PropertyPreview({
             {data.ai_investment_score !== undefined && data.ai_investment_score > 0 && (
               <a
                 href={`/property/${propertyId}/ai-score`}
-                className={`flex-1 rounded-xl border overflow-hidden block cursor-pointer hover:shadow-md transition-shadow p-4 ${
+                className={`flex-[0.8] rounded-xl border overflow-hidden block cursor-pointer hover:shadow-md transition-shadow p-4 ${
                   data.ai_investment_score >= 85
                     ? 'bg-green-100 dark:bg-green-900/40 border-green-300 dark:border-green-700'
                     : data.ai_investment_score >= 60
@@ -852,7 +852,7 @@ export function PropertyPreview({
                     {/* AI Score Ring Badge */}
                     <PropertyScoreBadge score={data.ai_investment_score} variant="ring" />
                     <div>
-                      <p className="text-lg font-bold text-gray-900 dark:text-white">AI-Analyse</p>
+                      <p className="text-lg font-bold text-gray-900 dark:text-white">AI-Score</p>
                       <p className={`text-sm font-medium ${
                         data.ai_investment_score >= 85
                           ? 'text-green-600 dark:text-green-400'
@@ -862,10 +862,7 @@ export function PropertyPreview({
                               ? 'text-amber-600 dark:text-amber-400'
                               : 'text-rose-600 dark:text-rose-400'
                       }`}>
-                        Score {(data.ai_investment_score / 10).toFixed(1)} / 10 – {
-                          data.ai_investment_score >= 85 ? 'Sehr gut' :
-                          data.ai_investment_score >= 60 ? 'Gut' :
-                          data.ai_investment_score >= 40 ? 'OK' : 'Schwach'}
+                        {(data.ai_investment_score / 10).toFixed(1)}/10
                       </p>
                     </div>
                   </div>
@@ -914,23 +911,87 @@ export function PropertyPreview({
               return (
                 <a
                   href={`/property/${propertyId}/calculator`}
-                  className={`flex-1 rounded-xl border ${cardColors.border} ${cardColors.bg} overflow-hidden block cursor-pointer hover:shadow-md transition-shadow p-4`}
+                  className={`flex-[0.8] rounded-xl border ${cardColors.border} ${cardColors.bg} overflow-hidden block cursor-pointer hover:shadow-md transition-shadow p-4`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <Calculator size={40} className={`${cardColors.iconColor} flex-shrink-0`} />
                       <div>
-                        <p className="text-lg font-bold text-gray-900 dark:text-white">Rendite-Rechner</p>
+                        <p className="text-lg font-bold text-gray-900 dark:text-white">Rendite</p>
                         {rendite !== undefined && rendite !== null ? (
                           <p className={`text-sm font-medium ${
                             rendite >= 7 ? 'text-green-600 dark:text-green-400' :
                             rendite >= 5 ? 'text-emerald-600 dark:text-emerald-400' :
                             rendite >= 3 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'
                           }`}>
-                            {rendite.toFixed(1)}% Rendite
+                            {rendite.toFixed(1)}%
                           </p>
                         ) : (
                           <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Berechnung starten →</p>
+                        )}
+                      </div>
+                    </div>
+                    <ChevronRight size={20} className="text-gray-400" />
+                  </div>
+                </a>
+              );
+            })()}
+
+            {/* Eigenheim Card - Traffic Light basierend auf buyVsRentYears */}
+            {(() => {
+              const buyVsRentYears = data.buyer_evaluation?.buyer_selfuse?.buyVsRentYears;
+
+              // Karten-Farbe basierend auf Break-Even Jahren: <= 15 grün, 16-25 amber, > 25 rot
+              const getCardColors = () => {
+                if (buyVsRentYears !== undefined && buyVsRentYears !== null) {
+                  if (buyVsRentYears <= 15) return {
+                    border: 'border-green-300 dark:border-green-700',
+                    bg: 'bg-green-100 dark:bg-green-900/40',
+                    iconColor: 'text-green-600 dark:text-green-400',
+                    indicatorColor: 'text-green-500'
+                  };
+                  if (buyVsRentYears <= 25) return {
+                    border: 'border-amber-200 dark:border-amber-700',
+                    bg: 'bg-amber-50 dark:bg-amber-900/40',
+                    iconColor: 'text-amber-600 dark:text-amber-400',
+                    indicatorColor: 'text-amber-500'
+                  };
+                  return {
+                    border: 'border-rose-200 dark:border-rose-700',
+                    bg: 'bg-rose-50 dark:bg-rose-900/40',
+                    iconColor: 'text-rose-600 dark:text-rose-400',
+                    indicatorColor: 'text-rose-500'
+                  };
+                }
+                return {
+                  border: 'border-blue-200 dark:border-blue-700',
+                  bg: 'bg-blue-50 dark:bg-blue-900/40',
+                  iconColor: 'text-blue-600 dark:text-blue-400',
+                  indicatorColor: 'text-gray-400'
+                };
+              };
+
+              const cardColors = getCardColors();
+
+              return (
+                <a
+                  href={`/property/${propertyId}/calculator?tab=eigennutzer`}
+                  className={`flex-[1.4] rounded-xl border ${cardColors.border} ${cardColors.bg} overflow-hidden block cursor-pointer hover:shadow-md transition-shadow p-4`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Home size={40} className={`${cardColors.iconColor} flex-shrink-0`} />
+                      <div>
+                        <p className="text-lg font-bold text-gray-900 dark:text-white">Kaufen vs Mieten</p>
+                        {buyVsRentYears !== undefined && buyVsRentYears !== null ? (
+                          <p className={`text-xl font-bold ${cardColors.indicatorColor}`}>
+                            ●
+                          </p>
+                        ) : (
+                          <p className="text-sm font-medium text-green-600 dark:text-green-400 flex items-center gap-1">
+                            <TrendingUp size={14} />
+                            Kaufen lohnt sich
+                          </p>
                         )}
                       </div>
                     </div>

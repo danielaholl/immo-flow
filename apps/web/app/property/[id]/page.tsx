@@ -3,6 +3,12 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
+// UUID validation helper
+function isValidUUID(str: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
 // Hook to check if screen is mobile (below lg breakpoint)
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -87,12 +93,23 @@ export default function PropertyPage() {
   const [hasDocumentAccess, setHasDocumentAccess] = useState(false);
   const [hasManualApproval, setHasManualApproval] = useState(false);
 
+  // Validate that the ID is a valid UUID
+  const propertyId = params.id as string;
+  const isValidPropertyId = Boolean(propertyId && isValidUUID(propertyId));
+
+  // Redirect to home if ID is not a valid UUID
+  useEffect(() => {
+    if (propertyId && !isValidUUID(propertyId)) {
+      router.push('/');
+    }
+  }, [propertyId, router]);
+
   // Fetch property with owner using tRPC
   // Uses getByIdWithOwner which includes owner profile data (name, phone, avatar, etc.)
   const { data: property, isLoading: loading } = trpc.properties.getByIdWithOwner.useQuery(
-    { id: params.id as string },
+    { id: propertyId },
     {
-      enabled: !!params.id,
+      enabled: isValidPropertyId,
       onSuccess: (data) => {
         const duration = performance.now() - pageLoadStartTimeRef.current;
         console.log(`📄 [PERF-DETAIL] Property loaded in ${duration.toFixed(2)}ms`);
@@ -124,22 +141,22 @@ export default function PropertyPage() {
 
   // Fetch favorite status - now enabled for all users including owners
   const { data: isFavoriteData } = trpc.favorites.isFavorite.useQuery(
-    { propertyId: params.id as string },
-    { enabled: !!user && !!params.id }
+    { propertyId: propertyId },
+    { enabled: !!user && isValidPropertyId }
   );
   const isFavorite = isFavoriteData?.isFavorite ?? false;
 
   // Fetch AI evaluation
   const { data: aiEvaluation } = trpc.evaluations.getAIEvaluation.useQuery(
-    { propertyId: params.id as string },
-    { enabled: !!params.id }
+    { propertyId: propertyId },
+    { enabled: isValidPropertyId }
   );
 
   // Fetch document access status
   const { data: accessStatus, refetch: refetchAccessStatus } = trpc.documentAccess.getAccessStatus.useQuery(
-    { propertyId: params.id as string },
+    { propertyId: propertyId },
     {
-      enabled: !!user && !!params.id,
+      enabled: !!user && isValidPropertyId,
       onSuccess: (data) => {
         setHasDocumentAccess(data.hasAccess || data.isOwner);
         setHasManualApproval(data.hasManualApproval || data.isOwner);
@@ -149,24 +166,24 @@ export default function PropertyPage() {
 
   // Fetch pending manual approval count (for owner only)
   const { data: pendingManualData, refetch: refetchPendingManual } = trpc.documentAccess.getPendingManualApprovalCount.useQuery(
-    { propertyId: params.id as string },
+    { propertyId: propertyId },
     {
-      enabled: !!user && !!params.id && !!property && property.user_id === user.id,
+      enabled: !!user && isValidPropertyId && !!property && property.user_id === user.id,
     }
   );
 
   // User Property Parameters - Query für die aktuelle Property
   const { data: userPropertyParams } = trpc.userPropertyParameters.get.useQuery(
-    { propertyId: params.id as string },
+    { propertyId: propertyId },
     {
-      enabled: !!params.id && !!user,
+      enabled: isValidPropertyId && !!user,
     }
   );
 
   // User Property Parameters - Mutation zum Speichern
   const saveUserPropertyParamsMutation = trpc.userPropertyParameters.upsert.useMutation({
     onSuccess: () => {
-      utils.userPropertyParameters.get.invalidate({ propertyId: params.id as string });
+      utils.userPropertyParameters.get.invalidate({ propertyId: propertyId });
     },
     onError: (error) => {
       console.error('Error saving user property parameters:', error);
@@ -285,7 +302,7 @@ export default function PropertyPage() {
       // Invalidate and refetch AI evaluation
       utils.evaluations.getAIEvaluation.invalidate();
       // Invalidate and refetch property data to update the badge
-      utils.properties.getByIdWithOwner.invalidate({ id: params.id as string });
+      utils.properties.getByIdWithOwner.invalidate({ id: propertyId });
       setIsEvaluating(false);
     },
     onError: (error) => {
@@ -309,9 +326,9 @@ export default function PropertyPage() {
       setBuyerEvaluation(newEvaluation);
 
       // Invalidate and refetch AI evaluation to get market_average_price_per_sqm
-      utils.evaluations.getAIEvaluation.invalidate({ propertyId: params.id as string });
+      utils.evaluations.getAIEvaluation.invalidate({ propertyId: propertyId });
       // Invalidate and refetch property data to update the badge
-      utils.properties.getByIdWithOwner.invalidate({ id: params.id as string });
+      utils.properties.getByIdWithOwner.invalidate({ id: propertyId });
 
       setIsEvaluating(false);
     },
@@ -411,9 +428,9 @@ export default function PropertyPage() {
 
     // Toggle favorite using add/remove mutations
     if (isFavorite) {
-      removeFavoriteMutation.mutate({ propertyId: params.id as string });
+      removeFavoriteMutation.mutate({ propertyId: propertyId });
     } else {
-      addFavoriteMutation.mutate({ propertyId: params.id as string });
+      addFavoriteMutation.mutate({ propertyId: propertyId });
     }
   };
 
@@ -424,7 +441,7 @@ export default function PropertyPage() {
     }
 
     // Dismiss the property
-    dismissMutation.mutate({ propertyId: params.id as string });
+    dismissMutation.mutate({ propertyId: propertyId });
   };
 
   const handleStartMessage = async () => {
@@ -434,7 +451,7 @@ export default function PropertyPage() {
     }
 
     // Start conversation
-    getOrCreateConversationMutation.mutate({ propertyId: params.id as string });
+    getOrCreateConversationMutation.mutate({ propertyId: propertyId });
   };
 
   const handleFavoriteToggle = async (e: React.MouseEvent) => {
@@ -648,6 +665,8 @@ export default function PropertyPage() {
                   {/* Action Buttons - Transparent Overlay Style */}
                   <ImageOverlayActions
                     className="absolute bottom-5 right-3 z-20"
+                    direction="horizontal"
+                    size="responsive"
                     isFavorite={isFavorite}
                     onFavorite={handleFavoriteToggle}
                     onMessage={handleStartMessage}

@@ -80,7 +80,7 @@ export function TaxEffectCard({ className = '' }: CardProps) {
                   }))}
                   placeholder={String(defaultAfaRate * 100)}
                   style={{ width: getInputWidth(editState.afaRate, defaultAfaRate * 100) }}
-                  className="pl-2 pr-7 py-1.5 border border-[#DDDDDD] dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none"
+                  className="pl-2 pr-7 py-1.5 border border-[#DDDDDD] dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   min="0"
                   max="10"
                   step="0.5"
@@ -115,7 +115,7 @@ export function TaxEffectCard({ className = '' }: CardProps) {
                   }))}
                   placeholder={String(defaultGrenzsteuersatz)}
                   style={{ width: getInputWidth(editState.grenzsteuersatz, defaultGrenzsteuersatz) }}
-                  className="pl-2 pr-7 py-1.5 border border-[#DDDDDD] dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none"
+                  className="pl-2 pr-7 py-1.5 border border-[#DDDDDD] dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg text-sm focus:ring-1 focus:ring-[#FF385C] focus:border-[#FF385C] outline-none text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   min="0"
                   max="50"
                   step="1"

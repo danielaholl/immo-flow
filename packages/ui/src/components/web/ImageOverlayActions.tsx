@@ -19,6 +19,8 @@ export interface ImageOverlayActionsProps {
   className?: string;
   /** Direction of the button layout */
   direction?: 'vertical' | 'horizontal';
+  /** Size of the buttons */
+  size?: 'sm' | 'md' | 'lg' | 'responsive';
 }
 
 /**
@@ -34,6 +36,7 @@ export function ImageOverlayActions({
   onDismiss,
   className = '',
   direction = 'vertical',
+  size = 'md',
 }: ImageOverlayActionsProps) {
   const containerClasses = direction === 'vertical'
     ? `flex flex-col gap-2 ${className}`
@@ -44,6 +47,7 @@ export function ImageOverlayActions({
       {/* 1. Favorite (Heart) */}
       <ImageOverlayButton
         variant="favorite"
+        size={size}
         icon={<Heart fill={isFavorite ? '#FF385C' : 'none'} strokeWidth={2} />}
         onClick={(e) => onFavorite?.(e as any)}
         tooltip={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
@@ -53,6 +57,7 @@ export function ImageOverlayActions({
       {/* 2. Message */}
       <ImageOverlayButton
         variant="default"
+        size={size}
         icon={<MessageSquare strokeWidth={2} />}
         onClick={(e) => onMessage?.(e as any)}
         tooltip="Nachricht senden"
@@ -62,6 +67,7 @@ export function ImageOverlayActions({
       {/* 3. Share */}
       <ImageOverlayButton
         variant="default"
+        size={size}
         icon={<Share2 strokeWidth={2} />}
         onClick={(e) => onShare?.(e as any)}
         tooltip="Teilen"
@@ -71,6 +77,7 @@ export function ImageOverlayActions({
       {/* 4. Dismiss (X) */}
       <ImageOverlayButton
         variant="default"
+        size={size}
         icon={<X strokeWidth={2.5} />}
         onClick={(e) => onDismiss?.(e as any)}
         tooltip="Nicht interessiert"

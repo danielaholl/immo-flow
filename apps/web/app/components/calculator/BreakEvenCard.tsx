@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { TrendingUp, Calendar } from 'lucide-react';
+import { TrendingUp, Calendar, PiggyBank } from 'lucide-react';
 import { useCalculatorContext } from './useCalculatorState';
 import { CardProps } from './types';
 
@@ -34,9 +34,12 @@ export function BreakEvenCard({ className = '' }: CardProps) {
         {/* Break-Even EK */}
         {breakEvenEK !== null && (
           <div className="flex items-center justify-between">
-            <div>
-              <span className="text-gray-600 dark:text-gray-400 text-sm">Break-Even EK</span>
-              <p className="text-xs text-gray-400 mt-0.5">Miete = Kauf</p>
+            <div className="flex items-center gap-2">
+              <PiggyBank size={16} className="text-purple-600 dark:text-gray-300" />
+              <div>
+                <span className="text-gray-600 dark:text-gray-400 text-sm">Break-Even EK</span>
+                <p className="text-xs text-gray-400 mt-0.5">Miete = Kauf</p>
+              </div>
             </div>
             <div className="text-right">
               <span className="text-lg font-bold text-purple-600">
@@ -59,10 +62,10 @@ export function BreakEvenCard({ className = '' }: CardProps) {
             </div>
             <span className={`text-lg font-bold ${
               breakEvenYears <= 15
-                ? 'text-emerald-600'
+                ? 'text-emerald-600 dark:text-emerald-400'
                 : breakEvenYears <= 25
-                  ? 'text-amber-600'
-                  : 'text-rose-600'
+                  ? 'text-amber-600 dark:text-amber-400'
+                  : 'text-rose-600 dark:text-rose-400'
             }`}>
               {breakEvenYears} Jahre
             </span>
