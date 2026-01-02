@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { TrendingUp, Clock, Euro } from 'lucide-react';
-import { PropertyScoreBadge } from '@rendito/ui';
 import { PropertyBadgeProps } from './types';
 
 function formatCurrency(value: number): string {
@@ -15,18 +14,9 @@ function formatCurrency(value: number): string {
 }
 
 export function PropertyBadge({ context, property, className = '' }: PropertyBadgeProps) {
-  // AI-Score Badge (Ring variant)
+  // AI-Score: Don't show badge on left because PropertyCard already shows it on right
   if (context === 'ai-score') {
-    if (property.ai_investment_score == null) return null;
-    return (
-      <div className={className}>
-        <PropertyScoreBadge
-          score={Math.round(property.ai_investment_score)}
-          variant="ring"
-          size="sm"
-        />
-      </div>
-    );
+    return null;
   }
 
   // Investor Badge (Rendite/Yield)

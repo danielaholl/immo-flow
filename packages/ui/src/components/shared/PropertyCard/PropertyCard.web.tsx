@@ -25,6 +25,7 @@ export function PropertyCard({
   slideshowDuration = 3000,
   showAddress = true,
   isOwner = false,
+  showActionButtons = true,
 }: PropertyCardProps) {
   const logic = usePropertyCardLogic(property);
 
@@ -52,15 +53,17 @@ export function PropertyCard({
             )}
 
             {/* Action Buttons - Transparent Overlay Style */}
-            <ImageOverlayActions
-              className="absolute bottom-5 right-3 z-20"
-              direction="horizontal"
-              isFavorite={isFavorite}
-              onFavorite={(e) => onFavorite?.(e as any)}
-              onMessage={(e) => onMessage?.(e as any)}
-              onShare={(e) => onShare?.(e as any)}
-              onDismiss={(e) => onDismiss?.(e as any)}
-            />
+            {showActionButtons && (
+              <ImageOverlayActions
+                className="absolute bottom-5 right-3 z-20"
+                direction="horizontal"
+                isFavorite={isFavorite}
+                onFavorite={(e) => onFavorite?.(e as any)}
+                onMessage={(e) => onMessage?.(e as any)}
+                onShare={(e) => onShare?.(e as any)}
+                onDismiss={(e) => onDismiss?.(e as any)}
+              />
+            )}
 
             {/* Owner Badge - Glassmorphism */}
             {isOwner && (

@@ -50,6 +50,8 @@ export interface PropertyCardProps {
   showAddress?: boolean;
   /** Whether the current user is the owner of this property */
   isOwner?: boolean;
+  /** Whether to show action buttons (favorite, dismiss, share, message) */
+  showActionButtons?: boolean;
 }
 
 export interface BadgeInfo {

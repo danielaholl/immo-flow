@@ -20,6 +20,13 @@ import { appRouter } from './router.js';
 import { createContext } from './trpc.js';
 import { testConnection } from './db.js';
 import uploadRoutes from './routes/upload.js';
+import marketDataRoutes from './routes/market-data.js';
+import usersRoutes from './routes/users.js';
+import propertiesAdminRoutes from './routes/properties.js';
+import bookingsRoutes from './routes/bookings.js';
+import analyticsRoutes from './routes/analytics.js';
+import interestRatesRoutes from './routes/interest-rates.js';
+import calculatorDefaultsRoutes from './routes/calculator-defaults.js';
 import { apiRateLimiter, authRateLimiter } from './middleware/rateLimit.js';
 import { initializeSocketServer } from './socket.js';
 import { stripeWebhookRouter } from './webhooks/stripe.js';
@@ -30,7 +37,10 @@ const PORT = process.env.PORT || 4000;
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: [
+    process.env.FRONTEND_URL || 'http://localhost:3000',
+    'http://localhost:3001', // Admin app
+  ],
   credentials: true,
 }));
 
@@ -52,6 +62,27 @@ app.get('/health', (req, res) => {
 
 // Upload routes
 app.use('/upload', uploadRoutes);
+
+// Market data routes (for admin UI)
+app.use('/api/market-data', marketDataRoutes);
+
+// Users routes (for admin UI)
+app.use('/api/users', usersRoutes);
+
+// Properties routes (for admin UI)
+app.use('/api/properties', propertiesAdminRoutes);
+
+// Bookings/Subscriptions routes (for admin UI)
+app.use('/api/bookings', bookingsRoutes);
+
+// Analytics routes (for admin UI)
+app.use('/api/analytics', analyticsRoutes);
+
+// Interest rates routes (for admin UI and public calculator)
+app.use('/api/interest-rates', interestRatesRoutes);
+
+// Calculator defaults routes (for admin UI)
+app.use('/api/calculator-defaults', calculatorDefaultsRoutes);
 
 // Apply rate limiting to tRPC endpoints based on procedure path
 app.use('/trpc', (req, res, next) => {

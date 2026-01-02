@@ -6,12 +6,12 @@ import Image from 'next/image';
 import { Header } from '../components/Header';
 import { AIScoreCard } from '../components/AIScoreCard';
 import { MarketComparisonBar } from '../components/MarketComparisonBar';
+import { SimilarProperties, SimilarProperty } from '../components/SimilarProperties';
 import { trpc } from '@/lib/trpc';
 import { useAuthContext } from '@/app/providers/AuthProvider';
 import {
   Sparkles,
   Loader2,
-  Building2,
   ChevronDown,
   Lightbulb,
   Check,
@@ -19,10 +19,10 @@ import {
   ArrowLeft,
   Calculator,
   Euro,
-  Home,
   MapPin,
   Calendar,
   Square,
+  Building2,
 } from 'lucide-react';
 import { PropertyFormData } from '../components/PropertyInputForm';
 import {
@@ -35,6 +35,9 @@ import {
 } from '../property/[id]/utils/calculator-utils';
 
 // Using PropertyFormData from PropertyInputForm component
+
+// LocalStorage key for saving calculator state
+const AI_SCORE_STORAGE_KEY = 'ai-score-calculator';
 
 export default function AIScorePage() {
   const searchParams = useSearchParams();
@@ -50,6 +53,9 @@ export default function AIScorePage() {
     yearBuilt: '1995',
     location: 'München',
   });
+
+  // Track if we've loaded from localStorage to avoid overwriting
+  const [hasLoadedFromStorage, setHasLoadedFromStorage] = useState(false);
 
   const [result, setResult] = useState<{
     score: number;
@@ -82,6 +88,37 @@ export default function AIScorePage() {
   const [fazitRequested, setFazitRequested] = useState(false);
   const [aiFazitError, setAiFazitError] = useState(false);
 
+  // ============= LocalStorage Persistence =============
+
+  // Load saved data from localStorage on mount (only for manual mode)
+  useEffect(() => {
+    if (propertyId) return; // Skip for property mode
+
+    try {
+      const saved = localStorage.getItem(AI_SCORE_STORAGE_KEY);
+      if (saved) {
+        const { formData: savedForm, result: savedResult } = JSON.parse(saved);
+        if (savedForm) setFormData(savedForm);
+        if (savedResult) setResult(savedResult);
+      }
+    } catch (e) {
+      console.error('Error loading from localStorage:', e);
+    }
+    setHasLoadedFromStorage(true);
+  }, [propertyId]);
+
+  // Save data to localStorage when formData or result changes
+  useEffect(() => {
+    if (propertyId) return; // Skip for property mode
+    if (!hasLoadedFromStorage) return; // Wait until initial load is complete
+
+    try {
+      localStorage.setItem(AI_SCORE_STORAGE_KEY, JSON.stringify({ formData, result }));
+    } catch (e) {
+      console.error('Error saving to localStorage:', e);
+    }
+  }, [formData, result, propertyId, hasLoadedFromStorage]);
+
   // ============= API Queries =============
 
   // For manual mode (simple query)
@@ -113,10 +150,18 @@ export default function AIScorePage() {
     enabled: !!user,
   });
 
-  // Market comparison data
+  // Market comparison data - Property Mode
   const { data: marketData, isLoading: isLoadingMarketData } = trpc.properties.getMarketComparison.useQuery(
     { propertyId: propertyId! },
     { enabled: !!propertyData && !!propertyId, staleTime: 5 * 60 * 1000 }
+  );
+
+  // Market comparison data - Manual Mode (basierend auf Location)
+  const manualPrice = parseFloat(formData.price) || 0;
+  const manualSqm = parseFloat(formData.sqm) || 0;
+  const { data: manualMarketData, isLoading: isLoadingManualMarketData } = trpc.properties.getMarketComparison.useQuery(
+    { price: manualPrice, sqm: manualSqm, location: formData.location },
+    { enabled: !propertyId && manualPrice > 0 && manualSqm > 0 && !!formData.location, staleTime: 5 * 60 * 1000 }
   );
 
   // AI Score Analysis
@@ -141,6 +186,12 @@ export default function AIScorePage() {
       setResult(data);
     },
   });
+
+  // Top-rated properties by AI score
+  const { data: topRatedProperties, isLoading: isLoadingTopRated } = trpc.properties.getTopRatedByAIScore.useQuery(
+    { excludePropertyId: propertyId ?? undefined, limit: 3 },
+    { refetchOnWindowFocus: false }
+  );
 
   // ============= Investor Metrics =============
   const investorMetrics = useMemo(() => {
@@ -527,6 +578,20 @@ export default function AIScorePage() {
               <span>Zur Detail-Berechnung</span>
             </button>
           </div>
+
+        </div>
+
+        {/* Top-rated Properties - Full Width */}
+        <div className="mt-12 border-t border-gray-200 dark:border-gray-700 pt-12 pb-8">
+          <SimilarProperties
+            title="Top bewertete Objekte"
+            subtitle="Nach KI-Score sortiert"
+            properties={(topRatedProperties || []) as SimilarProperty[]}
+            badgeContext="ai-score"
+            isLoading={isLoadingTopRated}
+            linkBuilder={(id) => `/property/${id}/ai-score`}
+            fullWidth
+          />
         </div>
       </main>
     );
@@ -543,14 +608,16 @@ export default function AIScorePage() {
     const grossYield = monthlyRent > 0 && price > 0 ? (monthlyRent * 12 / price) * 100 : 0;
     const rentMultiplier = monthlyRent > 0 ? price / (monthlyRent * 12) : 0;
 
-    // Durchschnittliche Marktpreise
-    const avgPricePerSqm = formData.location.toLowerCase().includes('münchen') ? 8500 :
+    // Durchschnittliche Marktpreise - verwende API-Daten wenn verfügbar
+    const avgPricePerSqm = manualMarketData?.marketAvgPricePerSqm ?? (
+      formData.location.toLowerCase().includes('münchen') ? 8500 :
       formData.location.toLowerCase().includes('berlin') ? 5500 :
       formData.location.toLowerCase().includes('hamburg') ? 6000 :
       formData.location.toLowerCase().includes('frankfurt') ? 6500 :
       formData.location.toLowerCase().includes('köln') ? 4500 :
-      formData.location.toLowerCase().includes('düsseldorf') ? 4800 : 4000;
-    const deviation = avgPricePerSqm > 0 ? ((pricePerSqm - avgPricePerSqm) / avgPricePerSqm) * 100 : 0;
+      formData.location.toLowerCase().includes('düsseldorf') ? 4800 : 4000
+    );
+    const deviation = manualMarketData?.deviationPercent ?? (avgPricePerSqm > 0 ? ((pricePerSqm - avgPricePerSqm) / avgPricePerSqm) * 100 : 0);
 
     // Stärken & Risiken
     const highlights: string[] = [];
@@ -742,6 +809,35 @@ export default function AIScorePage() {
             )}
           </div>
 
+            {/* Kennzahlen - oberhalb von Marktvergleich */}
+            {result && result.grossYield && (
+              <div className="mb-6 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Kennzahlen</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Bruttorendite</p>
+                    <p className="text-lg font-bold text-gray-900 dark:text-white">{result.grossYield.toFixed(2)}%</p>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Preis pro m²</p>
+                    <p className="text-lg font-bold text-gray-900 dark:text-white">{manualMetrics.pricePerSqm.toLocaleString('de-DE', { maximumFractionDigits: 0 })} €</p>
+                  </div>
+                  {manualMetrics.rentMultiplier > 0 && (
+                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Mietmultiplikator</p>
+                      <p className="text-lg font-bold text-gray-900 dark:text-white">{manualMetrics.rentMultiplier.toFixed(1)}x</p>
+                    </div>
+                  )}
+                  {manualMetrics.yearBuilt > 0 && (
+                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Gebäudealter</p>
+                      <p className="text-lg font-bold text-gray-900 dark:text-white">{new Date().getFullYear() - manualMetrics.yearBuilt} Jahre</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Marktvergleich Card mit MarketComparisonBar */}
             <div className="mb-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden">
               <div
@@ -757,15 +853,20 @@ export default function AIScorePage() {
 
               {isSmartCheckExpanded && (
                 <div className="px-4 pb-4">
-                  {manualMetrics.pricePerSqm > 0 ? (
+                  {isLoadingManualMarketData ? (
+                    <div className="bg-white/80 dark:bg-gray-800/80 rounded-xl p-4 flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                      <span className="text-sm text-gray-500 dark:text-gray-400">Marktdaten werden geladen...</span>
+                    </div>
+                  ) : manualMetrics.pricePerSqm > 0 ? (
                     <MarketComparisonBar
                       deviationPercent={manualMetrics.deviation}
-                      pricePosition={getPricePosition(manualMetrics.deviation)}
+                      pricePosition={manualMarketData?.pricePosition as 'sehr_guenstig' | 'guenstig' | 'marktgerecht' | 'teuer' | 'sehr_teuer' ?? getPricePosition(manualMetrics.deviation)}
                       currentPricePerSqm={Math.round(manualMetrics.pricePerSqm)}
                       currentTotalPrice={manualMetrics.price}
                       marketAvgPricePerSqm={manualMetrics.avgPricePerSqm}
-                      minPricePerSqm={Math.round(manualMetrics.avgPricePerSqm * 0.7)}
-                      maxPricePerSqm={Math.round(manualMetrics.avgPricePerSqm * 1.3)}
+                      minPricePerSqm={manualMarketData?.minPricePerSqm ?? Math.round(manualMetrics.avgPricePerSqm * 0.85)}
+                      maxPricePerSqm={manualMarketData?.maxPricePerSqm ?? Math.round(manualMetrics.avgPricePerSqm * 1.15)}
                       sqm={manualMetrics.sqm}
                       rooms={3}
                       location={formData.location || 'Deutschland'}
@@ -836,34 +937,19 @@ export default function AIScorePage() {
               </div>
             )}
 
-            {/* Zusätzliche Kennzahlen */}
-            {result && result.grossYield && (
-              <div className="mt-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Zusätzliche Kennzahlen</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Bruttorendite</p>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white">{result.grossYield.toFixed(2)}%</p>
-                  </div>
-                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Preis pro m²</p>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white">{manualMetrics.pricePerSqm.toLocaleString('de-DE', { maximumFractionDigits: 0 })} €</p>
-                  </div>
-                  {manualMetrics.rentMultiplier > 0 && (
-                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Mietmultiplikator</p>
-                      <p className="text-lg font-bold text-gray-900 dark:text-white">{manualMetrics.rentMultiplier.toFixed(1)}x</p>
-                    </div>
-                  )}
-                  {manualMetrics.yearBuilt > 0 && (
-                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Gebäudealter</p>
-                      <p className="text-lg font-bold text-gray-900 dark:text-white">{new Date().getFullYear() - manualMetrics.yearBuilt} Jahre</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+      </div>
+
+      {/* Top-rated Properties - Full Width */}
+      <div className="mt-12 border-t border-gray-200 dark:border-gray-700 pt-12 pb-8">
+        <SimilarProperties
+          title="Top bewertete Objekte"
+          subtitle="Nach KI-Score sortiert"
+          properties={(topRatedProperties || []) as SimilarProperty[]}
+          badgeContext="ai-score"
+          isLoading={isLoadingTopRated}
+          linkBuilder={(id) => `/property/${id}/ai-score`}
+          fullWidth
+        />
       </div>
     </main>
   );

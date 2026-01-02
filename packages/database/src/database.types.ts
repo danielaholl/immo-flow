@@ -730,6 +730,166 @@ export type Database = {
         }
         Relationships: []
       }
+      calculator_defaults: {
+        Row: {
+          id: string
+          building_ratio_standard: number
+          building_ratio_neubau: number
+          maintenance_cost_per_sqm: number
+          non_allocable_hausgeld_ratio: number
+          cost_increase_rate: number
+          rent_increase_rate: number
+          value_appreciation_rate: number
+          hausgeld_per_sqm_modern: number
+          hausgeld_per_sqm_old: number
+          is_active: boolean
+          changed_by: string | null
+          change_reason: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          building_ratio_standard?: number
+          building_ratio_neubau?: number
+          maintenance_cost_per_sqm?: number
+          non_allocable_hausgeld_ratio?: number
+          cost_increase_rate?: number
+          rent_increase_rate?: number
+          value_appreciation_rate?: number
+          hausgeld_per_sqm_modern?: number
+          hausgeld_per_sqm_old?: number
+          is_active?: boolean
+          changed_by?: string | null
+          change_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          building_ratio_standard?: number
+          building_ratio_neubau?: number
+          maintenance_cost_per_sqm?: number
+          non_allocable_hausgeld_ratio?: number
+          cost_increase_rate?: number
+          rent_increase_rate?: number
+          value_appreciation_rate?: number
+          hausgeld_per_sqm_modern?: number
+          hausgeld_per_sqm_old?: number
+          is_active?: boolean
+          changed_by?: string | null
+          change_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      calculator_defaults_history: {
+        Row: {
+          id: string
+          defaults_id: string
+          building_ratio_standard: number | null
+          building_ratio_neubau: number | null
+          maintenance_cost_per_sqm: number | null
+          non_allocable_hausgeld_ratio: number | null
+          cost_increase_rate: number | null
+          rent_increase_rate: number | null
+          value_appreciation_rate: number | null
+          hausgeld_per_sqm_modern: number | null
+          hausgeld_per_sqm_old: number | null
+          changed_by: string
+          change_reason: string | null
+          changed_at: string
+        }
+        Insert: {
+          id?: string
+          defaults_id: string
+          building_ratio_standard?: number | null
+          building_ratio_neubau?: number | null
+          maintenance_cost_per_sqm?: number | null
+          non_allocable_hausgeld_ratio?: number | null
+          cost_increase_rate?: number | null
+          rent_increase_rate?: number | null
+          value_appreciation_rate?: number | null
+          hausgeld_per_sqm_modern?: number | null
+          hausgeld_per_sqm_old?: number | null
+          changed_by: string
+          change_reason?: string | null
+          changed_at?: string
+        }
+        Update: {
+          id?: string
+          defaults_id?: string
+          building_ratio_standard?: number | null
+          building_ratio_neubau?: number | null
+          maintenance_cost_per_sqm?: number | null
+          non_allocable_hausgeld_ratio?: number | null
+          cost_increase_rate?: number | null
+          rent_increase_rate?: number | null
+          value_appreciation_rate?: number | null
+          hausgeld_per_sqm_modern?: number | null
+          hausgeld_per_sqm_old?: number | null
+          changed_by?: string
+          change_reason?: string | null
+          changed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calculator_defaults_history_defaults_id_fkey"
+            columns: ["defaults_id"]
+            isOneToOne: false
+            referencedRelation: "calculator_defaults"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_calculator_preferences: {
+        Row: {
+          id: string
+          user_id: string
+          building_ratio: number | null
+          maintenance_cost_per_sqm: number | null
+          non_allocable_hausgeld_ratio: number | null
+          cost_increase_rate: number | null
+          rent_increase_rate: number | null
+          value_appreciation_rate: number | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          building_ratio?: number | null
+          maintenance_cost_per_sqm?: number | null
+          non_allocable_hausgeld_ratio?: number | null
+          cost_increase_rate?: number | null
+          rent_increase_rate?: number | null
+          value_appreciation_rate?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          building_ratio?: number | null
+          maintenance_cost_per_sqm?: number | null
+          non_allocable_hausgeld_ratio?: number | null
+          cost_increase_rate?: number | null
+          rent_increase_rate?: number | null
+          value_appreciation_rate?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_calculator_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

@@ -171,7 +171,7 @@ export function Header() {
                               <span>AI-Analyse</span>
                             </Link>
                             <Link
-                              href="/calculator?tab=investor"
+                              href="/calculator"
                               className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-900 dark:text-white hover:text-primary"
                               onClick={() => setIsProfileMenuOpen(false)}
                             >
@@ -179,7 +179,7 @@ export function Header() {
                               <span>Rendite-Rechner</span>
                             </Link>
                             <Link
-                              href="/calculator?tab=eigennutzer"
+                              href="/calculator#eigennutzer"
                               className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-900 dark:text-white hover:text-primary"
                               onClick={() => setIsProfileMenuOpen(false)}
                             >

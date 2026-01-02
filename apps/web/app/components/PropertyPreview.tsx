@@ -973,9 +973,25 @@ export function PropertyPreview({
 
               const cardColors = getCardColors();
 
+              // Text basierend auf buyVsRentYears
+              const getStatusText = () => {
+                if (buyVsRentYears === undefined || buyVsRentYears === null) {
+                  return { text: 'Berechnen', icon: null };
+                }
+                if (buyVsRentYears <= 15) {
+                  return { text: 'Kaufen lohnt sich', icon: <TrendingUp size={14} /> };
+                }
+                if (buyVsRentYears <= 25) {
+                  return { text: 'Abwägen empfohlen', icon: null };
+                }
+                return { text: 'Mieten günstiger', icon: <TrendingDown size={14} /> };
+              };
+
+              const status = getStatusText();
+
               return (
                 <a
-                  href={`/property/${propertyId}/calculator?tab=eigennutzer`}
+                  href={`/property/${propertyId}/calculator`}
                   className={`flex-[1.4] rounded-xl border ${cardColors.border} ${cardColors.bg} overflow-hidden block cursor-pointer hover:shadow-md transition-shadow p-4`}
                 >
                   <div className="flex items-center justify-between">
@@ -983,16 +999,10 @@ export function PropertyPreview({
                       <Home size={40} className={`${cardColors.iconColor} flex-shrink-0`} />
                       <div>
                         <p className="text-lg font-bold text-gray-900 dark:text-white">Kaufen vs Mieten</p>
-                        {buyVsRentYears !== undefined && buyVsRentYears !== null ? (
-                          <p className={`text-xl font-bold ${cardColors.indicatorColor}`}>
-                            ●
-                          </p>
-                        ) : (
-                          <p className="text-sm font-medium text-green-600 dark:text-green-400 flex items-center gap-1">
-                            <TrendingUp size={14} />
-                            Kaufen lohnt sich
-                          </p>
-                        )}
+                        <p className={`text-sm font-medium ${cardColors.iconColor} flex items-center gap-1`}>
+                          {status.icon}
+                          {status.text}
+                        </p>
                       </div>
                     </div>
                     <ChevronRight size={20} className="text-gray-400" />

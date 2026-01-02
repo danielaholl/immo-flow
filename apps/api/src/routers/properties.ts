@@ -13,6 +13,11 @@ import {
   STATISTICS_EXTENDED,
   JOIN_STATISTICS,
 } from '../lib/propertyQueryBuilder.js';
+import {
+  getMarketDataByPLZ,
+  estimateMarketDataForPLZ,
+  updateMarketDataInDB,
+} from '../services/plz-market-estimator.js';
 
 // AfA details by type
 const AFA_DETAILS = {
@@ -223,6 +228,30 @@ export const propertiesRouter = router({
 
       const pricePerSqm = Math.round(propertyPrice / propertySqm);
 
+      // Extrahiere PLZ (5 Ziffern) oder Stadt aus Location
+      const plzMatch = propertyLocation.match(/\b(\d{5})\b/);
+      const extractedPLZ = plzMatch ? plzMatch[1] : null;
+      const cityName = propertyLocation.split(',')[0].trim();
+
+      // 0. PLZ-Marktdaten (PRIMÄRE QUELLE)
+      let plzMarketData = null;
+      if (extractedPLZ) {
+        plzMarketData = await getMarketDataByPLZ(extractedPLZ);
+      }
+      // Fallback: Nach Stadt suchen wenn keine PLZ gefunden oder keine Daten
+      if (!plzMarketData && cityName) {
+        const cityResult = await queryOne(
+          `SELECT plz, city, avg_purchase_price_sqm, purchase_price_min, purchase_price_max,
+                  avg_rent_sqm, rent_min, rent_max, confidence_score, federal_state
+           FROM plz_market_data
+           WHERE city ILIKE $1
+           ORDER BY confidence_score DESC NULLS LAST
+           LIMIT 1`,
+          [`%${cityName}%`]
+        );
+        plzMarketData = cityResult;
+      }
+
       // 1. Get historical sold data from our platform (last 6 months)
       const historicalData = await query(
         `SELECT
@@ -317,37 +346,66 @@ export const propertiesRouter = router({
         marketingDurationMax = Math.max(marketingDurationMin + 1, Math.round(Number(marketingData[0].p75_days) / 7));
       }
 
-      // 5. Combine data sources for price
+      // 5. Combine data sources for price - NEUE PRIORITÄT: PLZ-Tabelle zuerst
       const platformAvg = historicalData[0]?.avg_price_per_sqm ? Number(historicalData[0].avg_price_per_sqm) : null;
       const aiAvg = aiMarketData?.market_average_price_per_sqm ? Number(aiMarketData.market_average_price_per_sqm) : null;
       const sampleCount = Number(historicalData[0]?.sample_count || 0);
 
-      // Weight: If we have enough platform data (5+ samples), use 70/30 split
-      // Otherwise rely more on AI estimation
       let marketAvgPricePerSqm: number;
-      let dataSource: 'platform' | 'ai' | 'combined' | 'estimated';
+      let dataSource: 'plz_data' | 'platform' | 'ai' | 'combined' | 'estimated';
+      let minPriceFromSource: number | null = null;
+      let maxPriceFromSource: number | null = null;
 
-      if (platformAvg && sampleCount >= 5 && aiAvg) {
-        // Both sources available with good platform data
-        marketAvgPricePerSqm = Math.round(platformAvg * 0.7 + aiAvg * 0.3);
-        dataSource = 'combined';
-      } else if (platformAvg && sampleCount >= 3) {
-        // Platform data only but enough samples
-        marketAvgPricePerSqm = Math.round(platformAvg);
-        dataSource = 'platform';
-      } else if (aiAvg) {
-        // AI data only
-        marketAvgPricePerSqm = Math.round(aiAvg);
-        dataSource = 'ai';
-      } else if (platformAvg) {
-        // Limited platform data
-        marketAvgPricePerSqm = Math.round(platformAvg);
-        dataSource = 'platform';
-      } else {
-        // No data - use regional estimation (fallback)
-        // Default German average: ~3,500 €/m² (varies widely by region)
-        marketAvgPricePerSqm = 3500;
-        dataSource = 'estimated';
+      // Priorität 1: PLZ-Tabelle (primäre Quelle)
+      if (plzMarketData?.avg_purchase_price_sqm && Number(plzMarketData.confidence_score || 0) >= 0.5) {
+        marketAvgPricePerSqm = Math.round(Number(plzMarketData.avg_purchase_price_sqm));
+        minPriceFromSource = plzMarketData.purchase_price_min ? Number(plzMarketData.purchase_price_min) : null;
+        maxPriceFromSource = plzMarketData.purchase_price_max ? Number(plzMarketData.purchase_price_max) : null;
+        dataSource = 'plz_data';
+      }
+      // Priorität 2: Claude Haiku schätzen (falls PLZ bekannt aber keine/unzuverlässige Preise)
+      else if (extractedPLZ || cityName) {
+        try {
+          const plzForEstimate = extractedPLZ || (plzMarketData?.plz as string);
+          const federalState = (plzMarketData?.federal_state as string) || 'Deutschland';
+
+          if (plzForEstimate) {
+            const estimate = await estimateMarketDataForPLZ(
+              plzForEstimate,
+              cityName,
+              federalState
+            );
+            // In DB speichern für nächste Anfragen
+            await updateMarketDataInDB([estimate]);
+
+            marketAvgPricePerSqm = Math.round(estimate.avg_purchase_price_sqm);
+            minPriceFromSource = estimate.purchase_price_min;
+            maxPriceFromSource = estimate.purchase_price_max;
+            dataSource = 'ai';
+          } else {
+            // Kein PLZ verfügbar - Fallback
+            marketAvgPricePerSqm = platformAvg || aiAvg || 3500;
+            dataSource = platformAvg ? 'platform' : (aiAvg ? 'ai' : 'estimated');
+          }
+        } catch (error) {
+          console.error('AI estimation failed:', error);
+          // Fallback zu alter Logik
+          marketAvgPricePerSqm = platformAvg || aiAvg || 3500;
+          dataSource = platformAvg ? 'platform' : (aiAvg ? 'ai' : 'estimated');
+        }
+      }
+      // Priorität 3: Fallback (alte Logik)
+      else {
+        if (platformAvg && sampleCount >= 3) {
+          marketAvgPricePerSqm = Math.round(platformAvg);
+          dataSource = 'platform';
+        } else if (aiAvg) {
+          marketAvgPricePerSqm = Math.round(aiAvg);
+          dataSource = 'ai';
+        } else {
+          marketAvgPricePerSqm = 3500;
+          dataSource = 'estimated';
+        }
       }
 
       // Calculate deviation percentage
@@ -379,8 +437,8 @@ export const propertiesRouter = router({
         // Market data
         marketAvgPricePerSqm,
         marketAvgPrice: Math.round(marketAvgPricePerSqm * propertySqm),
-        minPricePerSqm: historicalData[0]?.min_price_per_sqm ? Math.round(Number(historicalData[0].min_price_per_sqm)) : null,
-        maxPricePerSqm: historicalData[0]?.max_price_per_sqm ? Math.round(Number(historicalData[0].max_price_per_sqm)) : null,
+        minPricePerSqm: minPriceFromSource ? Math.round(minPriceFromSource) : (historicalData[0]?.min_price_per_sqm ? Math.round(Number(historicalData[0].min_price_per_sqm)) : null),
+        maxPricePerSqm: maxPriceFromSource ? Math.round(maxPriceFromSource) : (historicalData[0]?.max_price_per_sqm ? Math.round(Number(historicalData[0].max_price_per_sqm)) : null),
 
         // Comparison
         deviationPercent,
@@ -1055,6 +1113,106 @@ export const propertiesRouter = router({
       return property;
     }),
 
+  // Create private property from calculator data and add to favorites
+  createPrivateFavorite: protectedProcedure
+    .input(
+      z.object({
+        // Calculator data
+        price: z.number().positive().max(1000000000),
+        sqm: z.number().positive().max(100000),
+        location: z.string().trim().min(2).max(200),
+        monthlyRent: z.number().nonnegative().optional(),
+        yearBuilt: z.number().int().min(1800).max(new Date().getFullYear() + 5).optional(),
+        monthlyFee: z.number().nonnegative().optional(),
+        commissionRate: z.number().nonnegative().max(100).optional(),
+        renovationCosts: z.number().nonnegative().optional(),
+        equityPercentage: z.number().nonnegative().max(100).optional(),
+        interestRate: z.number().nonnegative().max(100).optional(),
+        amortizationRate: z.number().nonnegative().max(100).optional(),
+        // User additions
+        description: z.string().trim().max(5000).optional(),
+        images: z.array(z.string()).max(50).optional(),
+        documents: z.array(z.object({
+          id: z.string().uuid(),
+          url: z.string().url(),
+          thumbnailUrl: z.string().url().nullable().optional(),
+          filename: z.string().max(255),
+          category: z.enum(['grundriss', 'energieausweis', 'expose', 'sonstiges', 'lageplan', 'mietvertrag', 'etw_protokoll', 'kaufvertrag', 'grundbuchauszug']),
+          visibility: z.enum(['public', 'auto_approved', 'manual_approval']).default('public'),
+          mimetype: z.string().max(100),
+          size: z.number().nonnegative(),
+          uploadedAt: z.string(),
+        })).max(20).optional(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      // Calculate AfA details based on year_built
+      const afaDetails = getAfaDetails(input.yearBuilt, undefined);
+
+      // Generate auto title from location and price
+      const formattedPrice = new Intl.NumberFormat('de-DE', {
+        style: 'currency',
+        currency: 'EUR',
+        maximumFractionDigits: 0,
+      }).format(input.price);
+      const autoTitle = `${input.location} - ${formattedPrice}`;
+
+      // Create property with is_external=true (private, only visible to owner)
+      const property = await queryOne(
+        `INSERT INTO properties (
+          user_id, title, description, price, location,
+          sqm, rooms, images, documents, status,
+          is_external, is_community_shared, year_built, monthly_fee,
+          commission_rate, monthly_rent, afa_type, afa_rate, building_ratio,
+          property_type
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+        RETURNING *`,
+        [
+          ctx.user.id,
+          autoTitle,
+          input.description || '',
+          input.price,
+          input.location,
+          input.sqm,
+          0, // rooms - not required for calculator import
+          input.images || [],
+          JSON.stringify(input.documents || []),
+          'active', // Always active so it shows in favorites
+          true, // is_external - makes it private
+          false, // is_community_shared - not shared with others
+          input.yearBuilt || null,
+          input.monthlyFee || null,
+          input.commissionRate || null,
+          input.monthlyRent || null,
+          afaDetails.afaType,
+          afaDetails.afaRate,
+          afaDetails.buildingRatio,
+          'apartment', // default property type
+        ]
+      );
+
+      // Automatically add to favorites
+      await query(
+        `INSERT INTO favorites (user_id, property_id)
+         VALUES ($1, $2)
+         ON CONFLICT (user_id, property_id) DO NOTHING`,
+        [ctx.user.id, property.id]
+      );
+
+      // Track interaction
+      await query(
+        `INSERT INTO property_interactions (user_id, property_id, interaction_type)
+         SELECT $1, $2, 'favorite'
+         WHERE NOT EXISTS (
+           SELECT 1 FROM property_interactions
+           WHERE user_id = $1 AND property_id = $2 AND interaction_type = 'favorite'
+         )`,
+        [ctx.user.id, property.id]
+      );
+
+      return property;
+    }),
+
   // Generate detailed AI evaluation
   generateDetailedEvaluation: protectedProcedure
     .input(z.object({
@@ -1654,6 +1812,123 @@ export const propertiesRouter = router({
       return sorted.slice(0, input.limit);
     }),
 
+  // Get similar properties for property detail page (sorted by similarity then AI score)
+  getSimilarPropertiesForDetail: publicProcedure
+    .input(z.object({
+      propertyId: z.string().uuid(),
+      // Current property data for comparison (coerce strings to numbers)
+      sqm: z.coerce.number().positive().optional(),
+      location: z.string().optional(),
+      price: z.coerce.number().positive().optional(),
+      limit: z.coerce.number().min(1).max(10).default(3),
+    }))
+    .query(async ({ input }) => {
+      const conditions: string[] = [];
+      const values: any[] = [];
+      let paramCount = 1;
+
+      // Base conditions
+      conditions.push(`status = 'active'`);
+      conditions.push(`(is_external = false OR is_external IS NULL OR is_community_shared = true)`);
+      conditions.push(`sqm > 0`);
+      conditions.push(`price > 0`);
+
+      // Exclude current property
+      conditions.push(`id != $${paramCount}`);
+      values.push(input.propertyId);
+      paramCount++;
+
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+      // Get all active properties
+      const sql = `
+        SELECT
+          id,
+          title,
+          price,
+          location,
+          sqm,
+          rooms,
+          images,
+          ai_investment_score
+        FROM properties
+        ${whereClause}
+        ORDER BY created_at DESC
+        LIMIT 100
+      `;
+
+      const properties = await query(sql, values);
+
+      // Extract location part for comparison
+      const inputLocationPart = input.location ? input.location.split(',')[0].trim().toLowerCase() : '';
+
+      // Calculate similarity score for each property
+      const propertiesWithScore = properties.map((property: any) => {
+        let similarityScore = 0;
+
+        // Location match (most important - up to 50 points)
+        const propertyLocation = (property.location || '').toLowerCase();
+        if (inputLocationPart && propertyLocation.includes(inputLocationPart)) {
+          similarityScore += 50;
+        } else if (inputLocationPart) {
+          // Partial match - check if any word matches
+          const inputWords = inputLocationPart.split(/\s+/);
+          const locationWords = propertyLocation.split(/\s+/);
+          for (const word of inputWords) {
+            if (word.length > 2 && locationWords.some((lw: string) => lw.includes(word))) {
+              similarityScore += 25;
+              break;
+            }
+          }
+        }
+
+        // Size similarity (up to 30 points)
+        if (input.sqm && property.sqm) {
+          const sqmDiff = Math.abs(property.sqm - input.sqm) / input.sqm;
+          if (sqmDiff <= 0.15) similarityScore += 30; // Within 15%
+          else if (sqmDiff <= 0.25) similarityScore += 25; // Within 25%
+          else if (sqmDiff <= 0.35) similarityScore += 20; // Within 35%
+          else if (sqmDiff <= 0.5) similarityScore += 10; // Within 50%
+        }
+
+        // Price similarity (up to 20 points)
+        if (input.price && property.price) {
+          const priceDiff = Math.abs(property.price - input.price) / input.price;
+          if (priceDiff <= 0.15) similarityScore += 20; // Within 15%
+          else if (priceDiff <= 0.25) similarityScore += 15; // Within 25%
+          else if (priceDiff <= 0.35) similarityScore += 10; // Within 35%
+          else if (priceDiff <= 0.5) similarityScore += 5; // Within 50%
+        }
+
+        return {
+          id: property.id,
+          title: property.title,
+          price: Number(property.price || 0),
+          location: property.location || '',
+          sqm: Number(property.sqm || 0),
+          rooms: Number(property.rooms || 0),
+          images: property.images || [],
+          ai_investment_score: property.ai_investment_score ? Number(property.ai_investment_score) : undefined,
+          similarityScore,
+        };
+      });
+
+      // Sort by similarity first, then by AI score
+      const sorted = propertiesWithScore.sort((a: any, b: any) => {
+        // First priority: similarity score (higher is better)
+        if (b.similarityScore !== a.similarityScore) {
+          return b.similarityScore - a.similarityScore;
+        }
+        // Second priority: AI score (higher is better)
+        const aScore = a.ai_investment_score || 0;
+        const bScore = b.ai_investment_score || 0;
+        return bScore - aScore;
+      });
+
+      // Return only the requested limit
+      return sorted.slice(0, input.limit);
+    }),
+
   // Revoke full access token (owner only)
   revokeFullAccessToken: protectedProcedure
     .input(z.object({
@@ -1681,5 +1956,69 @@ export const propertiesRouter = router({
       );
 
       return { success: true };
+    }),
+
+  // Get top-rated properties by AI score (sorted by score, then by newest)
+  getTopRatedByAIScore: publicProcedure
+    .input(z.object({
+      excludePropertyId: z.string().uuid().optional(),
+      limit: z.number().min(1).max(20).default(6),
+    }))
+    .query(async ({ input }) => {
+      const { excludePropertyId, limit } = input;
+
+      const params: (string | number)[] = [limit];
+      let paramIndex = 2;
+
+      let whereClause = `
+        WHERE p.ai_investment_score IS NOT NULL
+        AND p.ai_investment_score > 0
+      `;
+
+      if (excludePropertyId) {
+        whereClause += ` AND p.id != $${paramIndex}`;
+        params.push(excludePropertyId);
+        paramIndex++;
+      }
+
+      const properties = await query(`
+        SELECT
+          p.id,
+          p.title,
+          p.price,
+          p.location,
+          p.sqm,
+          p.rooms,
+          p.images,
+          p.ai_investment_score
+        FROM properties p
+        ${whereClause}
+        ORDER BY p.ai_investment_score DESC NULLS LAST, p.created_at DESC
+        LIMIT $1
+      `, params);
+
+      if (!properties || !Array.isArray(properties)) {
+        return [];
+      }
+
+      return properties.map((row: {
+        id: string;
+        title: string;
+        price: number;
+        location: string;
+        sqm: number;
+        rooms: number;
+        images: string[];
+        ai_investment_score: number;
+      }) => ({
+        id: row.id,
+        title: row.title,
+        price: Number(row.price || 0),
+        location: row.location || '',
+        sqm: Number(row.sqm || 0),
+        rooms: Number(row.rooms || 0),
+        images: row.images || [],
+        ai_investment_score: Number(row.ai_investment_score || 0),
+      }));
     }),
 });

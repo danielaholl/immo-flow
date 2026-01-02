@@ -22,6 +22,9 @@ import { paymentsRouter } from './routers/payments.js';
 import { portfolioRouter } from './routers/portfolio.js';
 import { taxOptimizerRouter } from './routers/taxOptimizer.js';
 import { sellerKnowledgeRouter } from './routers/sellerKnowledge.js';
+import { marketDataRouter } from './routers/market-data.js';
+import { interestRatesRouter } from './routers/interestRates.js';
+import { calculatorDefaultsRouter } from './routers/calculatorDefaults.js';
 
 export const appRouter = router({
   auth: authRouter,
@@ -43,6 +46,9 @@ export const appRouter = router({
   portfolio: portfolioRouter,
   taxOptimizer: taxOptimizerRouter,
   sellerKnowledge: sellerKnowledgeRouter,
+  marketData: marketDataRouter,
+  interestRates: interestRatesRouter,
+  calculatorDefaults: calculatorDefaultsRouter,
 });
 
 // Export type definition of API

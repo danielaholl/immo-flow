@@ -24,12 +24,27 @@ import { DocumentViewer } from './DocumentViewer';
 import { UniversalChat } from './UniversalChat';
 import type { ChatMessage } from './UniversalChat/types';
 
+interface CalculatorData {
+  price?: number;
+  sqm?: number;
+  location?: string;
+  yearBuilt?: number;
+  monthlyRent?: number;
+  monthlyFee?: number;
+  commissionRate?: number;
+  equityPercentage?: number;
+  interestRate?: number;
+  amortizationRate?: number;
+  renovationCosts?: number;
+}
+
 interface PropertyListingManagerProps {
   propertyId?: string; // Optional: wenn vorhanden, ist es Edit-Modus
   mode?: 'create' | 'edit' | 'import'; // Mode: create (default), edit (mit propertyId), import (neue Property aus externen Quellen)
+  initialCalculatorData?: CalculatorData; // Optional: Daten vom Calculator für Import-Modus
 }
 
-export function PropertyListingManager({ propertyId, mode = 'create' }: PropertyListingManagerProps) {
+export function PropertyListingManager({ propertyId, mode = 'create', initialCalculatorData }: PropertyListingManagerProps) {
   const router = useRouter();
   const { user, profile, loading } = useAuthContext();
 
@@ -179,6 +194,7 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
   const analyzeExternalUrlMutation = trpc.properties.analyzeExternalUrl.useMutation();
   const classifyAndAnalyzeImagesMutation = trpc.properties.classifyAndAnalyzeImages.useMutation();
   const addFavoriteMutation = trpc.favorites.add.useMutation();
+  const utils = trpc.useUtils();
 
   // Fetch property data if in edit mode
   const { data: propertyToEdit } = trpc.properties.getById.useQuery(
@@ -262,13 +278,43 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
     // Different message based on mode
     if (isEditMode) {
       addBotMessage('Hey! Du kannst jetzt deine Immobilie bearbeiten. Sag mir einfach, was du ändern möchtest - z.B. "Ändere den Preis auf 450.000 €" oder "Aktualisiere die Beschreibung". Ich helfe dir dabei!');
+    } else if (isImportMode && initialCalculatorData?.price && initialCalculatorData?.location) {
+      // Import mode with calculator data - show custom welcome message
+      const formattedPrice = new Intl.NumberFormat('de-DE', {
+        style: 'currency',
+        currency: 'EUR',
+        maximumFractionDigits: 0,
+      }).format(initialCalculatorData.price);
+
+      const welcomeMessage = `Du möchtest ein Objekt in **${initialCalculatorData.location}** für **${formattedPrice}** und **${initialCalculatorData.sqm} qm** Wohnfläche importieren.
+
+Du kannst jetzt:
+• **Notizen hinzufügen** – Schreibe einfach ins Textfeld
+• **Bilder hochladen** – Klicke auf das + Symbol
+• **Dokumente hochladen** – Klicke auf das + Symbol
+
+Wenn du fertig bist, klicke auf **„In den Favoriten übernehmen"**.`;
+
+      addBotMessage(welcomeMessage);
+
+      // Initialize listing data with calculator values
+      setListingData(prev => ({
+        ...prev,
+        price: initialCalculatorData.price,
+        sqm: initialCalculatorData.sqm,
+        location: initialCalculatorData.location,
+        year_built: initialCalculatorData.yearBuilt,
+        monthly_rent: initialCalculatorData.monthlyRent,
+        monthly_fee: initialCalculatorData.monthlyFee,
+        commission_rate: initialCalculatorData.commissionRate,
+      }));
     } else if (isImportMode) {
       initializeWelcomeMessages('import');
     } else {
       initializeWelcomeMessages('create');
     }
     setCurrentStep('chat');
-  }, [user, loading, isLoadingProperty, router, initializeWelcomeMessages, isEditMode, isImportMode, addBotMessage]);
+  }, [user, loading, isLoadingProperty, router, initializeWelcomeMessages, isEditMode, isImportMode, addBotMessage, initialCalculatorData]);
 
   // Handle text message (memoized for performance)
   const handleSendMessage = useCallback(async () => {
@@ -661,6 +707,8 @@ export function PropertyListingManager({ propertyId, mode = 'create' }: Property
         // Add to favorites
         if (createdProperty?.id) {
           await addFavoriteMutation.mutateAsync({ propertyId: createdProperty.id });
+          // Invalidate favorites cache so the new favorite shows up
+          await utils.favorites.getAll.invalidate();
         }
 
         // Success

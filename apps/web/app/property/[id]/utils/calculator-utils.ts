@@ -56,6 +56,16 @@ export const getBuildingRatio = (yearBuilt?: number): number => {
   return 0.80;
 };
 
+/**
+ * Extract 5-digit German PLZ from location string
+ * @returns The PLZ if found, null otherwise
+ */
+export function extractPLZFromLocation(location?: string): string | null {
+  if (!location) return null;
+  const match = location.match(/\b(\d{5})\b/);
+  return match ? match[1] : null;
+}
+
 // Calculate factor scores from buyer_evaluation data
 export interface FactorScores {
   location: number;

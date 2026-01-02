@@ -153,7 +153,7 @@ export function KeyMetricsTeaserCard({
   // No data state - Airbnb style
   if (!hasData) {
     return (
-      <Link href={`/property/${propertyId}/calculator?tab=investor`} className="block group">
+      <Link href={`/property/${propertyId}/calculator`} className="block group">
         <div className={`bg-white rounded-xl border border-gray-200 p-6 transition-all duration-200 hover:shadow-lg hover:border-gray-300 ${className}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -180,7 +180,7 @@ export function KeyMetricsTeaserCard({
 
   // Results view - Airbnb style
   return (
-    <Link href={`/property/${propertyId}/calculator?tab=investor`} className="block group">
+    <Link href={`/property/${propertyId}/calculator`} className="block group">
       <div className={`bg-white rounded-xl border border-gray-200 overflow-hidden transition-all duration-200 hover:shadow-lg hover:border-gray-300 ${className}`}>
         {/* Header */}
         <div className="p-5 pb-4">

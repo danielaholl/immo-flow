@@ -16,22 +16,46 @@ export default function AdminDashboard() {
             📊 Dashboard
           </a>
           <a
+            href="/users"
+            className="block px-4 py-3 rounded-lg text-text-secondary hover:bg-surface"
+          >
+            👥 Benutzer
+          </a>
+          <a
             href="/properties"
             className="block px-4 py-3 rounded-lg text-text-secondary hover:bg-surface"
           >
-            🏠 Properties
+            🏠 Objekte
           </a>
           <a
             href="/bookings"
             className="block px-4 py-3 rounded-lg text-text-secondary hover:bg-surface"
           >
-            📅 Bookings
+            📅 Abos
           </a>
           <a
             href="/analytics"
             className="block px-4 py-3 rounded-lg text-text-secondary hover:bg-surface"
           >
-            📈 Analytics
+            📈 Analysen
+          </a>
+          <a
+            href="/market-data"
+            className="block px-4 py-3 rounded-lg text-text-secondary hover:bg-surface"
+          >
+            📊 Marktdaten
+          </a>
+          <a
+            href="/interest-rates"
+            className="block px-4 py-3 rounded-lg text-text-secondary hover:bg-surface"
+          >
+            💰 Zinssaetze
+          </a>
+          <a
+            href="/calculator-defaults"
+            className="block px-4 py-3 rounded-lg text-text-secondary hover:bg-surface"
+          >
+            ⚙️ Rechner-Defaults
           </a>
         </nav>
       </aside>

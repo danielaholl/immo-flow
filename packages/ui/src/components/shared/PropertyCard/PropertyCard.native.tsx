@@ -19,6 +19,7 @@ export function PropertyCard({
   slideshowDuration = 3000,
   showAddress = true,
   isOwner = false,
+  showActionButtons = true,
 }: PropertyCardProps) {
   const logic = usePropertyCardLogic(property);
 
@@ -50,31 +51,33 @@ export function PropertyCard({
             )}
 
             {/* Action Buttons */}
-            <View style={styles.topRightButtons}>
-              <Pressable
-                style={[styles.topActionButton, styles.actionButtonDislike]}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  onDismiss?.(e);
-                }}
-              >
-                <Text style={styles.closeIcon}>✕</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.topActionButton, styles.actionButtonFavorite]}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  onFavorite?.(e);
-                }}
-              >
-                <Heart
-                  size={24}
-                  color="#10B981"
-                  fill={isFavorite ? '#10B981' : 'none'}
-                  strokeWidth={2}
-                />
-              </Pressable>
-            </View>
+            {showActionButtons && (
+              <View style={styles.topRightButtons}>
+                <Pressable
+                  style={[styles.topActionButton, styles.actionButtonDislike]}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    onDismiss?.(e);
+                  }}
+                >
+                  <Text style={styles.closeIcon}>✕</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.topActionButton, styles.actionButtonFavorite]}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    onFavorite?.(e);
+                  }}
+                >
+                  <Heart
+                    size={24}
+                    color="#10B981"
+                    fill={isFavorite ? '#10B981' : 'none'}
+                    strokeWidth={2}
+                  />
+                </Pressable>
+              </View>
+            )}
 
             {/* Owner Badge */}
             {isOwner && (

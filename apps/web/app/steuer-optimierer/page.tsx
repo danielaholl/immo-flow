@@ -1,12 +1,11 @@
 'use client';
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Building2, Check, ChevronDown, ImageOff } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { trpc } from '@/app/providers/TRPCProvider';
 import { TaxSavingsDisplay } from '../components/TaxSavingsDisplay';
 import { Header } from '../components/Header';
-import Link from 'next/link';
-import Image from 'next/image';
+import { SimilarProperties, SimilarProperty } from '../components/SimilarProperties';
 
 type AfaStrategy = 'bestand' | 'altbau' | 'neubau' | 'denkmal';
 type TaxTarget = 'optimal' | 'zero' | 'custom';
@@ -54,78 +53,6 @@ function formatCompact(value: number): string {
   return formatNumber(value);
 }
 
-// Property Card for matching properties - Theme-aware
-interface PropertyMatchCardProps {
-  property: {
-    id: string;
-    title: string;
-    price: number;
-    location: string;
-    sqm: number;
-    rooms: number;
-    images: string[];
-    ai_investment_score?: number;
-  };
-  taxSavings: number;
-}
-
-function PropertyMatchCard({ property, taxSavings }: PropertyMatchCardProps) {
-  const imageUrl = property.images?.[0];
-  const hasImage = Boolean(imageUrl && imageUrl.trim().length > 0);
-  const [imageError, setImageError] = useState(false);
-
-  const showPlaceholder = !hasImage || imageError;
-
-  return (
-    <Link
-      href={`/property/${property.id}`}
-      className="block bg-gray-100 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:border-gray-300 dark:hover:border-gray-600 transition-all hover:bg-gray-50 dark:hover:bg-gray-800"
-    >
-      <div className="relative h-28">
-        {!showPlaceholder ? (
-          <Image
-            src={imageUrl!}
-            alt={property.title}
-            fill
-            className="object-cover"
-            sizes="(max-width: 768px) 100vw, 300px"
-            onError={() => setImageError(true)}
-          />
-        ) : (
-          <div className="absolute inset-0 w-full h-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-            <ImageOff size={24} className="text-gray-400 dark:text-gray-500" />
-          </div>
-        )}
-        {/* Badge */}
-        <div className="absolute top-2 right-2 bg-emerald-500/90 text-white text-xs font-medium px-2 py-1 rounded-full flex items-center gap-1 z-20">
-          <Check size={10} />
-          Geprüft
-        </div>
-      </div>
-      <div className="p-3">
-        <h4 className="font-semibold text-gray-900 dark:text-white text-sm line-clamp-1">
-          {property.title}
-        </h4>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{property.location}</p>
-        <div className="flex justify-between items-center">
-          <span className="font-bold text-emerald-600 dark:text-emerald-400">
-            {formatCurrency(property.price)}
-          </span>
-          <span className="text-xs text-gray-500">
-            {property.sqm} m² · {property.rooms} Zi.
-          </span>
-        </div>
-        {taxSavings > 0 && (
-          <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-            <p className="text-xs text-emerald-600 dark:text-emerald-400">
-              Spart dir {formatCurrency(taxSavings)}/Jahr
-            </p>
-          </div>
-        )}
-      </div>
-    </Link>
-  );
-}
 
 export default function SteuerOptimiererPage() {
   // Form state
@@ -344,7 +271,7 @@ export default function SteuerOptimiererPage() {
   return (
     <div className="bg-slate-50 dark:bg-[#030712] min-h-screen">
       <Header />
-      <div className="lg:h-[calc(100vh-80px)] lg:flex lg:flex-col lg:overflow-hidden">
+      <div>
         {/* Hero Section */}
         <div className="text-center py-4 flex-shrink-0 px-4">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-1">
@@ -356,8 +283,8 @@ export default function SteuerOptimiererPage() {
         </div>
 
         {/* Main Content Grid */}
-        <main className="flex-1 px-4 pb-4 min-h-0">
-          <div className="h-full grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5 max-w-[1600px] mx-auto">
+        <main className="px-4 pb-4">
+          <div className="grid grid-cols-1 lg:grid-cols-9 gap-4 lg:gap-5 max-w-[1200px] mx-auto">
 
             {/* Left Column - Inputs */}
             <div className="lg:col-span-3 h-full flex flex-col gap-4 overflow-y-auto pr-1">
@@ -644,7 +571,7 @@ export default function SteuerOptimiererPage() {
             </div>
 
             {/* Center Column - Results */}
-            <div className="lg:col-span-6 h-full min-h-0 overflow-y-auto pr-1">
+            <div className="lg:col-span-6 min-h-0 overflow-y-auto pr-1">
               <div className="bg-white dark:bg-[#111827] rounded-2xl border border-gray-200 dark:border-gray-800 p-5">
                 <TaxSavingsDisplay
                   targetPortfolioValue={targetPortfolioValue}
@@ -666,47 +593,21 @@ export default function SteuerOptimiererPage() {
                 />
               </div>
             </div>
-
-            {/* Right Column - Properties */}
-            <div className="lg:col-span-3 h-full min-h-0 overflow-y-auto pr-1">
-              <div className="bg-white dark:bg-[#111827] rounded-2xl border border-gray-200 dark:border-gray-800 p-5 h-full flex flex-col">
-                <div className="mb-4 flex-shrink-0">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Passende Objekte</h3>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Sortiert nach Steuerersparnis
-                  </p>
-                </div>
-
-                <div className="flex-1 min-h-0">
-                  {allProperties.isLoading ? (
-                    <div className="space-y-3">
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="h-40 bg-gray-200 dark:bg-gray-800 rounded-xl animate-pulse" />
-                      ))}
-                    </div>
-                  ) : propertiesWithSavings.length > 0 ? (
-                    <div className="space-y-3">
-                      {propertiesWithSavings.map((property) => (
-                        <PropertyMatchCard
-                          key={property.id}
-                          property={property}
-                          taxSavings={property.taxSavings}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <Building2 size={40} className="mx-auto mb-3 text-gray-400 dark:text-gray-600" />
-                      <p className="text-sm text-gray-500">
-                        Keine Objekte gefunden.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
           </div>
         </main>
+
+        {/* Passende Objekte - Full Width */}
+        <div className="mt-8 border-t border-gray-200 dark:border-gray-700 pt-12 pb-8">
+          <SimilarProperties
+            title="Passende Objekte"
+            subtitle="Sortiert nach Steuerersparnis"
+            properties={propertiesWithSavings as SimilarProperty[]}
+            badgeContext="steuer"
+            isLoading={allProperties.isLoading}
+            linkBuilder={(id) => `/property/${id}`}
+            fullWidth
+          />
+        </div>
       </div>
     </div>
   );

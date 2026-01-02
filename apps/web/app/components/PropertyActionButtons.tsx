@@ -105,54 +105,47 @@ export function PropertyActionButtons({
   }
 
   // Buyer Mode: 4 Buttons (Favorit, Kein Interesse, Nachricht senden, Teilen)
+  // Small screens: 2x2 grid, larger screens: single row
   return (
     <>
-      <div className={`flex flex-wrap gap-3 ${className}`}>
-        <div className="flex-1 min-w-[140px]">
-          <GlassButton
-            iconLeft={<Heart className="text-red-500" fill={isFavorite ? 'currentColor' : 'none'} />}
-            onClick={onToggleFavorite}
-            fullWidth
-            size="lg"
-          >
-            {finalFavoriteLabel}
-          </GlassButton>
-        </div>
-        <div className="flex-1 min-w-[140px]">
-          <GlassButton
-            iconLeft={<X />}
-            onClick={onDismiss}
-            disabled={isDismissLoading}
-            loading={isDismissLoading}
-            fullWidth
-            size="lg"
-          >
-            {isDismissLoading ? 'Wird verarbeitet...' : 'Kein Interesse'}
-          </GlassButton>
-        </div>
-        <div className="flex-1 min-w-[140px]">
-          <GlassButton
-            iconLeft={<MessageSquare className="text-green-500" />}
-            onClick={onStartMessage}
-            disabled={isMessageLoading}
-            loading={isMessageLoading}
-            fullWidth
-            size="lg"
-          >
-            {isMessageLoading ? 'Wird gestartet...' : 'Nachricht'}
-          </GlassButton>
-        </div>
-        <div className="flex-1 min-w-[140px]">
-          <GlassButton
-            iconLeft={<Share2 className="text-blue-500" />}
-            onClick={handleBuyerShare}
-            disabled={!propertyUrl}
-            fullWidth
-            size="lg"
-          >
-            Teilen
-          </GlassButton>
-        </div>
+      <div className={`grid grid-cols-2 lg:grid-cols-4 gap-3 ${className}`}>
+        <GlassButton
+          iconLeft={<Heart className="text-red-500" fill={isFavorite ? 'currentColor' : 'none'} />}
+          onClick={onToggleFavorite}
+          fullWidth
+          size="lg"
+        >
+          {finalFavoriteLabel}
+        </GlassButton>
+        <GlassButton
+          iconLeft={<X />}
+          onClick={onDismiss}
+          disabled={isDismissLoading}
+          loading={isDismissLoading}
+          fullWidth
+          size="lg"
+        >
+          {isDismissLoading ? 'Wird verarbeitet...' : 'Kein Interesse'}
+        </GlassButton>
+        <GlassButton
+          iconLeft={<MessageSquare className="text-green-500" />}
+          onClick={onStartMessage}
+          disabled={isMessageLoading}
+          loading={isMessageLoading}
+          fullWidth
+          size="lg"
+        >
+          {isMessageLoading ? 'Wird gestartet...' : 'Nachricht'}
+        </GlassButton>
+        <GlassButton
+          iconLeft={<Share2 className="text-blue-500" />}
+          onClick={handleBuyerShare}
+          disabled={!propertyUrl}
+          fullWidth
+          size="lg"
+        >
+          Teilen
+        </GlassButton>
       </div>
 
       {/* Copied Toast */}

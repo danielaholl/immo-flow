@@ -9,6 +9,7 @@ import { ArrowLeft, Sparkles, Loader2, ChevronDown, Lightbulb, Check, AlertTrian
 import Image from 'next/image';
 import { AIScoreCard } from '@/app/components/AIScoreCard';
 import { MarketComparisonBar } from '@/app/components/MarketComparisonBar';
+import { SimilarProperties, SimilarProperty } from '@/app/components/SimilarProperties';
 import {
   formatCurrency,
   calculateFactorScores,
@@ -105,6 +106,12 @@ export default function AIScorePage() {
       setAiFazitError(true);
     },
   });
+
+  // Top-rated properties by AI score
+  const { data: topRatedProperties, isLoading: isLoadingTopRated } = trpc.properties.getTopRatedByAIScore.useQuery(
+    { excludePropertyId: propertyId, limit: 3 },
+    { enabled: isValidPropertyId, refetchOnWindowFocus: false }
+  );
 
   // Calculate investor metrics for AI Fazit generation
   const investorMetrics = useMemo(() => {
@@ -482,6 +489,20 @@ export default function AIScorePage() {
             <span>Zur Detail-Berechnung</span>
           </button>
         </div>
+
+      </div>
+
+      {/* Top-rated Properties - Full Width */}
+      <div className="mt-12 border-t border-gray-200 dark:border-gray-700 pt-12 pb-8">
+        <SimilarProperties
+          title="Top bewertete Objekte"
+          subtitle="Nach KI-Score sortiert"
+          properties={(topRatedProperties || []) as SimilarProperty[]}
+          badgeContext="ai-score"
+          isLoading={isLoadingTopRated}
+          linkBuilder={(id) => `/property/${id}/ai-score`}
+          fullWidth
+        />
       </div>
     </main>
   );

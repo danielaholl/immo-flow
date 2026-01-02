@@ -13,14 +13,17 @@ import { ShareLinkModal } from '../components/ShareLinkModal';
 import type { PropertyDocument } from '../create-listing/types';
 import { mapToPropertyPreviewData } from '../utils/propertyMapper';
 import { PropertyActionButtons } from '../components/PropertyActionButtons';
-import { InvestmentScoreBadge, ImageOverlayActions, PropertyScoreBadge } from '@rendito/ui';
+import { InvestmentScoreBadge, PropertyScoreBadge, PropertyImageSlideshow } from '@rendito/ui';
+import { MobileDetailHeader } from '../components/MobileDetailHeader';
 // import { PropertyFeedbackModal } from '@rendito/ui'; // Component doesn't exist
 import { Heart, Plus } from 'lucide-react';
 import { CollapsedThumbnailList } from '../components/CollapsedThumbnailList';
 import { PropertyListThumbnail } from '../components/PropertyListThumbnail';
 import { trpc } from '@/lib/trpc';
 import { useMasterDetailNavigation } from '@/app/hooks/useMasterDetailNavigation';
-import { MasterDetailLayout, PropertyDetailLayout } from '../components/layouts/MasterDetailLayout';
+import { MasterDetailLayout } from '../components/layouts/MasterDetailLayout';
+import { SimilarProperties, SimilarProperty } from '../components/SimilarProperties';
+import { PageContainer } from '../components/PageContainer';
 
 export default function FavoritesPage() {
   const { user, profile, loading: authLoading } = useAuthContext();
@@ -153,6 +156,24 @@ export default function FavoritesPage() {
       alert('Fehler beim Speichern der Parameter. Bitte versuchen Sie es erneut.');
     },
   });
+
+  // Fetch similar properties when a property is selected
+  const { data: similarPropertiesData, isLoading: similarPropertiesLoading } =
+    trpc.properties.getSimilarPropertiesForDetail.useQuery(
+      {
+        propertyId: selectedProperty?.id || '',
+        sqm: selectedProperty?.sqm,
+        location: selectedProperty?.location,
+        price: selectedProperty?.price,
+        limit: 3,
+      },
+      {
+        enabled: !!selectedProperty,
+        refetchOnWindowFocus: false,
+      }
+    );
+
+  const similarProperties = (similarPropertiesData || []) as SimilarProperty[];
 
   // Handler for saving user property parameters
   const handleSaveUserPropertyParams = (params: {
@@ -451,66 +472,79 @@ export default function FavoritesPage() {
             }
             detailContent={
               selectedProperty ? (
-                <PropertyDetailLayout
-                  images={selectedProperty.images || []}
-                  videoUrl={selectedProperty.video_url || undefined}
-                  propertyTitle={selectedProperty.title}
-                  propertyId={selectedProperty.id}
-                  propertyType={selectedProperty.property_type || undefined}
-                  onBack={goBack}
-                  showMobileHeader={!!selectedPropertyId}
-                  desktopActionButtons={ActionButtons}
-                  mobileActionButtons={ActionButtons}
-                  selectedDocument={selectedDocument}
-                  onDocumentClose={() => setSelectedDocument(null)}
-                  imageOverlay={
-                    <>
-                      {/* AI Score Badge - Ring Variant */}
-                      {selectedProperty.ai_score && selectedProperty.ai_score > 0 && (
-                        <div className="absolute top-8 right-4 z-10 pointer-events-none">
-                          <PropertyScoreBadge score={selectedProperty.ai_score} variant="ring" />
-                        </div>
-                      )}
-
-                      {/* Action Buttons - Transparent Overlay Style */}
-                      <ImageOverlayActions
-                        className="absolute bottom-5 right-3 z-20"
-                        isFavorite={true}
-                        onFavorite={() => handleRemoveFavorite(selectedProperty.id)}
-                        onMessage={handleStartMessage}
-                        onShare={() => setIsShareModalOpen(true)}
-                        onDismiss={handleDismiss}
-                      />
-                    </>
-                  }
-                >
-                  {propertyPreviewData && (
-                    <PropertyPreview
-                      key={selectedProperty.id}
-                      data={propertyPreviewData}
-                      showAddress={true}
-                      className="!shadow-none !rounded-none !bg-transparent"
-                      hasConsent={shouldShowAddress(selectedProperty.id)}
-                      isOwner={false}
-                      consentLoading={consentLoading}
-                      isUserLoggedIn={Boolean(user)}
-                      onGrantConsent={() => handleGrantConsent(selectedProperty.id)}
-                      showInvestmentScore={true}
-                      showEvaluationButton={!selectedProperty.ai_score || selectedProperty.ai_score === 0}
-                      onTriggerEvaluation={handleTriggerEvaluation}
-                      isGeneratingEvaluation={isEvaluating}
-                      evaluationViewType="buyer"
-                      propertyId={selectedProperty.id}
-                      onDocumentSelect={setSelectedDocument}
-                      onRequestDocumentAccess={handleRequestDocumentAccess}
-                      hasDocumentAccess={hasDocumentAccess}
-                      hasManualApproval={hasDocumentAccess}
-                      userPropertyParams={userPropertyParams}
-                      onSaveUserPropertyParams={handleSaveUserPropertyParams}
-                      isSavingUserPropertyParams={saveUserPropertyParamsMutation.isLoading}
+                <>
+                  {/* Mobile Header */}
+                  {selectedPropertyId && (
+                    <MobileDetailHeader
+                      title="Zurück"
+                      subtitle=""
+                      onBack={goBack}
                     />
                   )}
-                </PropertyDetailLayout>
+
+                  <div className="flex flex-col lg:flex-row lg:items-stretch p-4 lg:p-8">
+                    {/* Left Column - Property Details */}
+                    <div className="w-full lg:w-1/2 lg:pr-6 order-2 lg:order-1">
+                      {propertyPreviewData && (
+                        <PropertyPreview
+                          key={selectedProperty.id}
+                          data={propertyPreviewData}
+                          showAddress={true}
+                          className="!shadow-none !rounded-none !bg-transparent"
+                          hasConsent={shouldShowAddress(selectedProperty.id)}
+                          isOwner={false}
+                          consentLoading={consentLoading}
+                          isUserLoggedIn={Boolean(user)}
+                          onGrantConsent={() => handleGrantConsent(selectedProperty.id)}
+                          showInvestmentScore={true}
+                          showEvaluationButton={!selectedProperty.ai_score || selectedProperty.ai_score === 0}
+                          onTriggerEvaluation={handleTriggerEvaluation}
+                          isGeneratingEvaluation={isEvaluating}
+                          evaluationViewType="buyer"
+                          propertyId={selectedProperty.id}
+                          onDocumentSelect={setSelectedDocument}
+                          onRequestDocumentAccess={handleRequestDocumentAccess}
+                          hasDocumentAccess={hasDocumentAccess}
+                          hasManualApproval={hasDocumentAccess}
+                          userPropertyParams={userPropertyParams}
+                          onSaveUserPropertyParams={handleSaveUserPropertyParams}
+                          isSavingUserPropertyParams={saveUserPropertyParamsMutation.isLoading}
+                        />
+                      )}
+
+                      {/* Action Buttons - inline, nicht sticky */}
+                      <div className="mt-6">
+                        {ActionButtons}
+                      </div>
+                    </div>
+
+                    {/* Right Column - Images */}
+                    <div className="w-full lg:w-1/2 h-[50vh] lg:h-auto lg:pl-6 order-1 lg:order-2 mb-4 lg:mb-0">
+                      <div className="h-full rounded-2xl overflow-hidden">
+                        <PropertyImageSlideshow
+                          images={selectedProperty.images || []}
+                          videoUrl={selectedProperty.video_url || undefined}
+                          title={selectedProperty.title}
+                          className="h-full"
+                          showCounter={true}
+                          showProgressBars={true}
+                          slideshowId={`favorites-${selectedProperty.id}`}
+                          propertyType={selectedProperty.property_type || undefined}
+                          overlay={
+                            <>
+                              {/* AI Score Badge - Ring Variant */}
+                              {selectedProperty.ai_score && selectedProperty.ai_score > 0 && (
+                                <div className="absolute top-8 right-4 z-10 pointer-events-none">
+                                  <PropertyScoreBadge score={selectedProperty.ai_score} variant="ring" />
+                                </div>
+                              )}
+                            </>
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </>
               ) : (
                 <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
                   Wählen Sie einen Favoriten aus der Liste
@@ -520,6 +554,24 @@ export default function FavoritesPage() {
           />
         );
       })()}
+
+      {/* Similar Properties - Full Width */}
+      {selectedProperty && (similarProperties.length > 0 || similarPropertiesLoading) && (
+        <div className="bg-gray-50 dark:bg-gray-900/50 py-12 mt-8">
+          <PageContainer>
+            <SimilarProperties
+              title="Ähnliche Objekte"
+              subtitle="Basierend auf Standort, Größe und Preis"
+              properties={similarProperties}
+              badgeContext="ai-score"
+              isLoading={similarPropertiesLoading}
+              linkBuilder={(id) => `/property/${id}`}
+              fullWidth
+              emptyMessage="Keine ähnlichen Objekte gefunden"
+            />
+          </PageContainer>
+        </div>
+      )}
 
       {/* Property Feedback Modal */}
       {/* {selectedProperty && (

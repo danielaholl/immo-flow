@@ -5,6 +5,12 @@
  */
 import { query, queryOne } from '../db.js';
 import { getOpenAIClient, buildSystemPrompt } from '../utils/openai.js';
+import { getMarketDataByPLZ } from './plz-market-estimator.js';
+import {
+  getGlobalDefaults,
+  getHausgeldPerSqmForYear,
+  calculateMonthlyMaintenanceCost,
+} from './calculator-defaults-service.js';
 
 interface Property {
   id: string;
@@ -12,6 +18,7 @@ interface Property {
   description: string;
   location: string;
   address?: string;
+  postal_code?: string;
   price: number;
   rooms: number;
   sqm: number;
@@ -139,6 +146,43 @@ Antworte NUR mit einem JSON-Objekt in folgendem Format:
 }`;
 
   return await callOpenAI<LocationAnalysis>(locationPrompt);
+}
+
+/**
+ * Get market price from PLZ database or fallback to AI
+ * First tries to get data from plz_market_data table, then falls back to AI
+ */
+async function getMarketPrice(property: Property): Promise<MarketPriceAnalysis> {
+  // Try to get from PLZ database first
+  if (property.postal_code) {
+    try {
+      const plzData = await getMarketDataByPLZ(property.postal_code);
+
+      if (plzData && plzData.avg_purchase_price_sqm) {
+        console.log(`📊 Using PLZ market data for ${property.postal_code}: ${plzData.avg_purchase_price_sqm} €/m²`);
+
+        // Calculate negotiation price (typically 5-10% below asking)
+        const discountPercent = 7;
+        const negotiationPrice = Math.round(property.price * (1 - discountPercent / 100));
+
+        return {
+          average_price_per_sqm: plzData.avg_purchase_price_sqm,
+          price_range_min: plzData.purchase_price_min || plzData.avg_purchase_price_sqm * 0.85,
+          price_range_max: plzData.purchase_price_max || plzData.avg_purchase_price_sqm * 1.15,
+          negotiation_price: negotiationPrice,
+          negotiation_discount_percent: discountPercent,
+          negotiation_reasoning: `Basierend auf Marktdaten für PLZ ${property.postal_code} und üblichem Verhandlungsspielraum`,
+          reasoning: `Durchschnittspreis in ${plzData.city}: ${plzData.avg_purchase_price_sqm.toLocaleString('de-DE')} €/m² (Confidence: ${((plzData.confidence_score || 0.85) * 100).toFixed(0)}%)`,
+        };
+      }
+    } catch (error) {
+      console.warn(`⚠️ Could not get PLZ market data for ${property.postal_code}, falling back to AI`, error);
+    }
+  }
+
+  // Fallback to AI estimation
+  console.log(`🤖 Using AI for market price estimation (no PLZ data available)`);
+  return analyzeMarketPriceWithAI(property);
 }
 
 /**
@@ -334,6 +378,37 @@ function calculateMonthlyLoanPayment(
 }
 
 /**
+ * Get rent estimation from PLZ database or fallback to AI
+ */
+async function getRentEstimation(property: Property): Promise<RentEstimation> {
+  // Try to get from PLZ database first
+  if (property.postal_code) {
+    try {
+      const plzData = await getMarketDataByPLZ(property.postal_code);
+
+      if (plzData && plzData.avg_rent_sqm) {
+        console.log(`📊 Using PLZ rent data for ${property.postal_code}: ${plzData.avg_rent_sqm} €/m²`);
+
+        const estimatedMonthlyRent = Math.round(plzData.avg_rent_sqm * property.sqm);
+
+        return {
+          estimated_rent_per_sqm: plzData.avg_rent_sqm,
+          estimated_monthly_rent: estimatedMonthlyRent,
+          reasoning: `Basierend auf Marktdaten für PLZ ${property.postal_code} (${plzData.city}). Durchschnittliche Kaltmiete: ${plzData.avg_rent_sqm.toFixed(2)} €/m².`,
+          market_comparison: `Mietpreisspanne in der Region: ${plzData.rent_min?.toFixed(2) || '-'} - ${plzData.rent_max?.toFixed(2) || '-'} €/m²`,
+        };
+      }
+    } catch (error) {
+      console.warn(`⚠️ Could not get PLZ rent data for ${property.postal_code}, falling back to AI`, error);
+    }
+  }
+
+  // Fallback to AI estimation
+  console.log(`🤖 Using AI for rent estimation (no PLZ data available)`);
+  return estimateRentWithAI(property);
+}
+
+/**
  * Estimate market rent using AI with current 2025 data
  */
 async function estimateRentWithAI(property: Property): Promise<RentEstimation> {
@@ -502,11 +577,11 @@ export async function evaluatePropertyInvestment(
   // 2. AI-POWERED APPRECIATION ANALYSIS (15%)
   const appreciationAnalysis = await analyzeAppreciation(property);
 
-  // 3. AI-POWERED RENT ESTIMATION
-  const rentEstimation = await estimateRentWithAI(property);
+  // 3. RENT ESTIMATION (PLZ database or AI fallback)
+  const rentEstimation = await getRentEstimation(property);
 
-  // 3b. AI-POWERED MARKET PRICE ANALYSIS
-  const marketPriceAnalysis = await analyzeMarketPriceWithAI(property);
+  // 3b. MARKET PRICE ANALYSIS (PLZ database or AI fallback)
+  const marketPriceAnalysis = await getMarketPrice(property);
 
   // 3c. GENERATE COMPREHENSIVE MARKET ANALYSIS
   const comprehensiveMarketAnalysis = await generateComprehensiveMarketAnalysis(
@@ -547,9 +622,11 @@ export async function evaluatePropertyInvestment(
   );
 
   // Estimate operating costs (Hausgeld & Maintenance)
-  // Conservative estimates: 2 EUR/sqm for Hausgeld, 1 EUR/sqm for maintenance
-  const estimatedHausgeld = property.sqm * 2;
-  const estimatedMaintenance = property.sqm * 1;
+  // Use configurable defaults from calculator_defaults table
+  const defaults = await getGlobalDefaults();
+  const hausgeldPerSqm = getHausgeldPerSqmForYear(defaults, property.year_built);
+  const estimatedHausgeld = Math.ceil(property.sqm * hausgeldPerSqm);
+  const estimatedMaintenance = calculateMonthlyMaintenanceCost(defaults, property.sqm);
 
   // Calculate monthly cashflow
   const monthlyCashflow = estimatedMonthlyRent - estimatedHausgeld - estimatedMaintenance - monthlyLoanPayment;

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ImageOff } from 'lucide-react';
+import { PropertyScoreBadge } from '@rendito/ui';
 import { PropertyBadge } from './PropertyBadge';
 import { SimilarPropertyCardProps } from './types';
 
@@ -49,10 +50,17 @@ export function SimilarPropertyCard({
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
       </div>
 
-      {/* Badge - top left */}
+      {/* Badge - top left (context-specific) */}
       <div className="absolute top-3 left-3 z-20">
         <PropertyBadge context={badgeContext} property={property} />
       </div>
+
+      {/* AI-Score Badge - top right */}
+      {property.ai_investment_score != null && property.ai_investment_score > 0 && (
+        <div className="absolute top-3 right-3 z-20">
+          <PropertyScoreBadge score={property.ai_investment_score} variant="ring" size="sm" />
+        </div>
+      )}
 
       {/* Property Info - bottom */}
       <div className="absolute bottom-0 left-0 right-0 p-4 z-10">

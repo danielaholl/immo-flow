@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Header } from '../components/Header';
 import { PropertyFormData } from '../components/PropertyInputForm';
-import { CalculatorCards, SavedParams, SimilarPropertiesSidebar } from '../components/calculator';
+import { CalculatorCards, SavedParams, SimilarPropertiesSidebar, EditState } from '../components/calculator';
 import { PropertyImagePlaceholder } from '@rendito/ui';
 import { trpc } from '@/lib/trpc';
 import { useAuthContext } from '@/app/providers/AuthProvider';
@@ -16,7 +16,15 @@ import {
   Building2,
   ArrowLeft,
   MapPin,
+  Plus,
+  Save,
+  Check,
+  Euro,
+  Square,
+  Calendar,
+  Wallet,
 } from 'lucide-react';
+import Link from 'next/link';
 import {
   GRUNDERWERBSTEUER_SAETZE,
   detectStateFromLocation,
@@ -25,6 +33,7 @@ import {
   parseEKRate,
   getAfaRate,
   getBuildingRatio,
+  extractPLZFromLocation,
 } from '../property/[id]/utils/calculator-utils';
 
 type TabType = 'investor' | 'eigennutzer';
@@ -43,6 +52,8 @@ const DEFAULT_FORM_DATA: PropertyFormData = {
   renovationCosts: '0',
 };
 
+const STORAGE_KEY = 'calculator-form-data';
+
 export default function CalculatorPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -50,16 +61,84 @@ export default function CalculatorPage() {
   const utils = trpc.useUtils();
 
   const propertyId = searchParams.get('propertyId');
-  const tabFromUrl = (searchParams.get('tab') as TabType) || 'investor';
-  const [activeTab, setActiveTab] = useState<TabType>(tabFromUrl);
+  const [activeTab, setActiveTab] = useState<TabType>('investor');
   const [formData, setFormData] = useState<PropertyFormData>(DEFAULT_FORM_DATA);
   const [isLookingUpPLZ, setIsLookingUpPLZ] = useState(false);
   const [resolvedLocation, setResolvedLocation] = useState<string | null>(null);
+  const [isSaved, setIsSaved] = useState(false);
+  const [calculatorEditState, setCalculatorEditState] = useState<Partial<EditState>>({});
+  const [initialEditState, setInitialEditState] = useState<Partial<EditState> | undefined>(undefined);
+  const [isHydrated, setIsHydrated] = useState(false);
 
-  // Sync activeTab with URL parameter
+  // Hash-basierte Tab-Auswahl (für "Kaufen vs. Mieten" Menü)
   useEffect(() => {
-    setActiveTab(tabFromUrl);
-  }, [tabFromUrl]);
+    const handleHashChange = () => {
+      if (window.location.hash === '#eigennutzer') {
+        setActiveTab('eigennutzer');
+        // Hash nach kurzer Verzögerung entfernen (für saubere URL)
+        requestAnimationFrame(() => {
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        });
+      }
+    };
+
+    // Initial prüfen
+    handleHashChange();
+
+    // Auf Hash-Änderungen reagieren (für Soft Navigation)
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  // Load saved data from localStorage after hydration (client-side only)
+  useEffect(() => {
+    if (propertyId) {
+      setIsHydrated(true);
+      return;
+    }
+
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Load form data
+        if (parsed.formData) {
+          setFormData(prev => ({ ...prev, ...parsed.formData }));
+        } else {
+          // Legacy: old format without nested structure
+          setFormData(prev => ({ ...prev, ...parsed }));
+        }
+        // Load extended calculator state
+        if (parsed.editState) {
+          setInitialEditState(parsed.editState);
+          setCalculatorEditState(parsed.editState);
+        }
+      }
+    } catch (e) {
+      // Ignore localStorage errors
+    }
+    setIsHydrated(true);
+  }, [propertyId]);
+
+  // Handle edit state changes from CalculatorCards
+  const handleEditStateChange = (state: EditState) => {
+    setCalculatorEditState(state);
+  };
+
+  // Save form data and calculator state to localStorage
+  const handleSaveFormData = () => {
+    try {
+      const dataToSave = {
+        formData,
+        editState: calculatorEditState,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+      setIsSaved(true);
+      setTimeout(() => setIsSaved(false), 2000);
+    } catch (e) {
+      // Ignore localStorage errors
+    }
+  };
 
   // PLZ lookup - detect 5-digit German postal codes and resolve to location
   useEffect(() => {
@@ -100,6 +179,38 @@ export default function CalculatorPage() {
       setResolvedLocation(null);
     }
   }, [formData.location]);
+
+  // PLZ-based market rent data
+  const extractedPLZ = useMemo(() => extractPLZFromLocation(formData.location), [formData.location]);
+  const { data: plzMarketData, isLoading: isLoadingMarketData } = trpc.marketData.getByPLZ.useQuery(
+    { plz: extractedPLZ! },
+    {
+      enabled: !!extractedPLZ && extractedPLZ.length === 5 && !propertyId,
+      staleTime: 1000 * 60 * 30,
+      refetchOnWindowFocus: false,
+      retry: false,
+    }
+  );
+
+  // Calculate PLZ-based market rent
+  const plzMarketRent = useMemo(() => {
+    if (!plzMarketData?.avg_rent_sqm || !formData.sqm) return null;
+    return Math.ceil(Number(plzMarketData.avg_rent_sqm) * parseNum(formData.sqm, 0));
+  }, [plzMarketData, formData.sqm]);
+
+  // Auto-populate monthly rent when PLZ market data is available and rent is empty
+  useEffect(() => {
+    if (plzMarketRent && !formData.monthlyRent && !propertyId) {
+      setFormData(prev => ({ ...prev, monthlyRent: String(plzMarketRent) }));
+    }
+  }, [plzMarketRent, propertyId]);
+
+  // Check if user has overridden market rent
+  const isRentOverridden = useMemo(() => {
+    if (!plzMarketRent || !formData.monthlyRent) return false;
+    const userRent = parseNum(formData.monthlyRent, 0);
+    return Math.abs(userRent - plzMarketRent) / plzMarketRent > 0.05;
+  }, [plzMarketRent, formData.monthlyRent]);
 
   // ============= API Queries (Property Mode) =============
   const { data: property, isLoading: propertyLoading } = trpc.properties.getByIdWithOwner.useQuery(
@@ -407,73 +518,6 @@ export default function CalculatorPage() {
     };
   }, [property, propertyId, userPropertyParams, formData]);
 
-  // Tab change handler
-  const handleTabChange = (tab: TabType) => {
-    setActiveTab(tab);
-    const url = new URL(window.location.href);
-    url.searchParams.set('tab', tab);
-    router.replace(url.pathname + url.search, { scroll: false });
-  };
-
-  // Drag/Swipe functionality for toggle
-  const toggleRef = useRef<HTMLDivElement>(null);
-  const dragStartX = useRef<number | null>(null);
-
-  const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    dragStartX.current = clientX;
-  };
-
-  const handleDragEnd = (e: React.MouseEvent | React.TouchEvent) => {
-    if (dragStartX.current === null) return;
-    const clientX = 'changedTouches' in e ? e.changedTouches[0].clientX : e.clientX;
-    const diff = clientX - dragStartX.current;
-    const threshold = 50;
-    if (diff > threshold && activeTab === 'investor') {
-      handleTabChange('eigennutzer');
-    } else if (diff < -threshold && activeTab === 'eigennutzer') {
-      handleTabChange('investor');
-    }
-    dragStartX.current = null;
-  };
-
-  // Toggle Element (reused)
-  const toggleElement = (
-    <div
-      ref={toggleRef}
-      className="bg-white dark:bg-gray-800 rounded-full border border-gray-200 dark:border-gray-700 p-1.5 flex relative cursor-grab active:cursor-grabbing select-none min-w-[420px]"
-      onMouseDown={handleDragStart}
-      onMouseUp={handleDragEnd}
-      onMouseLeave={handleDragEnd}
-      onTouchStart={handleDragStart}
-      onTouchEnd={handleDragEnd}
-    >
-      <div
-        className={`absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] bg-gray-900 dark:bg-white rounded-full shadow-sm transition-all duration-300 ease-in-out pointer-events-none ${
-          activeTab === 'investor' ? 'left-1.5' : 'left-[calc(50%+3px)]'
-        }`}
-      />
-      <button
-        onClick={() => handleTabChange('investor')}
-        className={`flex-1 flex items-center justify-center gap-2 py-3 px-5 rounded-full font-medium text-sm transition-colors duration-300 relative z-10 ${
-          activeTab === 'investor' ? 'text-white dark:text-gray-900' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-        }`}
-      >
-        <TrendingUp size={16} />
-        <span className="hidden sm:inline">Deal-Insights</span>
-      </button>
-      <button
-        onClick={() => handleTabChange('eigennutzer')}
-        className={`flex-1 flex items-center justify-center gap-2 py-3 px-5 rounded-full font-medium text-sm transition-colors duration-300 relative z-10 ${
-          activeTab === 'eigennutzer' ? 'text-white dark:text-gray-900' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-        }`}
-      >
-        <Home size={16} />
-        <span className="hidden sm:inline whitespace-nowrap">Kaufen vs. Mieten</span>
-      </button>
-    </div>
-  );
-
   // Loading state (property mode)
   if (propertyId && propertyLoading) {
     return (
@@ -501,7 +545,7 @@ export default function CalculatorPage() {
   // Get current values for display
   const displayPrice = propertyId && property ? (property.price ?? 0) : parseNum(formData.price, 0);
   const displayLocation = propertyId && property ? property.location : formData.location;
-  const displaySqm = propertyId && property ? property.sqm : parseNum(formData.sqm, 0);
+  const displaySqm = propertyId && property ? (property.sqm ?? 0) : parseNum(formData.sqm, 0);
   const displayYearBuilt = propertyId && property ? property.year_built : (formData.yearBuilt ? Number(formData.yearBuilt) : undefined);
 
   return (
@@ -534,7 +578,7 @@ export default function CalculatorPage() {
         <div className="max-w-5xl mx-auto">
           {/* Property Header */}
           {propertyId && property && (
-            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 mb-6 flex gap-4 items-center">
+            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-300 dark:border-gray-700 p-4 mb-6 flex gap-4 items-center">
               <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden flex-shrink-0 relative">
                 {property.images && property.images.length > 0 ? (
                   <Image
@@ -564,62 +608,184 @@ export default function CalculatorPage() {
                   {property.days_online === 0 ? 'Neu' : `Seit ${property.days_online} ${property.days_online === 1 ? 'Tag' : 'Tagen'} online`}
                 </span>
               )}
+              {/* Import Button */}
+              <Link href="/import-listing">
+                <button className="flex items-center gap-1.5 px-3 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors flex-shrink-0">
+                  <Plus size={16} />
+                  <span>Zu Favoriten hinzufügen</span>
+                </button>
+              </Link>
+            </div>
+          )}
+
+          {/* Loading state for manual mode during hydration */}
+          {!propertyId && !isHydrated && (
+            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-300 dark:border-gray-700 p-4 mb-6">
+              <div className="flex items-center justify-center h-16">
+                <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+              </div>
             </div>
           )}
 
           {/* Manual Mode Header with editable fields */}
-          {!propertyId && (
-            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 mb-6">
-              <div className="flex gap-4 items-start">
+          {!propertyId && isHydrated && (
+            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-300 dark:border-gray-700 p-4 mb-6">
+              {/* Header-Zeile */}
+              <div className="flex gap-4 items-center">
                 <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-gradient-to-br from-[#E31C5F] to-[#FF9500] flex items-center justify-center flex-shrink-0">
                   <Building2 className="w-8 h-8 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  {/* Standort, Wohnfläche & Baujahr */}
-                  <div className="flex gap-4">
-                    <div>
-                      <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Standort / PLZ</label>
-                      <div className="relative inline-flex items-center">
-                        <MapPin size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
-                        <input
-                          type="text"
-                          value={formData.location}
-                          onChange={(e) => handleInputChange('location', e.target.value)}
-                          placeholder="81245 oder München"
-                          style={{ width: `${Math.max(formData.location.length, 16) * 10 + 72}px` }}
-                          className="min-w-[180px] max-w-[320px] pl-8 pr-8 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                        />
-                        {isLookingUpPLZ && (
-                          <Loader2 size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 animate-spin" />
-                        )}
-                      </div>
-                      {resolvedLocation && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 pl-1">{resolvedLocation}</p>
-                      )}
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {formData.price ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(Number(formData.price)) : '– €'}
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Immobilien-Rechner
+                  </p>
+                </div>
+                {/* Action Buttons */}
+                <div className="flex gap-2 flex-shrink-0">
+                  <button
+                    onClick={handleSaveFormData}
+                    className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                      isSaved
+                        ? 'bg-emerald-500 text-white'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600'
+                    }`}
+                  >
+                    {isSaved ? <Check size={16} /> : <Save size={16} />}
+                    <span>{isSaved ? 'Gespeichert' : 'Speichern'}</span>
+                  </button>
+                  <Link href={`/import-listing?price=${formData.price}&sqm=${formData.sqm}&location=${encodeURIComponent(resolvedLocation || formData.location)}&yearBuilt=${formData.yearBuilt || ''}&monthlyRent=${formData.monthlyRent || ''}&monthlyFee=${formData.monthlyFee || ''}&commissionRate=${formData.commissionRate || ''}&equityPercentage=${formData.equityPercentage || ''}&interestRate=${formData.interestRate || ''}&amortizationRate=${formData.amortizationRate || ''}&renovationCosts=${formData.renovationCosts || ''}`}>
+                    <button
+                      className="flex items-center gap-1.5 px-3 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
+                    >
+                      <Plus size={16} />
+                      <span>Zu Favoriten hinzufügen</span>
+                    </button>
+                  </Link>
+                </div>
+              </div>
+
+              {/* Formular-Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                {/* Kaufpreis */}
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                    Kaufpreis *
+                  </label>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                      <Euro size={16} />
                     </div>
-                    <div>
-                      <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Wohnfläche</label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          value={formData.sqm}
-                          onChange={(e) => handleInputChange('sqm', e.target.value)}
-                          placeholder="75"
-                          className="w-24 pr-7 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent text-center"
-                        />
-                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">m²</span>
-                      </div>
+                    <input
+                      type="text"
+                      value={formData.price ? new Intl.NumberFormat('de-DE').format(Number(formData.price)) : ''}
+                      onChange={(e) => {
+                        const rawValue = e.target.value.replace(/[^\d]/g, '');
+                        handleInputChange('price', rawValue);
+                      }}
+                      placeholder="350.000"
+                      className="w-full pl-9 pr-3 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent font-semibold"
+                    />
+                  </div>
+                </div>
+
+                {/* Wohnfläche */}
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                    Wohnfläche *
+                  </label>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500">
+                      <Square size={16} />
                     </div>
-                    <div>
-                      <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Baujahr</label>
-                      <input
-                        type="number"
-                        value={formData.yearBuilt}
-                        onChange={(e) => handleInputChange('yearBuilt', e.target.value)}
-                        placeholder="1995"
-                        className="w-20 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent text-center"
-                      />
+                    <input
+                      type="number"
+                      value={formData.sqm}
+                      onChange={(e) => handleInputChange('sqm', e.target.value)}
+                      placeholder="75"
+                      className="w-full pl-9 pr-10 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent font-semibold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">m²</span>
+                  </div>
+                </div>
+
+                {/* PLZ/Ort */}
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                    PLZ/Ort *
+                  </label>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                      <MapPin size={16} />
                     </div>
+                    <input
+                      type="text"
+                      value={formData.location}
+                      onChange={(e) => handleInputChange('location', e.target.value)}
+                      placeholder="München"
+                      className="w-full pl-9 pr-3 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent font-semibold"
+                    />
+                    {isLookingUpPLZ && (
+                      <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 animate-spin" />
+                    )}
+                  </div>
+                  {resolvedLocation && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{resolvedLocation}</p>
+                  )}
+                </div>
+
+                {/* Mieteinnahmen */}
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                    Miete/Monat
+                    {isLoadingMarketData && (
+                      <span className="text-gray-400 ml-1 animate-pulse">...</span>
+                    )}
+                  </label>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500">
+                      <Wallet size={16} />
+                    </div>
+                    <input
+                      type="text"
+                      value={formData.monthlyRent ? new Intl.NumberFormat('de-DE').format(Number(formData.monthlyRent)) : ''}
+                      onChange={(e) => {
+                        const rawValue = e.target.value.replace(/[^\d]/g, '');
+                        handleInputChange('monthlyRent', rawValue);
+                      }}
+                      placeholder={plzMarketRent ? new Intl.NumberFormat('de-DE').format(plzMarketRent) : '1.200'}
+                      className="w-full pl-9 pr-8 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent font-semibold"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">€</span>
+                  </div>
+                  {/* Market rent hint - always shown when available */}
+                  {plzMarketRent && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Ø Marktmiete: {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(plzMarketRent)}/Mo
+                    </p>
+                  )}
+                </div>
+
+                {/* Baujahr */}
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                    Baujahr
+                  </label>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-500">
+                      <Calendar size={16} />
+                    </div>
+                    <input
+                      type="number"
+                      value={formData.yearBuilt}
+                      onChange={(e) => handleInputChange('yearBuilt', e.target.value)}
+                      placeholder="1995"
+                      min="1800"
+                      max="2030"
+                      className="w-full pl-9 pr-3 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent font-semibold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
                   </div>
                 </div>
               </div>
@@ -627,62 +793,97 @@ export default function CalculatorPage() {
           )}
 
           {/* Calculator Cards */}
-          {activeTab === 'investor' && investorMetrics && (
+          {activeTab === 'investor' && investorMetrics && isHydrated && (
             <CalculatorCards
                 metricsElement={
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div className="rounded-xl border p-4 text-center bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                    {/* Rendite Card */}
+                    <div className={`rounded-xl border p-4 text-center ${
+                      investorMetrics.grossYield !== undefined && investorMetrics.grossYield >= 4
+                        ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/50'
+                        : investorMetrics.grossYield !== undefined && investorMetrics.grossYield >= 2
+                          ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/50'
+                          : 'bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-800/50'
+                    }`}>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Rendite</p>
                       <p className={`text-xl font-semibold ${
                         investorMetrics.grossYield !== undefined && investorMetrics.grossYield >= 4
-                          ? 'text-emerald-600 dark:text-emerald-400'
+                          ? 'text-emerald-700 dark:text-emerald-400'
                           : investorMetrics.grossYield !== undefined && investorMetrics.grossYield >= 2
-                            ? 'text-amber-600 dark:text-amber-400'
-                            : 'text-gray-900 dark:text-white'
+                            ? 'text-amber-700 dark:text-amber-400'
+                            : 'text-rose-700 dark:text-rose-400'
                       }`}>
                         {investorMetrics.grossYield?.toFixed(1) ?? '—'}%
                       </p>
                     </div>
-                    <div className="rounded-xl border p-4 text-center bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                    {/* Cashflow Card */}
+                    <div className={`rounded-xl border p-4 text-center ${
+                      investorMetrics.monthlyCashflow !== undefined && investorMetrics.monthlyCashflow > 50
+                        ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/50'
+                        : investorMetrics.monthlyCashflow !== undefined && investorMetrics.monthlyCashflow >= -50
+                          ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/50'
+                          : 'bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-800/50'
+                    }`}>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Cashflow</p>
                       <p className={`text-xl font-semibold ${
-                        investorMetrics.monthlyCashflow !== undefined && investorMetrics.monthlyCashflow >= 0
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'text-rose-600 dark:text-rose-400'
+                        investorMetrics.monthlyCashflow !== undefined && investorMetrics.monthlyCashflow > 50
+                          ? 'text-emerald-700 dark:text-emerald-400'
+                          : investorMetrics.monthlyCashflow !== undefined && investorMetrics.monthlyCashflow >= -50
+                            ? 'text-amber-700 dark:text-amber-400'
+                            : 'text-rose-700 dark:text-rose-400'
                       }`}>
                         {investorMetrics.monthlyCashflow !== undefined
                           ? `${investorMetrics.monthlyCashflow >= 0 ? '+' : ''}${investorMetrics.monthlyCashflow.toLocaleString('de-DE')}€`
                           : '—'}
                       </p>
                     </div>
-                    <div className="rounded-xl border p-4 text-center bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                    {/* Steuereffekt Card */}
+                    <div className={`rounded-xl border p-4 text-center ${
+                      investorMetrics.steuereffekt && investorMetrics.steuereffekt.monatlich < -20
+                        ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/50'
+                        : investorMetrics.steuereffekt && Math.abs(investorMetrics.steuereffekt.monatlich) <= 20
+                          ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/50'
+                          : 'bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-800/50'
+                    }`}>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Steuereffekt</p>
                       <p className={`text-xl font-semibold ${
-                        investorMetrics.steuereffekt && investorMetrics.steuereffekt.monatlich < 0
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : investorMetrics.steuereffekt && investorMetrics.steuereffekt.monatlich > 0
-                            ? 'text-rose-600 dark:text-rose-400'
-                            : 'text-gray-900 dark:text-white'
+                        investorMetrics.steuereffekt && investorMetrics.steuereffekt.monatlich < -20
+                          ? 'text-emerald-700 dark:text-emerald-400'
+                          : investorMetrics.steuereffekt && Math.abs(investorMetrics.steuereffekt.monatlich) <= 20
+                            ? 'text-amber-700 dark:text-amber-400'
+                            : 'text-rose-700 dark:text-rose-400'
                       }`}>
                         {investorMetrics.steuereffekt
                           ? `${investorMetrics.steuereffekt.monatlich < 0 ? '+' : ''}${Math.abs(investorMetrics.steuereffekt.monatlich).toLocaleString('de-DE')}€`
                           : '—'}
                       </p>
                     </div>
-                    <div className="rounded-xl border p-4 text-center bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Cash on Cash</p>
-                      <p className={`text-xl font-semibold ${
-                        investorMetrics.monthlyCashflow !== undefined && investorMetrics.eigenkapital > 0 && investorMetrics.monthlyCashflow >= 0
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : investorMetrics.monthlyCashflow !== undefined && investorMetrics.eigenkapital > 0
-                            ? 'text-rose-600 dark:text-rose-400'
-                            : 'text-gray-900 dark:text-white'
-                      }`}>
-                        {investorMetrics.monthlyCashflow !== undefined && investorMetrics.eigenkapital > 0
-                          ? `${((investorMetrics.monthlyCashflow * 12 / investorMetrics.eigenkapital) * 100).toFixed(1)}%`
-                          : '—'}
-                      </p>
-                    </div>
+                    {/* Cash on Cash Card */}
+                    {(() => {
+                      const cashOnCash = investorMetrics.monthlyCashflow !== undefined && investorMetrics.eigenkapital > 0
+                        ? (investorMetrics.monthlyCashflow * 12 / investorMetrics.eigenkapital) * 100
+                        : undefined;
+                      return (
+                        <div className={`rounded-xl border p-4 text-center ${
+                          cashOnCash !== undefined && cashOnCash > 0
+                            ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/50'
+                            : cashOnCash !== undefined && cashOnCash >= -2
+                              ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/50'
+                              : 'bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-800/50'
+                        }`}>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Cash on Cash</p>
+                          <p className={`text-xl font-semibold ${
+                            cashOnCash !== undefined && cashOnCash > 0
+                              ? 'text-emerald-700 dark:text-emerald-400'
+                              : cashOnCash !== undefined && cashOnCash >= -2
+                                ? 'text-amber-700 dark:text-amber-400'
+                                : 'text-rose-700 dark:text-rose-400'
+                          }`}>
+                            {cashOnCash !== undefined ? `${cashOnCash.toFixed(1)}%` : '—'}
+                          </p>
+                        </div>
+                      );
+                    })()}
                   </div>
                 }
                 mode="investor"
@@ -715,11 +916,12 @@ export default function CalculatorPage() {
                 isSavingParams={saveUserPropertyParamsMutation.isPending}
                 canEdit={true}
                 startInEditMode={!propertyId}
-                toggleElement={propertyId ? toggleElement : undefined}
+                onEditStateChange={!propertyId ? handleEditStateChange : undefined}
+                initialEditState={!propertyId ? initialEditState : undefined}
               />
             )}
 
-            {activeTab === 'eigennutzer' && eigennutzerMetrics && (
+            {activeTab === 'eigennutzer' && eigennutzerMetrics && isHydrated && (
               <CalculatorCards
                 mode="eigennutzer"
                 purchasePrice={displayPrice}
@@ -745,7 +947,8 @@ export default function CalculatorPage() {
                 isSavingParams={saveUserPropertyParamsMutation.isPending}
                 canEdit={true}
                 startInEditMode={!propertyId}
-                toggleElement={propertyId ? toggleElement : undefined}
+                onEditStateChange={!propertyId ? handleEditStateChange : undefined}
+                initialEditState={!propertyId ? initialEditState : undefined}
               />
             )}
 
@@ -773,9 +976,9 @@ export default function CalculatorPage() {
       <div className="px-4 sm:px-6 pb-8">
         <SimilarPropertiesSidebar
           mode={activeTab}
-          currentSqm={displaySqm}
+          currentSqm={Number(displaySqm) || undefined}
           currentLocation={resolvedLocation || displayLocation}
-          currentPrice={displayPrice}
+          currentPrice={Number(displayPrice) || undefined}
           excludePropertyId={propertyId || undefined}
           equityPercentage={propertyId && property
             ? (property.buyer_evaluation?.financing_terms?.loan_to_value

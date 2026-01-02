@@ -39,13 +39,12 @@ import { PropertyPreview } from '@/app/components/PropertyPreview';
 import type { PropertyDocument } from '@/app/create-listing/types';
 import { mapToPropertyPreviewData } from '@/app/utils/propertyMapper';
 import { PropertyActionButtons } from '@/app/components/PropertyActionButtons';
-import { ActionButtonPanel } from '@/app/components/ActionButtonPanel';
 import { ShareLinkModal } from '@/app/components/ShareLinkModal';
 import { MobileDetailHeader } from '@/app/components/MobileDetailHeader';
 import { PageContainer } from '@/app/components/PageContainer';
-import { ArrowLeft } from 'lucide-react';
 import { InvestmentScoreBadge, PropertyScoreBadge, ImageOverlayActions } from '@rendito/ui';
 import { trpc } from '@/lib/trpc';
+import { SimilarProperties, SimilarProperty } from '@/app/components/SimilarProperties';
 import { useAuthGuard } from '@/app/hooks/useAuthGuard';
 import { LoginPromptModal } from '@/app/components/LoginPromptModal';
 import { RestrictedContent } from '@/app/components/RestrictedContent';
@@ -179,6 +178,23 @@ export default function PropertyPage() {
       enabled: isValidPropertyId && !!user,
     }
   );
+
+  // Query für ähnliche Properties (basierend auf Standort, qm, Preis - sortiert nach AI Score)
+  const { data: similarPropertiesData, isLoading: similarPropertiesLoading } = trpc.properties.getSimilarPropertiesForDetail.useQuery(
+    {
+      propertyId: propertyId,
+      sqm: property?.sqm,
+      location: property?.location,
+      price: property?.price,
+      limit: 3,
+    },
+    {
+      enabled: isValidPropertyId && !!property,
+      refetchOnWindowFocus: false,
+    }
+  );
+
+  const similarProperties = (similarPropertiesData || []) as SimilarProperty[];
 
   // User Property Parameters - Mutation zum Speichern
   const saveUserPropertyParamsMutation = trpc.userPropertyParameters.upsert.useMutation({
@@ -569,24 +585,11 @@ export default function PropertyPage() {
         onBack={() => router.back()}
       />
 
-      {/* Two Column Layout - Full Height, Centered - aligned with Header */}
-      <PageContainer noPaddingY height="calc(100vh - 80px)">
-        <div className="flex flex-col lg:flex-row h-full">
-        {/* Left Column - Property Details (Scrollable) */}
-        <div className="w-full lg:w-1/2 flex flex-col lg:h-[calc(100vh-80px)] order-2 lg:order-1 relative">
-          {/* Sticky Back Button Header - Only shown on desktop */}
-          <div className="hidden lg:flex items-center sticky top-0 bg-white/70 dark:bg-[#030712]/70 backdrop-blur-xl z-40 py-4 pr-6 -mb-16">
-            <button
-              onClick={() => router.back()}
-              className="flex items-center gap-2 p-2 hover:bg-gray-100/80 dark:hover:bg-gray-800/80 rounded-lg transition-colors"
-              aria-label="Zurück"
-            >
-              <ArrowLeft size={24} className="text-gray-900 dark:text-white" />
-              <span className="text-gray-900 dark:text-white font-medium">Zurück</span>
-            </button>
-          </div>
-          {/* Scrollable Content - pr-3 provides space for scrollbar */}
-          <div className="flex-1 overflow-y-auto py-4 lg:pt-16 pr-3">
+      {/* Two Column Layout - Height adapts to content */}
+      <PageContainer noPaddingY>
+        <div className="flex flex-col lg:flex-row lg:items-stretch">
+        {/* Left Column - Property Details */}
+        <div className="w-full lg:w-1/2 pt-4 pb-4 lg:pb-10 lg:pr-6 order-2 lg:order-1">
 
             {/* Property Preview Component */}
             <PropertyPreview
@@ -621,15 +624,30 @@ export default function PropertyPage() {
               isSavingUserPropertyParams={saveUserPropertyParamsMutation.isLoading}
             />
 
-          </div>
-
-          {/* Spacer for fixed ActionButtonPanel - ensures scrollbar ends above the panel */}
-          <div className="h-20 flex-shrink-0" />
+            {/* Action Buttons - inline unter PropertyPreview */}
+            <div className="mt-6">
+              <PropertyActionButtons
+                isOwner={isOwnerForUI}
+                isFavorite={isFavorite}
+                onToggleFavorite={handleToggleFavorite}
+                onDismiss={handleDismiss}
+                onStartMessage={handleStartMessage}
+                onOpenFeedback={() => setIsPropertyFeedbackModalOpen(true)}
+                onEdit={() => router.push(`/edit-listing/${property.id}`)}
+                onDeactivate={handleDeactivate}
+                onShare={() => setIsShareModalOpen(true)}
+                isDismissLoading={dismissMutation.isLoading}
+                isMessageLoading={getOrCreateConversationMutation.isLoading}
+                isDeactivateLoading={deactivateMutation.isLoading}
+                propertyUrl={typeof window !== 'undefined' ? `${window.location.origin}/property/${property.id}` : ''}
+              />
+            </div>
         </div>
 
         {/* Right Column - Property Card with Slideshow or Document Viewer */}
-        {/* On mobile, always show slideshow (documents open in new tab) */}
-        <div className="w-full lg:w-1/2 lg:sticky lg:top-20 h-[50vh] lg:h-[calc(100vh-80px)] py-4 lg:py-6 pl-0 lg:pl-6 order-1 lg:order-2">
+        {/* On mobile: fixed height, On desktop: matches left column height */}
+        <div className="w-full lg:w-1/2 h-[50vh] lg:h-auto lg:pl-6 pt-4 pb-4 lg:pb-10 order-1 lg:order-2">
+          <div className="h-full rounded-2xl overflow-hidden">
           {selectedDocument && !isMobile ? (
             <DocumentViewer
               document={selectedDocument}
@@ -677,28 +695,28 @@ export default function PropertyPage() {
               }
             />
           )}
+          </div>
         </div>
         </div>
       </PageContainer>
 
-      {/* Action Button Panel - Fixed at bottom with blur */}
-      <ActionButtonPanel layout="split">
-        <PropertyActionButtons
-          isOwner={isOwnerForUI}
-          isFavorite={isFavorite}
-          onToggleFavorite={handleToggleFavorite}
-          onDismiss={handleDismiss}
-          onStartMessage={handleStartMessage}
-          onOpenFeedback={() => setIsPropertyFeedbackModalOpen(true)}
-          onEdit={() => router.push(`/edit-listing/${property.id}`)}
-          onDeactivate={handleDeactivate}
-          onShare={() => setIsShareModalOpen(true)}
-          isDismissLoading={dismissMutation.isLoading}
-          isMessageLoading={getOrCreateConversationMutation.isLoading}
-          isDeactivateLoading={deactivateMutation.isLoading}
-          propertyUrl={typeof window !== 'undefined' ? `${window.location.origin}/property/${property.id}` : ''}
-        />
-      </ActionButtonPanel>
+      {/* Similar Properties Section - Full Width */}
+      {(similarProperties.length > 0 || similarPropertiesLoading) && (
+        <div className="bg-gray-50 dark:bg-gray-900/50 py-12 mt-8">
+          <PageContainer>
+            <SimilarProperties
+              title="Ähnliche Objekte"
+              subtitle="Basierend auf Standort, Größe und Preis"
+              properties={similarProperties}
+              badgeContext="ai-score"
+              isLoading={similarPropertiesLoading}
+              linkBuilder={(id) => `/property/${id}`}
+              fullWidth
+              emptyMessage="Keine ähnlichen Objekte gefunden"
+            />
+          </PageContainer>
+        </div>
+      )}
 
       {/* Commission Consent Dialog */}
       <CommissionConsentDialog

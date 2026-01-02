@@ -41,4 +41,6 @@ export interface SimilarPropertiesProps {
   emptyMessage?: string;
   onPropertyClick?: (propertyId: string) => void;
   linkBuilder?: (propertyId: string) => string;
+  /** Volle Breite wie auf der Startseite (max-w-[1800px]) */
+  fullWidth?: boolean;
 }

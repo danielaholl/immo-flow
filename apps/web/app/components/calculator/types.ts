@@ -47,6 +47,10 @@ export interface CalculatorProps {
   canEdit?: boolean;
   /** Start directly in edit/simulation mode */
   startInEditMode?: boolean;
+  /** Callback when edit state changes (for persisting values) */
+  onEditStateChange?: (state: EditState) => void;
+  /** Initial edit state values (for restoring persisted values) */
+  initialEditState?: Partial<EditState>;
 }
 
 export interface EditState {
@@ -96,6 +100,7 @@ export interface CalculatedValues {
   // Break-Even
   breakEvenEK: { amount: number; percentage: number } | null;
   breakEvenYears: number | null;
+  breakEvenPrice: number | null;
 
   // Steuer
   steuereffekt: {
@@ -147,10 +152,26 @@ export interface CalculatorContextValue {
 
   // Utilities
   formatCurrency: (value: number) => string;
+
+  // Market interest rate info
+  marketRateInfo: MarketRateInfo | null;
+
+  // PLZ-based market rent
+  plzMarketRent: number | null;
+  isLoadingMarketData: boolean;
+  isRentOverridden: boolean;
+}
+
+// Market interest rate info from weekly Zinsupdate
+export interface MarketRateInfo {
+  interestRate: number | null;
+  calendarWeek: number | null;
+  year: number | null;
+  lastUpdated: Date | null;
 }
 
 // Card identifiers for collapsible state
-export type CardId = 'investment' | 'financing' | 'cashflow' | 'tax';
+export type CardId = 'investment' | 'financing' | 'cashflow' | 'tax' | 'breakeven';
 
 // Card common props
 export interface CardProps {
