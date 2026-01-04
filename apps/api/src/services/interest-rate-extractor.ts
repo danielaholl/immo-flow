@@ -541,3 +541,94 @@ export async function listInterestRateUpdates(
     },
   };
 }
+
+// =====================================================
+// UPDATE MATRIX (ADMIN)
+// =====================================================
+
+/**
+ * Updates the interest rate matrix for a specific update
+ * Used by admin UI for manual corrections
+ */
+export async function updateInterestRateMatrix(
+  updateId: string,
+  matrix: InterestRateMatrixEntry[]
+): Promise<void> {
+  log.info(`Updating interest rate matrix for update ${updateId}...`);
+
+  // Get the update to calculate rate_delta
+  const updateResult = await query<{ top_rate: string }>(
+    `SELECT top_rate FROM interest_rate_updates WHERE id = $1`,
+    [updateId]
+  );
+
+  if (updateResult.length === 0) {
+    throw new Error(`Update ${updateId} not found`);
+  }
+
+  const topRate = Number(updateResult[0].top_rate);
+
+  // Start transaction
+  await query('BEGIN');
+
+  try {
+    // Delete existing matrix entries for this update
+    await query('DELETE FROM interest_rate_matrix WHERE update_id = $1', [updateId]);
+
+    // Insert updated matrix entries
+    for (const entry of matrix) {
+      const rateDelta = Number((entry.interestRate - topRate).toFixed(3));
+
+      await query(
+        `INSERT INTO interest_rate_matrix
+         (update_id, loan_to_value, fixed_rate_years, interest_rate, rate_delta)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [
+          updateId,
+          entry.loanToValue,
+          entry.fixedRateYears,
+          entry.interestRate,
+          rateDelta,
+        ]
+      );
+    }
+
+    // Update history table with new values
+    const rate80_10y = matrix.find(m => m.loanToValue === 80 && m.fixedRateYears === 10)?.interestRate;
+    const rate90_10y = matrix.find(m => m.loanToValue === 90 && m.fixedRateYears === 10)?.interestRate;
+    const rate80_15y = matrix.find(m => m.loanToValue === 80 && m.fixedRateYears === 15)?.interestRate;
+
+    // Get calendar week and year for this update
+    const updateInfo = await query<{ calendar_week: number; year: number }>(
+      `SELECT calendar_week, year FROM interest_rate_updates WHERE id = $1`,
+      [updateId]
+    );
+
+    if (updateInfo.length > 0) {
+      await query(
+        `UPDATE interest_rate_history
+         SET
+           avg_rate_10y_80pct = $1,
+           avg_rate_10y_90pct = $2,
+           avg_rate_15y_80pct = $3
+         WHERE calendar_week = $4 AND year = $5`,
+        [
+          rate80_10y ?? null,
+          rate90_10y ?? null,
+          rate80_15y ?? null,
+          updateInfo[0].calendar_week,
+          updateInfo[0].year,
+        ]
+      );
+    }
+
+    // Commit transaction
+    await query('COMMIT');
+    log.info(`Successfully updated ${matrix.length} matrix entries`);
+  } catch (error) {
+    // Rollback on error
+    await query('ROLLBACK');
+    log.error('Error updating matrix, transaction rolled back:', error);
+    throw error;
+  }
+}

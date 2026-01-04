@@ -54,8 +54,20 @@ export function detectDocumentCategory(filename: string): DocumentCategory {
 /**
  * Gibt die Standard-Sichtbarkeit für eine Dokumentkategorie zurück
  * Verwendet für KI-Auto-Kategorisierung beim Upload
+ *
+ * @param category - Die Dokumentkategorie
+ * @param mode - Der Modus (create | edit | import)
+ * @returns Die Standard-Sichtbarkeit für die Kategorie
  */
-export function getDefaultVisibility(category: DocumentCategory): DocumentVisibility {
+export function getDefaultVisibility(
+  category: DocumentCategory,
+  mode?: 'create' | 'edit' | 'import'
+): DocumentVisibility {
+  // Im Import-Modus: Alle Dokumente sind public (Käufer importiert vom Verkäufer)
+  if (mode === 'import') {
+    return 'public';
+  }
+
   return CATEGORY_TO_DEFAULT_VISIBILITY[category] || 'public';
 }
 

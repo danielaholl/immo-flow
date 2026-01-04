@@ -5,6 +5,7 @@ export { CashflowCard } from './CashflowCard';
 export { TaxEffectCard } from './TaxEffectCard';
 export { BreakEvenCard } from './BreakEvenCard';
 export { CalculatorCards } from './CalculatorCards';
+export { MetricsCards } from './MetricsCards';
 export { SimilarPropertiesSidebar } from './SimilarPropertiesSidebar';
 
 // Export hooks and context

@@ -212,7 +212,7 @@ export default function SuggestionPage() {
 
               <button
                 onClick={() => setIsChatModalOpen(true)}
-                className="flex-1 bg-white border-2 border-gray-300 text-gray-900 font-semibold py-4 px-6 rounded-xl hover:border-gray-400 transition-colors"
+                className="flex-1 bg-white border-2 border-gray-300 text-gray-900 font-semibold py-4 px-6 rounded-xl hover:border-gray-300 transition-colors"
               >
                 KI-Assistent fragen
               </button>

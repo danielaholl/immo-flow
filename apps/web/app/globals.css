@@ -14,8 +14,8 @@
   --bg-muted: #f1f5f9;
 
   /* Border colors */
-  --border-color: #e2e8f0;
-  --border-light: #f1f5f9;
+  --border-color: #cbd5e1;
+  --border-light: #e2e8f0;
 
   /* Text colors */
   --text-primary: #0f172a;
@@ -39,7 +39,7 @@
 
   /* Input/Form colors */
   --input-bg: #f8fafc;
-  --input-border: #e2e8f0;
+  --input-border: #cbd5e1;
   --input-focus: #FF385C;
 }
 
@@ -147,4 +147,32 @@ a {
 /* Bottom padding for pages with bottom navigation */
 .has-bottom-nav {
   padding-bottom: calc(64px + env(safe-area-inset-bottom));
+}
+
+/* Input with gradient border on focus */
+.input-gradient-border {
+  position: relative;
+  background: white;
+  border: 2px solid transparent;
+  box-shadow: inset 0 0 0 1px #9ca3af;
+  transition: all 0.2s ease;
+}
+
+.dark .input-gradient-border {
+  background: #111827;
+  box-shadow: inset 0 0 0 1px #374151;
+}
+
+.input-gradient-border:focus {
+  outline: none;
+  background:
+    linear-gradient(white, white) padding-box,
+    linear-gradient(to right, #E31C5F, #FF9500) border-box;
+  box-shadow: none;
+}
+
+.dark .input-gradient-border:focus {
+  background:
+    linear-gradient(#111827, #111827) padding-box,
+    linear-gradient(to right, #E31C5F, #FF9500) border-box;
 }

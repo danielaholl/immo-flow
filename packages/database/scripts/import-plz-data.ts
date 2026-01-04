@@ -108,25 +108,39 @@ async function fetchPLZByPrefix(prefix: string): Promise<OpenPLZLocality[]> {
 async function insertPLZData(localities: OpenPLZLocality[]): Promise<number> {
   let inserted = 0;
 
+  // Mapping Bundesland → Grunderwerbsteuersatz
+  const taxRateMap: Record<string, number> = {
+    'Bayern': 3.5, 'Sachsen': 3.5,
+    'Hamburg': 4.5,
+    'Baden-Württemberg': 5.0, 'Niedersachsen': 5.0,
+    'Rheinland-Pfalz': 5.0, 'Sachsen-Anhalt': 5.0, 'Bremen': 5.0,
+    'Berlin': 6.0, 'Hessen': 6.0, 'Mecklenburg-Vorpommern': 6.0,
+    'Nordrhein-Westfalen': 6.5, 'Saarland': 6.5,
+    'Schleswig-Holstein': 6.5, 'Brandenburg': 6.5, 'Thüringen': 6.5
+  };
+
   for (const locality of localities) {
     const federalStateName = locality.federalState?.name ||
                             federalStateNames[locality.federalState?.key] ||
                             locality.federalState?.key;
+    const taxRate = taxRateMap[federalStateName] || 5.0;
 
     try {
       await pool.query(
-        `INSERT INTO plz_market_data (plz, city, district, federal_state)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO plz_market_data (plz, city, district, federal_state, grunderwerbsteuer_rate)
+         VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT (plz) DO UPDATE SET
            city = EXCLUDED.city,
            district = EXCLUDED.district,
            federal_state = EXCLUDED.federal_state,
+           grunderwerbsteuer_rate = EXCLUDED.grunderwerbsteuer_rate,
            updated_at = NOW()`,
         [
           locality.postalCode,
           locality.name,
           locality.district?.name || locality.municipality?.name || null,
-          federalStateName
+          federalStateName,
+          taxRate
         ]
       );
       inserted++;

@@ -12,7 +12,9 @@ import {
   getInterestRateHistory,
   getInterestRateMatrix,
   listInterestRateUpdates,
+  updateInterestRateMatrix,
 } from '../services/interest-rate-extractor.js';
+import { query } from '../db.js';
 import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('interest-rates-routes');
@@ -221,6 +223,125 @@ router.get('/stats', async (req: Request, res: Response) => {
   } catch (error) {
     log.error('Error fetching stats:', error);
     res.status(500).json({ error: 'Fehler beim Abrufen der Statistiken' });
+  }
+});
+
+/**
+ * PUT /api/interest-rates/matrix/:updateId
+ * Update interest rate matrix entries (admin only)
+ */
+router.put('/matrix/:updateId', async (req: Request, res: Response) => {
+  try {
+    const { updateId } = req.params;
+    const { matrix } = req.body;
+
+    // Validation
+    if (!Array.isArray(matrix) || matrix.length === 0) {
+      return res.status(400).json({
+        error: 'Matrix muss ein nicht-leeres Array sein',
+      });
+    }
+
+    // Validate matrix structure and values
+    const expectedEntries = 25; // 5 LTV × 5 Years
+    if (matrix.length !== expectedEntries) {
+      return res.status(400).json({
+        error: `Matrix muss genau ${expectedEntries} Einträge haben (5 LTV × 5 Years)`,
+      });
+    }
+
+    // Validate each entry
+    const validLTVs = [50, 70, 80, 90, 100];
+    const validYears = [5, 10, 15, 20, 30];
+
+    for (const entry of matrix) {
+      // Check structure
+      if (!entry.loanToValue || !entry.fixedRateYears || entry.interestRate === undefined) {
+        return res.status(400).json({
+          error: 'Jeder Matrix-Eintrag muss loanToValue, fixedRateYears und interestRate enthalten',
+        });
+      }
+
+      // Check valid LTV
+      if (!validLTVs.includes(entry.loanToValue)) {
+        return res.status(400).json({
+          error: `Ungültige Beleihungsquote: ${entry.loanToValue}. Erlaubt: ${validLTVs.join(', ')}`,
+        });
+      }
+
+      // Check valid years
+      if (!validYears.includes(entry.fixedRateYears)) {
+        return res.status(400).json({
+          error: `Ungültige Zinsbindung: ${entry.fixedRateYears}. Erlaubt: ${validYears.join(', ')}`,
+        });
+      }
+
+      // Check rate range (0 < rate < 20)
+      const rate = parseFloat(entry.interestRate);
+      if (isNaN(rate) || rate <= 0 || rate >= 20) {
+        return res.status(400).json({
+          error: `Ungültiger Zinssatz: ${entry.interestRate}. Muss zwischen 0 und 20 liegen`,
+        });
+      }
+    }
+
+    // Check for duplicates
+    const seen = new Set<string>();
+    for (const entry of matrix) {
+      const key = `${entry.loanToValue}-${entry.fixedRateYears}`;
+      if (seen.has(key)) {
+        return res.status(400).json({
+          error: `Duplikat gefunden: LTV ${entry.loanToValue}%, ${entry.fixedRateYears} Jahre`,
+        });
+      }
+      seen.add(key);
+    }
+
+    // Verify update exists and is the latest
+    const updateCheck = await query<{
+      id: string;
+      calendar_week: number;
+      year: number;
+    }>(
+      `SELECT id, calendar_week, year
+       FROM interest_rate_updates
+       WHERE id = $1 AND status = 'processed'`,
+      [updateId]
+    );
+
+    if (updateCheck.length === 0) {
+      return res.status(404).json({
+        error: 'Update nicht gefunden oder nicht verarbeitet',
+      });
+    }
+
+    // Check if this is the latest update
+    const latestUpdate = await query<{ id: string }>(
+      `SELECT id FROM interest_rate_updates
+       WHERE status = 'processed'
+       ORDER BY year DESC, calendar_week DESC
+       LIMIT 1`
+    );
+
+    if (latestUpdate.length === 0 || latestUpdate[0].id !== updateId) {
+      return res.status(400).json({
+        error: 'Nur die aktuellste Matrix kann bearbeitet werden',
+      });
+    }
+
+    // Update matrix via service
+    log.info(`Updating matrix for update ${updateId} with ${matrix.length} entries`);
+    await updateInterestRateMatrix(updateId, matrix);
+
+    // Return updated matrix
+    const result = await getInterestRateMatrix(updateId);
+    res.json(result);
+  } catch (error) {
+    log.error('Error updating interest rate matrix:', error);
+    res.status(500).json({
+      error: 'Fehler beim Aktualisieren der Matrix',
+      details: error instanceof Error ? error.message : 'Unbekannter Fehler',
+    });
   }
 });
 

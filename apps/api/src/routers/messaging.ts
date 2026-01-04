@@ -3,6 +3,7 @@
  * Handles conversations and messages between buyers and sellers
  */
 import { z } from 'zod';
+import jwt from 'jsonwebtoken';
 import { router, protectedProcedure } from '../trpc.js';
 import { db } from '../db.js';
 import { TRPCError } from '@trpc/server';
@@ -17,6 +18,10 @@ import {
   emitKnowledgeLearned,
 } from '../socket.js';
 import { extractKnowledgeFromChat } from '../services/knowledge-learner-service.js';
+import { sendProviderInvitation } from '../services/email-service.js';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
 export const messagingRouter = router({
   /**
@@ -60,7 +65,77 @@ export const messagingRouter = router({
       }
 
       const property = propertyResult.rows[0];
-      const sellerProfileId = property.seller_profile_id;
+      let sellerProfileId = property.seller_profile_id;
+
+      // Check for provider contact (imported properties)
+      const providerContactResult = await db.query(
+        'SELECT * FROM property_provider_contacts WHERE property_id = $1',
+        [input.propertyId]
+      );
+
+      if (providerContactResult.rows.length > 0) {
+        const providerContact = providerContactResult.rows[0];
+
+        // If provider contact exists but no linked account, send invitation
+        if (!providerContact.linked_user_id) {
+          // Generate signup link with pre-filled email
+          const signupToken = jwt.sign(
+            {
+              email: providerContact.provider_email,
+              property_id: input.propertyId,
+              invited_by_user_id: userId,
+            },
+            JWT_SECRET,
+            { expiresIn: '30d' }
+          );
+
+          const signupLink = `${FRONTEND_URL}/signup/provider-invitation?token=${signupToken}`;
+
+          // Get buyer name for invitation email
+          const buyerProfileData = await db.query(
+            'SELECT first_name, last_name FROM user_profiles WHERE user_id = $1',
+            [userId]
+          );
+
+          const buyerName = buyerProfileData.rows[0]
+            ? `${buyerProfileData.rows[0].first_name || ''} ${buyerProfileData.rows[0].last_name || ''}`.trim()
+            : 'Ein Interessent';
+
+          // Send invitation email
+          await sendProviderInvitation({
+            providerEmail: providerContact.provider_email,
+            providerName: providerContact.provider_name || 'Sehr geehrte Damen und Herren',
+            buyerName,
+            propertyTitle: property.title,
+            signupLink,
+          });
+
+          // Update invited_at timestamp
+          await db.query(
+            'UPDATE property_provider_contacts SET invited_at = $1 WHERE id = $2',
+            [new Date(), providerContact.id]
+          );
+
+          // Return pending status instead of creating conversation
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message: 'Einladung wurde an den Anbieter gesendet. Sie werden benachrichtigt, sobald er sich registriert.',
+          });
+        }
+
+        // If provider has account, use linked_user_id as seller
+        if (providerContact.linked_user_id) {
+          // Get seller profile ID from linked user
+          const linkedSellerProfileResult = await db.query(
+            'SELECT id FROM user_profiles WHERE user_id = $1',
+            [providerContact.linked_user_id]
+          );
+
+          if (linkedSellerProfileResult.rows.length > 0) {
+            sellerProfileId = linkedSellerProfileResult.rows[0].id;
+          }
+        }
+      }
 
       // Can't create conversation with yourself
       if (buyerProfileId === sellerProfileId) {

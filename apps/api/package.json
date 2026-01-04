@@ -11,6 +11,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
     "@rendito/utils": "workspace:*",
+    "@sendgrid/mail": "^8.1.6",
     "@trpc/server": "^10.45.0",
     "bcrypt": "^5.1.1",
     "cheerio": "^1.1.2",

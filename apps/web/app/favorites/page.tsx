@@ -24,11 +24,30 @@ import { useMasterDetailNavigation } from '@/app/hooks/useMasterDetailNavigation
 import { MasterDetailLayout } from '../components/layouts/MasterDetailLayout';
 import { SimilarProperties, SimilarProperty } from '../components/SimilarProperties';
 import { PageContainer } from '../components/PageContainer';
+import { DocumentViewer } from '@/app/components/DocumentViewer';
+
+// Hook to check if screen is mobile (below lg breakpoint)
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  return isMobile;
+}
 
 export default function FavoritesPage() {
   const { user, profile, loading: authLoading } = useAuthContext();
   const hasGlobalConsent = profile?.global_address_consent ?? false;
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [consentedPropertyIds, setConsentedPropertyIds] = useState<Set<string>>(new Set());
   const [consentLoading, setConsentLoading] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
@@ -38,6 +57,7 @@ export default function FavoritesPage() {
   const [isConsentDialogOpen, setIsConsentDialogOpen] = useState(false);
   const [hasDocumentAccess, setHasDocumentAccess] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const hasCheckedAuth = useRef(false);
 
   // Performance tracking
@@ -82,6 +102,12 @@ export default function FavoritesPage() {
   // Get utils for cache invalidation
   const utils = trpc.useContext();
 
+  // Helper to show toast
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
   // Remove favorite mutation
   const removeFavoriteMutation = trpc.favorites.remove.useMutation({
     onSuccess: () => {
@@ -98,7 +124,7 @@ export default function FavoritesPage() {
     },
     onError: (error) => {
       console.error('Error evaluating property:', error);
-      alert('Fehler bei der KI-Analyse. Bitte versuchen Sie es erneut.');
+      showToast('Fehler bei der KI-Analyse. Bitte versuchen Sie es erneut.');
       setIsEvaluating(false);
     },
   });
@@ -109,9 +135,16 @@ export default function FavoritesPage() {
       // Navigate to conversation
       router.push(`/messages/${data.conversationId}`);
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      // Handle special case: provider invitation sent (expected behavior)
+      if (error.data?.code === 'PRECONDITION_FAILED') {
+        showToast(error.message);
+        return;
+      }
+
+      // Handle other errors
       console.error('Error creating conversation:', error);
-      alert('Fehler beim Starten der Konversation. Bitte versuchen Sie es erneut.');
+      showToast('Fehler beim Starten der Konversation. Bitte versuchen Sie es erneut.');
     },
   });
 
@@ -119,11 +152,11 @@ export default function FavoritesPage() {
   const submitFeedbackMutation = trpc.properties.submitFeedback.useMutation({
     onSuccess: () => {
       setIsPropertyFeedbackModalOpen(false);
-      alert('✅ Vielen Dank für Ihr Feedback! Der Verkäufer wird es erhalten.');
+      showToast('✅ Vielen Dank für Ihr Feedback! Der Verkäufer wird es erhalten.');
     },
     onError: (error) => {
       console.error('Error submitting feedback:', error);
-      alert('❌ Fehler beim Absenden des Feedbacks. Bitte versuchen Sie es erneut.');
+      showToast('❌ Fehler beim Absenden des Feedbacks. Bitte versuchen Sie es erneut.');
     },
   });
 
@@ -153,7 +186,7 @@ export default function FavoritesPage() {
     },
     onError: (error) => {
       console.error('Error saving user property parameters:', error);
-      alert('Fehler beim Speichern der Parameter. Bitte versuchen Sie es erneut.');
+      showToast('Fehler beim Speichern der Parameter. Bitte versuchen Sie es erneut.');
     },
   });
 
@@ -310,6 +343,18 @@ export default function FavoritesPage() {
     dismissMutation.mutate({ propertyId: selectedProperty.id });
   };
 
+  const handleEdit = () => {
+    if (!selectedProperty) return;
+
+    // Externe/importierte Properties → import-listing mit ID
+    // Normale Portfolio Properties → portfolio edit
+    if ((selectedProperty as any).is_external) {
+      router.push(`/import-listing?id=${selectedProperty.id}`);
+    } else {
+      router.push(`/portfolio/${selectedProperty.id}/edit`);
+    }
+  };
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('de-DE', {
       style: 'currency',
@@ -354,6 +399,8 @@ export default function FavoritesPage() {
             isMessageLoading={getOrCreateConversationMutation.isLoading}
             favoriteButtonLabel="Favorit"
             propertyUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/property/${selectedProperty.id}`}
+            isImported={(selectedProperty as any).is_external || false}
+            onEdit={handleEdit}
           />
         ) : null;
 
@@ -484,63 +531,74 @@ export default function FavoritesPage() {
 
                   <div className="flex flex-col lg:flex-row lg:items-stretch p-4 lg:p-8">
                     {/* Left Column - Property Details */}
-                    <div className="w-full lg:w-1/2 lg:pr-6 order-2 lg:order-1">
-                      {propertyPreviewData && (
-                        <PropertyPreview
-                          key={selectedProperty.id}
-                          data={propertyPreviewData}
-                          showAddress={true}
-                          className="!shadow-none !rounded-none !bg-transparent"
-                          hasConsent={shouldShowAddress(selectedProperty.id)}
-                          isOwner={false}
-                          consentLoading={consentLoading}
-                          isUserLoggedIn={Boolean(user)}
-                          onGrantConsent={() => handleGrantConsent(selectedProperty.id)}
-                          showInvestmentScore={true}
-                          showEvaluationButton={!selectedProperty.ai_score || selectedProperty.ai_score === 0}
-                          onTriggerEvaluation={handleTriggerEvaluation}
-                          isGeneratingEvaluation={isEvaluating}
-                          evaluationViewType="buyer"
-                          propertyId={selectedProperty.id}
-                          onDocumentSelect={setSelectedDocument}
-                          onRequestDocumentAccess={handleRequestDocumentAccess}
-                          hasDocumentAccess={hasDocumentAccess}
-                          hasManualApproval={hasDocumentAccess}
-                          userPropertyParams={userPropertyParams}
-                          onSaveUserPropertyParams={handleSaveUserPropertyParams}
-                          isSavingUserPropertyParams={saveUserPropertyParamsMutation.isLoading}
-                        />
-                      )}
+                    <div className="w-full lg:w-1/2 lg:pr-6 order-2 lg:order-1 flex flex-col">
+                      {/* Scrollable PropertyPreview - Full height on mobile, 80vh on md+ */}
+                      <div className="md:overflow-y-auto md:max-h-[80vh] mb-4">
+                        {propertyPreviewData && (
+                          <PropertyPreview
+                            key={selectedProperty.id}
+                            data={propertyPreviewData}
+                            showAddress={true}
+                            className="!shadow-none !rounded-none !bg-transparent"
+                            hasConsent={shouldShowAddress(selectedProperty.id)}
+                            isOwner={false}
+                            consentLoading={consentLoading}
+                            isUserLoggedIn={Boolean(user)}
+                            onGrantConsent={() => handleGrantConsent(selectedProperty.id)}
+                            showInvestmentScore={true}
+                            showEvaluationButton={!selectedProperty.ai_score || selectedProperty.ai_score === 0}
+                            onTriggerEvaluation={handleTriggerEvaluation}
+                            isGeneratingEvaluation={isEvaluating}
+                            evaluationViewType="buyer"
+                            propertyId={selectedProperty.id}
+                            onDocumentSelect={setSelectedDocument}
+                            onRequestDocumentAccess={handleRequestDocumentAccess}
+                            hasDocumentAccess={hasDocumentAccess}
+                            hasManualApproval={hasDocumentAccess}
+                            userPropertyParams={userPropertyParams}
+                            onSaveUserPropertyParams={handleSaveUserPropertyParams}
+                            isSavingUserPropertyParams={saveUserPropertyParamsMutation.isLoading}
+                            isMobile={isMobile}
+                          />
+                        )}
+                      </div>
 
-                      {/* Action Buttons - inline, nicht sticky */}
-                      <div className="mt-6">
+                      {/* Action Buttons - Below on mobile, fixed on md+ */}
+                      <div className="md:mt-auto">
                         {ActionButtons}
                       </div>
                     </div>
 
-                    {/* Right Column - Images */}
+                    {/* Right Column - Images or Document Viewer */}
                     <div className="w-full lg:w-1/2 h-[50vh] lg:h-auto lg:pl-6 order-1 lg:order-2 mb-4 lg:mb-0">
                       <div className="h-full rounded-2xl overflow-hidden">
-                        <PropertyImageSlideshow
-                          images={selectedProperty.images || []}
-                          videoUrl={selectedProperty.video_url || undefined}
-                          title={selectedProperty.title}
-                          className="h-full"
-                          showCounter={true}
-                          showProgressBars={true}
-                          slideshowId={`favorites-${selectedProperty.id}`}
-                          propertyType={selectedProperty.property_type || undefined}
-                          overlay={
-                            <>
-                              {/* AI Score Badge - Ring Variant */}
-                              {selectedProperty.ai_score && selectedProperty.ai_score > 0 && (
-                                <div className="absolute top-8 right-4 z-10 pointer-events-none">
-                                  <PropertyScoreBadge score={selectedProperty.ai_score} variant="ring" />
-                                </div>
-                              )}
-                            </>
-                          }
-                        />
+                        {selectedDocument && !isMobile ? (
+                          <DocumentViewer
+                            document={selectedDocument}
+                            onClose={() => setSelectedDocument(null)}
+                          />
+                        ) : (
+                          <PropertyImageSlideshow
+                            images={selectedProperty.images || []}
+                            videoUrl={selectedProperty.video_url || undefined}
+                            title={selectedProperty.title}
+                            className="h-full"
+                            showCounter={true}
+                            showProgressBars={true}
+                            slideshowId={`favorites-${selectedProperty.id}`}
+                            propertyType={selectedProperty.property_type || undefined}
+                            overlay={
+                              <>
+                                {/* AI Score Badge - Ring Variant */}
+                                {selectedProperty.ai_score && selectedProperty.ai_score > 0 && (
+                                  <div className="absolute top-8 right-4 z-10 pointer-events-none">
+                                    <PropertyScoreBadge score={selectedProperty.ai_score} variant="ring" />
+                                  </div>
+                                )}
+                              </>
+                            }
+                          />
+                        )}
                       </div>
                     </div>
                   </div>
@@ -609,6 +667,13 @@ export default function FavoritesPage() {
           propertyTitle={selectedProperty.title}
           documentsCount={((selectedProperty as any).documents || []).length}
         />
+      )}
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 px-6 py-3 rounded-lg shadow-lg animate-fade-in max-w-md text-center">
+          {toastMessage}
+        </div>
       )}
     </main>
   );

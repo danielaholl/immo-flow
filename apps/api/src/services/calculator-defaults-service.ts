@@ -22,6 +22,8 @@ export interface CalculatorDefaults {
   valueAppreciationRate: number;
   hausgeldPerSqmModern: number;
   hausgeldPerSqmOld: number;
+  equityPercentage: number;
+  amortizationRate: number;
   isActive: boolean;
   changedBy: string | null;
   changeReason: string | null;
@@ -52,6 +54,8 @@ export interface EffectiveDefaults {
   valueAppreciationRate: number;
   hausgeldPerSqmModern: number;
   hausgeldPerSqmOld: number;
+  equityPercentage: number;
+  amortizationRate: number;
   source: 'global' | 'user_override';
   overriddenFields: string[];
 }
@@ -68,6 +72,8 @@ export interface CalculatorDefaultsHistory {
   valueAppreciationRate: number | null;
   hausgeldPerSqmModern: number | null;
   hausgeldPerSqmOld: number | null;
+  equityPercentage: number | null;
+  amortizationRate: number | null;
   changedBy: string;
   changeReason: string | null;
   changedAt: string;
@@ -87,6 +93,8 @@ const FALLBACK_DEFAULTS: Omit<CalculatorDefaults, 'id' | 'isActive' | 'changedBy
   valueAppreciationRate: 0.02,
   hausgeldPerSqmModern: 2.50,
   hausgeldPerSqmOld: 3.50,
+  equityPercentage: 20.00,
+  amortizationRate: 1.00,
 };
 
 // ============================================
@@ -122,6 +130,8 @@ function mapRowToDefaults(row: any): CalculatorDefaults {
     valueAppreciationRate: parseFloat(row.value_appreciation_rate),
     hausgeldPerSqmModern: parseFloat(row.hausgeld_per_sqm_modern),
     hausgeldPerSqmOld: parseFloat(row.hausgeld_per_sqm_old),
+    equityPercentage: parseFloat(row.equity_percentage),
+    amortizationRate: parseFloat(row.amortization_rate),
     isActive: row.is_active,
     changedBy: row.changed_by,
     changeReason: row.change_reason,
@@ -158,6 +168,8 @@ function mapRowToHistory(row: any): CalculatorDefaultsHistory {
     valueAppreciationRate: row.value_appreciation_rate ? parseFloat(row.value_appreciation_rate) : null,
     hausgeldPerSqmModern: row.hausgeld_per_sqm_modern ? parseFloat(row.hausgeld_per_sqm_modern) : null,
     hausgeldPerSqmOld: row.hausgeld_per_sqm_old ? parseFloat(row.hausgeld_per_sqm_old) : null,
+    equityPercentage: row.equity_percentage ? parseFloat(row.equity_percentage) : null,
+    amortizationRate: row.amortization_rate ? parseFloat(row.amortization_rate) : null,
     changedBy: row.changed_by,
     changeReason: row.change_reason,
     changedAt: row.changed_at,
@@ -223,8 +235,10 @@ export async function updateGlobalDefaults(
        value_appreciation_rate = COALESCE($7, value_appreciation_rate),
        hausgeld_per_sqm_modern = COALESCE($8, hausgeld_per_sqm_modern),
        hausgeld_per_sqm_old = COALESCE($9, hausgeld_per_sqm_old),
-       changed_by = $10,
-       change_reason = $11,
+       equity_percentage = COALESCE($10, equity_percentage),
+       amortization_rate = COALESCE($11, amortization_rate),
+       changed_by = $12,
+       change_reason = $13,
        updated_at = NOW()
      WHERE is_active = true
      RETURNING *`,
@@ -238,6 +252,8 @@ export async function updateGlobalDefaults(
       updates.valueAppreciationRate,
       updates.hausgeldPerSqmModern,
       updates.hausgeldPerSqmOld,
+      updates.equityPercentage,
+      updates.amortizationRate,
       changedBy,
       changeReason,
     ]
@@ -375,6 +391,8 @@ export async function getEffectiveDefaults(userId?: string): Promise<EffectiveDe
       valueAppreciationRate: globalDefaults.valueAppreciationRate,
       hausgeldPerSqmModern: globalDefaults.hausgeldPerSqmModern,
       hausgeldPerSqmOld: globalDefaults.hausgeldPerSqmOld,
+      equityPercentage: globalDefaults.equityPercentage,
+      amortizationRate: globalDefaults.amortizationRate,
       source: 'global',
       overriddenFields: [],
     };
@@ -394,6 +412,8 @@ export async function getEffectiveDefaults(userId?: string): Promise<EffectiveDe
       valueAppreciationRate: globalDefaults.valueAppreciationRate,
       hausgeldPerSqmModern: globalDefaults.hausgeldPerSqmModern,
       hausgeldPerSqmOld: globalDefaults.hausgeldPerSqmOld,
+      equityPercentage: globalDefaults.equityPercentage,
+      amortizationRate: globalDefaults.amortizationRate,
       source: 'global',
       overriddenFields: [],
     };
@@ -421,6 +441,9 @@ export async function getEffectiveDefaults(userId?: string): Promise<EffectiveDe
     // Hausgeld pro m² nur global (User überschreibt nicht)
     hausgeldPerSqmModern: globalDefaults.hausgeldPerSqmModern,
     hausgeldPerSqmOld: globalDefaults.hausgeldPerSqmOld,
+    // Equity und Tilgung nur global (User überschreibt nicht)
+    equityPercentage: globalDefaults.equityPercentage,
+    amortizationRate: globalDefaults.amortizationRate,
     source: overriddenFields.length > 0 ? 'user_override' : 'global',
     overriddenFields,
   };

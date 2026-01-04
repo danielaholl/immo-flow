@@ -7,25 +7,6 @@ import type { PropertyDocument, DocumentCategory, DocumentVisibility } from '../
 import { truncateFilename } from '../create-listing/utils/documentUtils';
 
 // Hook to check if screen is mobile (below lg breakpoint)
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024); // lg breakpoint
-    };
-
-    // Check on mount
-    checkMobile();
-
-    // Listen for resize
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  return isMobile;
-}
-
 // Visibility configuration for owner grouping
 const VISIBILITY_ORDER: DocumentVisibility[] = ['public', 'auto_approved', 'manual_approval'];
 
@@ -60,6 +41,10 @@ interface PropertyDocumentsListProps {
   pendingManualApprovalCount?: number;
   /** Callback to approve manual documents for all pending users (owner only) */
   onApproveManualDocs?: () => void;
+  /** Hide access info subtitles (for import mode) */
+  hideAccessInfo?: boolean;
+  /** Whether the device is mobile (from parent useIsMobile hook) */
+  isMobile?: boolean;
 }
 
 const categoryIcons: Record<DocumentCategory, React.ReactNode> = {
@@ -100,10 +85,11 @@ export function PropertyDocumentsList({
   onRequestDocumentAccess,
   pendingManualApprovalCount = 0,
   onApproveManualDocs,
+  hideAccessInfo = false,
+  isMobile = false,
 }: PropertyDocumentsListProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [shouldFetch, setShouldFetch] = useState(false);
-  const isMobile = useIsMobile();
 
   // Handle document click - on mobile, open in new tab; on desktop, use callback with toggle
   const handleDocumentClick = useCallback((doc: PropertyDocument) => {
@@ -278,6 +264,11 @@ export function PropertyDocumentsList({
 
                 // Untertitel basierend auf Zugriffsstatus
                 const getAccessInfo = () => {
+                  // Wenn hideAccessInfo=true, zeige keine Access-Info
+                  if (hideAccessInfo) {
+                    return null;
+                  }
+
                   if (isOwner) {
                     // Für Owner: Sichtbarkeit anzeigen
                     const config = VISIBILITY_CONFIG[doc.visibility];
@@ -302,7 +293,6 @@ export function PropertyDocumentsList({
                   <button
                     key={doc.id}
                     onClick={() => isAccessible && handleDocumentClick(doc)}
-                    disabled={!isAccessible}
                     className={`w-full flex items-center gap-3 py-2 px-2 transition-all ${
                       !isAccessible
                         ? 'cursor-not-allowed opacity-75 bg-white dark:bg-gray-900'
@@ -330,9 +320,11 @@ export function PropertyDocumentsList({
                       }`}>
                         {isAccessible ? truncateFilename(doc.filename.replace(/\.[^/.]+$/, ''), 10) : categoryLabels[doc.category]}
                       </p>
-                      <p className={`text-xs ${isSelected ? 'text-gray-300' : accessInfo.color}`}>
-                        {accessInfo.text}
-                      </p>
+                      {accessInfo && (
+                        <p className={`text-xs ${isSelected ? 'text-gray-300' : accessInfo.color}`}>
+                          {accessInfo.text}
+                        </p>
+                      )}
                     </div>
                     {isAccessible && (
                       <ChevronRight size={16} className={isSelected ? 'text-white' : 'text-gray-400'} />

@@ -57,26 +57,36 @@ export function TaxEffectCard({ className = '' }: CardProps) {
   // Dynamic title based on tax effect
   const getTaxTitle = () => {
     if (isNeutral) return 'Steuereffekt';
-    return isSaving ? 'Steuerersparnis' : 'Steuerlast';
+    return isSaving ? 'Steuerersparnis' : 'Steuerverlust';
   };
 
   return (
-    <div className={`bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl p-5 flex flex-col ${className}`}>
+    <div className={`bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5 flex flex-col ${className}`}>
       {/* Header - klickbar */}
       <button
         onClick={() => toggleCardExpansion('tax')}
-        className="flex items-center justify-between w-full text-left"
+        className="flex items-start justify-between w-full text-left"
       >
-        <div className="flex items-center gap-2">
-          <PiggyBank size={18} className={getIconColor()} />
-          <h4 className="font-semibold text-gray-900 dark:text-white text-base">{getTaxTitle()}</h4>
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-2">
+            <PiggyBank size={18} className={getIconColor()} />
+            <h4 className="font-semibold text-gray-900 dark:text-white text-xl">{getTaxTitle()}</h4>
+          </div>
+          {!isExpanded && (
+            <span className="font-semibold text-gray-500 dark:text-gray-400 text-lg ml-[26px]">Cashflow nach Steuern</span>
+          )}
         </div>
         <div className="flex items-center gap-3">
           {/* Summary when collapsed */}
           {!isExpanded && (
-            <span className={`font-bold text-sm ${isSaving ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-              {isSaving ? '+' : ''}{formatCurrency(Math.abs(steuereffekt.monatlich))}/Mo
-            </span>
+            <div className="flex flex-col items-end">
+              <span className={`font-bold text-xl ${isSaving ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                {isSaving ? '+' : ''}{formatCurrency(Math.abs(steuereffekt.monatlich))}/Mo
+              </span>
+              <span className="font-bold text-gray-500 dark:text-gray-400 text-lg mt-0.5">
+                {cashflowAfterTax >= 0 ? '+' : ''}{formatCurrency(cashflowAfterTax)}/Mo
+              </span>
+            </div>
           )}
           {isExpanded ? (
             <ChevronUp size={18} className="text-gray-500 dark:text-gray-400" />
@@ -88,19 +98,33 @@ export function TaxEffectCard({ className = '' }: CardProps) {
 
       {/* Content - only shown when expanded */}
       {isExpanded && (
-        <div className="space-y-3 text-sm flex-grow flex flex-col mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-        {/* Cashflow */}
+        <div className="space-y-3 text-sm flex-grow flex flex-col mt-4 pt-4 border-t border-gray-300 dark:border-gray-700">
+        {/* Cashflow vor Finanzierung */}
         <div className="flex items-center justify-between">
-          <span className="text-gray-600 dark:text-gray-400">Cashflow / Monat</span>
-          <span className={`font-semibold ${calculatedCashflow >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-            {calculatedCashflow >= 0 ? '+' : ''}{formatCurrency(calculatedCashflow)}
+          <span className="text-gray-600 dark:text-gray-400">
+            Cashflow vor Finanzierung
+            <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">(Miete − Ausgaben)</span>
+          </span>
+          <span className={`font-semibold ${steuereffekt.cashflowVorFinanzierung >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+            {steuereffekt.cashflowVorFinanzierung >= 0 ? '+' : ''}{formatCurrency(steuereffekt.cashflowVorFinanzierung)}
+          </span>
+        </div>
+
+        {/* Zinsen (steuerlich absetzbar) - NACH OBEN VERSCHOBEN */}
+        <div className="flex items-center justify-between">
+          <span className="text-gray-600 dark:text-gray-400">
+            Zinsen / Monat
+            <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">(steuerlich absetzbar)</span>
+          </span>
+          <span className="font-semibold text-rose-600 dark:text-rose-400">
+            −{formatCurrency(values.monatlicheZinsen)}
           </span>
         </div>
 
         {/* AfA-Abschreibung */}
         <div className="flex items-center justify-between">
           <span className="text-gray-600 dark:text-gray-400">
-            − AfA / Monat
+            AfA / Monat
             {!isEditMode && <span className="text-xs text-gray-400 ml-1">({getAfaLabel(yearBuilt)})</span>}
           </span>
           <div className="flex items-center gap-2">
@@ -108,14 +132,18 @@ export function TaxEffectCard({ className = '' }: CardProps) {
               <span className="relative inline-flex items-center">
                 <input
                   type="number"
-                  value={editState.afaRate ?? ''}
+                  value={editState.afaRate !== null && editState.afaRate !== undefined ? editState.afaRate : ''}
                   onChange={(e) => setEditState((prev) => ({
                     ...prev,
                     afaRate: e.target.value === '' ? null : Number(e.target.value),
                   }))}
-                  placeholder={String(defaultAfaRate * 100)}
-                  style={{ width: getInputWidth(editState.afaRate, defaultAfaRate * 100) }}
-                  className="pl-2 pr-7 py-1.5 border border-[#DDDDDD] dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg text-sm focus:ring-[3px] focus:ring-primary/30 focus:border-primary outline-none text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  placeholder={(defaultAfaRate * 100).toFixed(2)}
+                  style={{ width: getInputWidth(editState.afaRate ?? (defaultAfaRate * 100), defaultAfaRate * 100) }}
+                  className={`pl-2 pr-7 py-1.5 input-gradient-border rounded-lg text-sm text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                    editState.afaRate === null || editState.afaRate === undefined
+                      ? 'text-gray-700 dark:text-gray-300'
+                      : 'text-gray-900 dark:text-white'
+                  }`}
                   min="0"
                   max="10"
                   step="0.5"
@@ -123,42 +151,47 @@ export function TaxEffectCard({ className = '' }: CardProps) {
                 <span className="absolute right-2 text-gray-500 dark:text-gray-400 text-sm pointer-events-none">%</span>
               </span>
             ) : null}
-            <span className="font-semibold text-emerald-600 dark:text-emerald-400">−{formatCurrency(steuereffekt.afaMonatlich)}</span>
+            <span className="font-semibold text-rose-600 dark:text-rose-400">−{formatCurrency(steuereffekt.afaMonatlich)}</span>
           </div>
         </div>
 
-        {/* Steuerliches Ergebnis */}
+        {/* Zu versteuerndes Einkommen */}
         <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700">
-          <span className="text-gray-700 dark:text-gray-300 font-medium">Steuerliches Ergebnis</span>
-          <span className={`font-semibold ${steuereffekt.steuerlichesErgebnis < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+          <span className="text-gray-700 dark:text-gray-300 font-medium">Zu versteuerndes Einkommen</span>
+          <span className={`font-semibold ${steuereffekt.steuerlichesErgebnis >= 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
             {formatCurrency(Math.round(steuereffekt.steuerlichesErgebnis / 12))}
           </span>
         </div>
 
         {/* Grenzsteuersatz */}
         <div className="flex items-center justify-between">
-          <span className="text-gray-600 dark:text-gray-400">× Grenzsteuersatz</span>
+          <span className="text-gray-600 dark:text-gray-400">Grenzsteuersatz</span>
           <div className="flex items-center gap-2">
             {isEditMode ? (
               <span className="relative inline-flex items-center">
                 <input
                   type="number"
-                  value={editState.grenzsteuersatz ?? ''}
+                  value={editState.grenzsteuersatz !== null && editState.grenzsteuersatz !== undefined ? editState.grenzsteuersatz : ''}
                   onChange={(e) => setEditState((prev) => ({
                     ...prev,
                     grenzsteuersatz: e.target.value === '' ? null : Number(e.target.value),
                   }))}
-                  placeholder={String(defaultGrenzsteuersatz)}
-                  style={{ width: getInputWidth(editState.grenzsteuersatz, defaultGrenzsteuersatz) }}
-                  className="pl-2 pr-7 py-1.5 border border-[#DDDDDD] dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg text-sm focus:ring-[3px] focus:ring-primary/30 focus:border-primary outline-none text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  placeholder={defaultGrenzsteuersatz.toFixed(0)}
+                  style={{ width: getInputWidth(editState.grenzsteuersatz ?? defaultGrenzsteuersatz, defaultGrenzsteuersatz) }}
+                  className={`pl-2 pr-7 py-1.5 input-gradient-border rounded-lg text-sm text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                    editState.grenzsteuersatz === null || editState.grenzsteuersatz === undefined
+                      ? 'text-gray-700 dark:text-gray-300'
+                      : 'text-gray-900 dark:text-white'
+                  }`}
                   min="0"
                   max="50"
                   step="1"
                 />
                 <span className="absolute right-2 text-gray-500 dark:text-gray-400 text-sm pointer-events-none">%</span>
               </span>
-            ) : null}
-            <span className="font-semibold text-gray-900 dark:text-white">{steuereffekt.grenzsteuersatz}%</span>
+            ) : (
+              <span className="font-semibold text-gray-900 dark:text-white">{steuereffekt.grenzsteuersatz}%</span>
+            )}
           </div>
         </div>
 
@@ -173,7 +206,7 @@ export function TaxEffectCard({ className = '' }: CardProps) {
         </div>
 
         {/* Cashflow nach Steuern */}
-        <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700 mt-auto">
+        <div className="flex items-center justify-between pt-3 border-t border-gray-300 dark:border-gray-700 mt-auto">
           <span className="text-gray-900 dark:text-white font-bold">Cashflow nach Steuern</span>
           <span className={`text-lg font-bold ${cashflowAfterTax >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
             {cashflowAfterTax >= 0 ? '+' : ''}{formatCurrency(cashflowAfterTax)}
@@ -183,8 +216,8 @@ export function TaxEffectCard({ className = '' }: CardProps) {
         {/* Hinweis */}
         <p className="text-xs text-gray-400 pt-2 border-t border-gray-100 dark:border-gray-700">
           {isSaving
-            ? 'Die AfA übersteigt den Cashflow → steuerlicher Verlust mindert Ihre Einkommensteuer.'
-            : 'Der Cashflow übersteigt die AfA → Sie zahlen zusätzliche Einkommensteuer.'}
+            ? 'Steuerliche Verluste (AfA + Zinsen übersteigen Mieteinnahmen) mindern Ihre Einkommensteuer.'
+            : 'Die Mieteinnahmen übersteigen die Abschreibungen → Sie zahlen zusätzliche Einkommensteuer.'}
         </p>
         </div>
       )}

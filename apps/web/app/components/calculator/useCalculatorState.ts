@@ -40,9 +40,9 @@ export function useCalculatorState(props: CalculatorProps): CalculatorContextVal
     purchasePrice,
     location,
     commissionRate = 0,
-    equityPercentage = 20,
-    interestRate = 3.8,
-    amortizationRate = 2.0,
+    equityPercentage,
+    interestRate = 4.25,
+    amortizationRate,
     monthlyFee,
     sqm,
     yearBuilt,
@@ -65,11 +65,45 @@ export function useCalculatorState(props: CalculatorProps): CalculatorContextVal
     refetchOnWindowFocus: false,
   });
 
+  // Calculator defaults from database (global + user overrides)
+  const { data: calculatorDefaults } = trpc.calculatorDefaults.getDefaults.useQuery(undefined, {
+    staleTime: 1000 * 60 * 5, // 5 minute cache
+    refetchOnWindowFocus: false,
+  });
+
+  // Edit mode state - must be declared BEFORE effectiveEquityPercent useMemo
+  const [isEditMode, setIsEditMode] = useState(startInEditMode);
+  const [editState, setEditState] = useState<EditState>({
+    purchasePrice: initialEditState?.purchasePrice ?? null,
+    equityPercent: initialEditState?.equityPercent ?? null,
+    eigenkapitalBetrag: initialEditState?.eigenkapitalBetrag ?? null,
+    darlehensbetrag: initialEditState?.darlehensbetrag ?? null,
+    interestRate: initialEditState?.interestRate ?? null,
+    amortizationRate: initialEditState?.amortizationRate ?? null,
+    brokerCommission: initialEditState?.brokerCommission ?? null,
+    renovationCosts: initialEditState?.renovationCosts ?? null,
+    monthlyFee: initialEditState?.monthlyFee ?? null,
+    monthlyRent: initialEditState?.monthlyRent ?? null,
+    maintenanceCosts: initialEditState?.maintenanceCosts ?? null,
+    afaRate: initialEditState?.afaRate ?? null,
+    grenzsteuersatz: initialEditState?.grenzsteuersatz ?? null,
+  });
+
+  // Berechne effectiveEquityPercent früh, damit es in der Interest Rate Query verwendet werden kann
+  const effectiveEquityPercent = useMemo(() => {
+    return Number(
+      editState.equityPercent ??
+      userParams?.equity_percentage ??
+      equityPercentage ??
+      10
+    ) || 10;
+  }, [editState.equityPercent, userParams?.equity_percentage, equityPercentage]);
+
   // Current market interest rate from weekly Zinsupdate
   const { data: currentMarketRate } = trpc.interestRates.getRateForProperty.useQuery(
     {
       purchasePrice: purchasePrice || 250000,
-      equityPercentage: equityPercentage || 20,
+      equityPercentage: effectiveEquityPercent,
       fixedRateYears: 10,
     },
     {
@@ -78,12 +112,6 @@ export function useCalculatorState(props: CalculatorProps): CalculatorContextVal
       refetchOnWindowFocus: false,
     }
   );
-
-  // Calculator defaults from database (global + user overrides)
-  const { data: calculatorDefaults } = trpc.calculatorDefaults.getDefaults.useQuery(undefined, {
-    staleTime: 1000 * 60 * 5, // 5 minute cache
-    refetchOnWindowFocus: false,
-  });
 
   // PLZ-based market data for rent estimation
   const extractedPLZ = extractPLZFromLocation(location);
@@ -97,27 +125,25 @@ export function useCalculatorState(props: CalculatorProps): CalculatorContextVal
     }
   );
 
+  // Fallback: Search by city name if no PLZ found
+  const { data: cityMarketData } = trpc.marketData.searchByCity.useQuery(
+    { city: location || '', limit: 1 },
+    {
+      enabled: !extractedPLZ && !!location && location.length >= 3,
+      staleTime: 1000 * 60 * 30,
+      refetchOnWindowFocus: false,
+      retry: false,
+    }
+  );
+
+  // Use PLZ data if available, otherwise use city search result
+  const marketData = plzMarketData || (cityMarketData && cityMarketData[0]) || null;
+
   // Calculate PLZ-based market rent
   const plzMarketRent = useMemo(() => {
     if (!plzMarketData?.avg_rent_sqm || !sqm) return null;
     return Math.ceil(Number(plzMarketData.avg_rent_sqm) * Number(sqm));
   }, [plzMarketData, sqm]);
-
-  // Edit mode state
-  const [isEditMode, setIsEditMode] = useState(startInEditMode);
-  const [editState, setEditState] = useState<EditState>({
-    purchasePrice: initialEditState?.purchasePrice ?? null,
-    equityPercent: initialEditState?.equityPercent ?? null,
-    interestRate: initialEditState?.interestRate ?? null,
-    amortizationRate: initialEditState?.amortizationRate ?? null,
-    brokerCommission: initialEditState?.brokerCommission ?? null,
-    renovationCosts: initialEditState?.renovationCosts ?? null,
-    monthlyFee: initialEditState?.monthlyFee ?? null,
-    monthlyRent: initialEditState?.monthlyRent ?? null,
-    maintenanceCosts: initialEditState?.maintenanceCosts ?? null,
-    afaRate: initialEditState?.afaRate ?? null,
-    grenzsteuersatz: initialEditState?.grenzsteuersatz ?? null,
-  });
 
   // Notify parent when editState changes
   useEffect(() => {
@@ -198,9 +224,10 @@ export function useCalculatorState(props: CalculatorProps): CalculatorContextVal
   }, [purchasePrice]);
 
   // Initialize edit state when starting in edit mode
-  // Use initialEditState if provided (from localStorage), otherwise use props
+  // Use initialEditState if provided (from localStorage), otherwise use props/DB defaults
   const [hasInitialized, setHasInitialized] = useState(false);
   useEffect(() => {
+    // Wait for calculatorDefaults to load before initializing (or timeout after mount)
     if (startInEditMode && !hasInitialized && purchasePrice > 0) {
       // Check if we have saved values from initialEditState
       const hasSavedValues = initialEditState && (
@@ -211,14 +238,16 @@ export function useCalculatorState(props: CalculatorProps): CalculatorContextVal
       );
 
       if (hasSavedValues) {
-        // Use saved values, falling back to props for any missing values
+        // Use saved values, falling back to DB defaults or props for any missing values
         setEditState({
-          purchasePrice: initialEditState.purchasePrice ?? purchasePrice,
-          equityPercent: initialEditState.equityPercent ?? equityPercentage,
-          interestRate: initialEditState.interestRate ?? interestRate,
-          amortizationRate: initialEditState.amortizationRate ?? amortizationRate,
-          brokerCommission: initialEditState.brokerCommission ?? commissionRate,
-          renovationCosts: initialEditState.renovationCosts ?? renovationCosts,
+          purchasePrice: initialEditState.purchasePrice ?? purchasePrice ?? null,
+          equityPercent: initialEditState.equityPercent ?? equityPercentage ?? null,
+          eigenkapitalBetrag: initialEditState.eigenkapitalBetrag ?? null,
+          darlehensbetrag: initialEditState.darlehensbetrag ?? null,
+          interestRate: initialEditState.interestRate ?? interestRate ?? null,
+          amortizationRate: initialEditState.amortizationRate ?? amortizationRate ?? null,
+          brokerCommission: initialEditState.brokerCommission ?? commissionRate ?? null,
+          renovationCosts: initialEditState.renovationCosts ?? renovationCosts ?? null,
           monthlyFee: initialEditState.monthlyFee ?? monthlyFee ?? null,
           monthlyRent: initialEditState.monthlyRent ?? monthlyRent ?? null,
           maintenanceCosts: initialEditState.maintenanceCosts ?? null,
@@ -226,14 +255,16 @@ export function useCalculatorState(props: CalculatorProps): CalculatorContextVal
           grenzsteuersatz: initialEditState.grenzsteuersatz ?? null,
         });
       } else {
-        // No saved values, initialize from props
+        // No saved values, initialize from DB defaults or props
         setEditState({
-          purchasePrice: purchasePrice,
-          equityPercent: equityPercentage,
-          interestRate: interestRate,
-          amortizationRate: amortizationRate,
-          brokerCommission: commissionRate,
-          renovationCosts: renovationCosts,
+          purchasePrice: purchasePrice ?? null,
+          equityPercent: equityPercentage ?? null,
+          eigenkapitalBetrag: null,
+          darlehensbetrag: null,
+          interestRate: interestRate ?? null,
+          amortizationRate: amortizationRate ?? null,
+          brokerCommission: commissionRate ?? null,
+          renovationCosts: renovationCosts ?? null,
           monthlyFee: monthlyFee ?? null,
           monthlyRent: monthlyRent ?? null,
           maintenanceCosts: null,
@@ -245,24 +276,42 @@ export function useCalculatorState(props: CalculatorProps): CalculatorContextVal
     }
   }, [startInEditMode, hasInitialized, purchasePrice, equityPercentage, interestRate, amortizationRate, commissionRate, renovationCosts, monthlyFee, monthlyRent, initialEditState]);
 
-  // Detect state for Grunderwerbsteuer
+  // Detect state from location (needed for detectedState export)
   const detectedState = detectStateFromLocation(location);
-  const grunderwerbsteuerRate = detectedState
-    ? GRUNDERWERBSTEUER_SAETZE[detectedState]
-    : 5.0;
+
+  // Get Grunderwerbsteuer rate with 3-tier fallback: Database > Detection > Default
+  const grunderwerbsteuerRate = useMemo(() => {
+    // Priority 1: Use rate from market data (PLZ or city search) if available
+    if (marketData?.grunderwerbsteuer_rate) {
+      return Number(marketData.grunderwerbsteuer_rate);
+    }
+
+    // Priority 2: Fallback to location detection
+    if (detectedState && GRUNDERWERBSTEUER_SAETZE[detectedState]) {
+      return GRUNDERWERBSTEUER_SAETZE[detectedState];
+    }
+
+    // Priority 3: Default fallback
+    return 5.0;
+  }, [marketData, detectedState]);
 
   // Effective values (edit takes priority)
   const effectivePurchasePrice = Number(editState.purchasePrice ?? purchasePrice) || 0;
-  const effectiveEquityPercent = Number(editState.equityPercent ?? equityPercentage) || 20;
+  // effectiveEquityPercent is already calculated above before the query (useMemo)
   // Interest rate priority: editState > userParams > current market rate > prop default > fallback
   const effectiveInterestRate = Number(
     editState.interestRate ??
     userParams?.interest_rate ??
     currentMarketRate?.interestRate ??
     interestRate ??
-    3.8
-  ) || 3.8;
-  const effectiveAmortizationRate = Number(editState.amortizationRate ?? amortizationRate ?? 2.0) || 2.0;
+    4.25
+  ) || 4.25;
+  const effectiveAmortizationRate = Number(
+    editState.amortizationRate ??
+    userParams?.amortization_rate ??
+    amortizationRate ??
+    2.0
+  ) || 2.0;
   const effectiveBrokerCommission = Number(editState.brokerCommission ?? commissionRate) || 0;
   const effectiveRenovationCosts = Number(editState.renovationCosts ?? renovationCosts) || 0;
 
@@ -306,9 +355,29 @@ export function useCalculatorState(props: CalculatorProps): CalculatorContextVal
     const kaufnebenkosten = grunderwerbsteuer + notarkosten + grundbuchkosten + maklergebuehren + effectiveRenovationCosts;
     const gesamtinvestition = effectivePurchasePrice + kaufnebenkosten;
 
-    // Finanzierung
-    const eigenkapital = gesamtinvestition * (effectiveEquityPercent / 100);
-    const darlehensbetrag = gesamtinvestition - eigenkapital;
+    // Finanzierung - mit 3-Wege-Synchronisation
+    // Priorität: darlehensbetrag > eigenkapitalBetrag > equityPercent
+    const eigenkapital = (() => {
+      // Wenn Darlehensbetrag editiert wurde
+      if (editState.darlehensbetrag !== null) {
+        return gesamtinvestition - Number(editState.darlehensbetrag);
+      }
+      // Wenn EK-Betrag editiert wurde
+      if (editState.eigenkapitalBetrag !== null) {
+        return Number(editState.eigenkapitalBetrag);
+      }
+      // Wenn EK-Prozent editiert wurde (oder Standardwert)
+      return effectivePurchasePrice * (effectiveEquityPercent / 100);
+    })();
+
+    const darlehensbetrag = editState.darlehensbetrag !== null
+      ? Number(editState.darlehensbetrag)
+      : gesamtinvestition - eigenkapital;
+
+    // Berechne tatsächlichen EK-Prozentsatz basierend auf dem Betrag
+    const actualEquityPercent = effectivePurchasePrice > 0
+      ? (eigenkapital / effectivePurchasePrice) * 100
+      : effectiveEquityPercent;
     const monatlicheZinsen = Math.round(darlehensbetrag * (effectiveInterestRate / 100 / 12));
     const monatlicheTilgung = Math.round(darlehensbetrag * (effectiveAmortizationRate / 100 / 12));
     const monatlicheRate = monatlicheZinsen + monatlicheTilgung;
@@ -333,7 +402,11 @@ export function useCalculatorState(props: CalculatorProps): CalculatorContextVal
     const monatlicheAusgabenOhneKreditEffektiv = hausgeldNichtUmlegbar + instandhaltungskosten;
 
     // Mieteinnahmen
-    const mieteinnahmen = Math.ceil(editState.monthlyRent ?? calculateRent());
+    const mieteinnahmen = Math.ceil(
+      (editState.monthlyRent !== null && editState.monthlyRent !== undefined && editState.monthlyRent > 0)
+        ? editState.monthlyRent
+        : calculateRent()
+    );
 
     // Cashflow
     const calculatedCashflow = mode === 'investor'
@@ -378,29 +451,42 @@ export function useCalculatorState(props: CalculatorProps): CalculatorContextVal
       // Nebenkosten-Rate (ohne Renovierung, da diese fix bleibt)
       const nebenkostenRate = (grunderwerbsteuerRate / 100) + 0.015 + 0.005 + (effectiveBrokerCommission / 100);
 
-      // Finanzierungs-Faktoren
-      const equityFactor = 1 - (effectiveEquityPercent / 100);
+      // Finanzierungs-Faktoren - verwende actualEquityPercent für editierte Werte
+      const equityFactor = 1 - (actualEquityPercent / 100);
       const annualRate = (effectiveInterestRate + effectiveAmortizationRate) / 100;
-      const monthlyFinancingFactor = equityFactor * annualRate / 12;
-
-      // Instandhaltung pro € Kaufpreis pro Monat (1% p.a.)
-      const maintenancePerEuro = 0.01 / 12;
 
       // Fixe Kosten (nicht vom Kaufpreis abhängig)
-      const fixedMonthlyCosts = mode === 'investor' ? hausgeldNichtUmlegbar : hausgeld;
+      let fixedMonthlyCosts = mode === 'investor' ? hausgeldNichtUmlegbar : hausgeld;
 
-      // Renovierungskosten-Anteil in der Finanzierung
-      const renovationFinancingCost = effectiveRenovationCosts * monthlyFinancingFactor;
+      // Instandhaltung: Fix wenn editiert ODER sqm vorhanden, sonst variabel
+      let maintenancePerEuro = 0;
+      const isMaintenanceEdited = editState.maintenanceCosts !== null;
+      const isMaintenanceFixed = isMaintenanceEdited || sqm !== undefined;
+
+      if (isMaintenanceFixed) {
+        // Wenn editiert oder sqm vorhanden: Instandhaltung ist fix
+        fixedMonthlyCosts += instandhaltungskosten;
+      } else {
+        // Nur wenn NICHT editiert UND keine sqm: Instandhaltung ist proportional zum Kaufpreis (1% p.a.)
+        maintenancePerEuro = 0.01 / 12;
+      }
+
+      // Renovierungskosten werden zu 100% finanziert (wie Nebenkosten)
+      // Monatliche Finanzierungskosten für Renovierung
+      const renovationFinancingPerMonth = effectiveRenovationCosts * (annualRate / 12);
 
       // Verfügbar für Kaufpreis-abhängige Kosten
-      const availableForPrice = mieteinnahmen - fixedMonthlyCosts - renovationFinancingCost;
+      const availableForPrice = mieteinnahmen - fixedMonthlyCosts - renovationFinancingPerMonth;
 
       if (availableForPrice <= 0) return null;
 
       // Kosten-Faktor pro € Kaufpreis:
-      // - Finanzierung: kaufpreis * (1 + nebenkostenRate) * monthlyFinancingFactor
-      // - Instandhaltung: kaufpreis * maintenancePerEuro
-      const costPerEuro = (1 + nebenkostenRate) * monthlyFinancingFactor + maintenancePerEuro;
+      // Darlehen = kaufpreis * (1 - ekPercent) + nebenkosten
+      // Darlehen = kaufpreis * (1 - ekPercent) + kaufpreis * nebenkostenRate
+      // Darlehen = kaufpreis * [(1 - ekPercent) + nebenkostenRate]
+      // Monatliche Rate = Darlehen * (annualRate / 12)
+      const financingPerEuro = (equityFactor + nebenkostenRate) * (annualRate / 12);
+      const costPerEuro = financingPerEuro + maintenancePerEuro;
 
       if (costPerEuro <= 0) return null;
 
@@ -429,10 +515,21 @@ export function useCalculatorState(props: CalculatorProps): CalculatorContextVal
       const gebaeudewert = effectivePurchasePrice * buildingRatio;
       const afaJaehrlich = gebaeudewert * effectiveAfaRate;
       const afaMonatlich = afaJaehrlich / 12;
-      const cashflowJaehrlich = calculatedCashflow * 12;
-      const steuerlichesErgebnis = cashflowJaehrlich - afaJaehrlich;
+
+      // Cashflow vor Finanzierung (Mieteinnahmen - Ausgaben)
+      const cashflowVorFinanzierung = mieteinnahmen - monatlicheAusgabenOhneKreditEffektiv;
+      const cashflowVorFinanzierungJaehrlich = cashflowVorFinanzierung * 12;
+
+      // Jährliche Zinsen
+      const jaehrlicheZinsen = monatlicheZinsen * 12;
+
+      // Steuerliches Ergebnis: Cashflow vor Finanzierung - Zinsen - AfA
+      const steuerlichesErgebnis = cashflowVorFinanzierungJaehrlich - jaehrlicheZinsen - afaJaehrlich;
+
+      // Steuerberechnung
       const jaehrlich = steuerlichesErgebnis * effectiveGrenzsteuersatz;
       const monatlich = jaehrlich / 12;
+
       return {
         monatlich: Math.round(monatlich),
         jaehrlich: Math.round(jaehrlich),
@@ -443,8 +540,19 @@ export function useCalculatorState(props: CalculatorProps): CalculatorContextVal
         grenzsteuersatz: Math.round(effectiveGrenzsteuersatz * 100),
         afaRate: effectiveAfaRate,
         buildingRatio,
+        cashflowVorFinanzierung: Math.round(cashflowVorFinanzierung),
+        cashflowVorFinanzierungJaehrlich: Math.round(cashflowVorFinanzierungJaehrlich),
       };
     };
+
+    // Rendite-Berechnungen
+    const grossYield = mieteinnahmen > 0 && effectivePurchasePrice > 0
+      ? (mieteinnahmen * 12 / effectivePurchasePrice) * 100
+      : undefined;
+
+    const rentMultiplier = mieteinnahmen > 0 && effectivePurchasePrice > 0
+      ? effectivePurchasePrice / (mieteinnahmen * 12)
+      : undefined;
 
     return {
       grunderwerbsteuerRate,
@@ -468,12 +576,14 @@ export function useCalculatorState(props: CalculatorProps): CalculatorContextVal
       monatlicheAusgabenOhneKreditEffektiv,
       mieteinnahmen,
       calculatedCashflow,
+      grossYield,
+      rentMultiplier,
       breakEvenEK: calculateBreakEvenEK(),
       breakEvenYears: calculateBreakEvenYears(),
       breakEvenPrice: calculateBreakEvenPrice(),
       steuereffekt: calculateSteuereffekt(),
       effectivePurchasePrice,
-      effectiveEquityPercent,
+      effectiveEquityPercent: actualEquityPercent,
       effectiveInterestRate,
       effectiveAmortizationRate,
       effectiveBrokerCommission,
@@ -506,6 +616,7 @@ export function useCalculatorState(props: CalculatorProps): CalculatorContextVal
     marketRent,
     taxProfile,
     plzMarketRent,
+    calculatorDefaults,
   ]);
 
   // Check if user has overridden the market rent
@@ -521,6 +632,8 @@ export function useCalculatorState(props: CalculatorProps): CalculatorContextVal
     setEditState({
       purchasePrice: null,
       equityPercent: null,
+      eigenkapitalBetrag: null,
+      darlehensbetrag: null,
       interestRate: null,
       amortizationRate: null,
       brokerCommission: null,
@@ -565,6 +678,8 @@ export function useCalculatorState(props: CalculatorProps): CalculatorContextVal
     setEditState({
       purchasePrice: values.effectivePurchasePrice,
       equityPercent: values.effectiveEquityPercent,
+      eigenkapitalBetrag: values.eigenkapital,
+      darlehensbetrag: values.darlehensbetrag,
       interestRate: values.effectiveInterestRate,
       amortizationRate: values.effectiveAmortizationRate,
       brokerCommission: values.effectiveBrokerCommission,
@@ -596,7 +711,7 @@ export function useCalculatorState(props: CalculatorProps): CalculatorContextVal
       interestRate: currentMarketRate.interestRate,
       calendarWeek: currentMarketRate.calendarWeek,
       year: currentMarketRate.year,
-      lastUpdated: currentMarketRate.lastUpdated,
+      lastUpdated: currentMarketRate.lastUpdated ? new Date(currentMarketRate.lastUpdated) : null,
     } : null,
     // PLZ-based market rent
     plzMarketRent,

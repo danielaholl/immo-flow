@@ -41,6 +41,12 @@ export interface ListingData {
   monthly_fee?: number; // Hausgeld pro Monat in EUR
   monthly_rent?: number; // Mieteinnahme pro Monat in EUR
   afa_type?: AfaType; // AfA-Typ für Steuerberechnung
+  // Provider contact info (for imported/external properties)
+  provider_name?: string;
+  provider_email?: string;
+  provider_phone?: string;
+  provider_company?: string;
+  is_external?: boolean; // Mark as external/imported property
   // AI Rating fields (legacy)
   ai_score?: number;
   ai_rating_explanation?: string;

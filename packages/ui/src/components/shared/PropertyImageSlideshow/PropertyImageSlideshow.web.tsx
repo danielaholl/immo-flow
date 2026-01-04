@@ -278,7 +278,7 @@ export function PropertyImageSlideshow({
       )}
 
       {/* Main Clickable Area */}
-      {onClick && !showVideo && (
+      {onClick && (
         <button
           onClick={onClick}
           className="absolute inset-0 top-10 cursor-pointer"

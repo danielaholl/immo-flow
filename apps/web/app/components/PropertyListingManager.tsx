@@ -20,6 +20,7 @@ import { useDocumentUpload } from '../create-listing/hooks/useDocumentUpload';
 import type { ListingData, PropertyDocument } from '../create-listing/types';
 import { DOCUMENT_CATEGORIES } from '../create-listing/types';
 import { detectDocumentCategory, truncateFilename } from '../create-listing/utils/documentUtils';
+import { generatePropertyTitle } from '../create-listing/utils/titleUtils';
 import { DocumentViewer } from './DocumentViewer';
 import { UniversalChat } from './UniversalChat';
 import type { ChatMessage } from './UniversalChat/types';
@@ -49,7 +50,7 @@ export function PropertyListingManager({ propertyId, mode = 'create', initialCal
   const { user, profile, loading } = useAuthContext();
 
   // Mode detection
-  const isEditMode = mode === 'edit' || (!!propertyId && mode !== 'import');
+  const isEditMode = mode === 'edit' || !!propertyId;
   const isImportMode = mode === 'import';
 
   // State
@@ -76,6 +77,10 @@ export function PropertyListingManager({ propertyId, mode = 'create', initialCal
 
   // Document viewer state
   const [selectedDocument, setSelectedDocument] = useState<PropertyDocument | null>(null);
+
+  // Provider contact state (for import mode)
+  const [showProviderContactEditor, setShowProviderContactEditor] = useState(false);
+  const [hasAskedForProviderContact, setHasAskedForProviderContact] = useState(false);
 
   // Custom hooks
   const {
@@ -126,9 +131,12 @@ export function PropertyListingManager({ propertyId, mode = 'create', initialCal
     removeDocument,
     updateDocumentCategory,
     setDocuments,
-  } = useDocumentUpload((doc) => {
-    addBotMessage(`Dokument "${doc.filename}" wurde erfolgreich hochgeladen (${doc.category}).`);
-  });
+  } = useDocumentUpload(
+    (doc) => {
+      addBotMessage(`Dokument "${doc.filename}" wurde erfolgreich hochgeladen (${doc.category}).`);
+    },
+    mode
+  );
 
   // Sync uploaded images with listing data
   useEffect(() => {
@@ -194,12 +202,22 @@ export function PropertyListingManager({ propertyId, mode = 'create', initialCal
   const analyzeExternalUrlMutation = trpc.properties.analyzeExternalUrl.useMutation();
   const classifyAndAnalyzeImagesMutation = trpc.properties.classifyAndAnalyzeImages.useMutation();
   const addFavoriteMutation = trpc.favorites.add.useMutation();
+  const saveProviderContactMutation = trpc.properties.saveProviderContact.useMutation();
   const utils = trpc.useUtils();
 
   // Fetch property data if in edit mode
   const { data: propertyToEdit } = trpc.properties.getById.useQuery(
     { id: propertyId! },
     { enabled: isEditMode && !!propertyId }
+  );
+
+  // Fetch provider contact data if editing or importing external property
+  const { data: providerContact, refetch: refetchProviderContact, isLoading: isLoadingProviderContact } = trpc.properties.getProviderContact.useQuery(
+    { propertyId: listingData.id || propertyId || '' },
+    {
+      enabled: ((isEditMode || isImportMode) && !!(listingData.id || propertyId) && !!listingData.is_external),
+      refetchOnMount: true,
+    }
   );
 
   // Load property data in edit mode
@@ -209,6 +227,7 @@ export function PropertyListingManager({ propertyId, mode = 'create', initialCal
     // Convert property data to ListingData format - ensure numbers are numbers
     const propertyData: ListingData = {
       id: propertyToEdit.id, // Important: include ID for AIEvaluationPanel to show in edit mode
+      is_external: (propertyToEdit as any).is_external ?? undefined, // Important: include is_external for provider contact display
       property_type: (propertyToEdit as any).property_type,
       title: propertyToEdit.title,
       location: propertyToEdit.location,
@@ -263,6 +282,32 @@ export function PropertyListingManager({ propertyId, mode = 'create', initialCal
   // Track if welcome message was shown
   const welcomeShownRef = useRef(false);
 
+  // Ask for provider contact info in import mode (after property creation)
+  useEffect(() => {
+    // Only in import mode, when property has been created and saved
+    // Wait for provider contact query to finish loading before checking
+    if (!isImportMode || !listingData.id || hasAskedForProviderContact || isLoadingProviderContact) return;
+
+    // Check if provider contact already exists
+    if (providerContact?.provider_name || providerContact?.provider_email || providerContact?.provider_phone) {
+      // Already has provider contact data
+      return;
+    }
+
+    // Ask user if they want to add provider contact info
+    setHasAskedForProviderContact(true);
+    setTimeout(() => {
+      addBotMessage(
+        '📋 Möchtest du noch die Kontaktdaten des Anbieters (Makler/Verkäufer) speichern?\n\n' +
+        'Das hilft dir später, den Makler oder Verkäufer zu kontaktieren.\n\n' +
+        'Du kannst mir einfach die Infos hier im Chat schreiben, z.B.:\n' +
+        '• "Der Makler heißt Max Mustermann, E-Mail max@immobilien.de, Telefon 0123-456789"\n' +
+        '• "Kontakt: Maria Schmidt, maria@maklerbüro.de"\n\n' +
+        'Oder antworte mit "Nein", wenn du das überspringen möchtest.'
+      );
+    }, 1000);
+  }, [isImportMode, listingData.id, providerContact, hasAskedForProviderContact, isLoadingProviderContact, addBotMessage]);
+
   // Initialize welcome messages
   useEffect(() => {
     if (loading || isLoadingProperty) return;
@@ -288,12 +333,16 @@ export function PropertyListingManager({ propertyId, mode = 'create', initialCal
 
       const welcomeMessage = `Du möchtest ein Objekt in **${initialCalculatorData.location}** für **${formattedPrice}** und **${initialCalculatorData.sqm} qm** Wohnfläche importieren.
 
-Du kannst jetzt:
+Um das Objekt zu speichern, benötige ich noch:
+• **Objekttyp** (z.B. "Wohnung", "Haus", etc.)
+• **Zimmeranzahl**
+
+Du kannst außerdem:
 • **Notizen hinzufügen** – Schreibe einfach ins Textfeld
 • **Bilder hochladen** – Klicke auf das + Symbol
 • **Dokumente hochladen** – Klicke auf das + Symbol
 
-Wenn du fertig bist, klicke auf **„In den Favoriten übernehmen"**.`;
+Sobald Objekttyp und Zimmeranzahl angegeben sind, kannst du das Objekt **„In den Favoriten übernehmen"**.`;
 
       addBotMessage(welcomeMessage);
 
@@ -307,9 +356,15 @@ Wenn du fertig bist, klicke auf **„In den Favoriten übernehmen"**.`;
         monthly_rent: initialCalculatorData.monthlyRent,
         monthly_fee: initialCalculatorData.monthlyFee,
         commission_rate: initialCalculatorData.commissionRate,
+        is_external: true,
       }));
     } else if (isImportMode) {
       initializeWelcomeMessages('import');
+      // Mark as external property
+      setListingData(prev => ({
+        ...prev,
+        is_external: true,
+      }));
     } else {
       initializeWelcomeMessages('create');
     }
@@ -326,6 +381,28 @@ Wenn du fertig bist, klicke auf **„In den Favoriten übernehmen"**.`;
 
     // Re-focus input field after sending
     setTimeout(() => textInputRef.current?.focus(), 100);
+
+    // Check if user is answering provider contact question
+    if (hasAskedForProviderContact && !showProviderContactEditor) {
+      const lowerMessage = userMessage.toLowerCase();
+      if (lowerMessage.includes('nein') || lowerMessage.includes('no') || lowerMessage.includes('nicht')) {
+        addBotMessage('Alles klar! Du kannst die Kontaktdaten später jederzeit im Bereich "Anbieter-Informationen" hinzufügen.');
+        setTimeout(() => textInputRef.current?.focus(), 200);
+        return;
+      }
+      // If user provides info (not just "ja"), let AI extract it
+      // If user just says "ja", prompt for details
+      if ((lowerMessage === 'ja' || lowerMessage === 'yes' || lowerMessage === 'gerne') && userMessage.length < 10) {
+        addBotMessage(
+          'Super! Gib mir bitte die Kontaktdaten, z.B.:\n\n' +
+          '"Max Mustermann, E-Mail: max@immobilien.de, Telefon: 0123-456789, Firma: Mustermann Immobilien GmbH"'
+        );
+        setTimeout(() => textInputRef.current?.focus(), 200);
+        return;
+      }
+      // User provided details - let AI extract them
+      setShowProviderContactEditor(true);
+    }
 
     try {
       // Call AI extraction (conversation history does NOT include the new user message yet)
@@ -373,6 +450,38 @@ Wenn du fertig bist, klicke auf **„In den Favoriten übernehmen"**.`;
       // Add bot response (AI already provides confirmation)
       addBotMessage(result.response, result.extractedData);
 
+      // If provider contact data was extracted, save it immediately
+      if (listingData.id && newData.provider_email) {
+        console.log('[PropertyListingManager] Provider contact data extracted, saving...');
+        console.log('[PropertyListingManager] Provider data:', {
+          provider_name: newData.provider_name,
+          provider_email: newData.provider_email,
+          provider_phone: newData.provider_phone,
+          provider_company: newData.provider_company,
+        });
+        try {
+          await saveProviderContactMutation.mutateAsync({
+            property_id: listingData.id,
+            provider_name: newData.provider_name || undefined,
+            provider_email: newData.provider_email,
+            provider_phone: newData.provider_phone || undefined,
+            provider_company: newData.provider_company || undefined,
+          });
+          console.log('[PropertyListingManager] Provider contact saved successfully');
+          // Refetch provider contact to update UI
+          await refetchProviderContact();
+          // Show editor to display the saved data
+          setShowProviderContactEditor(true);
+          // Add confirmation message
+          setTimeout(() => {
+            addBotMessage('✅ Perfekt! Ich habe die Kontaktdaten gespeichert. Du kannst sie unten im Bereich "Anbieter-Informationen" sehen und bei Bedarf anpassen.');
+          }, 500);
+        } catch (error) {
+          console.error('[PropertyListingManager] Error saving provider contact:', error);
+          addBotMessage('⚠️ Fehler beim Speichern der Kontaktdaten. Bitte versuche es erneut.');
+        }
+      }
+
       // Re-focus input after bot response
       setTimeout(() => textInputRef.current?.focus(), 200);
 
@@ -399,7 +508,7 @@ Wenn du fertig bist, klicke auf **„In den Favoriten übernehmen"**.`;
         'Entschuldigung, da ist etwas schiefgegangen. Kannst du es bitte nochmal versuchen?'
       );
     }
-  }, [textInput, extractDataMutation, listingData, conversationHistory, addUserMessage, setTextInput, updateConversationHistory, addBotMessage, setIsComplete, textInputRef, isEditMode, isImportMode]);
+  }, [textInput, extractDataMutation, listingData, conversationHistory, addUserMessage, setTextInput, updateConversationHistory, addBotMessage, setIsComplete, textInputRef, isEditMode, isImportMode, hasAskedForProviderContact, showProviderContactEditor]);
 
   // Convert German enum values to English
   const convertToEnglishEnums = (data: any) => {
@@ -649,7 +758,7 @@ Wenn du fertig bist, klicke auf **„In den Favoriten übernehmen"**.`;
   const handleSubmit = async (skipImageCheck = false) => {
     // Check required fields: property_type, location, price, sqm, rooms
     const hasRequired = listingData.property_type && listingData.location && listingData.price && listingData.sqm && listingData.rooms;
-    if (!hasRequired && !isEditMode && !isImportMode) {
+    if (!hasRequired && !isEditMode) {
       alert('Bitte fülle alle erforderlichen Felder aus: Typ, Ort, Preis, Fläche, Zimmer.');
       return;
     }
@@ -669,8 +778,20 @@ Wenn du fertig bist, klicke auf **„In den Favoriten übernehmen"**.`;
 
       // Prepare property data and convert German enums to English
       // Note: If no images, we pass empty array - frontend shows PropertyImagePlaceholder
+      const generatedTitle = generatePropertyTitle(listingData);
+
+      // Validate title (backend requires min 3 characters)
+      if (!generatedTitle || generatedTitle.trim().length < 3) {
+        console.error('[handleSubmit] Generated title is invalid:', generatedTitle);
+        alert('Der Titel konnte nicht generiert werden. Bitte stelle sicher, dass mindestens Objekttyp und Ort angegeben sind.');
+        setIsSubmitting(false);
+        return;
+      }
+
       const propertyData = convertToEnglishEnums({
         ...listingData,
+        // Auto-generate title using intelligent German format
+        title: generatedTitle,
         afa_type: calculatedAfaType,
         user_id: user?.id,
         images: uploadedImages.length > 0 ? uploadedImages : [],
@@ -686,6 +807,7 @@ Wenn du fertig bist, klicke auf **„In den Favoriten übernehmen"**.`;
       // Debug logging
       console.log('[handleSubmit] propertyData:', propertyData);
       console.log('[handleSubmit] cleanData:', cleanData);
+      console.log('[handleSubmit] title:', cleanData.title);
       console.log('[handleSubmit] property_type in cleanData:', cleanData.property_type);
 
       if (isEditMode && propertyId) {
@@ -695,20 +817,51 @@ Wenn du fertig bist, klicke auf **„In den Favoriten übernehmen"**.`;
           ...cleanData,
         });
 
-        // Success
-        addBotMessage('Dein Inserat wurde erfolgreich aktualisiert! Ich leite dich zur Übersicht weiter...');
+        // Success - different message for external vs normal properties
+        const successMessage = listingData.is_external
+          ? 'Deine Immobilie wurde erfolgreich aktualisiert! Ich leite dich zu deinen Favoriten weiter...'
+          : 'Dein Inserat wurde erfolgreich aktualisiert! Ich leite dich zur Übersicht weiter...';
+        addBotMessage(successMessage);
       } else if (isImportMode) {
         // Import mode: Create property and add to favorites
+        console.log('[Import] Starting property creation with data:', cleanData);
+
         const createdProperty = await createPropertyMutation.mutateAsync({
           ...cleanData,
           is_external: true,
+          status: 'active', // Active status shows in favorites, but is_external=true keeps it private
         });
+
+        console.log('[Import] Property created:', createdProperty);
+
+        // Update listingData with the created property ID and is_external flag
+        setListingData(prev => ({
+          ...prev,
+          id: createdProperty.id,
+          is_external: true,
+        }));
 
         // Add to favorites
         if (createdProperty?.id) {
-          await addFavoriteMutation.mutateAsync({ propertyId: createdProperty.id });
-          // Invalidate favorites cache so the new favorite shows up
-          await utils.favorites.getAll.invalidate();
+          console.log('[Import] Adding property to favorites:', createdProperty.id);
+          try {
+            await addFavoriteMutation.mutateAsync({ propertyId: createdProperty.id });
+            console.log('[Import] Property added to favorites successfully');
+
+            // Invalidate favorites cache so the new favorite shows up
+            await utils.favorites.getAll.invalidate();
+            console.log('[Import] Favorites cache invalidated');
+          } catch (favoriteError) {
+            console.error('[Import] Error adding to favorites:', favoriteError);
+            // Even if adding to favorites fails, we should still show success
+            // because the property was created
+            addBotMessage('Die Immobilie wurde gespeichert, aber konnte nicht zu den Favoriten hinzugefügt werden. Bitte versuche es später erneut.');
+            setIsSubmitting(false);
+            return;
+          }
+        } else {
+          console.error('[Import] No property ID returned after creation');
+          throw new Error('Property wurde erstellt, aber keine ID zurückgegeben');
         }
 
         // Success
@@ -722,7 +875,12 @@ Wenn du fertig bist, klicke auf **„In den Favoriten übernehmen"**.`;
       }
 
       setTimeout(() => {
-        router.push(isImportMode ? '/favorites' : '/my-properties');
+        // Externe Properties (import oder edit) → favorites
+        // Normale Properties → my-properties
+        const targetPage = isImportMode || (isEditMode && listingData.is_external)
+          ? '/favorites'
+          : '/my-properties';
+        router.push(targetPage);
       }, 2000);
     } catch (error) {
       console.error('Error saving property:', error);
@@ -754,6 +912,8 @@ Wenn du fertig bist, klicke auf **„In den Favoriten übernehmen"**.`;
 
       const propertyData = convertToEnglishEnums({
         ...listingData,
+        // Auto-generate title using intelligent German format
+        title: generatePropertyTitle(listingData),
         afa_type: calculatedAfaType,
         user_id: user?.id,
         images: uploadedImages.length > 0 ? uploadedImages : [],
@@ -1634,8 +1794,11 @@ Wenn du fertig bist, klicke auf **„In den Favoriten übernehmen"**.`;
       user_type: profile?.user_type || 'private',
       phone: profile?.phone || null,
     } : undefined,
+    // Provider contact (for external properties)
+    provider_contact: providerContact || undefined,
+    is_external: listingData.is_external,
     // Note: Seller evaluation is shown separately via SellerAnalysis component
-  }), [listingData, uploadedImages, videoUrl, documents, user, profile, hasRequiredFields, determineAfaType]);
+  }), [listingData, uploadedImages, videoUrl, documents, user, profile, hasRequiredFields, determineAfaType, providerContact]);
 
   // Convert messages from Message format to ChatMessage format for UniversalChat
   const convertedMessages: ChatMessage[] = useMemo(() => {
@@ -1712,7 +1875,11 @@ Wenn du fertig bist, klicke auf **„In den Favoriten übernehmen"**.`;
             <UniversalChat
               messages={convertedMessages}
               header={{
-                title: isEditMode ? "Inserat bearbeiten" : "Inserat erstellen",
+                title: isEditMode && isImportMode
+                  ? "Objekt bearbeiten"
+                  : isEditMode
+                  ? "Inserat bearbeiten"
+                  : (isImportMode ? "Objekt importieren" : "Inserat erstellen"),
                 icon: <Sparkles className="w-5 h-5 text-primary" />,
               }}
               input={{
@@ -1758,11 +1925,18 @@ Wenn du fertig bist, klicke auf **„In den Favoriten übernehmen"**.`;
                         onDocumentSelect={setSelectedDocument}
                         onDocumentsChange={(updatedDocs) => setDocuments(updatedDocs)}
                         onDocumentRemove={removeDocument}
+                        hideDocumentVisibilityControls={isImportMode || (isEditMode && !!listingData.is_external)}
+                        hideMetricsCards={isImportMode || (isEditMode && !!listingData.is_external)}
+                        showProviderContactEditor={showProviderContactEditor}
+                        onProviderContactUpdate={() => {
+                          console.log('[PropertyListingManager] Provider contact updated, refetching...');
+                          refetchProviderContact();
+                        }}
                       />
                     </div>
 
                     {/* Fixed Submit Button(s) - Show when required fields are filled */}
-                    {(hasRequiredFields || isEditMode || isImportMode) && (
+                    {(hasRequiredFields || isEditMode) && (
                       <div className="flex-shrink-0 bg-white border-t border-gray-200 p-4 lg:p-6">
                         {/* For Edit and Import mode: Single button */}
                         {(isEditMode || isImportMode) ? (

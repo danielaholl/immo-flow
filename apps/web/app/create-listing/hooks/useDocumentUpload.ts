@@ -25,7 +25,10 @@ interface UseDocumentUploadResult {
   setDocuments: React.Dispatch<React.SetStateAction<PropertyDocument[]>>;
 }
 
-export function useDocumentUpload(onSuccess?: (doc: PropertyDocument) => void): UseDocumentUploadResult {
+export function useDocumentUpload(
+  onSuccess?: (doc: PropertyDocument) => void,
+  mode?: 'create' | 'edit' | 'import'
+): UseDocumentUploadResult {
   const [documents, setDocuments] = useState<PropertyDocument[]>([]);
   const [isUploadingDocument, setIsUploadingDocument] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -100,7 +103,7 @@ export function useDocumentUpload(onSuccess?: (doc: PropertyDocument) => void): 
       // Auto-assign visibility based on category (KI auto-categorization)
       const docWithVisibility: PropertyDocument = {
         ...doc,
-        visibility: doc.visibility || getDefaultVisibility(category),
+        visibility: doc.visibility || getDefaultVisibility(category, mode),
       };
       setDocuments(prev => [...prev, docWithVisibility]);
 
@@ -116,7 +119,7 @@ export function useDocumentUpload(onSuccess?: (doc: PropertyDocument) => void): 
       setIsUploadingDocument(false);
       setUploadProgress(0);
     }
-  }, [onSuccess]);
+  }, [onSuccess, mode]);
 
   const removeDocument = useCallback((id: string) => {
     setDocuments(prev => prev.filter(doc => doc.id !== id));

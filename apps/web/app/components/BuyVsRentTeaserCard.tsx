@@ -3,6 +3,7 @@
 import React, { useMemo } from 'react';
 import Link from 'next/link';
 import { Home, ArrowRight } from 'lucide-react';
+import { trpc } from '@/app/providers/TRPCProvider';
 
 // Grunderwerbsteuer nach Bundesland
 const GRUNDERWERBSTEUER_SAETZE: Record<string, number> = {
@@ -96,6 +97,12 @@ export function BuyVsRentTeaserCard({
   userParams,
   className = '',
 }: BuyVsRentTeaserCardProps) {
+  // Calculator defaults from database
+  const { data: calculatorDefaults } = trpc.calculatorDefaults.getDefaults.useQuery(undefined, {
+    staleTime: 1000 * 60 * 5,
+    refetchOnWindowFocus: false,
+  });
+
   const interestRate = parseNum(userParams?.interest_rate ?? interestRateProp, 3.5);
   const amortizationRate = parseNum(userParams?.amortization_rate ?? amortizationRateProp, 2.0);
   const equityPercentage = parseNum(userParams?.equity_percentage ?? equityPercentageProp, 20);
@@ -115,11 +122,14 @@ export function BuyVsRentTeaserCard({
     if (userHausgeld > 0) return userHausgeld;
     if (monthlyFee && monthlyFee > 0) return monthlyFee;
     if (sqm > 0) {
-      const hausgeldProQm = yearBuilt && yearBuilt >= 1980 ? 2.50 : 3.50;
+      // Use calculator defaults from database, with fallback values
+      const hausgeldModern = calculatorDefaults?.hausgeldPerSqmModern ?? 2.50;
+      const hausgeldOld = calculatorDefaults?.hausgeldPerSqmOld ?? 3.50;
+      const hausgeldProQm = yearBuilt && yearBuilt >= 1980 ? hausgeldModern : hausgeldOld;
       return sqm * hausgeldProQm;
     }
     return 0;
-  }, [userParams?.monthly_fee, monthlyFee, sqm, yearBuilt]);
+  }, [userParams?.monthly_fee, monthlyFee, sqm, yearBuilt, calculatorDefaults]);
 
   const detectedState = detectStateFromLocation(location);
   const grunderwerbsteuerRate = detectedState ? GRUNDERWERBSTEUER_SAETZE[detectedState] : 5.0;
@@ -177,7 +187,7 @@ export function BuyVsRentTeaserCard({
   if (!analysis) return null;
 
   return (
-    <Link href={`/property/${propertyId}/calculator`} className="block group">
+    <Link href={`/property/${propertyId}/calculator?mode=eigennutzer`} className="block group">
       <div className={`bg-white rounded-xl border border-gray-200 overflow-hidden transition-all duration-200 hover:shadow-lg hover:border-gray-300 ${className}`}>
         {/* Header */}
         <div className="p-5 pb-4">

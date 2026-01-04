@@ -8,6 +8,11 @@ import { query, queryOne } from '../db.js';
 import { evaluatePropertyInvestment } from '../services/property-investment-evaluator.js';
 import { getOpenAIClient, buildSystemPrompt } from '../utils/openai.js';
 import { generateClaudeFazit, generateAIScoreAnalysis, AIScoreAnalysisInput } from '../utils/claude.js';
+import { generateOpenAIInvestorAdvice } from '../utils/openai.js';
+import { generateClaudeInvestorAdvice } from '../utils/claude.js';
+import { calculateOptimalNegotiationPrice, calculateFairValue } from '../services/negotiation-calculator.js';
+import { getEffectiveDefaults, getHausgeldPerSqmForYear } from '../services/calculator-defaults-service.js';
+import crypto from 'crypto';
 
 export const evaluationsRouter = router({
   // Calculate AI Score for manual input (no property required)
@@ -670,6 +675,277 @@ Antworte im angeforderten JSON-Format mit Fazit und Tipps.`;
       } catch (error) {
         console.error('AI Fazit generation error:', error);
         throw new Error('KI-Fazit konnte nicht generiert werden');
+      }
+    }),
+
+  // Generate Investor Negotiation Advice with dual AI comparison
+  // Works with or without propertyId (for manual calculator usage)
+  generateInvestorNegotiationAdvice: protectedProcedure
+    .input(z.object({
+      propertyId: z.string().uuid().optional(), // Optional for manual usage
+      propertyData: z.object({
+        title: z.string().optional(),
+        sqm: z.number(),
+        location: z.string().optional(),
+        postalCode: z.string().optional(),
+        yearBuilt: z.number().optional(),
+      }),
+      calculatorInputs: z.object({
+        kaufpreis: z.number(),
+        miete: z.number(),
+        eigenkapital: z.number(), // Percentage
+        tilgung: z.number(), // Percentage
+        hausgeld: z.number().optional(),
+        cashflow: z.number(),
+        breakEvenPrice: z.number().optional(),
+        zinssatz: z.number(),
+      }),
+      forceRegenerate: z.boolean().optional().default(false),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      try {
+        // If propertyId provided, load property data from DB
+        let propertyInfo: {
+          title: string;
+          sqm: number;
+          location: string;
+          postal_code: string | null;
+          year_built: number | null;
+        };
+
+        if (input.propertyId) {
+          const property = await queryOne<{
+            id: string;
+            user_id: string;
+            title: string;
+            price: number;
+            sqm: number;
+            location: string;
+            postal_code: string | null;
+            year_built: number | null;
+          }>(
+            `SELECT id, user_id, title, price, sqm, location, postal_code, year_built
+             FROM properties WHERE id = $1`,
+            [input.propertyId]
+          );
+
+          if (!property || property.user_id !== ctx.user.id) {
+            throw new Error('Property not found or unauthorized');
+          }
+
+          propertyInfo = {
+            title: property.title,
+            sqm: property.sqm,
+            location: property.location,
+            postal_code: property.postal_code,
+            year_built: property.year_built,
+          };
+        } else {
+          // Use provided property data for manual calculator
+          propertyInfo = {
+            title: input.propertyData.title || 'Manueller Rechner',
+            sqm: input.propertyData.sqm,
+            location: input.propertyData.location || 'Nicht angegeben',
+            postal_code: input.propertyData.postalCode || null,
+            year_built: input.propertyData.yearBuilt || null,
+          };
+        }
+
+        // Load market data if postal code available
+        let marketData: { avg_purchase_price_sqm: number | null; avg_rent_sqm: number | null } | null = null;
+        if (propertyInfo.postal_code) {
+          marketData = await queryOne<{
+            avg_purchase_price_sqm: number | null;
+            avg_rent_sqm: number | null;
+          }>(
+            `SELECT avg_purchase_price_sqm, avg_rent_sqm
+             FROM plz_market_data WHERE plz = $1`,
+            [propertyInfo.postal_code]
+          );
+        }
+
+        // Generate input hash for caching (v4 with fair value)
+        const inputHash = crypto
+          .createHash('sha256')
+          .update(JSON.stringify({
+            version: 'v4-fairvalue', // Cache version to invalidate old caches
+            kaufpreis: input.calculatorInputs.kaufpreis,
+            miete: input.calculatorInputs.miete,
+            eigenkapital: input.calculatorInputs.eigenkapital,
+            tilgung: input.calculatorInputs.tilgung,
+            hausgeld: input.calculatorInputs.hausgeld || 0,
+          }))
+          .digest('hex');
+
+        // Check cache if not forcing regeneration AND propertyId exists
+        if (!input.forceRegenerate && input.propertyId) {
+          const cached = await queryOne<{
+            investor_negotiation_openai: string | null;
+            investor_negotiation_claude: string | null;
+            investor_target_price_openai: number | null;
+            investor_target_price_claude: number | null;
+            investor_advice_generated_at: Date | null;
+            investor_advice_inputs_hash: string | null;
+          }>(
+            `SELECT investor_negotiation_openai, investor_negotiation_claude,
+                    investor_target_price_openai, investor_target_price_claude,
+                    investor_advice_generated_at, investor_advice_inputs_hash
+             FROM user_property_parameters
+             WHERE user_id = $1 AND property_id = $2 AND investor_advice_inputs_hash = $3`,
+            [ctx.user.id, input.propertyId, inputHash]
+          );
+
+          // Cache valid if exists and < 24h old
+          if (cached?.investor_negotiation_openai && cached?.investor_negotiation_claude && cached?.investor_advice_generated_at) {
+            const cacheAge = Date.now() - new Date(cached.investor_advice_generated_at).getTime();
+            const cacheTTL = 24 * 60 * 60 * 1000; // 24 hours
+
+            if (cacheAge < cacheTTL) {
+              return {
+                openai: {
+                  fazit: cached.investor_negotiation_openai,
+                  targetPrice: cached.investor_target_price_openai || 0,
+                },
+                claude: {
+                  fazit: cached.investor_negotiation_claude,
+                  targetPrice: cached.investor_target_price_claude || 0,
+                },
+                cached: true,
+                generatedAt: cached.investor_advice_generated_at,
+              };
+            }
+          }
+        }
+        // Note: No DB caching for manual calculator usage (without propertyId)
+
+        // Load calculator defaults for hausgeld comparison
+        const defaults = await getEffectiveDefaults(ctx.user.id);
+        const expectedHausgeldPerSqm = getHausgeldPerSqmForYear(defaults, propertyInfo.year_built);
+        const expectedHausgeld = expectedHausgeldPerSqm * propertyInfo.sqm;
+        const actualHausgeld = input.calculatorInputs.hausgeld || 0;
+
+        // Calculate baseline negotiation price
+        const negotiationStrategy = calculateOptimalNegotiationPrice(
+          input.calculatorInputs.kaufpreis,
+          marketData?.avg_purchase_price_sqm || null,
+          propertyInfo.sqm,
+          input.calculatorInputs.cashflow,
+          input.calculatorInputs.breakEvenPrice || null
+        );
+
+        // Calculate fair value (objective property value)
+        const fairValueCalc = calculateFairValue(
+          propertyInfo.sqm,
+          input.calculatorInputs.miete || 0,
+          marketData?.avg_purchase_price_sqm || null,
+          input.calculatorInputs.breakEvenPrice || null,
+          input.calculatorInputs.kaufpreis
+        );
+
+        // Prepare AI input
+        const aiInput = {
+          propertyTitle: propertyInfo.title,
+          price: input.calculatorInputs.kaufpreis,
+          sqm: propertyInfo.sqm,
+          location: propertyInfo.location,
+          postalCode: propertyInfo.postal_code || undefined,
+          yearBuilt: propertyInfo.year_built || undefined,
+          currentRent: input.calculatorInputs.miete,
+          marketAvgPricePerSqm: marketData?.avg_purchase_price_sqm || undefined,
+          marketAvgRentPerSqm: marketData?.avg_rent_sqm || undefined,
+          cashflow: input.calculatorInputs.cashflow,
+          breakEvenPrice: input.calculatorInputs.breakEvenPrice,
+          eigenkapital: input.calculatorInputs.eigenkapital,
+          tilgung: input.calculatorInputs.tilgung,
+          interestRate: input.calculatorInputs.zinssatz,
+          hausgeld: actualHausgeld,
+          expectedHausgeldPerSqm: expectedHausgeldPerSqm,
+          expectedHausgeld: expectedHausgeld,
+          // Fair value calculation results
+          fairValue: fairValueCalc.fairValue,
+          actualYield: fairValueCalc.actualYield,
+          valueDeviation: fairValueCalc.valueDeviation,
+        };
+
+        // Run both AIs in parallel
+        const [openaiResult, claudeResult] = await Promise.allSettled([
+          generateOpenAIInvestorAdvice(aiInput),
+          generateClaudeInvestorAdvice(aiInput),
+        ]);
+
+        // Extract results with fallback
+        const openaiAdvice = openaiResult.status === 'fulfilled'
+          ? openaiResult.value
+          : {
+              fazit: 'OpenAI-Analyse aktuell nicht verfügbar.',
+              targetPrice: negotiationStrategy.targetPrice,
+              negotiationStrategy: negotiationStrategy.reasoning,
+              empfehlung: 'VERHANDELN & KAUFEN',
+            };
+
+        const claudeAdvice = claudeResult.status === 'fulfilled'
+          ? claudeResult.value
+          : {
+              fazit: 'Claude-Analyse aktuell nicht verfügbar.',
+              targetPrice: negotiationStrategy.targetPrice,
+              negotiationStrategy: negotiationStrategy.reasoning,
+              empfehlung: 'VERHANDELN & KAUFEN',
+            };
+
+        // Store in database only if propertyId exists
+        if (input.propertyId) {
+          await query(
+            `INSERT INTO user_property_parameters (
+              user_id, property_id,
+              investor_negotiation_openai, investor_negotiation_claude,
+              investor_target_price_openai, investor_target_price_claude,
+              investor_advice_generated_at, investor_advice_inputs_hash
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7)
+            ON CONFLICT (user_id, property_id)
+            DO UPDATE SET
+              investor_negotiation_openai = EXCLUDED.investor_negotiation_openai,
+              investor_negotiation_claude = EXCLUDED.investor_negotiation_claude,
+              investor_target_price_openai = EXCLUDED.investor_target_price_openai,
+              investor_target_price_claude = EXCLUDED.investor_target_price_claude,
+              investor_advice_generated_at = EXCLUDED.investor_advice_generated_at,
+              investor_advice_inputs_hash = EXCLUDED.investor_advice_inputs_hash`,
+            [
+              ctx.user.id,
+              input.propertyId,
+              openaiAdvice.fazit,
+              claudeAdvice.fazit,
+              openaiAdvice.targetPrice,
+              claudeAdvice.targetPrice,
+              inputHash,
+            ]
+          );
+        }
+
+        return {
+          openai: {
+            fazit: openaiAdvice.fazit,
+            targetPrice: openaiAdvice.targetPrice,
+            strategy: openaiAdvice.negotiationStrategy,
+            empfehlung: openaiAdvice.empfehlung,
+          },
+          claude: {
+            fazit: claudeAdvice.fazit,
+            targetPrice: claudeAdvice.targetPrice,
+            strategy: claudeAdvice.negotiationStrategy,
+            empfehlung: claudeAdvice.empfehlung,
+          },
+          baseline: {
+            targetPrice: negotiationStrategy.targetPrice,
+            reasoning: negotiationStrategy.reasoning,
+            discount: negotiationStrategy.discount,
+          },
+          cached: false,
+          generatedAt: new Date(),
+        };
+      } catch (error) {
+        console.error('Investor negotiation advice error:', error);
+        throw new Error('Verhandlungsempfehlung konnte nicht generiert werden');
       }
     }),
 });

@@ -507,7 +507,7 @@ export default function AnalysisResultsPage() {
           </button>
           <button
             onClick={() => router.back()}
-            className="px-8 py-3 border-2 border-gray-300 bg-white text-[#484848] rounded-xl font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all shadow-sm hover:shadow-md"
+            className="px-8 py-3 border-2 border-gray-300 bg-white text-[#484848] rounded-xl font-semibold hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm hover:shadow-md"
           >
             ← Zurück
           </button>

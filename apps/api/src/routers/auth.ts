@@ -204,4 +204,99 @@ export const authRouter = router({
 
       return profile;
     }),
+
+  // Create provider account from invitation
+  createProviderAccount: publicProcedure
+    .input(z.object({
+      invitation_token: z.string(),
+      password: z.string().min(8),
+      first_name: z.string().optional(),
+      last_name: z.string().optional(),
+      company: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      // Verify invitation token
+      let tokenPayload: { email: string; property_id: string; invited_by_user_id: string };
+      try {
+        tokenPayload = jwt.verify(input.invitation_token, JWT_SECRET) as {
+          email: string;
+          property_id: string;
+          invited_by_user_id: string;
+        };
+      } catch (error) {
+        throw new Error('Invalid or expired invitation token');
+      }
+
+      // Check if user already exists
+      const existingUser = await queryOne('SELECT id FROM users WHERE email = $1', [
+        tokenPayload.email,
+      ]);
+
+      if (existingUser) {
+        throw new Error('Account already exists with this email');
+      }
+
+      // Create user account
+      const passwordHash = await bcrypt.hash(input.password, 10);
+
+      const user = await queryOne(
+        `INSERT INTO users (email, password_hash, email_confirmed)
+         VALUES ($1, $2, $3)
+         RETURNING id, email`,
+        [tokenPayload.email, passwordHash, true] // Auto-verify via invitation
+      );
+
+      if (!user) {
+        throw new Error('Failed to create user');
+      }
+
+      // Create user profile
+      await queryOne(
+        `INSERT INTO user_profiles (user_id, first_name, last_name, company, is_seller, is_buyer)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          user.id,
+          input.first_name || null,
+          input.last_name || null,
+          input.company || null,
+          true, // is_seller = true for providers
+          false, // is_buyer = false
+        ]
+      );
+
+      // Create makler_free subscription
+      const oneYearFromNow = new Date();
+      oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+
+      await queryOne(
+        `INSERT INTO subscriptions (user_id, plan_type, status, current_period_start, current_period_end)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [user.id, 'makler_free', 'active', new Date(), oneYearFromNow]
+      );
+
+      // Grant 1 free property listing + 3 free AI evaluations
+      await queryOne(
+        `INSERT INTO user_credits (user_id, credit_type, amount, expires_at)
+         VALUES ($1, $2, $3, $4), ($1, $5, $6, $4)`,
+        [user.id, 'property_listing', 1, oneYearFromNow, 'ai_evaluation', 3]
+      );
+
+      // Link provider contact to new user
+      await queryOne(
+        `UPDATE property_provider_contacts
+         SET linked_user_id = $1, invitation_accepted_at = $2
+         WHERE property_id = $3 AND provider_email = $4`,
+        [user.id, new Date(), tokenPayload.property_id, tokenPayload.email]
+      );
+
+      // Create auth token
+      const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
+
+      return {
+        user,
+        token,
+        free_evaluations: 3,
+        free_property_listing: 1,
+      };
+    }),
 });

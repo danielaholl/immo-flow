@@ -59,6 +59,13 @@ export interface PropertyFromAPI {
   seller_evaluation?: any;
   is_external?: boolean | null;
   user_id?: string;
+  // Provider contact (for imported properties)
+  provider_contact?: {
+    provider_name?: string | null;
+    provider_email?: string | null;
+    provider_phone?: string | null;
+    provider_company?: string | null;
+  } | null;
   created_at?: string;
   updated_at?: string;
   days_online?: number;
@@ -222,5 +229,16 @@ export function mapToPropertyPreviewData(
       bio: property.owner.bio ?? undefined,
       email: property.owner.email ?? undefined,
     } : undefined,
+
+    // Provider contact (for imported/external properties)
+    provider_contact: property.provider_contact ? {
+      provider_name: property.provider_contact.provider_name ?? undefined,
+      provider_email: property.provider_contact.provider_email ?? undefined,
+      provider_phone: property.provider_contact.provider_phone ?? undefined,
+      provider_company: property.provider_contact.provider_company ?? undefined,
+    } : undefined,
+
+    // Is external flag
+    is_external: property.is_external ?? undefined,
   };
 }

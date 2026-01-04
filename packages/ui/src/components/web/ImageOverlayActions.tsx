@@ -75,14 +75,16 @@ export function ImageOverlayActions({
       />
 
       {/* 4. Dismiss (X) */}
-      <ImageOverlayButton
-        variant="default"
-        size={size}
-        icon={<X strokeWidth={2.5} />}
-        onClick={(e) => onDismiss?.(e as any)}
-        tooltip="Nicht interessiert"
-        ariaLabel="Nicht interessiert"
-      />
+      {onDismiss && (
+        <ImageOverlayButton
+          variant="default"
+          size={size}
+          icon={<X strokeWidth={2.5} />}
+          onClick={(e) => onDismiss?.(e as any)}
+          tooltip="Nicht interessiert"
+          ariaLabel="Nicht interessiert"
+        />
+      )}
     </div>
   );
 }

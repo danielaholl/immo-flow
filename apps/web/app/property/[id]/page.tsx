@@ -600,7 +600,7 @@ export default function PropertyPage() {
               isGeneratingEvaluation={isEvaluating}
               className="!shadow-none !rounded-none !bg-transparent"
               hasConsent={hasConsent}
-              isOwner={isOwnerForUI}
+              isOwner={Boolean(isOwner)}
               consentLoading={consentLoading}
               isUserLoggedIn={Boolean(user)}
               onGrantConsent={handleGrantConsent}
@@ -622,6 +622,7 @@ export default function PropertyPage() {
               userPropertyParams={userPropertyParams}
               onSaveUserPropertyParams={handleSaveUserPropertyParams}
               isSavingUserPropertyParams={saveUserPropertyParamsMutation.isLoading}
+              isMobile={isMobile}
             />
 
             {/* Action Buttons - inline unter PropertyPreview */}

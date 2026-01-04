@@ -122,6 +122,12 @@ export function KeyMetricsPanel({
     refetchOnWindowFocus: false,
   });
 
+  // Calculator defaults from database
+  const { data: calculatorDefaults } = trpc.calculatorDefaults.getDefaults.useQuery(undefined, {
+    staleTime: 1000 * 60 * 5,
+    refetchOnWindowFocus: false,
+  });
+
   // Zeige Edit-Button nur wenn propertyId und onSaveParams vorhanden
   const canEdit = !!propertyId && !!onSaveParams;
 
@@ -168,7 +174,10 @@ export function KeyMetricsPanel({
   const calculateHausgeld = (): number => {
     if (monthlyFee && Number(monthlyFee) > 0) return Number(monthlyFee);
     if (sqm) {
-      const hausgeldProQm = yearBuilt && Number(yearBuilt) >= 1980 ? 2.50 : 3.50;
+      // Use calculator defaults from database, with fallback values
+      const hausgeldModern = calculatorDefaults?.hausgeldPerSqmModern ?? 2.50;
+      const hausgeldOld = calculatorDefaults?.hausgeldPerSqmOld ?? 3.50;
+      const hausgeldProQm = yearBuilt && Number(yearBuilt) >= 1980 ? hausgeldModern : hausgeldOld;
       return Number(sqm) * hausgeldProQm;
     }
     return 0;

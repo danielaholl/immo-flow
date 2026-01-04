@@ -495,7 +495,7 @@ export const propertiesRouter = router({
         buildPropertyQuery({
           includeOwner: false,
           includeStats: 'extended',
-          whereClause: 'p.user_id = $1',
+          whereClause: 'p.user_id = $1 AND (p.is_external = false OR p.is_external IS NULL)',
           orderBy: 'p.created_at DESC',
         }),
         [ctx.user.id]
@@ -2020,5 +2020,117 @@ export const propertiesRouter = router({
         images: row.images || [],
         ai_investment_score: Number(row.ai_investment_score || 0),
       }));
+    }),
+
+  // Get provider contact for property
+  getProviderContact: protectedProcedure
+    .input(z.object({
+      propertyId: z.string().uuid(),
+    }))
+    .query(async ({ input, ctx }) => {
+      // Verify user owns or favorited this property
+      const property = await queryOne(
+        'SELECT id, user_id FROM properties WHERE id = $1',
+        [input.propertyId]
+      );
+
+      if (!property) {
+        throw new Error('Property not found');
+      }
+
+      const isFavorited = await queryOne(
+        'SELECT id FROM favorites WHERE user_id = $1 AND property_id = $2',
+        [ctx.user.id, input.propertyId]
+      );
+
+      if (property.user_id !== ctx.user.id && !isFavorited) {
+        throw new Error('Unauthorized');
+      }
+
+      // Get provider contact
+      const contact = await queryOne(
+        `SELECT
+          provider_name,
+          provider_email,
+          provider_phone,
+          provider_company
+         FROM property_provider_contacts
+         WHERE property_id = $1`,
+        [input.propertyId]
+      );
+
+      return contact || null;
+    }),
+
+  // Save provider contact for imported property
+  saveProviderContact: protectedProcedure
+    .input(z.object({
+      property_id: z.string().uuid(),
+      provider_name: z.string().optional(),
+      provider_email: z.string().email(),
+      provider_phone: z.string().optional(),
+      provider_company: z.string().optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      // Verify user owns or favorited this property
+      const property = await queryOne(
+        'SELECT id, user_id FROM properties WHERE id = $1',
+        [input.property_id]
+      );
+
+      if (!property) {
+        throw new Error('Property not found');
+      }
+
+      const isFavorited = await queryOne(
+        'SELECT id FROM favorites WHERE user_id = $1 AND property_id = $2',
+        [ctx.user.id, input.property_id]
+      );
+
+      if (property.user_id !== ctx.user.id && !isFavorited) {
+        throw new Error('Unauthorized');
+      }
+
+      // Check if provider already exists in system
+      let linkedUserId: string | null = null;
+      if (input.provider_email) {
+        const existingUser = await queryOne(
+          'SELECT id FROM users WHERE email = $1',
+          [input.provider_email.toLowerCase()]
+        );
+
+        if (existingUser) {
+          linkedUserId = existingUser.id;
+        }
+      }
+
+      // Insert or update provider contact
+      const providerContact = await queryOne(
+        `INSERT INTO property_provider_contacts
+         (property_id, provider_name, provider_email, provider_phone, provider_company, created_by_user_id, linked_user_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (property_id)
+         DO UPDATE SET
+           provider_name = $2,
+           provider_email = $3,
+           provider_phone = $4,
+           provider_company = $5,
+           updated_at = NOW()
+         RETURNING *`,
+        [
+          input.property_id,
+          input.provider_name || null,
+          input.provider_email.toLowerCase(),
+          input.provider_phone || null,
+          input.provider_company || null,
+          ctx.user.id,
+          linkedUserId,
+        ]
+      );
+
+      return {
+        provider_contact: providerContact,
+        has_account: !!linkedUserId,
+      };
     }),
 });

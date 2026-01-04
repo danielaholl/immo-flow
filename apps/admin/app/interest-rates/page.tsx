@@ -57,6 +57,12 @@ export default function InterestRatesPage() {
   const [totalPages, setTotalPages] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Edit mode state
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editedMatrix, setEditedMatrix] = useState<MatrixEntry[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [latestUpdateId, setLatestUpdateId] = useState<string | null>(null);
+
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
   // Get auth token from localStorage
@@ -90,6 +96,8 @@ export default function InterestRatesPage() {
       if (res.ok) {
         const data = await res.json();
         setMatrix(data.matrix || []);
+        setEditedMatrix(data.matrix || []); // Initialize edited state
+        setLatestUpdateId(data.update?.id || null); // Store update ID
       }
     } catch (error) {
       console.error('Error fetching matrix:', error);
@@ -199,6 +207,85 @@ export default function InterestRatesPage() {
     }
   };
 
+  // Save matrix changes
+  const saveMatrixChanges = async () => {
+    if (!latestUpdateId) {
+      setMessage({ type: 'error', text: 'Keine Update-ID gefunden' });
+      return;
+    }
+
+    setIsSaving(true);
+    setMessage(null);
+
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`${API_URL}/api/interest-rates/matrix/${latestUpdateId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ matrix: editedMatrix }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setMatrix(data.matrix || []);
+        setEditedMatrix(data.matrix || []);
+        setIsEditMode(false);
+        setMessage({
+          type: 'success',
+          text: 'Zinsmatrix erfolgreich aktualisiert',
+        });
+        // Refresh stats and history
+        fetchStats();
+        fetchHistory();
+      } else {
+        const error = await res.json();
+        setMessage({
+          type: 'error',
+          text: error.details || error.error || 'Fehler beim Speichern',
+        });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Netzwerkfehler beim Speichern' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Cancel editing
+  const cancelEditing = () => {
+    setEditedMatrix([...matrix]); // Reset to original
+    setIsEditMode(false);
+  };
+
+  // Update single cell
+  const updateMatrixCell = (ltv: number, years: number, newRate: string) => {
+    const rateValue = parseFloat(newRate);
+
+    // Validation
+    if (newRate === '' || isNaN(rateValue) || rateValue < 0 || rateValue >= 20) {
+      return; // Invalid input, ignore
+    }
+
+    setEditedMatrix(prev =>
+      prev.map(entry =>
+        entry.loanToValue === ltv && entry.fixedRateYears === years
+          ? { ...entry, interestRate: rateValue }
+          : entry
+      )
+    );
+  };
+
+  // Check if matrix has changes
+  const hasChanges = () => {
+    return editedMatrix.some((edited, idx) => {
+      const original = matrix[idx];
+      return !original || edited.interestRate !== original.interestRate;
+    });
+  };
+
   useEffect(() => {
     fetchStats();
     fetchMatrix();
@@ -227,10 +314,11 @@ export default function InterestRatesPage() {
     });
   };
 
-  // Get matrix value
-  const getMatrixRate = (ltv: number, years: number) => {
-    const entry = matrix.find(m => m.loanToValue === ltv && m.fixedRateYears === years);
-    return entry ? formatRate(entry.interestRate) : '-';
+  // Get matrix value (with edit support)
+  const getMatrixRate = (ltv: number, years: number): number | null => {
+    const sourceMatrix = isEditMode ? editedMatrix : matrix;
+    const entry = sourceMatrix.find(m => m.loanToValue === ltv && m.fixedRateYears === years);
+    return entry?.interestRate ?? null;
   };
 
   // Chart simple SVG
@@ -325,7 +413,7 @@ export default function InterestRatesPage() {
             Marktdaten
           </a>
           <a href="/interest-rates" className="block px-4 py-3 rounded-lg bg-primary/10 text-primary font-medium">
-            Zinssaetze
+            Finanzierung
           </a>
           <a href="/calculator-defaults" className="block px-4 py-3 rounded-lg text-text-secondary hover:bg-surface">
             Rechner-Defaults
@@ -338,7 +426,7 @@ export default function InterestRatesPage() {
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8">
-            <h2 className="text-3xl font-bold text-text-primary">Zinssaetze</h2>
+            <h2 className="text-3xl font-bold text-text-primary">Finanzierung</h2>
             <p className="text-text-secondary mt-2">
               Woechentliche Zinsupdates hochladen und verwalten
             </p>
@@ -434,7 +522,42 @@ export default function InterestRatesPage() {
           {/* Current Matrix */}
           {matrix.length > 0 && (
             <div className="bg-surface rounded-xl p-6 border border-border mb-8">
-              <h3 className="text-xl font-semibold text-text-primary mb-4">Aktuelle Zinsmatrix</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-semibold text-text-primary">Aktuelle Zinsmatrix</h3>
+
+                {!isEditMode ? (
+                  <button
+                    onClick={() => setIsEditMode(true)}
+                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors"
+                  >
+                    Bearbeiten
+                  </button>
+                ) : (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={cancelEditing}
+                      disabled={isSaving}
+                      className="px-4 py-2 bg-surface border border-border text-text-primary rounded-lg hover:bg-surface/80 transition-colors disabled:opacity-50"
+                    >
+                      Abbrechen
+                    </button>
+                    <button
+                      onClick={saveMatrixChanges}
+                      disabled={isSaving || !hasChanges()}
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isSaving ? 'Speichert...' : 'Speichern'}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {isEditMode && (
+                <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg text-blue-400 text-sm">
+                  Bearbeitungsmodus: Klicken Sie auf eine Zelle, um den Wert zu ändern.
+                  Änderungen werden erst nach Klick auf "Speichern" übernommen.
+                </div>
+              )}
 
               <div className="overflow-x-auto">
                 <table className="w-full">
@@ -454,13 +577,46 @@ export default function InterestRatesPage() {
                     {[50, 70, 80, 90, 100].map(ltv => (
                       <tr key={ltv} className="border-b border-border/50 hover:bg-surface/50">
                         <td className="py-3 px-4 text-text-primary font-medium">{ltv}%</td>
-                        <td className="py-3 px-4 text-center text-text-primary">{getMatrixRate(ltv, 5)}</td>
-                        <td className="py-3 px-4 text-center text-text-primary font-semibold text-primary">
-                          {getMatrixRate(ltv, 10)}
-                        </td>
-                        <td className="py-3 px-4 text-center text-text-primary">{getMatrixRate(ltv, 15)}</td>
-                        <td className="py-3 px-4 text-center text-text-primary">{getMatrixRate(ltv, 20)}</td>
-                        <td className="py-3 px-4 text-center text-text-primary">{getMatrixRate(ltv, 30)}</td>
+                        {[5, 10, 15, 20, 30].map(years => {
+                          const rate = getMatrixRate(ltv, years);
+                          const isHighlighted = ltv === 80 && years === 10;
+                          const originalEntry = matrix.find(
+                            m => m.loanToValue === ltv && m.fixedRateYears === years
+                          );
+                          const editedEntry = editedMatrix.find(
+                            m => m.loanToValue === ltv && m.fixedRateYears === years
+                          );
+                          const isChanged =
+                            hasChanges() &&
+                            originalEntry &&
+                            editedEntry &&
+                            originalEntry.interestRate !== editedEntry.interestRate;
+
+                          return (
+                            <td
+                              key={years}
+                              className={`py-3 px-4 text-center ${
+                                isHighlighted ? 'font-semibold text-primary' : 'text-text-primary'
+                              }`}
+                            >
+                              {isEditMode ? (
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  max="20"
+                                  value={rate !== null ? rate.toFixed(2) : ''}
+                                  onChange={e => updateMatrixCell(ltv, years, e.target.value)}
+                                  className={`w-full px-2 py-1 text-center bg-surface border rounded ${
+                                    isChanged ? 'border-yellow-500 bg-yellow-500/10' : 'border-border'
+                                  } focus:outline-none focus:border-primary`}
+                                />
+                              ) : (
+                                formatRate(rate)
+                              )}
+                            </td>
+                          );
+                        })}
                       </tr>
                     ))}
                   </tbody>

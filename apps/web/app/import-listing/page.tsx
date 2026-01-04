@@ -9,7 +9,10 @@ import { Loader2 } from 'lucide-react';
 function ImportListingContent() {
   const searchParams = useSearchParams();
 
-  // Calculator-Daten aus URL lesen
+  // Property-ID aus URL lesen (für Edit-Modus)
+  const propertyId = searchParams.get('id') || undefined;
+
+  // Calculator-Daten aus URL lesen (für Import von Calculator)
   const calculatorData = {
     price: searchParams.get('price') ? Number(searchParams.get('price')) : undefined,
     sqm: searchParams.get('sqm') ? Number(searchParams.get('sqm')) : undefined,
@@ -27,8 +30,12 @@ function ImportListingContent() {
   // Nur wenn mindestens Preis, Fläche und Standort vorhanden sind
   const hasCalculatorData = !!(calculatorData.price && calculatorData.sqm && calculatorData.location);
 
+  // Auf /import-listing ist der Mode immer "import"
+  // - Ohne ID: Neue importierte Property erstellen
+  // - Mit ID: Importierte Property bearbeiten
   return (
     <PropertyListingManager
+      propertyId={propertyId}
       mode="import"
       initialCalculatorData={hasCalculatorData ? calculatorData : undefined}
     />

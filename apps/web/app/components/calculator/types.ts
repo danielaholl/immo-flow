@@ -56,6 +56,8 @@ export interface CalculatorProps {
 export interface EditState {
   purchasePrice: number | null;
   equityPercent: number | null;
+  eigenkapitalBetrag: number | null; // Absolute EK amount
+  darlehensbetrag: number | null; // Loan amount
   interestRate: number | null;
   amortizationRate: number | null;
   brokerCommission: number | null;
@@ -97,6 +99,10 @@ export interface CalculatedValues {
   mieteinnahmen: number;
   calculatedCashflow: number;
 
+  // Rendite
+  grossYield?: number; // Brutto-Rendite (%)
+  rentMultiplier?: number; // Vervielfältiger
+
   // Break-Even
   breakEvenEK: { amount: number; percentage: number } | null;
   breakEvenYears: number | null;
@@ -113,6 +119,8 @@ export interface CalculatedValues {
     grenzsteuersatz: number;
     afaRate: number;
     buildingRatio: number;
+    cashflowVorFinanzierung: number;
+    cashflowVorFinanzierungJaehrlich: number;
   } | null;
 
   // Effektive Werte

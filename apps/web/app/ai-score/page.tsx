@@ -150,6 +150,12 @@ export default function AIScorePage() {
     enabled: !!user,
   });
 
+  // Calculator defaults from database
+  const { data: calculatorDefaults } = trpc.calculatorDefaults.getDefaults.useQuery(undefined, {
+    staleTime: 1000 * 60 * 5,
+    refetchOnWindowFocus: false,
+  });
+
   // Market comparison data - Property Mode
   const { data: marketData, isLoading: isLoadingMarketData } = trpc.properties.getMarketComparison.useQuery(
     { propertyId: propertyId! },
@@ -214,7 +220,10 @@ export default function AIScorePage() {
     const calculateHausgeld = (): number => {
       if (propertyData.monthly_fee && Number(propertyData.monthly_fee) > 0) return Number(propertyData.monthly_fee);
       if (sqm) {
-        const hausgeldProQm = propertyData.year_built && Number(propertyData.year_built) >= 1980 ? 2.50 : 3.50;
+        // Use calculator defaults from database, with fallback values
+        const hausgeldModern = calculatorDefaults?.hausgeldPerSqmModern ?? 2.50;
+        const hausgeldOld = calculatorDefaults?.hausgeldPerSqmOld ?? 3.50;
+        const hausgeldProQm = propertyData.year_built && Number(propertyData.year_built) >= 1980 ? hausgeldModern : hausgeldOld;
         return Number(sqm) * hausgeldProQm;
       }
       return 0;
@@ -571,7 +580,7 @@ export default function AIScorePage() {
           {/* Link zur Calculator-Seite */}
           <div className="mt-6 flex justify-center">
             <button
-              onClick={() => router.push(`/property/${propertyId}/calculator`)}
+              onClick={() => router.push(`/property/${propertyId}/calculator?mode=investor`)}
               className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-medium text-sm hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors"
             >
               <Calculator size={18} />

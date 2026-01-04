@@ -49,7 +49,7 @@ export default function AdminDashboard() {
             href="/interest-rates"
             className="block px-4 py-3 rounded-lg text-text-secondary hover:bg-surface"
           >
-            💰 Zinssaetze
+            💰 Finanzierung
           </a>
           <a
             href="/calculator-defaults"

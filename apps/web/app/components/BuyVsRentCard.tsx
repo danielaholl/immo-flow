@@ -88,6 +88,12 @@ export function BuyVsRentCard({
   const [isExpanded, setIsExpanded] = useState(false);
   const [isKiFazitExpanded, setIsKiFazitExpanded] = useState(false);
 
+  // Calculator defaults from database
+  const { data: calculatorDefaults } = trpc.calculatorDefaults.getDefaults.useQuery(undefined, {
+    staleTime: 1000 * 60 * 5,
+    refetchOnWindowFocus: false,
+  });
+
   // Robuste Konvertierung (leere Strings und NaN vermeiden)
   const parseNum = (val: unknown, fallback: number): number => {
     if (val === null || val === undefined || val === '') return fallback;
@@ -126,11 +132,14 @@ export function BuyVsRentCard({
   const effectiveHausgeld = useMemo(() => {
     if (monthlyFee && monthlyFee > 0) return monthlyFee;
     if (sqm > 0) {
-      const hausgeldProQm = yearBuilt && yearBuilt >= 1980 ? 2.50 : 3.50;
+      // Use calculator defaults from database, with fallback values
+      const hausgeldModern = calculatorDefaults?.hausgeldPerSqmModern ?? 2.50;
+      const hausgeldOld = calculatorDefaults?.hausgeldPerSqmOld ?? 3.50;
+      const hausgeldProQm = yearBuilt && yearBuilt >= 1980 ? hausgeldModern : hausgeldOld;
       return sqm * hausgeldProQm;
     }
     return 0;
-  }, [monthlyFee, sqm, yearBuilt]);
+  }, [monthlyFee, sqm, yearBuilt, calculatorDefaults]);
 
   // Grunderwerbsteuer ermitteln
   const detectedState = detectStateFromLocation(location);

@@ -13,6 +13,8 @@ interface CalculatorDefaults {
   valueAppreciationRate: number;
   hausgeldPerSqmModern: number;
   hausgeldPerSqmOld: number;
+  equityPercentage: number;
+  amortizationRate: number;
   isActive: boolean;
   changedBy: string | null;
   changeReason: string | null;
@@ -41,6 +43,8 @@ interface HistoryEntry {
   valueAppreciationRate: number | null;
   hausgeldPerSqmModern: number | null;
   hausgeldPerSqmOld: number | null;
+  equityPercentage: number | null;
+  amortizationRate: number | null;
   changedBy: string;
   changeReason: string | null;
   changedAt: string;
@@ -67,6 +71,8 @@ export default function CalculatorDefaultsPage() {
     valueAppreciationRate: 0.02,
     hausgeldPerSqmModern: 2.5,
     hausgeldPerSqmOld: 3.5,
+    equityPercentage: 20,
+    amortizationRate: 1,
   });
   const [changeReason, setChangeReason] = useState('');
   const [changedBy, setChangedBy] = useState('Admin');
@@ -104,6 +110,8 @@ export default function CalculatorDefaultsPage() {
           valueAppreciationRate: data.valueAppreciationRate,
           hausgeldPerSqmModern: data.hausgeldPerSqmModern,
           hausgeldPerSqmOld: data.hausgeldPerSqmOld,
+          equityPercentage: data.equityPercentage,
+          amortizationRate: data.amortizationRate,
         });
       }
     } catch (error) {
@@ -222,7 +230,7 @@ export default function CalculatorDefaultsPage() {
             Marktdaten
           </a>
           <a href="/interest-rates" className="block px-4 py-3 rounded-lg text-text-secondary hover:bg-surface">
-            Zinssaetze
+            Finanzierung
           </a>
           <a
             href="/calculator-defaults"
@@ -256,7 +264,7 @@ export default function CalculatorDefaultsPage() {
           )}
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-8">
             <div className="bg-surface rounded-xl p-6 border border-border">
               <div className="text-3xl font-bold text-primary">
                 {stats?.currentDefaults?.buildingRatioStandard || '80%'}
@@ -280,6 +288,22 @@ export default function CalculatorDefaultsPage() {
             <div className="bg-surface rounded-xl p-6 border border-border">
               <div className="text-3xl font-bold text-text-primary">{stats?.usersWithCustomPrefs || 0}</div>
               <div className="text-text-secondary mt-1">User mit Overrides</div>
+            </div>
+
+            <div className="bg-surface rounded-xl p-6 border border-border">
+              <div className="text-3xl font-bold text-primary">
+                {stats?.currentDefaults?.equityPercentage || '20%'}
+              </div>
+              <div className="text-text-secondary mt-1">Eigenkapital</div>
+              <div className="text-xs text-text-secondary mt-2">Standard</div>
+            </div>
+
+            <div className="bg-surface rounded-xl p-6 border border-border">
+              <div className="text-3xl font-bold text-text-primary">
+                {stats?.currentDefaults?.amortizationRate || '1%'}
+              </div>
+              <div className="text-text-secondary mt-1">Tilgung</div>
+              <div className="text-xs text-text-secondary mt-2">pro Jahr</div>
             </div>
           </div>
 
@@ -463,6 +487,44 @@ export default function CalculatorDefaultsPage() {
                   />
                   <div className="text-xs text-text-secondary mt-1">
                     Aktuell: {formatCurrency(formData.hausgeldPerSqmOld)}/m2
+                  </div>
+                </div>
+
+                {/* Eigenkapital Percentage */}
+                <div>
+                  <label className="block text-sm font-medium text-text-secondary mb-2">
+                    Eigenkapital Standard (%)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    max="100"
+                    value={formData.equityPercentage}
+                    onChange={e => setFormData({ ...formData, equityPercentage: parseFloat(e.target.value) })}
+                    className="w-full px-4 py-2 bg-background border border-border rounded-lg text-text-primary focus:outline-none focus:border-primary"
+                  />
+                  <div className="text-xs text-text-secondary mt-1">
+                    Aktuell: {formData.equityPercentage.toFixed(1)}%
+                  </div>
+                </div>
+
+                {/* Tilgung/Amortization Rate */}
+                <div>
+                  <label className="block text-sm font-medium text-text-secondary mb-2">
+                    Tilgung p.a. (%)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="10"
+                    value={formData.amortizationRate}
+                    onChange={e => setFormData({ ...formData, amortizationRate: parseFloat(e.target.value) })}
+                    className="w-full px-4 py-2 bg-background border border-border rounded-lg text-text-primary focus:outline-none focus:border-primary"
+                  />
+                  <div className="text-xs text-text-secondary mt-1">
+                    Aktuell: {formData.amortizationRate.toFixed(2)}%
                   </div>
                 </div>
               </div>

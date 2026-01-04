@@ -68,6 +68,12 @@ export function KeyMetricsTeaserCard({
     refetchOnWindowFocus: false,
   });
 
+  // Calculator defaults from database
+  const { data: calculatorDefaults } = trpc.calculatorDefaults.getDefaults.useQuery(undefined, {
+    staleTime: 1000 * 60 * 5,
+    refetchOnWindowFocus: false,
+  });
+
   const metrics = useMemo(() => {
     const effectivePurchasePrice = parseNum(userParams?.purchase_price ?? purchasePrice, 0);
     const calculatedRent = estimatedRentPerSqm && sqm
@@ -87,7 +93,10 @@ export function KeyMetricsTeaserCard({
     const calculateHausgeld = (): number => {
       if (monthlyFee && Number(monthlyFee) > 0) return Number(monthlyFee);
       if (sqm) {
-        const hausgeldProQm = yearBuilt && Number(yearBuilt) >= 1980 ? 2.50 : 3.50;
+        // Use calculator defaults from database, with fallback values
+        const hausgeldModern = calculatorDefaults?.hausgeldPerSqmModern ?? 2.50;
+        const hausgeldOld = calculatorDefaults?.hausgeldPerSqmOld ?? 3.50;
+        const hausgeldProQm = yearBuilt && Number(yearBuilt) >= 1980 ? hausgeldModern : hausgeldOld;
         return Number(sqm) * hausgeldProQm;
       }
       return 0;
@@ -145,7 +154,7 @@ export function KeyMetricsTeaserCard({
   }, [
     userParams, purchasePrice, sqm, estimatedRentPerSqm, monthlyRent, monthlyFee,
     yearBuilt, financingTerms, commissionRate, externalGrossYield, externalRentMultiplier,
-    externalCashflow, taxProfile
+    externalCashflow, taxProfile, calculatorDefaults
   ]);
 
   const hasData = metrics.grossYield !== undefined || metrics.monthlyCashflow !== undefined;
@@ -153,7 +162,7 @@ export function KeyMetricsTeaserCard({
   // No data state - Airbnb style
   if (!hasData) {
     return (
-      <Link href={`/property/${propertyId}/calculator`} className="block group">
+      <Link href={`/property/${propertyId}/calculator?mode=investor`} className="block group">
         <div className={`bg-white rounded-xl border border-gray-200 p-6 transition-all duration-200 hover:shadow-lg hover:border-gray-300 ${className}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -180,7 +189,7 @@ export function KeyMetricsTeaserCard({
 
   // Results view - Airbnb style
   return (
-    <Link href={`/property/${propertyId}/calculator`} className="block group">
+    <Link href={`/property/${propertyId}/calculator?mode=investor`} className="block group">
       <div className={`bg-white rounded-xl border border-gray-200 overflow-hidden transition-all duration-200 hover:shadow-lg hover:border-gray-300 ${className}`}>
         {/* Header */}
         <div className="p-5 pb-4">

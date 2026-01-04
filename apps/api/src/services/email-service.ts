@@ -3,9 +3,19 @@
  * Handles sending emails for notifications
  */
 
+import sgMail from '@sendgrid/mail';
 import { createLogger } from '@rendito/utils';
 
 const log = createLogger('email-service');
+
+// Initialize SendGrid
+const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
+const SENDER_EMAIL = process.env.SENDER_EMAIL || 'noreply@rendito.com';
+
+if (SENDGRID_API_KEY) {
+  sgMail.setApiKey(SENDGRID_API_KEY);
+  log.info('SendGrid initialized');
+}
 
 interface EmailOptions {
   to: string;
@@ -40,10 +50,22 @@ export function initializeEmailService(): void {
  * Send a generic email
  */
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
-  const provider = process.env.EMAIL_PROVIDER || 'log';
-
   try {
-    if (provider === 'log') {
+    if (SENDGRID_API_KEY) {
+      // Production: use SendGrid
+      await sgMail.send({
+        to: options.to,
+        from: SENDER_EMAIL,
+        subject: options.subject,
+        text: options.textContent,
+        html: options.htmlContent,
+      });
+      log.info('Email sent via SendGrid', {
+        to: options.to,
+        subject: options.subject,
+      });
+      return true;
+    } else {
       // Development: just log the email
       log.info('Email would be sent (development mode)', {
         to: options.to,
@@ -51,14 +73,6 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
       });
       return true;
     }
-
-    // TODO: Implement actual email providers (SendGrid, Mailgun, etc.)
-    log.warn('Email provider not implemented', {
-      provider,
-      to: options.to,
-      subject: options.subject,
-    });
-    return false;
   } catch (error) {
     log.error('Failed to send email', {
       to: options.to,
@@ -279,4 +293,117 @@ function escapeHtml(text: string): string {
     "'": '&#039;',
   };
   return text.replace(/[&<>"']/g, char => map[char]);
+}
+
+/**
+ * Send provider invitation email
+ */
+export async function sendProviderInvitation({
+  providerEmail,
+  providerName,
+  buyerName,
+  propertyTitle,
+  signupLink,
+}: {
+  providerEmail: string;
+  providerName: string;
+  buyerName: string;
+  propertyTitle: string;
+  signupLink: string;
+}): Promise<boolean> {
+  const subject = `${buyerName} möchte Sie über Rendito kontaktieren`;
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                  color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9fafb; padding: 30px; }
+        .cta-button { display: inline-block; background: #667eea; color: white;
+                      padding: 12px 30px; text-decoration: none; border-radius: 6px;
+                      font-weight: bold; margin: 20px 0; }
+        .benefits { background: white; padding: 20px; border-radius: 6px; margin: 20px 0; }
+        .benefit-item { margin: 10px 0; padding-left: 25px; position: relative; }
+        .benefit-item:before { content: "✓"; position: absolute; left: 0; color: #667eea; font-weight: bold; }
+        .footer { text-align: center; color: #6b7280; font-size: 12px; margin-top: 30px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>🏡 Rendito</h1>
+          <p>Die Plattform für smarte Immobilien-Investoren</p>
+        </div>
+
+        <div class="content">
+          <h2>Sehr geehrte/r ${escapeHtml(providerName)},</h2>
+
+          <p><strong>${escapeHtml(buyerName)}</strong> interessiert sich für Ihre Immobilie <strong>"${escapeHtml(propertyTitle)}"</strong>
+          und möchte Sie über Rendito kontaktieren.</p>
+
+          <p>Rendito ist eine moderne Plattform, die Immobilienanbieter und Investoren zusammenbringt.
+          Als Anbieter profitieren Sie von:</p>
+
+          <div class="benefits">
+            <div class="benefit-item"><strong>🏠 1 kostenloses Objekt inserieren</strong> - Präsentieren Sie Ihre Immobilie ohne Kosten</div>
+            <div class="benefit-item"><strong>🤖 3 kostenlose KI-Bewertungen</strong> - Professionelle Property-Analysen im Wert von 150€</div>
+            <div class="benefit-item"><strong>💬 Direkter Chat mit Interessenten</strong> - Schnellere Kommunikation, kürzere Verkaufszyklen</div>
+            <div class="benefit-item"><strong>📊 Erweiterte Analytics</strong> - Sehen Sie, wer sich für Ihre Objekte interessiert</div>
+            <div class="benefit-item"><strong>🎯 Qualifizierte Leads</strong> - Nur ernsthaft Interessierte mit geprüftem Kaufinteresse</div>
+            <div class="benefit-item"><strong>💰 Kostenlose Nutzung</strong> - Kein Makler-Abo nötig für die Kommunikation</div>
+          </div>
+
+          <p style="text-align: center;">
+            <a href="${escapeHtml(signupLink)}" class="cta-button">Kostenlos registrieren & ${escapeHtml(buyerName)} antworten</a>
+          </p>
+
+          <p style="font-size: 14px; color: #6b7280; margin-top: 30px;">
+            Mit der Registrierung erhalten Sie sofort:
+            <br>✓ 1 kostenloses Objekt-Inserat
+            <br>✓ 3 kostenlose KI-Bewertungen für Ihre Objekte
+            <br>✓ Zugang zum Chat mit ${escapeHtml(buyerName)}
+          </p>
+        </div>
+
+        <div class="footer">
+          <p>Diese Einladung wurde automatisch generiert, weil ${escapeHtml(buyerName)} Sie kontaktieren möchte.</p>
+          <p>© 2024 Rendito - Smarte Immobilien-Investments</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const textContent = `
+Sehr geehrte/r ${providerName},
+
+${buyerName} interessiert sich für Ihre Immobilie "${propertyTitle}" und möchte Sie über Rendito kontaktieren.
+
+Rendito ist eine moderne Plattform, die Immobilienanbieter und Investoren zusammenbringt.
+
+Ihre Vorteile als Anbieter:
+- 🏠 1 kostenloses Objekt inserieren
+- 🤖 3 kostenlose KI-Bewertungen (Wert: 150€)
+- 💬 Direkter Chat mit Interessenten
+- 📊 Erweiterte Analytics
+- 🎯 Qualifizierte Leads
+- 💰 Kostenlose Nutzung
+
+Jetzt kostenlos registrieren: ${signupLink}
+
+Mit der Registrierung erhalten Sie sofort Ihr kostenloses Inserat und können ${buyerName} antworten.
+
+© 2024 Rendito
+  `;
+
+  return sendEmail({
+    to: providerEmail,
+    subject,
+    htmlContent,
+    textContent,
+  });
 }

@@ -15,6 +15,7 @@ export type PlanType =
   | 'investor'
   | 'pro'
   | 'sucher'
+  | 'makler_free'
   | 'makler_pro'
   | 'makler_enterprise'
   | 'verkauf_starter'
@@ -152,7 +153,7 @@ export function getPlanTypeFromPriceId(priceId: string): PlanType | null {
  * Get Stripe Price ID from plan type
  */
 export function getStripePriceId(planType: PlanType): string | null {
-  if (planType === 'free') return null;
+  if (planType === 'free' || planType === 'makler_free') return null;
   return STRIPE_PRICES[planType]?.stripePriceId || null;
 }
 
@@ -160,7 +161,7 @@ export function getStripePriceId(planType: PlanType): string | null {
  * Check if a plan is a subscription (recurring) or one-time
  */
 export function isSubscriptionPlan(planType: PlanType): boolean {
-  if (planType === 'free') return false;
+  if (planType === 'free' || planType === 'makler_free') return false;
   return STRIPE_PRICES[planType]?.interval !== 'one_time';
 }
 
@@ -173,6 +174,7 @@ export const PLAN_HIERARCHY: Record<PlanType, number> = {
   sucher: 1,
   investor: 2,
   pro: 3,
+  makler_free: 9, // Free provider account (invitation-only)
   makler_pro: 10,
   makler_enterprise: 11,
   verkauf_starter: 20,
@@ -183,7 +185,7 @@ export const PLAN_HIERARCHY: Record<PlanType, number> = {
  * Feature access map - which features require which plans
  */
 export const FEATURE_ACCESS: Record<string, PlanType[]> = {
-  unlimited_favorites: ['investor', 'pro', 'sucher', 'makler_pro', 'makler_enterprise'],
+  unlimited_favorites: ['investor', 'pro', 'sucher', 'makler_free', 'makler_pro', 'makler_enterprise'],
   ai_analysis: ['investor', 'pro'],
   swot_analysis: ['investor', 'pro'],
   rendite_calculator: ['investor', 'pro'],
@@ -195,9 +197,14 @@ export const FEATURE_ACCESS: Record<string, PlanType[]> = {
   priority_support: ['pro', 'makler_enterprise'],
   budget_search: ['sucher', 'investor', 'pro'],
   price_check: ['sucher', 'investor', 'pro'],
-  makler_features: ['makler_pro', 'makler_enterprise'],
+  makler_features: ['makler_free', 'makler_pro', 'makler_enterprise'],
   unlimited_properties: ['makler_enterprise'],
   team_seats: ['makler_enterprise'],
+  // Provider-specific features (makler_free)
+  free_property_listing_1: ['makler_free'], // 1 free property listing
+  chat_with_users: ['makler_free', 'makler_pro', 'makler_enterprise'],
+  free_ai_evaluations_3: ['makler_free'], // 3 free AI evaluations
+  basic_analytics: ['makler_free', 'makler_pro', 'makler_enterprise'],
 };
 
 /**

@@ -88,9 +88,9 @@ export default function CalculatorPage() {
   }, [property, userPropertyParams]);
 
   // Parsed editable values for calculations
-  const effectiveSqm = editableSqm ? parseFloat(editableSqm) : (property?.sqm ?? 0);
-  const effectiveYearBuilt = editableYearBuilt ? parseInt(editableYearBuilt) : property?.year_built;
-  const effectivePurchasePrice = editablePurchasePrice ? parseFloat(editablePurchasePrice) : (property?.price ?? 0);
+  const effectiveSqm = editableSqm ? parseFloat(editableSqm) : (property?.sqm ? Number(property.sqm) : 0);
+  const effectiveYearBuilt = editableYearBuilt ? parseInt(editableYearBuilt) : (property?.year_built ? Number(property.year_built) : undefined);
+  const effectivePurchasePrice = editablePurchasePrice ? parseFloat(editablePurchasePrice) : (property?.price ? Number(property.price) : 0);
 
   // Calculate investor metrics
   const investorMetrics = useMemo(() => {

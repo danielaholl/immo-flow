@@ -170,6 +170,12 @@ export function InvestmentCalculator({
     refetchOnWindowFocus: false,
   });
 
+  // Calculator defaults from database
+  const { data: calculatorDefaults } = trpc.calculatorDefaults.getDefaults.useQuery(undefined, {
+    staleTime: 1000 * 60 * 5,
+    refetchOnWindowFocus: false,
+  });
+
   // Accordion States
   const [isKaufnebenkostenExpanded, setIsKaufnebenkostenExpanded] = useState(false);
   const [isKapitaldienstExpanded, setIsKapitaldienstExpanded] = useState(false);
@@ -262,7 +268,10 @@ export function InvestmentCalculator({
   const calculateHausgeld = (): number => {
     if (monthlyFee && monthlyFee > 0) return monthlyFee;
     if (sqm) {
-      const hausgeldProQm = yearBuilt && yearBuilt >= 1980 ? 2.50 : 3.50;
+      // Use calculator defaults from database, with fallback values
+      const hausgeldModern = calculatorDefaults?.hausgeldPerSqmModern ?? 2.50;
+      const hausgeldOld = calculatorDefaults?.hausgeldPerSqmOld ?? 3.50;
+      const hausgeldProQm = yearBuilt && yearBuilt >= 1980 ? hausgeldModern : hausgeldOld;
       return sqm * hausgeldProQm;
     }
     return 0;

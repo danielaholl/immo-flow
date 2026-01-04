@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { Bath, Sparkles, DoorClosed, Square, Layers, Euro, Building2, Clock, Flame, Zap, ChevronDown, ChevronRight, Star, Eye, Heart, Mail, FileText, Loader2, Landmark, TrendingDown, TrendingUp, Equal, Info, ArrowUpDown, Calendar, Wallet, FileCheck, TreePine, Calculator, Home } from 'lucide-react';
+import { Bath, Sparkles, DoorClosed, Square, Layers, Euro, Building2, Clock, Flame, Zap, ChevronDown, ChevronRight, Star, Eye, Heart, Mail, FileText, Loader2, Landmark, TrendingDown, TrendingUp, Equal, Info, ArrowUpDown, Calendar, Wallet, FileCheck, TreePine, Calculator, Home, X } from 'lucide-react';
 import { PropertyScoreBadge } from '@rendito/ui';
 import { LocationDisplay } from './LocationDisplay';
 import { MarketComparisonBar } from './MarketComparisonBar';
@@ -10,11 +10,25 @@ import { MarketComparisonBar } from './MarketComparisonBar';
 // AIInvestmentEvaluation und InvestmentScoreBadge auskommentiert - nur stichpunktartige Bewertung
 // import { AIInvestmentEvaluation, InvestmentScoreBadge } from '@rendito/ui';
 
-import type { PropertyDocument } from '../create-listing/types';
+import type { PropertyDocument, DocumentCategory } from '../create-listing/types';
 import { PropertyDocumentsList } from './PropertyDocumentsList';
 import { DocumentVisibilityManager } from './DocumentVisibilityManager';
 import { SellerKnowledgeManager } from './SellerKnowledgeManager';
+import { ProviderContactEditor } from './ProviderContactEditor';
 import { trpc } from '@/app/providers/TRPCProvider';
+
+// Category labels for document display
+const categoryLabels: Record<DocumentCategory, string> = {
+  grundriss: 'Grundriss',
+  energieausweis: 'Energieausweis',
+  expose: 'Exposé',
+  lageplan: 'Lageplan',
+  sonstiges: 'Sonstiges',
+  etw_protokoll: 'ETW Protokoll',
+  mietvertrag: 'Mietvertrag',
+  kaufvertrag: 'Kaufvertrag',
+  grundbuchauszug: 'Grundbuchauszug',
+};
 
 export interface PropertyPreviewData {
   id?: string;
@@ -194,6 +208,14 @@ export interface PropertyPreviewData {
     email?: string | null;
     bio?: string | null;
   };
+  // Provider contact info (for external/imported properties)
+  provider_contact?: {
+    provider_name?: string | null;
+    provider_email?: string | null;
+    provider_phone?: string | null;
+    provider_company?: string | null;
+  } | null;
+  is_external?: boolean;
 }
 
 export interface PropertyPreviewProps {
@@ -247,6 +269,8 @@ export interface PropertyPreviewProps {
   // Document management (for create-listing)
   onDocumentsChange?: (documents: PropertyDocument[]) => void;
   onDocumentRemove?: (id: string) => void;
+  /** Hide document visibility controls (for import mode / buyer view) */
+  hideDocumentVisibilityControls?: boolean;
   // User Property Parameters (for KeyMetricsPanel edit mode)
   userPropertyParams?: {
     equity_percentage?: number | null;
@@ -269,6 +293,14 @@ export interface PropertyPreviewProps {
     purchasePrice?: number | null;
   }) => void;
   isSavingUserPropertyParams?: boolean;
+  /** Whether the device is mobile (from parent useIsMobile hook) */
+  isMobile?: boolean;
+  /** Hide metrics cards (AI Score, Rendite, Kaufen vs Mieten) - used in import mode */
+  hideMetricsCards?: boolean;
+  /** Show provider contact editor (triggered by user request in import mode) */
+  showProviderContactEditor?: boolean;
+  /** Callback after provider contact update (to refetch data) */
+  onProviderContactUpdate?: () => void;
 }
 
 /**
@@ -372,9 +404,14 @@ export function PropertyPreview({
   onApproveManualDocs,
   onDocumentsChange,
   onDocumentRemove,
+  hideDocumentVisibilityControls = false,
   userPropertyParams,
   onSaveUserPropertyParams,
   isSavingUserPropertyParams = false,
+  isMobile = false,
+  hideMetricsCards = false,
+  showProviderContactEditor = false,
+  onProviderContactUpdate,
 }: PropertyPreviewProps) {
   // State for selected document
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | undefined>();
@@ -399,6 +436,8 @@ export function PropertyPreview({
   const [isMarketComparisonExpanded, setIsMarketComparisonExpanded] = useState(false);
   // State for all details panel (shown when clicking the details card)
   const [isAllDetailsExpanded, setIsAllDetailsExpanded] = useState(false);
+  // State for documents accordion
+  const [isDocumentsExpanded, setIsDocumentsExpanded] = useState(false);
   // State for price optimization suggestion
   const [showPriceSuggestion, setShowPriceSuggestion] = useState(false);
   // State for simulated price (when user drags the slider)
@@ -618,7 +657,7 @@ export function PropertyPreview({
               : 'text-green-600 font-medium'
           }`}>
             {data.commission_rate != null && data.commission_rate > 0
-              ? `Provision: ${data.commission_rate.toFixed(2).replace('.', ',')} % inkl. MwSt.`
+              ? `Provision: ${Number(data.commission_rate).toFixed(2).replace('.', ',')} % inkl. MwSt.`
               : '✓ Provisionsfrei'}
           </p>
 
@@ -830,8 +869,8 @@ export function PropertyPreview({
           </div>
         )}
 
-        {/* AI-Analyse & Cashflow Cards - Not shown for owner */}
-        {propertyId && !isOwner && (
+        {/* AI-Analyse & Cashflow Cards - Not shown for owner or in import mode */}
+        {propertyId && !isOwner && !hideMetricsCards && (
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
             {/* AI-Analyse Card */}
             {data.ai_investment_score !== undefined && data.ai_investment_score > 0 && (
@@ -910,7 +949,7 @@ export function PropertyPreview({
 
               return (
                 <a
-                  href={`/property/${propertyId}/calculator`}
+                  href={`/property/${propertyId}/calculator?mode=investor`}
                   className={`flex-[0.8] rounded-xl border ${cardColors.border} ${cardColors.bg} overflow-hidden block cursor-pointer hover:shadow-md transition-shadow p-4`}
                 >
                   <div className="flex items-center justify-between">
@@ -991,7 +1030,7 @@ export function PropertyPreview({
 
               return (
                 <a
-                  href={`/property/${propertyId}/calculator`}
+                  href={`/property/${propertyId}/calculator?mode=eigennutzer`}
                   className={`flex-[1.4] rounded-xl border ${cardColors.border} ${cardColors.bg} overflow-hidden block cursor-pointer hover:shadow-md transition-shadow p-4`}
                 >
                   <div className="flex items-center justify-between">
@@ -1101,41 +1140,161 @@ export function PropertyPreview({
         {/* Objektunterlagen - Documents Management */}
         {(() => {
           const hasDocuments = data.documents && data.documents.length > 0;
-          const showVisibilityManager = onDocumentsChange && hasDocuments;
+          const showVisibilityManager = onDocumentsChange && hasDocuments && !hideDocumentVisibilityControls;
           const showEmptyState = onDocumentsChange && !hasDocuments;
+          const showSimpleList = onDocumentsChange && hasDocuments && hideDocumentVisibilityControls;
 
           return (
             <>
               {/* Document Visibility Manager - Show in create-listing for owner to manage visibility */}
               {showVisibilityManager && (
-                <DocumentVisibilityManager
-                  documents={data.documents || []}
-                  onDocumentsChange={onDocumentsChange}
-                  onDocumentRemove={onDocumentRemove}
-                  onDocumentClick={handleDocumentClick}
-                />
+                <div className="mb-6 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                  {/* Clickable Header */}
+                  <button
+                    onClick={() => setIsDocumentsExpanded(!isDocumentsExpanded)}
+                    className="w-full p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileText size={20} className="text-gray-700 dark:text-gray-300" />
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Objektunterlagen</h3>
+                      <span className="text-sm text-gray-500 dark:text-gray-400 font-normal">
+                        ({data.documents?.length || 0} {data.documents?.length === 1 ? 'Datei' : 'Dateien'})
+                      </span>
+                    </div>
+                    <ChevronDown
+                      className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isDocumentsExpanded ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+
+                  {/* Expandable Content */}
+                  {isDocumentsExpanded && (
+                    <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                      <DocumentVisibilityManager
+                        documents={data.documents || []}
+                        onDocumentsChange={onDocumentsChange}
+                        onDocumentRemove={onDocumentRemove}
+                        onDocumentClick={handleDocumentClick}
+                        defaultExpanded={true}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Simple Document List - Show for imported properties in edit mode */}
+              {showSimpleList && (
+                <div className="mb-6 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                  {/* Clickable Header */}
+                  <button
+                    onClick={() => setIsDocumentsExpanded(!isDocumentsExpanded)}
+                    className="w-full p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileText size={20} className="text-gray-700 dark:text-gray-300" />
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Objektunterlagen</h3>
+                      <span className="text-sm text-gray-500 dark:text-gray-400 font-normal">
+                        ({data.documents?.length || 0} {data.documents?.length === 1 ? 'Datei' : 'Dateien'})
+                      </span>
+                    </div>
+                    <ChevronDown
+                      className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isDocumentsExpanded ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+
+                  {/* Expandable Content */}
+                  {isDocumentsExpanded && (
+                    <div className="px-6 pb-6 animate-in fade-in slide-in-from-top-2 duration-200">
+                      <div className="space-y-2">
+                        {data.documents?.map((doc) => {
+                          const thumbnailSrc = doc.thumbnailUrl || (doc.mimetype?.startsWith('image/') ? doc.url : null);
+                          const isSelected = selectedDocumentId === doc.id;
+
+                          return (
+                            <div
+                              key={doc.id}
+                              className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
+                                isSelected
+                                  ? 'bg-gray-900 dark:bg-gray-700'
+                                  : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
+                              }`}
+                            >
+                              <button
+                                onClick={() => handleDocumentClick(isSelected ? null : doc)}
+                                className="flex-1 flex items-center gap-3 min-w-0"
+                              >
+                                <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 relative">
+                                  {thumbnailSrc ? (
+                                    <img src={thumbnailSrc} alt={doc.filename} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className={`w-full h-full flex items-center justify-center ${isSelected ? 'bg-gray-800 dark:bg-gray-600' : 'bg-gray-200 dark:bg-gray-900'}`}>
+                                      <FileText size={24} className={isSelected ? 'text-white' : 'text-gray-400'} />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex-1 text-left min-w-0">
+                                  <p className={`text-sm font-medium truncate ${isSelected ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
+                                    {doc.filename}
+                                  </p>
+                                  <p className={`text-xs ${isSelected ? 'text-gray-300' : 'text-gray-500 dark:text-gray-400'}`}>
+                                    {categoryLabels[doc.category]}
+                                  </p>
+                                </div>
+                              </button>
+                              {onDocumentRemove && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDocumentRemove(doc.id);
+                                  }}
+                                  className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                  title="Dokument löschen"
+                                >
+                                  <X size={18} className="text-red-600 dark:text-red-400" />
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* Empty State - Show in edit mode when no documents */}
               {showEmptyState && (
                 <div className="mb-6 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-                  <div className="p-4 flex items-center gap-2">
-                    <FileText size={20} className="text-gray-700 dark:text-gray-300" />
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Objektunterlagen</h3>
-                  </div>
-                  <div className="p-6 text-center text-gray-500 dark:text-gray-400">
-                    <FileText size={48} className="mx-auto mb-2 text-gray-300 dark:text-gray-600" />
-                    <p>Noch keine Unterlagen hochgeladen</p>
-                    <p className="text-sm mt-1">
-                      Lade PDFs, Grundrisse oder Energieausweise über das Chat-Feld hoch.
-                    </p>
-                  </div>
+                  {/* Clickable Header */}
+                  <button
+                    onClick={() => setIsDocumentsExpanded(!isDocumentsExpanded)}
+                    className="w-full p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileText size={20} className="text-gray-700 dark:text-gray-300" />
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Objektunterlagen</h3>
+                      <span className="text-sm text-gray-500 dark:text-gray-400 font-normal">(0 Dateien)</span>
+                    </div>
+                    <ChevronDown
+                      className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isDocumentsExpanded ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+
+                  {/* Expandable Empty State */}
+                  {isDocumentsExpanded && (
+                    <div className="p-6 text-center text-gray-500 dark:text-gray-400 animate-in fade-in slide-in-from-top-2 duration-200">
+                      <FileText size={48} className="mx-auto mb-2 text-gray-300 dark:text-gray-600" />
+                      <p>Noch keine Unterlagen hochgeladen</p>
+                      <p className="text-sm mt-1">
+                        Lade PDFs, Grundrisse oder Energieausweise über das Chat-Feld hoch.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Document List - Show for viewers (non-owners) or when no visibility manager */}
               {/* Access request form is now integrated inside PropertyDocumentsList */}
-              {!showVisibilityManager && !showEmptyState && (
+              {!showVisibilityManager && !showEmptyState && !showSimpleList && (
                 <PropertyDocumentsList
                   key={propertyId}
                   documents={data.documents}
@@ -1150,14 +1309,42 @@ export function PropertyPreview({
                   onRequestDocumentAccess={onRequestDocumentAccess}
                   pendingManualApprovalCount={pendingManualApprovalCount}
                   onApproveManualDocs={onApproveManualDocs}
+                  hideAccessInfo={hideDocumentVisibilityControls}
+                  isMobile={isMobile}
                 />
               )}
             </>
           );
         })()}
 
-        {/* Anbieter Info - Only show when owner data exists */}
-        {!hideProviderInfo && data.owner && (
+        {/* Provider Contact Editor - Show for external properties if data exists */}
+        {(() => {
+          // Check if provider contact data exists
+          const hasProviderData = data.provider_contact && (
+            data.provider_contact.provider_name ||
+            data.provider_contact.provider_email ||
+            data.provider_contact.provider_phone ||
+            data.provider_contact.provider_company
+          );
+
+          return data.is_external && propertyId && hasProviderData && (
+            <div className="mb-6">
+              <ProviderContactEditor
+                propertyId={propertyId}
+                providerContact={data.provider_contact}
+                readOnly={true}
+                onUpdate={() => {
+                  // Callback after update - refetch provider contact data
+                  console.log('Provider contact updated');
+                  onProviderContactUpdate?.();
+                }}
+              />
+            </div>
+          );
+        })()}
+
+        {/* Anbieter Info - Only show when owner data exists and not external property */}
+        {!hideProviderInfo && data.owner && !data.is_external && (
           <div className="mb-6 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-start gap-4">
               {/* Avatar */}

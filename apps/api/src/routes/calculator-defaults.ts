@@ -47,6 +47,8 @@ router.put('/', async (req: Request, res: Response) => {
       valueAppreciationRate,
       hausgeldPerSqmModern,
       hausgeldPerSqmOld,
+      equityPercentage,
+      amortizationRate,
       changedBy,
       changeReason,
     } = req.body;
@@ -69,6 +71,8 @@ router.put('/', async (req: Request, res: Response) => {
       { field: 'valueAppreciationRate', value: valueAppreciationRate, min: -0.2, max: 0.5 },
       { field: 'hausgeldPerSqmModern', value: hausgeldPerSqmModern, min: 0, max: 20 },
       { field: 'hausgeldPerSqmOld', value: hausgeldPerSqmOld, min: 0, max: 20 },
+      { field: 'equityPercentage', value: equityPercentage, min: 0, max: 100 },
+      { field: 'amortizationRate', value: amortizationRate, min: 0, max: 10 },
     ];
 
     for (const v of validations) {
@@ -92,6 +96,8 @@ router.put('/', async (req: Request, res: Response) => {
         valueAppreciationRate,
         hausgeldPerSqmModern,
         hausgeldPerSqmOld,
+        equityPercentage,
+        amortizationRate,
       },
       changedBy,
       changeReason
@@ -156,6 +162,8 @@ router.get('/stats', async (req: Request, res: Response) => {
         valueAppreciationRate: `${(defaults.valueAppreciationRate * 100).toFixed(1)}%/Jahr`,
         hausgeldPerSqmModern: `${defaults.hausgeldPerSqmModern.toFixed(2)} €/m²`,
         hausgeldPerSqmOld: `${defaults.hausgeldPerSqmOld.toFixed(2)} €/m²`,
+        equityPercentage: `${defaults.equityPercentage.toFixed(1)}%`,
+        amortizationRate: `${defaults.amortizationRate.toFixed(2)}%`,
       },
       rawDefaults: defaults,
       historyCount,

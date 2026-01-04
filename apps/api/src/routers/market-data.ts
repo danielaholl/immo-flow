@@ -42,7 +42,8 @@ export const marketDataRouter = router({
     .query(async ({ input }) => {
       const results = await query(
         `SELECT plz, city, district, federal_state,
-                avg_purchase_price_sqm, avg_rent_sqm, confidence_score
+                avg_purchase_price_sqm, avg_rent_sqm, confidence_score,
+                grunderwerbsteuer_rate
          FROM plz_market_data
          WHERE city ILIKE $1 OR district ILIKE $1
          ORDER BY city, plz

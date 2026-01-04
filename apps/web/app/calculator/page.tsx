@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Header } from '../components/Header';
 import { PropertyFormData } from '../components/PropertyInputForm';
-import { CalculatorCards, SavedParams, SimilarPropertiesSidebar, EditState } from '../components/calculator';
+import { CalculatorCards, MetricsCards, SavedParams, SimilarPropertiesSidebar, EditState } from '../components/calculator';
 import { PropertyImagePlaceholder } from '@rendito/ui';
 import { trpc } from '@/lib/trpc';
 import { useAuthContext } from '@/app/providers/AuthProvider';
@@ -35,18 +35,17 @@ import {
   getBuildingRatio,
   extractPLZFromLocation,
 } from '../property/[id]/utils/calculator-utils';
+import { calculateMetrics } from '../components/calculator/calculations';
 
 type TabType = 'investor' | 'eigennutzer';
 
 const DEFAULT_FORM_DATA: PropertyFormData = {
-  price: '350000',
-  sqm: '75',
-  location: 'München',
-  monthlyRent: '1200',
-  yearBuilt: '1995',
-  equityPercentage: '20',
-  interestRate: '3.8',
-  amortizationRate: '2.0',
+  price: '500000',
+  sqm: '50',
+  location: '80333',
+  monthlyRent: '1500',
+  yearBuilt: '2000',
+  condition: '',
   commissionRate: '3.57',
   monthlyFee: '',
   renovationCosts: '0',
@@ -61,7 +60,11 @@ export default function CalculatorPage() {
   const utils = trpc.useUtils();
 
   const propertyId = searchParams.get('propertyId');
-  const [activeTab, setActiveTab] = useState<TabType>('investor');
+
+  // Read mode from URL (reactive - updates on searchParams change)
+  const modeParam = searchParams.get('mode') as TabType | null;
+  const activeTab: TabType = modeParam === 'eigennutzer' ? 'eigennutzer' : 'investor';
+
   const [formData, setFormData] = useState<PropertyFormData>(DEFAULT_FORM_DATA);
   const [isLookingUpPLZ, setIsLookingUpPLZ] = useState(false);
   const [resolvedLocation, setResolvedLocation] = useState<string | null>(null);
@@ -69,26 +72,6 @@ export default function CalculatorPage() {
   const [calculatorEditState, setCalculatorEditState] = useState<Partial<EditState>>({});
   const [initialEditState, setInitialEditState] = useState<Partial<EditState> | undefined>(undefined);
   const [isHydrated, setIsHydrated] = useState(false);
-
-  // Hash-basierte Tab-Auswahl (für "Kaufen vs. Mieten" Menü)
-  useEffect(() => {
-    const handleHashChange = () => {
-      if (window.location.hash === '#eigennutzer') {
-        setActiveTab('eigennutzer');
-        // Hash nach kurzer Verzögerung entfernen (für saubere URL)
-        requestAnimationFrame(() => {
-          window.history.replaceState(null, '', window.location.pathname + window.location.search);
-        });
-      }
-    };
-
-    // Initial prüfen
-    handleHashChange();
-
-    // Auf Hash-Änderungen reagieren (für Soft Navigation)
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
 
   // Load saved data from localStorage after hydration (client-side only)
   useEffect(() => {
@@ -228,6 +211,12 @@ export default function CalculatorPage() {
     refetchOnWindowFocus: false,
   });
 
+  // Calculator defaults from database
+  const { data: calculatorDefaults } = trpc.calculatorDefaults.getDefaults.useQuery(undefined, {
+    staleTime: 1000 * 60 * 5,
+    refetchOnWindowFocus: false,
+  });
+
   // Save mutation (only for property mode)
   const saveUserPropertyParamsMutation = trpc.userPropertyParameters.upsert.useMutation({
     onSuccess: () => {
@@ -259,6 +248,8 @@ export default function CalculatorPage() {
       ? parseNum(userPropertyParams?.purchase_price ?? property.price, 0)
       : parseNum(formData.price, 0);
 
+    if (purchasePrice <= 0) return null;
+
     const sqm = propertyId && property
       ? (property.sqm ?? 0)
       : parseNum(formData.sqm, 0);
@@ -272,121 +263,89 @@ export default function CalculatorPage() {
       : (formData.yearBuilt ? Number(formData.yearBuilt) : undefined);
 
     // Monthly rent
-    let mieteinnahmen = 0;
+    let monthlyRent = 0;
     if (propertyId && property) {
       const rentPerSqm = property.buyer_evaluation?.rental_income?.rent_per_sqm;
       const calculatedRent = rentPerSqm && sqm ? Number(rentPerSqm) * Number(sqm) : property.actual_monthly_rent;
-      mieteinnahmen = parseNum(userPropertyParams?.monthly_rent ?? calculatedRent, 0);
+      monthlyRent = parseNum(userPropertyParams?.monthly_rent ?? calculatedRent, 0);
     } else {
-      mieteinnahmen = parseNum(formData.monthlyRent, 0);
+      monthlyRent = parseNum(formData.monthlyRent, plzMarketRent || 0);
     }
 
     // Financing parameters
-    let eigenkapitalRate: number;
-    let zinssatz: number;
-    let tilgung: number;
-    let maklerRate: number;
-    let renovierungskosten: number;
+    let equityPercentage: number;
+    let interestRate: number;
+    let amortizationRate: number;
+    let commissionRate: number;
+    let renovationCosts: number;
+    let monthlyFee: number | undefined;
 
     if (propertyId && property) {
       const financingTerms = property.buyer_evaluation?.financing_terms;
-      const defaultEKRate = financingTerms?.loan_to_value ? (100 - Number(financingTerms.loan_to_value)) : 20;
-      eigenkapitalRate = parseEKRate(userPropertyParams?.equity_percentage, defaultEKRate);
-      zinssatz = parseNum(userPropertyParams?.interest_rate, parseNum(financingTerms?.interest_rate, 3.8));
-      tilgung = parseNum(userPropertyParams?.amortization_rate, parseNum(financingTerms?.amortization_rate, 2.0));
-      maklerRate = parseNum(userPropertyParams?.broker_commission, parseNum(property.commission_rate, 0));
-      renovierungskosten = parseNum(userPropertyParams?.renovation_costs, 0);
+      const defaultEKRate = financingTerms?.loan_to_value ? (100 - Number(financingTerms.loan_to_value)) : 10;
+      equityPercentage = parseEKRate(userPropertyParams?.equity_percentage, defaultEKRate);
+      interestRate = parseNum(userPropertyParams?.interest_rate, parseNum(financingTerms?.interest_rate, 4.25));
+      amortizationRate = parseNum(userPropertyParams?.amortization_rate, parseNum(financingTerms?.amortization_rate, 2.0));
+      commissionRate = parseNum(userPropertyParams?.broker_commission, parseNum(property.commission_rate, 0));
+      renovationCosts = parseNum(userPropertyParams?.renovation_costs, 0);
+      monthlyFee = property.monthly_fee ? Number(property.monthly_fee) : undefined;
     } else {
-      eigenkapitalRate = parseNum(formData.equityPercentage, 20);
-      zinssatz = parseNum(formData.interestRate, 3.8);
-      tilgung = parseNum(formData.amortizationRate, 2.0);
-      maklerRate = parseNum(formData.commissionRate, 3.57);
-      renovierungskosten = parseNum(formData.renovationCosts, 0);
+      // Use calculator defaults from database, with fallbacks
+      equityPercentage = parseNum(formData.equityPercentage, calculatorDefaults?.equityPercentage ?? 10);
+      interestRate = parseNum(formData.interestRate, 4.25); // From market rates, not from calculatorDefaults
+      amortizationRate = parseNum(formData.amortizationRate, calculatorDefaults?.amortizationRate ?? 2.0);
+      commissionRate = parseNum(formData.commissionRate, 3.57);
+      renovationCosts = parseNum(formData.renovationCosts, 0);
+      monthlyFee = formData.monthlyFee ? parseNum(formData.monthlyFee, 0) : undefined;
     }
 
-    // Hausgeld
-    const calculateHausgeld = (): number => {
-      if (propertyId && property) {
-        if (property.monthly_fee && Number(property.monthly_fee) > 0) return Number(property.monthly_fee);
-        if (sqm) {
-          const hausgeldProQm = yearBuilt && Number(yearBuilt) >= 1980 ? 2.50 : 3.50;
-          return Number(sqm) * hausgeldProQm;
-        }
-      } else {
-        if (formData.monthlyFee && parseNum(formData.monthlyFee, 0) > 0) {
-          return parseNum(formData.monthlyFee, 0);
-        }
-        if (sqm > 0) {
-          const hausgeldProQm = yearBuilt && yearBuilt >= 1980 ? 2.50 : 3.50;
-          return sqm * hausgeldProQm;
-        }
-      }
-      return 0;
-    };
+    // Calculate using central function
+    const calculated = calculateMetrics({
+      mode: 'investor',
+      purchasePrice,
+      location,
+      sqm,
+      yearBuilt,
+      monthlyRent,
+      monthlyFee,
+      equityPercentage,
+      interestRate,
+      amortizationRate,
+      commissionRate,
+      renovationCosts,
+      marginalTaxRate: taxProfile?.marginal_tax_rate ? Number(taxProfile.marginal_tax_rate) : 0.42,
+      // Use calculator defaults from database
+      hausgeldPerSqmModern: calculatorDefaults?.hausgeldPerSqmModern,
+      hausgeldPerSqmOld: calculatorDefaults?.hausgeldPerSqmOld,
+      maintenanceCostPerSqm: calculatorDefaults?.maintenanceCostPerSqm,
+      nonAllocableHausgeldRatio: calculatorDefaults?.nonAllocableHausgeldRatio,
+    });
 
-    const hausgeld = propertyId && property
-      ? parseNum(userPropertyParams?.monthly_fee, calculateHausgeld())
-      : calculateHausgeld();
-
-    if (purchasePrice <= 0) return null;
-
-    // Calculate costs
-    const detectedState = detectStateFromLocation(location);
-    const grunderwerbsteuerRate = detectedState ? GRUNDERWERBSTEUER_SAETZE[detectedState] : 5.0;
-    const grunderwerbsteuer = purchasePrice * (grunderwerbsteuerRate / 100);
-    const notarkosten = purchasePrice * 0.015;
-    const grundbuchkosten = purchasePrice * 0.005;
-    const maklergebuehren = purchasePrice * (maklerRate / 100);
-    const kaufnebenkosten = grunderwerbsteuer + notarkosten + grundbuchkosten + maklergebuehren + renovierungskosten;
-    const gesamtinvestition = purchasePrice + kaufnebenkosten;
-    const eigenkapital = gesamtinvestition * (eigenkapitalRate / 100);
-    const darlehensbetrag = gesamtinvestition - eigenkapital;
-
-    const monatlicheZinsen = Math.round(darlehensbetrag * (zinssatz / 100 / 12));
-    const monatlicheTilgung = Math.round(darlehensbetrag * (tilgung / 100 / 12));
-    const monatlicheRate = monatlicheZinsen + monatlicheTilgung;
-    const instandhaltungskosten = Math.ceil(purchasePrice * 0.01 / 12);
-    const hausgeldNichtUmlegbar = Math.ceil(hausgeld * 0.30);
-    const monatlicheAusgaben = monatlicheRate + hausgeldNichtUmlegbar + instandhaltungskosten;
-
-    const monthlyCashflow = mieteinnahmen > 0 ? mieteinnahmen - monatlicheAusgaben : undefined;
-    const grossYield = mieteinnahmen > 0 && purchasePrice > 0 ? (mieteinnahmen * 12 / purchasePrice) * 100 : undefined;
-    const rentMultiplier = mieteinnahmen > 0 && purchasePrice > 0 ? purchasePrice / (mieteinnahmen * 12) : undefined;
-
-    // Tax effect
-    let steuereffekt: { monatlich: number; jaehrlich: number } | undefined;
-    if (monthlyCashflow !== undefined && purchasePrice > 0) {
-      const afaRate = getAfaRate(yearBuilt ? Number(yearBuilt) : undefined);
-      const buildingRatio = getBuildingRatio(yearBuilt ? Number(yearBuilt) : undefined);
-      const afaJaehrlich = purchasePrice * buildingRatio * afaRate;
-      const cashflowJaehrlich = monthlyCashflow * 12;
-      const steuerlichesErgebnis = cashflowJaehrlich - afaJaehrlich;
-      const grenzsteuersatz = taxProfile?.marginal_tax_rate ? Number(taxProfile.marginal_tax_rate) : 0.42;
-      const jaehrlich = steuerlichesErgebnis * grenzsteuersatz;
-      steuereffekt = { monatlich: Math.round(jaehrlich / 12), jaehrlich: Math.round(jaehrlich) };
-    }
-
+    // Return in expected format
     return {
       purchasePrice,
       sqm,
-      mieteinnahmen,
-      eigenkapitalRate,
-      zinssatz,
-      tilgung,
-      maklerRate,
-      renovierungskosten,
-      hausgeld,
-      gesamtinvestition,
-      eigenkapital,
-      darlehensbetrag,
-      monatlicheRate,
-      instandhaltungskosten,
-      monthlyCashflow,
-      grossYield,
-      rentMultiplier,
-      steuereffekt,
+      mieteinnahmen: calculated.mieteinnahmen!,
+      eigenkapitalRate: equityPercentage,
+      zinssatz: interestRate,
+      tilgung: amortizationRate,
+      maklerRate: commissionRate,
+      renovierungskosten: renovationCosts,
+      hausgeld: calculated.hausgeld!,
+      gesamtinvestition: calculated.gesamtinvestition!,
+      eigenkapital: calculated.eigenkapital!,
+      darlehensbetrag: calculated.darlehensbetrag!,
+      monatlicheRate: calculated.monatlicheRate!,
+      instandhaltungskosten: calculated.instandhaltungskosten!,
+      monthlyCashflow: calculated.calculatedCashflow!,
+      grossYield: calculated.grossYield,
+      rentMultiplier: calculated.rentMultiplier,
+      steuereffekt: calculated.steuereffekt ? {
+        monatlich: calculated.steuereffekt.monatlich,
+        jaehrlich: calculated.steuereffekt.jaehrlich,
+      } : undefined,
     };
-  }, [property, propertyId, userPropertyParams, taxProfile, formData]);
+  }, [property, propertyId, userPropertyParams, taxProfile, formData, calculatorDefaults, plzMarketRent]);
 
   // Eigennutzer Metrics
   const eigennutzerMetrics = useMemo(() => {
@@ -413,7 +372,7 @@ export default function CalculatorPage() {
       const calculatedRent = rentPerSqm && sqm ? Number(rentPerSqm) * Number(sqm) : property.actual_monthly_rent;
       monthlyRent = parseNum(userPropertyParams?.monthly_rent ?? calculatedRent, 0);
     } else {
-      monthlyRent = parseNum(formData.monthlyRent, 0);
+      monthlyRent = parseNum(formData.monthlyRent, plzMarketRent || 0);
     }
 
     // Financing parameters
@@ -421,73 +380,55 @@ export default function CalculatorPage() {
     let interestRate: number;
     let amortizationRate: number;
     let commissionRate: number;
-    let renovierungskosten: number;
+    let renovationCosts: number;
+    let monthlyFee: number | undefined;
 
     if (propertyId && property) {
       const financingTerms = property.buyer_evaluation?.financing_terms;
-      const defaultEKRate = financingTerms?.loan_to_value ? (100 - Number(financingTerms.loan_to_value)) : 20;
+      const defaultEKRate = financingTerms?.loan_to_value ? (100 - Number(financingTerms.loan_to_value)) : 10;
       equityPercentage = parseEKRate(userPropertyParams?.equity_percentage, defaultEKRate);
-      interestRate = parseNum(userPropertyParams?.interest_rate, parseNum(financingTerms?.interest_rate, 3.5));
+      interestRate = parseNum(userPropertyParams?.interest_rate, parseNum(financingTerms?.interest_rate, 4.25));
       amortizationRate = parseNum(userPropertyParams?.amortization_rate, parseNum(financingTerms?.amortization_rate, 2.0));
       commissionRate = parseNum(userPropertyParams?.broker_commission, parseNum(property.commission_rate, 0));
-      renovierungskosten = parseNum(userPropertyParams?.renovation_costs, 0);
+      renovationCosts = parseNum(userPropertyParams?.renovation_costs, 0);
+      monthlyFee = property.monthly_fee ? Number(property.monthly_fee) : undefined;
     } else {
-      equityPercentage = parseNum(formData.equityPercentage, 20);
-      interestRate = parseNum(formData.interestRate, 3.5);
-      amortizationRate = parseNum(formData.amortizationRate, 2.0);
+      // Use calculator defaults from database, with fallbacks
+      equityPercentage = parseNum(formData.equityPercentage, calculatorDefaults?.equityPercentage ?? 10);
+      interestRate = parseNum(formData.interestRate, 4.25); // From market rates, not from calculatorDefaults
+      amortizationRate = parseNum(formData.amortizationRate, calculatorDefaults?.amortizationRate ?? 2.0);
       commissionRate = parseNum(formData.commissionRate, 3.57);
-      renovierungskosten = parseNum(formData.renovationCosts, 0);
+      renovationCosts = parseNum(formData.renovationCosts, 0);
+      monthlyFee = formData.monthlyFee ? parseNum(formData.monthlyFee, 0) : undefined;
     }
-
-    // Hausgeld
-    const calculateHausgeld = (): number => {
-      if (propertyId && property) {
-        if (property.monthly_fee && Number(property.monthly_fee) > 0) return Number(property.monthly_fee);
-        if (sqm) {
-          const hausgeldProQm = yearBuilt && Number(yearBuilt) >= 1980 ? 2.50 : 3.50;
-          return Number(sqm) * hausgeldProQm;
-        }
-      } else {
-        if (formData.monthlyFee && parseNum(formData.monthlyFee, 0) > 0) {
-          return parseNum(formData.monthlyFee, 0);
-        }
-        if (sqm > 0) {
-          const hausgeldProQm = yearBuilt && yearBuilt >= 1980 ? 2.50 : 3.50;
-          return sqm * hausgeldProQm;
-        }
-      }
-      return 0;
-    };
-
-    const hausgeld = propertyId && property
-      ? parseNum(userPropertyParams?.monthly_fee, calculateHausgeld())
-      : calculateHausgeld();
 
     if (monthlyRent <= 0 || purchasePrice <= 0) return null;
 
-    const detectedState = detectStateFromLocation(location);
-    const grunderwerbsteuerRate = detectedState ? GRUNDERWERBSTEUER_SAETZE[detectedState] : 5.0;
+    // Calculate using central function
+    const calculated = calculateMetrics({
+      mode: 'eigennutzer',
+      purchasePrice,
+      location,
+      sqm,
+      yearBuilt,
+      monthlyRent,
+      monthlyFee,
+      equityPercentage,
+      interestRate,
+      amortizationRate,
+      commissionRate,
+      renovationCosts,
+      // Use calculator defaults from database
+      hausgeldPerSqmModern: calculatorDefaults?.hausgeldPerSqmModern,
+      hausgeldPerSqmOld: calculatorDefaults?.hausgeldPerSqmOld,
+      maintenanceCostPerSqm: calculatorDefaults?.maintenanceCostPerSqm,
+      nonAllocableHausgeldRatio: calculatorDefaults?.nonAllocableHausgeldRatio,
+    });
 
-    const grunderwerbsteuer = purchasePrice * (grunderwerbsteuerRate / 100);
-    const notarkosten = purchasePrice * 0.015;
-    const grundbuchkosten = purchasePrice * 0.005;
-    const maklergebuehren = purchasePrice * (commissionRate / 100);
-    const kaufnebenkosten = grunderwerbsteuer + notarkosten + grundbuchkosten + maklergebuehren + renovierungskosten;
-    const totalInvestment = purchasePrice + kaufnebenkosten;
-
-    const equityAmount = totalInvestment * (equityPercentage / 100);
-    const loanAmount = totalInvestment - equityAmount;
-    const monatlicheZinsen = Math.round(loanAmount * (interestRate / 100 / 12));
-    const monatlicheTilgung = Math.round(loanAmount * (amortizationRate / 100 / 12));
-    const monthlyMortgage = monatlicheZinsen + monatlicheTilgung;
-
-    const monthlyMaintenance = Math.ceil(purchasePrice * 0.01 / 12);
-    const totalMonthlyCostBuying = monthlyMortgage + hausgeld + monthlyMaintenance;
-
-    // Break-Even calculation
-    const jaehrlicheZinsen = loanAmount * (interestRate / 100);
-    const jaehrlicheInstandhaltung = monthlyMaintenance * 12;
-    const jaehrlichesHausgeld = hausgeld * 12;
+    // Break-Even calculation (specific to Eigennutzer mode)
+    const jaehrlicheZinsen = calculated.darlehensbetrag! * (interestRate / 100);
+    const jaehrlicheInstandhaltung = calculated.instandhaltungskosten! * 12;
+    const jaehrlichesHausgeld = calculated.hausgeld! * 12;
     const jaehrlicheKaeuferKosten = jaehrlicheZinsen + jaehrlicheInstandhaltung + jaehrlichesHausgeld;
     const jaehrlicheMiete = monthlyRent * 12;
     const jaehrlicheErsparnis = jaehrlicheMiete - jaehrlicheKaeuferKosten;
@@ -496,7 +437,7 @@ export default function CalculatorPage() {
     if (jaehrlicheErsparnis <= 0) {
       breakEvenYears = 99;
     } else {
-      breakEvenYears = Math.min(Math.ceil(kaufnebenkosten / jaehrlicheErsparnis), 99);
+      breakEvenYears = Math.min(Math.ceil(calculated.kaufnebenkosten! / jaehrlicheErsparnis), 99);
     }
 
     return {
@@ -506,17 +447,17 @@ export default function CalculatorPage() {
       interestRate,
       amortizationRate,
       commissionRate,
-      hausgeld,
-      totalInvestment,
-      equityAmount,
-      loanAmount,
-      monthlyMortgage,
-      monthlyMaintenance,
-      totalMonthlyCostBuying,
+      hausgeld: calculated.hausgeld!,
+      totalInvestment: calculated.gesamtinvestition!,
+      equityAmount: calculated.eigenkapital!,
+      loanAmount: calculated.darlehensbetrag!,
+      monthlyMortgage: calculated.monatlicheRate!,
+      monthlyMaintenance: calculated.instandhaltungskosten!,
+      totalMonthlyCostBuying: calculated.monatlicheRate! + calculated.hausgeld! + calculated.instandhaltungskosten!,
       breakEvenYears,
       isBuyingBetter: breakEvenYears <= 10,
     };
-  }, [property, propertyId, userPropertyParams, formData]);
+  }, [property, propertyId, userPropertyParams, formData, calculatorDefaults, plzMarketRent]);
 
   // Loading state (property mode)
   if (propertyId && propertyLoading) {
@@ -549,7 +490,7 @@ export default function CalculatorPage() {
   const displayYearBuilt = propertyId && property ? property.year_built : (formData.yearBuilt ? Number(formData.yearBuilt) : undefined);
 
   return (
-    <main className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <main className="min-h-screen bg-white dark:bg-gray-950">
       <Header />
 
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
@@ -558,7 +499,7 @@ export default function CalculatorPage() {
           <>
             <button
               onClick={() => router.back()}
-              className="absolute left-0 top-6 sm:top-8 -translate-x-1/2 hidden lg:flex w-10 h-10 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 items-center justify-center hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-sm transition-all z-10 text-gray-700 dark:text-gray-300"
+              className="absolute left-0 top-6 sm:top-8 -translate-x-1/2 hidden lg:flex w-10 h-10 rounded-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 items-center justify-center hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-sm transition-all z-10 text-gray-700 dark:text-gray-300"
               title="Zurück"
             >
               <ArrowLeft size={18} />
@@ -567,7 +508,7 @@ export default function CalculatorPage() {
               onClick={() => router.back()}
               className="lg:hidden inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4 group"
             >
-              <div className="w-8 h-8 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center group-hover:border-gray-300 dark:group-hover:border-gray-600 group-hover:shadow-sm transition-all">
+              <div className="w-8 h-8 rounded-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 flex items-center justify-center group-hover:border-gray-300 dark:group-hover:border-gray-600 group-hover:shadow-sm transition-all">
                 <ArrowLeft size={16} />
               </div>
               <span className="text-sm font-medium">Zurück</span>
@@ -575,10 +516,10 @@ export default function CalculatorPage() {
           </>
         )}
 
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           {/* Property Header */}
           {propertyId && property && (
-            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-300 dark:border-gray-700 p-4 mb-6 flex gap-4 items-center">
+            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 mb-6 flex gap-4 items-center">
               <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden flex-shrink-0 relative">
                 {property.images && property.images.length > 0 ? (
                   <Image
@@ -620,7 +561,7 @@ export default function CalculatorPage() {
 
           {/* Loading state for manual mode during hydration */}
           {!propertyId && !isHydrated && (
-            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-300 dark:border-gray-700 p-4 mb-6">
+            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 mb-6">
               <div className="flex items-center justify-center h-16">
                 <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
               </div>
@@ -629,7 +570,7 @@ export default function CalculatorPage() {
 
           {/* Manual Mode Header with editable fields */}
           {!propertyId && isHydrated && (
-            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-300 dark:border-gray-700 p-4 mb-6">
+            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 mb-6">
               {/* Header-Zeile */}
               <div className="flex gap-4 items-center">
                 <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-gradient-to-br from-[#E31C5F] to-[#FF9500] flex items-center justify-center flex-shrink-0">
@@ -667,17 +608,56 @@ export default function CalculatorPage() {
                 </div>
               </div>
 
-              {/* Formular-Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              {/* Formular-Grid: Desktop 1×6, Tablet 2×3, Mobile 3×2 */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                {/* Standort */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-500 dark:text-gray-400">
+                    Standort *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={formData.location}
+                      onChange={(e) => handleInputChange('location', e.target.value)}
+                      placeholder="München"
+                      className="input-gradient-border w-full px-3 py-2 text-sm rounded-lg text-gray-900 dark:text-white"
+                    />
+                    {isLookingUpPLZ && (
+                      <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 animate-spin" />
+                    )}
+                  </div>
+                  {resolvedLocation && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{resolvedLocation}</p>
+                  )}
+                </div>
+
+                {/* Wohnfläche */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-500 dark:text-gray-400">
+                    Wohnfläche *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={formData.sqm}
+                      onChange={(e) => {
+                        const rawValue = e.target.value.replace(/[^\d]/g, '');
+                        handleInputChange('sqm', rawValue);
+                      }}
+                      placeholder="75"
+                      className="input-gradient-border w-full pl-3 pr-10 py-2 text-sm rounded-lg text-gray-900 dark:text-white text-right"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">m²</span>
+                  </div>
+                </div>
+
                 {/* Kaufpreis */}
-                <div>
-                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-500 dark:text-gray-400">
                     Kaufpreis *
                   </label>
                   <div className="relative">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                      <Euro size={16} />
-                    </div>
                     <input
                       type="text"
                       value={formData.price ? new Intl.NumberFormat('de-DE').format(Number(formData.price)) : ''}
@@ -686,68 +666,21 @@ export default function CalculatorPage() {
                         handleInputChange('price', rawValue);
                       }}
                       placeholder="350.000"
-                      className="w-full pl-9 pr-3 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent font-semibold"
+                      className="input-gradient-border w-full pl-3 pr-8 py-2 text-sm rounded-lg text-gray-900 dark:text-white font-semibold text-right"
                     />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">€</span>
                   </div>
                 </div>
 
-                {/* Wohnfläche */}
-                <div>
-                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
-                    Wohnfläche *
-                  </label>
-                  <div className="relative">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500">
-                      <Square size={16} />
-                    </div>
-                    <input
-                      type="number"
-                      value={formData.sqm}
-                      onChange={(e) => handleInputChange('sqm', e.target.value)}
-                      placeholder="75"
-                      className="w-full pl-9 pr-10 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent font-semibold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">m²</span>
-                  </div>
-                </div>
-
-                {/* PLZ/Ort */}
-                <div>
-                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
-                    PLZ/Ort *
-                  </label>
-                  <div className="relative">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                      <MapPin size={16} />
-                    </div>
-                    <input
-                      type="text"
-                      value={formData.location}
-                      onChange={(e) => handleInputChange('location', e.target.value)}
-                      placeholder="München"
-                      className="w-full pl-9 pr-3 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent font-semibold"
-                    />
-                    {isLookingUpPLZ && (
-                      <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 animate-spin" />
-                    )}
-                  </div>
-                  {resolvedLocation && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{resolvedLocation}</p>
-                  )}
-                </div>
-
-                {/* Mieteinnahmen */}
-                <div>
-                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                {/* Miete */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-500 dark:text-gray-400">
                     Miete/Monat
                     {isLoadingMarketData && (
                       <span className="text-gray-400 ml-1 animate-pulse">...</span>
                     )}
                   </label>
                   <div className="relative">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500">
-                      <Wallet size={16} />
-                    </div>
                     <input
                       type="text"
                       value={formData.monthlyRent ? new Intl.NumberFormat('de-DE').format(Number(formData.monthlyRent)) : ''}
@@ -756,37 +689,51 @@ export default function CalculatorPage() {
                         handleInputChange('monthlyRent', rawValue);
                       }}
                       placeholder={plzMarketRent ? new Intl.NumberFormat('de-DE').format(plzMarketRent) : '1.200'}
-                      className="w-full pl-9 pr-8 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent font-semibold"
+                      className="input-gradient-border w-full pl-3 pr-8 py-2 text-sm rounded-lg text-gray-900 dark:text-white text-right"
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">€</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">€</span>
                   </div>
-                  {/* Market rent hint - always shown when available */}
                   {plzMarketRent && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      Ø Marktmiete: {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(plzMarketRent)}/Mo
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      Ø: {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(plzMarketRent)}/Mo
                     </p>
                   )}
                 </div>
 
                 {/* Baujahr */}
-                <div>
-                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-500 dark:text-gray-400">
                     Baujahr
                   </label>
-                  <div className="relative">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-500">
-                      <Calendar size={16} />
-                    </div>
-                    <input
-                      type="number"
-                      value={formData.yearBuilt}
-                      onChange={(e) => handleInputChange('yearBuilt', e.target.value)}
-                      placeholder="1995"
-                      min="1800"
-                      max="2030"
-                      className="w-full pl-9 pr-3 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent font-semibold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                  </div>
+                  <input
+                    type="text"
+                    value={formData.yearBuilt}
+                    onChange={(e) => {
+                      const rawValue = e.target.value.replace(/[^\d]/g, '');
+                      handleInputChange('yearBuilt', rawValue);
+                    }}
+                    placeholder="1995"
+                    className="input-gradient-border w-full px-3 py-2 text-sm rounded-lg text-gray-900 dark:text-white text-right"
+                  />
+                </div>
+
+                {/* Zustand */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-500 dark:text-gray-400">
+                    Zustand
+                  </label>
+                  <select
+                    value={formData.condition || ''}
+                    onChange={(e) => handleInputChange('condition', e.target.value)}
+                    className="input-gradient-border w-full px-3 py-2 text-sm rounded-lg text-gray-900 dark:text-white"
+                  >
+                    <option value="">Bitte wählen</option>
+                    <option value="neuwertig">Neuwertig</option>
+                    <option value="saniert">Saniert</option>
+                    <option value="gepflegt">Gepflegt</option>
+                    <option value="renovierungsbedürftig">Renovierungsbedürftig</option>
+                    <option value="abbruchreif">Abbruchreif</option>
+                  </select>
                 </div>
               </div>
             </div>
@@ -795,97 +742,7 @@ export default function CalculatorPage() {
           {/* Calculator Cards */}
           {activeTab === 'investor' && investorMetrics && isHydrated && (
             <CalculatorCards
-                metricsElement={
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {/* Rendite Card */}
-                    <div className={`rounded-xl border p-4 text-center ${
-                      investorMetrics.grossYield !== undefined && investorMetrics.grossYield >= 4
-                        ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/50'
-                        : investorMetrics.grossYield !== undefined && investorMetrics.grossYield >= 2
-                          ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/50'
-                          : 'bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-800/50'
-                    }`}>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Rendite</p>
-                      <p className={`text-xl font-semibold ${
-                        investorMetrics.grossYield !== undefined && investorMetrics.grossYield >= 4
-                          ? 'text-emerald-700 dark:text-emerald-400'
-                          : investorMetrics.grossYield !== undefined && investorMetrics.grossYield >= 2
-                            ? 'text-amber-700 dark:text-amber-400'
-                            : 'text-rose-700 dark:text-rose-400'
-                      }`}>
-                        {investorMetrics.grossYield?.toFixed(1) ?? '—'}%
-                      </p>
-                    </div>
-                    {/* Cashflow Card */}
-                    <div className={`rounded-xl border p-4 text-center ${
-                      investorMetrics.monthlyCashflow !== undefined && investorMetrics.monthlyCashflow > 50
-                        ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/50'
-                        : investorMetrics.monthlyCashflow !== undefined && investorMetrics.monthlyCashflow >= -50
-                          ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/50'
-                          : 'bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-800/50'
-                    }`}>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Cashflow</p>
-                      <p className={`text-xl font-semibold ${
-                        investorMetrics.monthlyCashflow !== undefined && investorMetrics.monthlyCashflow > 50
-                          ? 'text-emerald-700 dark:text-emerald-400'
-                          : investorMetrics.monthlyCashflow !== undefined && investorMetrics.monthlyCashflow >= -50
-                            ? 'text-amber-700 dark:text-amber-400'
-                            : 'text-rose-700 dark:text-rose-400'
-                      }`}>
-                        {investorMetrics.monthlyCashflow !== undefined
-                          ? `${investorMetrics.monthlyCashflow >= 0 ? '+' : ''}${investorMetrics.monthlyCashflow.toLocaleString('de-DE')}€`
-                          : '—'}
-                      </p>
-                    </div>
-                    {/* Steuereffekt Card */}
-                    <div className={`rounded-xl border p-4 text-center ${
-                      investorMetrics.steuereffekt && investorMetrics.steuereffekt.monatlich < -20
-                        ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/50'
-                        : investorMetrics.steuereffekt && Math.abs(investorMetrics.steuereffekt.monatlich) <= 20
-                          ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/50'
-                          : 'bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-800/50'
-                    }`}>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Steuereffekt</p>
-                      <p className={`text-xl font-semibold ${
-                        investorMetrics.steuereffekt && investorMetrics.steuereffekt.monatlich < -20
-                          ? 'text-emerald-700 dark:text-emerald-400'
-                          : investorMetrics.steuereffekt && Math.abs(investorMetrics.steuereffekt.monatlich) <= 20
-                            ? 'text-amber-700 dark:text-amber-400'
-                            : 'text-rose-700 dark:text-rose-400'
-                      }`}>
-                        {investorMetrics.steuereffekt
-                          ? `${investorMetrics.steuereffekt.monatlich < 0 ? '+' : ''}${Math.abs(investorMetrics.steuereffekt.monatlich).toLocaleString('de-DE')}€`
-                          : '—'}
-                      </p>
-                    </div>
-                    {/* Cash on Cash Card */}
-                    {(() => {
-                      const cashOnCash = investorMetrics.monthlyCashflow !== undefined && investorMetrics.eigenkapital > 0
-                        ? (investorMetrics.monthlyCashflow * 12 / investorMetrics.eigenkapital) * 100
-                        : undefined;
-                      return (
-                        <div className={`rounded-xl border p-4 text-center ${
-                          cashOnCash !== undefined && cashOnCash > 0
-                            ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/50'
-                            : cashOnCash !== undefined && cashOnCash >= -2
-                              ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/50'
-                              : 'bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-800/50'
-                        }`}>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Cash on Cash</p>
-                          <p className={`text-xl font-semibold ${
-                            cashOnCash !== undefined && cashOnCash > 0
-                              ? 'text-emerald-700 dark:text-emerald-400'
-                              : cashOnCash !== undefined && cashOnCash >= -2
-                                ? 'text-amber-700 dark:text-amber-400'
-                                : 'text-rose-700 dark:text-rose-400'
-                          }`}>
-                            {cashOnCash !== undefined ? `${cashOnCash.toFixed(1)}%` : '—'}
-                          </p>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                }
+                metricsElement={<MetricsCards />}
                 mode="investor"
                 purchasePrice={displayPrice}
                 location={displayLocation}
@@ -893,14 +750,14 @@ export default function CalculatorPage() {
                 equityPercentage={propertyId && property
                   ? (property.buyer_evaluation?.financing_terms?.loan_to_value
                     ? (100 - property.buyer_evaluation.financing_terms.loan_to_value)
-                    : 20)
-                  : parseNum(formData.equityPercentage, 20)}
+                    : 10)
+                  : parseNum(formData.equityPercentage, calculatorDefaults?.equityPercentage ?? 10)}
                 interestRate={propertyId && property
                   ? property.buyer_evaluation?.financing_terms?.interest_rate
-                  : parseNum(formData.interestRate, 3.8)}
+                  : parseNum(formData.interestRate, 4.25)}
                 amortizationRate={propertyId && property
                   ? property.buyer_evaluation?.financing_terms?.amortization_rate
-                  : parseNum(formData.amortizationRate, 2.0)}
+                  : parseNum(formData.amortizationRate, calculatorDefaults?.amortizationRate ?? 2.0)}
                 monthlyFee={propertyId && property ? property.monthly_fee : (formData.monthlyFee ? Number(formData.monthlyFee) : undefined)}
                 sqm={displaySqm}
                 yearBuilt={displayYearBuilt}
@@ -908,7 +765,7 @@ export default function CalculatorPage() {
                   ? (property.buyer_evaluation?.rental_income?.rent_per_sqm && property.sqm
                     ? Number(property.buyer_evaluation.rental_income.rent_per_sqm) * Number(property.sqm)
                     : property.actual_monthly_rent)
-                  : parseNum(formData.monthlyRent, 0)}
+                  : parseNum(formData.monthlyRent, plzMarketRent || 0)}
                 estimatedRentPerSqm={propertyId && property ? property.buyer_evaluation?.rental_income?.rent_per_sqm : undefined}
                 renovationCosts={propertyId ? 0 : parseNum(formData.renovationCosts, 0)}
                 userParams={userPropertyParams}
@@ -930,14 +787,14 @@ export default function CalculatorPage() {
                 equityPercentage={propertyId && property
                   ? (property.buyer_evaluation?.financing_terms?.loan_to_value
                     ? (100 - property.buyer_evaluation.financing_terms.loan_to_value)
-                    : 20)
-                  : parseNum(formData.equityPercentage, 20)}
+                    : 10)
+                  : parseNum(formData.equityPercentage, calculatorDefaults?.equityPercentage ?? 10)}
                 interestRate={propertyId && property
-                  ? (property.buyer_evaluation?.financing_terms?.interest_rate ?? 3.5)
-                  : parseNum(formData.interestRate, 3.5)}
+                  ? (property.buyer_evaluation?.financing_terms?.interest_rate ?? 4.25)
+                  : parseNum(formData.interestRate, 4.25)}
                 amortizationRate={propertyId && property
                   ? (property.buyer_evaluation?.financing_terms?.amortization_rate ?? 2.0)
-                  : parseNum(formData.amortizationRate, 2.0)}
+                  : parseNum(formData.amortizationRate, calculatorDefaults?.amortizationRate ?? 2.0)}
                 monthlyFee={propertyId && property ? property.monthly_fee : (formData.monthlyFee ? Number(formData.monthlyFee) : undefined)}
                 sqm={displaySqm}
                 yearBuilt={displayYearBuilt}
@@ -954,14 +811,14 @@ export default function CalculatorPage() {
 
             {/* Empty states */}
             {activeTab === 'investor' && !investorMetrics && (
-              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-12 text-center">
+              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-300 dark:border-gray-700 p-12 text-center">
                 <TrendingUp size={48} className="mx-auto text-gray-200 dark:text-gray-700 mb-4" />
                 <p className="text-gray-500 dark:text-gray-400">Gib Immobiliendaten ein, um die Investment-Analyse zu sehen</p>
               </div>
             )}
 
             {activeTab === 'eigennutzer' && !eigennutzerMetrics && (
-              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-12 text-center">
+              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-300 dark:border-gray-700 p-12 text-center">
                 <Home size={48} className="mx-auto text-gray-200 dark:text-gray-700 mb-4" />
                 <p className="text-gray-500 dark:text-gray-400">Gib Immobiliendaten ein, um die Kaufen vs. Mieten Analyse zu sehen</p>
               </div>
@@ -970,7 +827,7 @@ export default function CalculatorPage() {
       </div>
 
       {/* Horizontale Trennlinie - volle Breite */}
-      <div className="border-t border-gray-200 dark:border-gray-700 my-8" />
+      <div className="border-t border-gray-200 dark:border-gray-600 my-8" />
 
       {/* Ähnliche Objekte - volle Breite */}
       <div className="px-4 sm:px-6 pb-8">
@@ -983,11 +840,11 @@ export default function CalculatorPage() {
           equityPercentage={propertyId && property
             ? (property.buyer_evaluation?.financing_terms?.loan_to_value
               ? (100 - property.buyer_evaluation.financing_terms.loan_to_value)
-              : 20)
-            : parseNum(formData.equityPercentage, 20)}
+              : 10)
+            : parseNum(formData.equityPercentage, calculatorDefaults?.equityPercentage ?? 10)}
           interestRate={propertyId && property
-            ? (property.buyer_evaluation?.financing_terms?.interest_rate ?? 3.8)
-            : parseNum(formData.interestRate, 3.8)}
+            ? (property.buyer_evaluation?.financing_terms?.interest_rate ?? 4.25)
+            : parseNum(formData.interestRate, 4.25)}
         />
       </div>
     </main>

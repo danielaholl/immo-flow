@@ -5,6 +5,7 @@
   "description": "TikTok-style real estate investment app - Monorepo",
   "scripts": {
     "dev": "turbo run dev",
+
     "dev:web": "turbo run dev --filter=web",
     "restart:web": "pkill -f 'node.*immo-flow' ; pnpm dev:web:full",
     "restart:all": "pkill -f 'node.*immo-flow' ; pnpm dev:all",

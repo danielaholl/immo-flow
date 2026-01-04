@@ -33,6 +33,11 @@ const PropertyDataSchema = z.object({
   commission_rate: z.number().nullish(),    // Maklerprovision in %
   // AfA type - only set explicitly for Denkmal
   afa_type: z.enum(['bestand', 'altbau', 'neubau', 'denkmal']).nullish(),
+  // Provider contact info (for import mode only)
+  provider_name: z.string().nullish(),
+  provider_email: z.string().email().nullish(),
+  provider_phone: z.string().nullish(),
+  provider_company: z.string().nullish(),
 });
 
 export type ExtractedPropertyData = z.infer<typeof PropertyDataSchema>;
@@ -68,7 +73,7 @@ export const aiChatRouter = router({
         // Note: title and description are auto-generated, so they're not in priority fields
         // commission_rate is priority 1 because it's important financial info shown below price
         const priority1Fields = ['property_type', 'location', 'price', 'commission_rate', 'sqm', 'rooms', 'condition'] as const;
-        const priority2Fields = ['bathrooms', 'floor_level', 'total_floors', 'year_built', 'postal_code', 'street_address', 'features', 'available_from', 'important_notes', 'monthly_fee', 'monthly_rent'] as const;
+        const priority2Fields = ['bathrooms', 'floor_level', 'total_floors', 'year_built', 'postal_code', 'street_address', 'features', 'available_from', 'important_notes', 'monthly_fee', 'monthly_rent', 'provider_name', 'provider_email', 'provider_phone', 'provider_company'] as const;
 
         const missingPriority1 = priority1Fields.filter(field => !currentData[field as keyof typeof currentData]);
         const missingPriority2 = priority2Fields.filter(field => !currentData[field as keyof typeof currentData]);
@@ -105,6 +110,10 @@ VERFUEGBARE FELDER (verwende diese exakten Feldnamen):
 - features: Array von Ausstattungen ["Balkon", "Garage", etc.]
 - description: Beschreibungstext
 - available_from: Verfuegbar ab (Datum)
+- provider_name: Name des Anbieters/Maklers (String)
+- provider_email: E-Mail-Adresse des Anbieters (String, E-Mail-Format)
+- provider_phone: Telefonnummer des Anbieters (String)
+- provider_company: Firma des Anbieters (String)
 
 ZEICHENSATZ-REGEL:
 Verwende in deinen Antworten KEINE deutschen Umlaute oder Sonderzeichen!
@@ -188,6 +197,17 @@ WICHTIG: Wenn der User neue Infos liefert, AKTUALISIERE title und description en
      * "Stylische City-Wohnung in Schwabing" (35 Zeichen)
    - Kuerze: "Zimmer" -> "Zi", "Wohnung" kann auch weg wenn klar
    - Bei Updates: Tausche Highlights aus, aber halte es kurz!
+
+   TITEL-ANPASSUNG (WICHTIG - NUR EINMAL FRAGEN!):
+   Nachdem die Basisdaten bekannt sind (Zimmer, Typ, Lage), frage EINMAL:
+   "Ich habe einen Titel-Vorschlag generiert (siehe Vorschau). Möchtest du einen eigenen Titel eingeben?"
+
+   Wenn User antwortet:
+   - "Nein" / "Passt so" / "ist ok" → Behalte generierten Titel, fahre fort
+   - "Ja" / nennt eigenen Titel → Überschreibe title mit User-Input
+   - Ignoriert die Frage → Behalte generierten Titel, fahre fort
+
+   WICHTIG: Diese Frage NUR EINMAL stellen! Nicht bei jeder Nachricht wiederholen!
 
 2. **description**: Erstelle/aktualisiere eine STORYTELLING-Beschreibung (Social-Media-Style)
    - NICHT wie ein trockener Makler schreiben! Sondern emotional, modern, catchy
@@ -279,6 +299,10 @@ energy_efficiency_class -> Energieklasse
 monthly_fee -> Hausgeld
 monthly_rent -> Mieteinnahmen
 commission_rate -> Maklerprovision
+provider_name -> Anbieter-Name / Makler-Name
+provider_email -> Anbieter-E-Mail / Makler-E-Mail
+provider_phone -> Anbieter-Telefon / Makler-Telefon
+provider_company -> Anbieter-Firma / Maklerfirma
 
 ANTWORT-FORMAT (NUR DEUTSCHE BEGRIFFE, KEINE UMLAUTE!):
 Beispiel wenn Pflichtfelder fehlen:
@@ -322,6 +346,38 @@ Feldtypen (INTERN - nicht in Antworten verwenden!):
 - commission_rate: Maklerprovision in Prozent (Zahl, z.B. 3.57)
 - afa_type: NUR bei Denkmalschutz setzen: 'denkmal' (sonst wird automatisch berechnet)
 
+WICHTIG - FEATURE-KATEGORISIERUNG:
+Unterscheide zwischen STRUKTURIERTEN und UNSTRUKTURIERTEN Features:
+
+STRUKTURIERTE Features (gehen NUR in features Array):
+- Ausstattungsmerkmale: Balkon, Terrasse, Garten, Loggia
+- Parken: Garage, Stellplatz, Tiefgarage, Duplex-Stellplatz
+- Küche: Einbauküche, EBK, Pantry-Küche
+- Boden: Parkett, Fliesen, Laminat, Marmor, Eichenparkett
+- Heizung: Fußbodenheizung, Zentralheizung, Gasetagenheizung
+- Technisch: Aufzug, Fahrstuhl, Videosprechanlage, Smart Home
+- Sonstiges: Keller, Kellerabteil, Abstellraum, Barrierefrei
+- Zustand: Neubau, Altbau, Denkmalschutz, Erstbezug
+
+UNSTRUKTURIERTE Features (gehen ZUSÄTZLICH in description im Bereich "Die Hard-Facts"):
+- Zeitangaben: "2022 saniert", "Bad neu 2023"
+- Details: "Südbalkon mit Bergblick", "Tiefgarage wird 2025 saniert"
+- Beschreibungen: "Hochwertige Einbauküche von Siemens"
+- Besonderheiten: "Sonderumlage geplant"
+
+BEISPIELE:
+User: "Die Wohnung hat einen Balkon und wurde 2022 komplett saniert"
+→ features: ["Balkon"]
+→ description: Füge "Komplett saniert 2022" im Bereich "📋 Die Hard-Facts" ein
+
+User: "Es gibt eine Tiefgarage, die wird aber 2025 saniert"
+→ features: ["Tiefgarage"]
+→ description: Füge "Tiefgarage (Sanierung 2025 geplant)" in "Die Hard-Facts" ein
+
+User: "Südbalkon mit Bergblick"
+→ features: ["Balkon"]
+→ description: Füge "Südbalkon mit Bergblick" in "Die Hard-Facts" ein
+
 WICHTIG - Property-Typ-abhaengige Felder:
 - Bei property_type = 'house' oder 'villa': Frage nach "Anzahl der Geschosse" (total_floors), NICHT nach Etage (floor_level)
 - Bei property_type = 'apartment': Frage nach "Etage" (floor_level)
@@ -339,6 +395,48 @@ WICHTIG - Denkmalschutz (afa_type):
 - Bei "nein" oder nicht erwaehnt -> afa_type NICHT setzen (wird automatisch aus Baujahr berechnet)
 - Der AfA-Typ wird fuer Steuerberechnungen verwendet (9% Denkmal-AfA vs 2%/2.5% normal)
 
+ANBIETER-KONTAKTDATEN (NUR IM IMPORT-MODUS):
+Nachdem alle Basisdaten erfasst sind, frage EINMAL:
+
+"Moechtest du die Kontaktdaten des Maklers/Verkäufers fuer dieses Objekt speichern?
+Damit kannst du spaeter direkt mit ihm kommunizieren."
+
+Wenn User antwortet:
+- "Ja" / "Gerne" / Gibt direkt Kontaktdaten → Erfasse folgende Daten:
+  * provider_name (Vor- und Nachname oder Firma)
+  * provider_email (Email-Adresse - PFLICHTFELD)
+  * provider_phone (optional - Telefonnummer)
+  * provider_company (optional - Firmenname)
+
+- "Nein" / "Nicht noetig" → Fahre fort ohne diese Daten
+
+Beispiel-Extraktion:
+User: "Anbieter heisst Sonja Bogatekin und ihre email adresse ist holl@mind-stack.com"
+{
+  "extractedData": {
+    "provider_name": "Sonja Bogatekin",
+    "provider_email": "holl@mind-stack.com"
+  },
+  "response": "Perfekt! Ich habe die Kontaktdaten von Sonja Bogatekin gespeichert. Du kannst sie im Bereich 'Anbieter-Informationen' sehen und bei Bedarf anpassen."
+}
+
+User: "Der Makler heisst Max Mustermann, E-Mail max@immobilien.de, Telefon 089-1234567, Firma Mustermann Immobilien"
+{
+  "extractedData": {
+    "provider_name": "Max Mustermann",
+    "provider_email": "max@immobilien.de",
+    "provider_phone": "089-1234567",
+    "provider_company": "Mustermann Immobilien"
+  },
+  "response": "Super! Ich habe alle Kontaktdaten von Max Mustermann gespeichert."
+}
+
+WICHTIG:
+- Diese Frage wird AUTOMATISCH vom System gestellt (nicht von dir!)
+- Wenn User Kontaktdaten liefert, extrahiere sie einfach
+- Mindestens provider_email MUSS vorhanden sein
+- Nur im Import-Modus relevant!
+
 REGELN:
 1. Frage NIEMALS nach Feldern, die bereits bekannt sind (oben aufgelistet)!
 2. Stelle immer nur EINE Frage nach einem fehlenden Feld
@@ -353,7 +451,7 @@ Antworte im JSON Format:
   "extractedData": {
     "property_type": "apartment",  // IMMER setzen wenn User "Wohnung" etc. erwaehnt!
     "title": "Sonnige 2-Zi-Wohnung in Moosach",  // MAX 50-60 Zeichen! Kurz halten!
-    "description": "✨ Der Vibe\nStell dir vor: Feierabend auf deinem eigenen Sued-Balkon, die Sonne im Gesicht, und die U-Bahn direkt ums Eck. Diese 2-Zimmer-Wohnung verbindet entspanntes Wohnen mit dem Puls von Muenchen.\n\n📋 Die Hard-Facts\n• 📐 52 m² perfekt geschnitten\n• 🍳 EBK inklusive – ready to cook\n• 🛀 Bad 2022 komplett saniert\n• 🚗 Eigener Tiefgaragenstellplatz\n• ☀️ Suedbalkon fuer Sonnenanbeter\n\n📍 Location-Check\nMoosach ist der Place-to-be! Olympiapark in 10 Min zum Joggen, U3 bringt dich in Rekordzeit in die City.",  // STORYTELLING mit klaren Bereichen!
+    "description": "✨ Der Vibe\nStell dir vor: Feierabend auf deinem eigenen Sued-Balkon, die Sonne im Gesicht, und die U-Bahn direkt ums Eck. Diese 2-Zimmer-Wohnung verbindet entspanntes Wohnen mit dem Puls von Muenchen.\n\n📋 Die Hard-Facts\n• 📐 52 m² perfekt geschnitten\n• 🍳 EBK inklusive – ready to cook\n• 🛀 Bad komplett saniert 2022\n• 🚗 Tiefgarage (Sanierung 2025 geplant)\n• ☀️ Suedbalkon mit Bergblick\n\n📍 Location-Check\nMoosach ist der Place-to-be! Olympiapark in 10 Min zum Joggen, U3 bringt dich in Rekordzeit in die City.",  // STORYTELLING mit klaren Bereichen!
     "location": "Muenchen-Moosach",
     "street_address": "Dresdner Str. 1",
     "sqm": 52,
@@ -361,7 +459,7 @@ Antworte im JSON Format:
     "floor_level": "3",  // "3 OG" oder "3. Stock" -> "3"
     "monthly_fee": 170,  // Hausgeld in Euro
     "monthly_rent": 1500,  // Mieteinnahmen bei Kapitalanlage
-    "features": ["EBK", "Suedbalkon", "Bad 2022 saniert", "Tiefgarage"]
+    "features": ["EBK", "Balkon", "Tiefgarage"]  // Nur strukturierte Features!
   },
   "response": "Ok, ich habe erfasst:\n- Etage: 3. OG\n- Hausgeld: 170 Euro/Monat\n- Mieteinnahmen: 1.500 Euro/Monat\n\nTitel und Beschreibung wurden aktualisiert - schau in die Vorschau!",
   "missingFields": [],

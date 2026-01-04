@@ -76,30 +76,36 @@ export function CashflowCard({ className = '' }: CardProps) {
   };
 
   return (
-    <div className={`bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl p-5 flex flex-col ${className}`}>
+    <div className={`bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5 flex flex-col ${className}`}>
       {/* Header - klickbar */}
       <button
         onClick={() => toggleCardExpansion('cashflow')}
-        className="flex items-center justify-between w-full text-left"
+        className="flex items-start justify-between w-full text-left"
       >
-        <div className="flex items-center gap-2">
-          {mode === 'investor' ? (
-            <Wallet size={18} className={getIconColor()} />
-          ) : (
-            <Home size={18} className="text-indigo-600 dark:text-gray-300" />
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-2">
+            {mode === 'investor' ? (
+              <Wallet size={18} className={getIconColor()} />
+            ) : (
+              <Home size={18} className="text-indigo-600 dark:text-gray-300" />
+            )}
+            <h4 className="font-semibold text-gray-900 dark:text-white text-xl">
+              {mode === 'investor' ? 'Cashflow' : 'Miete vs. Kauf'}
+            </h4>
+          </div>
+          {!isExpanded && (
+            <span className="font-semibold text-gray-500 dark:text-gray-400 text-lg ml-[26px]">Miete</span>
           )}
-          <h4 className="font-semibold text-gray-900 dark:text-white text-base">
-            {mode === 'investor' ? 'Cashflow / Monat' : 'Miete vs. Kauf'}
-          </h4>
         </div>
         <div className="flex items-center gap-3">
           {/* Summary when collapsed */}
           {!isExpanded && (
-            <div className="flex items-center gap-2 text-sm">
-              <span className="font-semibold text-emerald-600 dark:text-emerald-400">+{formatCurrency(values.mieteinnahmen)}</span>
-              <span className="text-gray-400 dark:text-gray-500">|</span>
-              <span className={`font-bold ${isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                {isPositive ? '+' : ''}{formatCurrency(values.calculatedCashflow)}
+            <div className="flex flex-col items-end">
+              <span className={`font-bold text-xl ${isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                {isPositive ? '+' : ''}{formatCurrency(values.calculatedCashflow)}/Mo
+              </span>
+              <span className="font-bold text-gray-500 dark:text-gray-400 text-lg mt-0.5">
+                {formatCurrency(values.mieteinnahmen)}/Mo
               </span>
             </div>
           )}
@@ -113,12 +119,16 @@ export function CashflowCard({ className = '' }: CardProps) {
 
       {/* Content - only shown when expanded */}
       {isExpanded && (
-        <div className="space-y-3 text-sm flex-grow flex flex-col mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="space-y-3 text-sm flex-grow flex flex-col mt-4 pt-4 border-t border-gray-300 dark:border-gray-700">
         {/* Mieteinnahmen / Marktmiete */}
         <div>
           <div className="flex items-center justify-between">
             <span className="text-gray-600 dark:text-gray-400">
-              {mode === 'investor' ? 'Mieteinnahmen' : 'Marktmiete'}
+              {mode === 'investor'
+                ? (plzMarketRent
+                    ? `Mieteinnahmen (Ø: ${formatCurrency(plzMarketRent)}/Mo)`
+                    : 'Mieteinnahmen')
+                : 'Miete'}
               {isLoadingMarketData && (
                 <span className="text-xs text-gray-400 ml-1 animate-pulse">...</span>
               )}
@@ -129,7 +139,9 @@ export function CashflowCard({ className = '' }: CardProps) {
                   <span className="text-emerald-600 dark:text-emerald-400 font-semibold mr-1">+</span>
                   <input
                     type="text"
-                    value={editState.monthlyRent !== null ? new Intl.NumberFormat('de-DE').format(editState.monthlyRent) : ''}
+                    value={editState.monthlyRent !== null && editState.monthlyRent !== undefined
+                      ? new Intl.NumberFormat('de-DE').format(editState.monthlyRent)
+                      : ''}
                     onChange={(e) => {
                       const rawValue = e.target.value.replace(/[^\d]/g, '');
                       setEditState((prev) => ({
@@ -138,8 +150,12 @@ export function CashflowCard({ className = '' }: CardProps) {
                       }));
                     }}
                     placeholder={new Intl.NumberFormat('de-DE').format(Math.ceil(plzMarketRent ?? calculateRent()))}
-                    style={{ width: getFormattedInputWidth(editState.monthlyRent, Math.ceil(plzMarketRent ?? calculateRent())), color: '#10b981' }}
-                    className="pl-2 pr-7 py-1.5 border border-[#DDDDDD] dark:border-gray-600 dark:bg-gray-800 rounded-lg text-sm focus:ring-[3px] focus:ring-primary/30 focus:border-primary outline-none text-right font-semibold"
+                    style={{ width: getFormattedInputWidth(editState.monthlyRent ?? Math.ceil(plzMarketRent ?? calculateRent()), Math.ceil(plzMarketRent ?? calculateRent())) }}
+                    className={`pl-2 pr-7 py-1.5 input-gradient-border rounded-lg text-sm text-right font-semibold ${
+                      editState.monthlyRent === null || editState.monthlyRent === undefined
+                        ? 'text-emerald-600/70 dark:text-emerald-400/70'
+                        : 'text-emerald-600 dark:text-emerald-400'
+                    }`}
                   />
                   <span className="absolute right-2 text-gray-500 dark:text-gray-400 text-sm pointer-events-none">€</span>
                 </span>
@@ -148,14 +164,6 @@ export function CashflowCard({ className = '' }: CardProps) {
               )}
             </div>
           </div>
-          {/* Market rent hint - always shown when available */}
-          {plzMarketRent && (
-            <div className="flex justify-end mt-1">
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                Ø Marktmiete: {formatCurrency(plzMarketRent)}/Mo
-              </span>
-            </div>
-          )}
         </div>
 
         {/* Hausgeld */}
@@ -172,7 +180,9 @@ export function CashflowCard({ className = '' }: CardProps) {
                 {mode !== 'investor' && <span className="text-rose-600 dark:text-rose-400 font-semibold mr-1">-</span>}
                 <input
                   type="text"
-                  value={editState.monthlyFee !== null ? new Intl.NumberFormat('de-DE').format(editState.monthlyFee) : ''}
+                  value={editState.monthlyFee !== null && editState.monthlyFee !== undefined
+                    ? new Intl.NumberFormat('de-DE').format(editState.monthlyFee)
+                    : ''}
                   onChange={(e) => {
                     const rawValue = e.target.value.replace(/[^\d]/g, '');
                     setEditState((prev) => ({
@@ -181,8 +191,12 @@ export function CashflowCard({ className = '' }: CardProps) {
                     }));
                   }}
                   placeholder={new Intl.NumberFormat('de-DE').format(Math.ceil(calculateHausgeld()))}
-                  style={{ width: getFormattedInputWidth(editState.monthlyFee, Math.ceil(calculateHausgeld())) }}
-                  className="pl-2 pr-7 py-1.5 border border-[#DDDDDD] dark:border-gray-600 dark:bg-gray-800 rounded-lg text-sm focus:ring-[3px] focus:ring-primary/30 focus:border-primary outline-none text-right font-semibold text-rose-600 dark:text-rose-400"
+                  style={{ width: getFormattedInputWidth(editState.monthlyFee ?? Math.ceil(calculateHausgeld()), Math.ceil(calculateHausgeld())) }}
+                  className={`pl-2 pr-7 py-1.5 input-gradient-border rounded-lg text-sm text-right font-semibold ${
+                    editState.monthlyFee === null || editState.monthlyFee === undefined
+                      ? 'text-rose-600/70 dark:text-rose-400/70'
+                      : 'text-rose-600 dark:text-rose-400'
+                  }`}
                 />
                 <span className="absolute right-2 text-gray-500 dark:text-gray-400 text-sm pointer-events-none">€</span>
               </span>
@@ -225,7 +239,9 @@ export function CashflowCard({ className = '' }: CardProps) {
                 <span className="text-rose-600 dark:text-rose-400 font-semibold mr-1">-</span>
                 <input
                   type="text"
-                  value={editState.maintenanceCosts !== null ? new Intl.NumberFormat('de-DE').format(editState.maintenanceCosts) : ''}
+                  value={editState.maintenanceCosts !== null && editState.maintenanceCosts !== undefined
+                    ? new Intl.NumberFormat('de-DE').format(editState.maintenanceCosts)
+                    : ''}
                   onChange={(e) => {
                     const rawValue = e.target.value.replace(/[^\d]/g, '');
                     setEditState((prev) => ({
@@ -234,8 +250,12 @@ export function CashflowCard({ className = '' }: CardProps) {
                     }));
                   }}
                   placeholder={new Intl.NumberFormat('de-DE').format(values.instandhaltungskosten)}
-                  style={{ width: getFormattedInputWidth(editState.maintenanceCosts, values.instandhaltungskosten) }}
-                  className="pl-2 pr-7 py-1.5 border border-[#DDDDDD] dark:border-gray-600 dark:bg-gray-800 rounded-lg text-sm focus:ring-[3px] focus:ring-primary/30 focus:border-primary outline-none text-right font-semibold text-rose-600 dark:text-rose-400"
+                  style={{ width: getFormattedInputWidth(editState.maintenanceCosts ?? values.instandhaltungskosten, values.instandhaltungskosten) }}
+                  className={`pl-2 pr-7 py-1.5 input-gradient-border rounded-lg text-sm text-right font-semibold ${
+                    editState.maintenanceCosts === null || editState.maintenanceCosts === undefined
+                      ? 'text-rose-600/70 dark:text-rose-400/70'
+                      : 'text-rose-600 dark:text-rose-400'
+                  }`}
                 />
                 <span className="absolute right-2 text-gray-500 dark:text-gray-400 text-sm pointer-events-none">€</span>
               </span>
@@ -257,7 +277,7 @@ export function CashflowCard({ className = '' }: CardProps) {
         </div>
 
         {/* Summe */}
-        <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700 mt-auto">
+        <div className="flex items-center justify-between pt-3 border-t border-gray-300 dark:border-gray-700 mt-auto">
           <span className="text-gray-900 dark:text-white font-bold">
             {mode === 'investor' ? 'Cashflow / Monat' : 'Differenz / Monat'}
           </span>
@@ -277,7 +297,7 @@ export function CashflowCard({ className = '' }: CardProps) {
 
         {/* Break-Even Section (nur Investor-Modus) */}
         {mode === 'investor' && (values.breakEvenEK !== null || values.breakEvenPrice !== null) && (
-          <div className="pt-3 mt-3 border-t border-gray-200 dark:border-gray-700 space-y-3">
+          <div className="pt-3 mt-3 border-t border-gray-300 dark:border-gray-700 space-y-3">
             {/* Break-Even Header */}
             <div className="flex items-center gap-2">
               <TrendingUp size={16} className="text-purple-600 dark:text-purple-400" />

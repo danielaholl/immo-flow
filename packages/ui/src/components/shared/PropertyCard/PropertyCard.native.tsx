@@ -53,15 +53,17 @@ export function PropertyCard({
             {/* Action Buttons */}
             {showActionButtons && (
               <View style={styles.topRightButtons}>
-                <Pressable
-                  style={[styles.topActionButton, styles.actionButtonDislike]}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    onDismiss?.(e);
-                  }}
-                >
-                  <Text style={styles.closeIcon}>✕</Text>
-                </Pressable>
+                {onDismiss && (
+                  <Pressable
+                    style={[styles.topActionButton, styles.actionButtonDislike]}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      onDismiss?.(e);
+                    }}
+                  >
+                    <Text style={styles.closeIcon}>✕</Text>
+                  </Pressable>
+                )}
                 <Pressable
                   style={[styles.topActionButton, styles.actionButtonFavorite]}
                   onPress={(e) => {

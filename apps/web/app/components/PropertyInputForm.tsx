@@ -21,6 +21,7 @@ export interface PropertyFormData {
   location: string;
   monthlyRent: string;
   yearBuilt: string;
+  condition?: string;
   // Extended fields (Calculator)
   equityPercentage?: string;
   interestRate?: string;

@@ -242,5 +242,15 @@ export const PROPERTY_JSON_FIELDS = `
   'created_at', p.created_at,
   'updated_at', p.updated_at,
   'days_online', EXTRACT(DAY FROM (CURRENT_TIMESTAMP - p.created_at))::integer,
-  'documents_count', COALESCE(jsonb_array_length(p.documents), 0)
+  'documents_count', COALESCE(jsonb_array_length(p.documents), 0),
+  'provider_contact', (
+    SELECT json_build_object(
+      'provider_name', pc.provider_name,
+      'provider_email', pc.provider_email,
+      'provider_phone', pc.provider_phone,
+      'provider_company', pc.provider_company
+    )
+    FROM property_provider_contacts pc
+    WHERE pc.property_id = p.id
+  )
 `;

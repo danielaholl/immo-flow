@@ -48,7 +48,7 @@ export function SimilarPropertiesSidebar({
       properties={properties}
       badgeContext={mode}
       isLoading={similarProperties.isLoading}
-      linkBuilder={(id) => `/property/${id}/calculator`}
+      linkBuilder={(id) => `/property/${id}/calculator?mode=${mode}`}
       fullWidth
     />
   );

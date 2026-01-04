@@ -231,7 +231,7 @@ export default function SuggestionsPage() {
                 Möchten Sie mehr Vorschläge erhalten?
               </p>
               <Link href="/">
-                <button className="bg-transparent border-2 border-gray-300 text-gray-700 px-6 py-3 rounded-lg hover:border-gray-400 transition-colors">
+                <button className="bg-transparent border-2 border-gray-300 text-gray-700 px-6 py-3 rounded-lg hover:border-gray-300 transition-colors">
                   Alle Immobilien ansehen
                 </button>
               </Link>

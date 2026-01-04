@@ -16,6 +16,7 @@ export interface PLZMarketEstimate {
   rent_min: number;
   rent_max: number;
   confidence_score: number;
+  grunderwerbsteuer_rate?: number;
 }
 
 interface PLZData {
@@ -296,7 +297,7 @@ export async function getAllPLZForUpdate(limit: number = 50, offset: number = 0)
 export async function getMarketDataByPLZ(plz: string): Promise<PLZMarketEstimate | null> {
   const rows = await query<PLZMarketEstimate & { id: string; stadtteil: string | null }>(
     `SELECT plz, city, stadtteil, avg_purchase_price_sqm, purchase_price_min, purchase_price_max,
-            avg_rent_sqm, rent_min, rent_max, confidence_score
+            avg_rent_sqm, rent_min, rent_max, confidence_score, grunderwerbsteuer_rate
      FROM plz_market_data
      WHERE plz = $1`,
     [plz]

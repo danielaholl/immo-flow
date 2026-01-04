@@ -33,6 +33,9 @@ interface PropertyActionButtonsProps {
 
   // Property URL for buyer share
   propertyUrl?: string;
+
+  // Imported property flag
+  isImported?: boolean;
 }
 
 export function PropertyActionButtons({
@@ -51,6 +54,7 @@ export function PropertyActionButtons({
   favoriteButtonLabel,
   className = '',
   propertyUrl,
+  isImported = false,
 }: PropertyActionButtonsProps) {
   const [showCopiedToast, setShowCopiedToast] = useState(false);
 
@@ -101,6 +105,58 @@ export function PropertyActionButtons({
           {isDeactivateLoading ? 'Wird deaktiviert...' : 'Deaktivieren'}
         </GlassButton>
       </div>
+    );
+  }
+
+  // Imported Property Mode: Favorit entfernen + Nachricht + Bearbeiten + Teilen
+  if (isImported) {
+    return (
+      <>
+        <div className={`grid grid-cols-2 lg:grid-cols-4 gap-3 ${className}`}>
+          <GlassButton
+            iconLeft={<Heart className="text-red-500" fill={isFavorite ? 'currentColor' : 'none'} />}
+            onClick={onToggleFavorite}
+            fullWidth
+            size="lg"
+          >
+            {finalFavoriteLabel}
+          </GlassButton>
+          <GlassButton
+            iconLeft={<MessageSquare className="text-green-500" />}
+            onClick={onStartMessage}
+            disabled={isMessageLoading}
+            loading={isMessageLoading}
+            fullWidth
+            size="lg"
+          >
+            {isMessageLoading ? 'Wird gestartet...' : 'Nachricht'}
+          </GlassButton>
+          <GlassButton
+            iconLeft={<Pencil className="text-blue-500" />}
+            onClick={onEdit}
+            fullWidth
+            size="lg"
+          >
+            Bearbeiten
+          </GlassButton>
+          <GlassButton
+            iconLeft={<Share2 className="text-blue-500" />}
+            onClick={handleBuyerShare}
+            disabled={!propertyUrl}
+            fullWidth
+            size="lg"
+          >
+            Teilen
+          </GlassButton>
+        </div>
+
+        {/* Copied Toast */}
+        {showCopiedToast && (
+          <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg animate-fade-in">
+            Link kopiert!
+          </div>
+        )}
+      </>
     );
   }
 

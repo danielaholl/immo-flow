@@ -1,7 +1,25 @@
 /** @type {import('tailwindcss').Config} */
+const colors = require('tailwindcss/colors');
+
 module.exports = {
   darkMode: 'class',
   theme: {
+    colors: {
+      ...colors,
+      // Override gray with darker values for better contrast
+      gray: {
+        50: '#f9fafb',
+        100: '#f3f4f6',
+        200: '#cbd5e1',  // Much darker for visible borders (slate-300)
+        300: '#94a3b8',  // Darker (slate-400)
+        400: '#64748b',  // slate-500
+        500: '#475569',  // slate-600
+        600: '#334155',
+        700: '#1e293b',
+        800: '#0f172a',
+        900: '#020617',
+      },
+    },
     extend: {
       colors: {
         // Primary brand colors
@@ -111,6 +129,15 @@ module.exports = {
         lg: '16px',
         xl: '20px',
         '2xl': '24px',
+      },
+      keyframes: {
+        'fade-in': {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+      },
+      animation: {
+        'fade-in': 'fade-in 0.3s ease-out',
       },
     },
   },
