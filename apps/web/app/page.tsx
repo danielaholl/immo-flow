@@ -558,6 +558,10 @@ export default function HomePage() {
                     features: (property.features as string[]) || [],
                     energyClass: property.energy_class || undefined,
                     year_built: property.year_built || undefined,
+                    favorites_count: property.favorites_count || 0,
+                    conversations_count: property.conversations_count || 0,
+                    shares_count: property.shares_count || 0,
+                    dismissed_count: property.dismissed_count || 0,
                   }}
                   isOwner={false}
                   isFavorite={favoriteIds.has(property.id)}
@@ -646,6 +650,10 @@ export default function HomePage() {
                           yield: property.yield || undefined,
                           features: (property.features as string[]) || [],
                           energyClass: property.energy_class || undefined,
+                          favorites_count: property.favorites_count || 0,
+                          conversations_count: property.conversations_count || 0,
+                          shares_count: property.shares_count || 0,
+                          dismissed_count: property.dismissed_count || 0,
                         }}
                         isOwner={false}
                         isFavorite={false}

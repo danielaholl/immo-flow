@@ -529,11 +529,11 @@ export default function FavoritesPage() {
                     />
                   )}
 
-                  <div className="flex flex-col lg:flex-row lg:items-stretch p-4 lg:p-8">
+                  <div className="flex flex-col lg:flex-row lg:items-stretch p-4 lg:p-8 lg:h-[80vh] relative">
                     {/* Left Column - Property Details */}
-                    <div className="w-full lg:w-1/2 lg:pr-6 order-2 lg:order-1 flex flex-col">
+                    <div className="w-full lg:w-1/2 lg:pr-6 order-2 lg:order-1 flex flex-col lg:h-full">
                       {/* Scrollable PropertyPreview - Full height on mobile, 80vh on md+ */}
-                      <div className="md:overflow-y-auto md:max-h-[80vh] mb-4">
+                      <div className="overflow-y-auto lg:h-full mb-4">
                         {propertyPreviewData && (
                           <PropertyPreview
                             key={selectedProperty.id}
@@ -570,7 +570,7 @@ export default function FavoritesPage() {
                     </div>
 
                     {/* Right Column - Images or Document Viewer */}
-                    <div className="w-full lg:w-1/2 h-[50vh] lg:h-auto lg:pl-6 order-1 lg:order-2 mb-4 lg:mb-0">
+                    <div className="w-full lg:w-1/2 h-[50vh] lg:h-full lg:pl-6 order-1 lg:order-2 mb-4 lg:mb-0">
                       <div className="h-full rounded-2xl overflow-hidden">
                         {selectedDocument && !isMobile ? (
                           <DocumentViewer
@@ -601,6 +601,9 @@ export default function FavoritesPage() {
                         )}
                       </div>
                     </div>
+
+                    {/* Gradient fade to indicate more content below - Desktop only */}
+                    <div className="hidden lg:block absolute bottom-0 left-0 right-0 h-24 pointer-events-none bg-gradient-to-b from-transparent to-white dark:to-[#030712] opacity-60" />
                   </div>
                 </>
               ) : (
@@ -614,8 +617,9 @@ export default function FavoritesPage() {
       })()}
 
       {/* Similar Properties - Full Width */}
-      {selectedProperty && (similarProperties.length > 0 || similarPropertiesLoading) && (
-        <div className="bg-gray-50 dark:bg-gray-900/50 py-12 mt-8">
+      {/* Only show on mobile when in detail view (selectedPropertyId exists), always show on desktop */}
+      {selectedProperty && (similarProperties.length > 0 || similarPropertiesLoading) && (!isMobile || selectedPropertyId) && (
+        <div className="bg-gray-50 dark:bg-gray-900/50 py-12 lg:mt-0 mt-8">
           <PageContainer>
             <SimilarProperties
               title="Ähnliche Objekte"

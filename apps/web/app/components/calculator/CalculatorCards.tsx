@@ -23,8 +23,6 @@ export function CalculatorCards(props: CalculatorCardsProps) {
   const calculatorState = useCalculatorState(props);
   const { isEditMode, setIsEditMode, handleReset, handleSave, startSimulation, values } = calculatorState;
 
-  if (values.effectivePurchasePrice <= 0) return null;
-
   // Don't show simulation buttons when startInEditMode is true (permanent edit mode)
   const showSimulationButtons = canEdit && !startInEditMode;
 

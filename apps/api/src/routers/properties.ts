@@ -1663,14 +1663,14 @@ export const propertiesRouter = router({
       let paramCount = 1;
 
       // Base conditions only - no strict filtering
-      conditions.push(`status = 'active'`);
-      conditions.push(`(is_external = false OR is_external IS NULL OR is_community_shared = true)`);
-      conditions.push(`sqm > 0`);
-      conditions.push(`price > 0`);
+      conditions.push(`p.status = 'active'`);
+      conditions.push(`(p.is_external = false OR p.is_external IS NULL OR p.is_community_shared = true)`);
+      conditions.push(`p.sqm > 0`);
+      conditions.push(`p.price > 0`);
 
       // Exclude current property
       if (input.excludePropertyId) {
-        conditions.push(`id != $${paramCount}`);
+        conditions.push(`p.id != $${paramCount}`);
         values.push(input.excludePropertyId);
         paramCount++;
       }
@@ -1680,23 +1680,28 @@ export const propertiesRouter = router({
       // Get all active properties - we'll score and sort them in JS
       const sql = `
         SELECT
-          id,
-          title,
-          price,
-          location,
-          sqm,
-          rooms,
-          images,
-          ai_investment_score,
-          monthly_rent,
-          monthly_fee,
-          year_built,
-          afa_type,
-          afa_rate,
-          building_ratio
-        FROM properties
+          p.id,
+          p.title,
+          p.price,
+          p.location,
+          p.sqm,
+          p.rooms,
+          p.images,
+          p.ai_investment_score,
+          p.monthly_rent,
+          p.monthly_fee,
+          p.year_built,
+          p.afa_type,
+          p.afa_rate,
+          p.building_ratio,
+          COALESCE(ps.favorites_count, 0) as favorites_count,
+          COALESCE(p.conversations_count, 0) as conversations_count,
+          COALESCE(p.shares_count, 0) as shares_count,
+          COALESCE(p.dismissed_count, 0) as dismissed_count
+        FROM properties p
+        LEFT JOIN property_statistics ps ON p.id = ps.property_id
         ${whereClause}
-        ORDER BY created_at DESC
+        ORDER BY p.created_at DESC
         LIMIT 50
       `;
 
@@ -1828,13 +1833,13 @@ export const propertiesRouter = router({
       let paramCount = 1;
 
       // Base conditions
-      conditions.push(`status = 'active'`);
-      conditions.push(`(is_external = false OR is_external IS NULL OR is_community_shared = true)`);
-      conditions.push(`sqm > 0`);
-      conditions.push(`price > 0`);
+      conditions.push(`p.status = 'active'`);
+      conditions.push(`(p.is_external = false OR p.is_external IS NULL OR p.is_community_shared = true)`);
+      conditions.push(`p.sqm > 0`);
+      conditions.push(`p.price > 0`);
 
       // Exclude current property
-      conditions.push(`id != $${paramCount}`);
+      conditions.push(`p.id != $${paramCount}`);
       values.push(input.propertyId);
       paramCount++;
 
@@ -1843,17 +1848,22 @@ export const propertiesRouter = router({
       // Get all active properties
       const sql = `
         SELECT
-          id,
-          title,
-          price,
-          location,
-          sqm,
-          rooms,
-          images,
-          ai_investment_score
-        FROM properties
+          p.id,
+          p.title,
+          p.price,
+          p.location,
+          p.sqm,
+          p.rooms,
+          p.images,
+          p.ai_investment_score,
+          COALESCE(ps.favorites_count, 0) as favorites_count,
+          COALESCE(p.conversations_count, 0) as conversations_count,
+          COALESCE(p.shares_count, 0) as shares_count,
+          COALESCE(p.dismissed_count, 0) as dismissed_count
+        FROM properties p
+        LEFT JOIN property_statistics ps ON p.id = ps.property_id
         ${whereClause}
-        ORDER BY created_at DESC
+        ORDER BY p.created_at DESC
         LIMIT 100
       `;
 
@@ -1990,8 +2000,13 @@ export const propertiesRouter = router({
           p.sqm,
           p.rooms,
           p.images,
-          p.ai_investment_score
+          p.ai_investment_score,
+          COALESCE(ps.favorites_count, 0) as favorites_count,
+          COALESCE(p.conversations_count, 0) as conversations_count,
+          COALESCE(p.shares_count, 0) as shares_count,
+          COALESCE(p.dismissed_count, 0) as dismissed_count
         FROM properties p
+        LEFT JOIN property_statistics ps ON p.id = ps.property_id
         ${whereClause}
         ORDER BY p.ai_investment_score DESC NULLS LAST, p.created_at DESC
         LIMIT $1
@@ -2132,5 +2147,21 @@ export const propertiesRouter = router({
         provider_contact: providerContact,
         has_account: !!linkedUserId,
       };
+    }),
+
+  // Record share interaction
+  recordShare: protectedProcedure
+    .input(z.object({
+      propertyId: z.string().uuid(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      // Track share interaction in property_interactions
+      await query(
+        `INSERT INTO property_interactions (user_id, property_id, interaction_type)
+         VALUES ($1, $2, 'share')`,
+        [ctx.user.id, input.propertyId]
+      );
+
+      return { success: true };
     }),
 });

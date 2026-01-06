@@ -38,7 +38,6 @@ import { CommissionConsentDialog } from '@/app/components/CommissionConsentDialo
 import { PropertyPreview } from '@/app/components/PropertyPreview';
 import type { PropertyDocument } from '@/app/create-listing/types';
 import { mapToPropertyPreviewData } from '@/app/utils/propertyMapper';
-import { PropertyActionButtons } from '@/app/components/PropertyActionButtons';
 import { ShareLinkModal } from '@/app/components/ShareLinkModal';
 import { MobileDetailHeader } from '@/app/components/MobileDetailHeader';
 import { PageContainer } from '@/app/components/PageContainer';
@@ -587,9 +586,9 @@ export default function PropertyPage() {
 
       {/* Two Column Layout - Height adapts to content */}
       <PageContainer noPaddingY>
-        <div className="flex flex-col lg:flex-row lg:items-stretch">
+        <div className="flex flex-col lg:flex-row lg:items-stretch relative">
         {/* Left Column - Property Details */}
-        <div className="w-full lg:w-1/2 pt-4 pb-4 lg:pb-10 lg:pr-6 order-2 lg:order-1">
+        <div className="w-full lg:w-1/2 py-8 lg:pr-6 order-2 lg:order-1">
 
             {/* Property Preview Component */}
             <PropertyPreview
@@ -624,30 +623,11 @@ export default function PropertyPage() {
               isSavingUserPropertyParams={saveUserPropertyParamsMutation.isLoading}
               isMobile={isMobile}
             />
-
-            {/* Action Buttons - inline unter PropertyPreview */}
-            <div className="mt-6">
-              <PropertyActionButtons
-                isOwner={isOwnerForUI}
-                isFavorite={isFavorite}
-                onToggleFavorite={handleToggleFavorite}
-                onDismiss={handleDismiss}
-                onStartMessage={handleStartMessage}
-                onOpenFeedback={() => setIsPropertyFeedbackModalOpen(true)}
-                onEdit={() => router.push(`/edit-listing/${property.id}`)}
-                onDeactivate={handleDeactivate}
-                onShare={() => setIsShareModalOpen(true)}
-                isDismissLoading={dismissMutation.isLoading}
-                isMessageLoading={getOrCreateConversationMutation.isLoading}
-                isDeactivateLoading={deactivateMutation.isLoading}
-                propertyUrl={typeof window !== 'undefined' ? `${window.location.origin}/property/${property.id}` : ''}
-              />
-            </div>
         </div>
 
         {/* Right Column - Property Card with Slideshow or Document Viewer */}
-        {/* On mobile: fixed height, On desktop: matches left column height */}
-        <div className="w-full lg:w-1/2 h-[50vh] lg:h-auto lg:pl-6 pt-4 pb-4 lg:pb-10 order-1 lg:order-2">
+        {/* On mobile: fixed height, On desktop: stretches to match left column */}
+        <div className="w-full lg:w-1/2 h-[50vh] lg:h-full py-8 lg:pl-6 order-1 lg:order-2 lg:flex lg:flex-col" style={{ height: 'auto' }}>
           <div className="h-full rounded-2xl overflow-hidden">
           {selectedDocument && !isMobile ? (
             <DocumentViewer
@@ -660,6 +640,7 @@ export default function PropertyPage() {
               videoUrl={property.video_url}
               title={property.title}
               className="h-full"
+              aspectRatio="video"
               showCounter={true}
               showProgressBars={true}
               propertyType={property.property_type || undefined}
@@ -684,13 +665,18 @@ export default function PropertyPage() {
                   {/* Action Buttons - Transparent Overlay Style */}
                   <ImageOverlayActions
                     className="absolute bottom-5 right-3 z-20"
-                    direction="horizontal"
+                    direction="vertical"
                     size="responsive"
                     isFavorite={isFavorite}
                     onFavorite={handleFavoriteToggle}
                     onMessage={handleStartMessage}
                     onShare={() => setIsShareModalOpen(true)}
                     onDismiss={handleDismiss}
+                    favoritesCount={property.favorites_count}
+                    conversationsCount={property.conversations_count}
+                    sharesCount={property.shares_count}
+                    dismissedCount={property.dismissed_count}
+                    showCounts={true}
                   />
                 </>
               }
@@ -699,11 +685,14 @@ export default function PropertyPage() {
           </div>
         </div>
         </div>
+
+        {/* Gradient fade to indicate more content below - Desktop only */}
+        <div className="hidden lg:block absolute bottom-0 left-0 right-0 h-24 pointer-events-none bg-gradient-to-b from-transparent to-white dark:to-[#030712] opacity-60" />
       </PageContainer>
 
       {/* Similar Properties Section - Full Width */}
       {(similarProperties.length > 0 || similarPropertiesLoading) && (
-        <div className="bg-gray-50 dark:bg-gray-900/50 py-12 mt-8">
+        <div className="bg-gray-50 dark:bg-gray-900/50 py-12 lg:mt-0 mt-8">
           <PageContainer>
             <SimilarProperties
               title="Ähnliche Objekte"

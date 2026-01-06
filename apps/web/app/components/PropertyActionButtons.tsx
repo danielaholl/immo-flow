@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Heart, X, MessageSquare, Pencil, Power, Share2 } from 'lucide-react';
-import { GlassButton, GlassPrimaryButton } from '@rendito/ui';
+import { GlassButton, GlassPrimaryButton, formatCount } from '@rendito/ui';
 
 interface PropertyActionButtonsProps {
   // Mode
@@ -36,6 +36,13 @@ interface PropertyActionButtonsProps {
 
   // Imported property flag
   isImported?: boolean;
+
+  // Interaction counts (Instagram/TikTok style)
+  favoritesCount?: number;
+  conversationsCount?: number;
+  sharesCount?: number;
+  dismissedCount?: number;
+  showCounts?: boolean;
 }
 
 export function PropertyActionButtons({
@@ -55,6 +62,11 @@ export function PropertyActionButtons({
   className = '',
   propertyUrl,
   isImported = false,
+  favoritesCount,
+  conversationsCount,
+  sharesCount,
+  dismissedCount,
+  showCounts = true,
 }: PropertyActionButtonsProps) {
   const [showCopiedToast, setShowCopiedToast] = useState(false);
 
@@ -73,6 +85,18 @@ export function PropertyActionButtons({
   // Default favorite button label
   const defaultFavoriteLabel = isFavorite ? 'Favorit' : 'Favorit';
   const finalFavoriteLabel = favoriteButtonLabel || defaultFavoriteLabel;
+
+  // Format counts
+  const formattedFavoritesCount = formatCount(favoritesCount);
+  const formattedConversationsCount = formatCount(conversationsCount);
+  const formattedSharesCount = formatCount(sharesCount);
+  const formattedDismissedCount = formatCount(dismissedCount);
+
+  // Helper to add count badge to label
+  const withCount = (label: string, count: string) => {
+    if (!showCounts || !count) return label;
+    return `${label} (${count})`;
+  };
 
   if (isOwner) {
     // Owner Mode: Bearbeiten + Teilen + Deaktivieren
@@ -119,7 +143,7 @@ export function PropertyActionButtons({
             fullWidth
             size="lg"
           >
-            {finalFavoriteLabel}
+            {withCount(finalFavoriteLabel, formattedFavoritesCount)}
           </GlassButton>
           <GlassButton
             iconLeft={<MessageSquare className="text-green-500" />}
@@ -129,7 +153,7 @@ export function PropertyActionButtons({
             fullWidth
             size="lg"
           >
-            {isMessageLoading ? 'Wird gestartet...' : 'Nachricht'}
+            {isMessageLoading ? 'Wird gestartet...' : withCount('Nachricht', formattedConversationsCount)}
           </GlassButton>
           <GlassButton
             iconLeft={<Pencil className="text-blue-500" />}
@@ -146,7 +170,7 @@ export function PropertyActionButtons({
             fullWidth
             size="lg"
           >
-            Teilen
+            {withCount('Teilen', formattedSharesCount)}
           </GlassButton>
         </div>
 
@@ -171,7 +195,7 @@ export function PropertyActionButtons({
           fullWidth
           size="lg"
         >
-          {finalFavoriteLabel}
+          {withCount(finalFavoriteLabel, formattedFavoritesCount)}
         </GlassButton>
         <GlassButton
           iconLeft={<X />}
@@ -181,7 +205,7 @@ export function PropertyActionButtons({
           fullWidth
           size="lg"
         >
-          {isDismissLoading ? 'Wird verarbeitet...' : 'Kein Interesse'}
+          {isDismissLoading ? 'Wird verarbeitet...' : withCount('Kein Interesse', formattedDismissedCount)}
         </GlassButton>
         <GlassButton
           iconLeft={<MessageSquare className="text-green-500" />}
@@ -191,7 +215,7 @@ export function PropertyActionButtons({
           fullWidth
           size="lg"
         >
-          {isMessageLoading ? 'Wird gestartet...' : 'Nachricht'}
+          {isMessageLoading ? 'Wird gestartet...' : withCount('Nachricht', formattedConversationsCount)}
         </GlassButton>
         <GlassButton
           iconLeft={<Share2 className="text-blue-500" />}
@@ -200,7 +224,7 @@ export function PropertyActionButtons({
           fullWidth
           size="lg"
         >
-          Teilen
+          {withCount('Teilen', formattedSharesCount)}
         </GlassButton>
       </div>
 

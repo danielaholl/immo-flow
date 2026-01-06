@@ -9,7 +9,12 @@ import { getOpenAIClient, buildSystemPrompt } from '../utils/openai.js';
 
 // Property data schema - using nullish() to accept both null and undefined
 const PropertyDataSchema = z.object({
-  property_type: z.enum(['apartment', 'house', 'villa', 'commercial']).nullish(),
+  property_type: z.enum([
+    'apartment', 'house', 'villa', 'multi_family',
+    'land',
+    'commercial', 'office', 'retail', 'industrial',
+    'parking'
+  ]).nullish(),
   title: z.string().nullish(),
   location: z.string().nullish(),
   postal_code: z.number().nullish(),
@@ -18,19 +23,24 @@ const PropertyDataSchema = z.object({
   sqm: z.number().nullish(),
   rooms: z.number().nullish(),
   bathrooms: z.number().nullish(),
-  condition: z.enum(['new', 'first_occupancy', 'renovated', 'maintained', 'needs_renovation']).nullish(),
+  condition: z
+    .enum(['new', 'first_occupancy', 'renovated', 'maintained', 'needs_renovation'])
+    .nullish(),
   features: z.array(z.string()).nullish(),
   description: z.string().nullish(),
-  floor_level: z.union([z.string(), z.number()]).transform(val => val != null ? String(val) : val).nullish(),
+  floor_level: z
+    .union([z.string(), z.number()])
+    .transform(val => (val != null ? String(val) : val))
+    .nullish(),
   elevator: z.boolean().nullish(),
   total_floors: z.number().nullish(),
   year_built: z.number().nullish(),
   available_from: z.string().nullish(),
   important_notes: z.string().nullish(),
   // Financial fields
-  monthly_fee: z.number().nullish(),        // Hausgeld
-  monthly_rent: z.number().nullish(),       // Mieteinnahmen (bei Kapitalanlage)
-  commission_rate: z.number().nullish(),    // Maklerprovision in %
+  monthly_fee: z.number().nullish(), // Hausgeld
+  monthly_rent: z.number().nullish(), // Mieteinnahmen (bei Kapitalanlage)
+  commission_rate: z.number().nullish(), // Maklerprovision in %
   // AfA type - only set explicitly for Denkmal
   afa_type: z.enum(['bestand', 'altbau', 'neubau', 'denkmal']).nullish(),
   // Provider contact info (for import mode only)
@@ -38,6 +48,8 @@ const PropertyDataSchema = z.object({
   provider_email: z.string().email().nullish(),
   provider_phone: z.string().nullish(),
   provider_company: z.string().nullish(),
+  // External property flag (for imported properties)
+  is_external: z.boolean().nullish(),
 });
 
 export type ExtractedPropertyData = z.infer<typeof PropertyDataSchema>;
@@ -55,31 +67,85 @@ export const aiChatRouter = router({
     .input(
       z.object({
         message: z.string(),
-        conversationHistory: z.array(
-          z.object({
-            role: z.enum(['user', 'assistant']),
-            content: z.string(),
-          })
-        ).default([]),
+        conversationHistory: z
+          .array(
+            z.object({
+              role: z.enum(['user', 'assistant']),
+              content: z.string(),
+            })
+          )
+          .default([]),
         currentData: PropertyDataSchema.default({}),
         isEditMode: z.boolean().optional(),
+        isImportMode: z.boolean().optional(),
       })
     )
     .mutation(async ({ input }) => {
-      const { message, conversationHistory, currentData, isEditMode } = input;
+      const { message, conversationHistory, currentData, isEditMode, isImportMode } = input;
 
       try {
-        // Calculate which fields are already known and which are still missing
-        // Note: title and description are auto-generated, so they're not in priority fields
-        // commission_rate is priority 1 because it's important financial info shown below price
-        const priority1Fields = ['property_type', 'location', 'price', 'commission_rate', 'sqm', 'rooms', 'condition'] as const;
-        const priority2Fields = ['bathrooms', 'floor_level', 'total_floors', 'year_built', 'postal_code', 'street_address', 'features', 'available_from', 'important_notes', 'monthly_fee', 'monthly_rent', 'provider_name', 'provider_email', 'provider_phone', 'provider_company'] as const;
+        // Property type MUST be asked FIRST
+        const priority0Field = 'property_type' as const;
 
-        const missingPriority1 = priority1Fields.filter(field => !currentData[field as keyof typeof currentData]);
-        const missingPriority2 = priority2Fields.filter(field => !currentData[field as keyof typeof currentData]);
+        // Type-specific required fields (calculation-critical)
+        const priority1FieldsByType: Record<string, readonly string[]> = {
+          apartment: ['location', 'price', 'sqm', 'rooms', 'monthly_rent', 'floor_level'],
+          house: ['location', 'price', 'sqm', 'rooms', 'year_built'],
+          villa: ['location', 'price', 'sqm', 'rooms', 'year_built'],
+          multi_family: ['location', 'price', 'sqm', 'rooms', 'year_built', 'monthly_rent'],
+          land: ['location', 'price', 'sqm'],
+          commercial: ['location', 'price', 'sqm', 'monthly_rent'],
+          office: ['location', 'price', 'sqm', 'monthly_rent'],
+          retail: ['location', 'price', 'sqm', 'monthly_rent'],
+          industrial: ['location', 'price', 'sqm', 'monthly_rent'],
+          parking: ['location', 'price', 'monthly_rent'],
+        };
+
+        // Optional fields (everything else goes into description)
+        const priority2Fields = [
+          'bathrooms',
+          'total_floors',
+          'postal_code',
+          'street_address',
+          'condition',
+          'features',
+          'available_from',
+          'important_notes',
+          'monthly_fee',
+          'commission_rate',
+          'year_built', // Optional for some types
+          'provider_name',
+          'provider_email',
+          'provider_phone',
+          'provider_company',
+        ] as const;
+
+        // Determine missing fields based on property type
+        let missingPriority1: readonly string[] = [];
+
+        if (!currentData.property_type) {
+          // If no property type yet, ONLY ask for property_type
+          missingPriority1 = [priority0Field];
+        } else {
+          // Get type-specific required fields
+          const requiredForType = priority1FieldsByType[currentData.property_type] || [];
+          missingPriority1 = requiredForType.filter(
+            field => !currentData[field as keyof typeof currentData]
+          );
+        }
+
+        const missingPriority2 = priority2Fields.filter(
+          field => !currentData[field as keyof typeof currentData]
+        );
 
         // Build readable list of known fields with values
-        const knownFieldsFormatted = [...priority1Fields, ...priority2Fields]
+        const allPossibleFields = [
+          priority0Field,
+          ...Object.values(priority1FieldsByType).flat(),
+          ...priority2Fields
+        ];
+        const knownFieldsFormatted = allPossibleFields
+          .filter((field, index, arr) => arr.indexOf(field) === index) // Remove duplicates
           .filter(field => currentData[field as keyof typeof currentData])
           .map(field => {
             const value = currentData[field as keyof typeof currentData];
@@ -95,7 +161,7 @@ WICHTIG: Dies ist der EDIT-MODUS. Die Immobilie existiert bereits mit folgenden 
 ${JSON.stringify(currentData, null, 2)}
 
 VERFUEGBARE FELDER (verwende diese exakten Feldnamen):
-- property_type: 'apartment' | 'house' | 'villa' | 'commercial'
+- property_type: 'apartment' | 'house' | 'villa' | 'multi_family' | 'land' | 'commercial' | 'office' | 'retail' | 'industrial' | 'parking'
 - title: Titel der Immobilie
 - location: Stadt/Bezirk
 - price: Kaufpreis in Euro (Zahl)
@@ -150,6 +216,280 @@ REGELN:
 - Aendere NICHT die Beschreibung, wenn der User ein spezifisches Feld meint
 - Wenn User "fertig" oder "speichern" sagt - setze userSaidComplete: true`;
 
+        const editImportModeInstructions = `EDIT-IMPORT-MODUS ANWEISUNGEN:
+Du hilfst beim BEARBEITEN einer importierten Immobilie (externe Immobilie als Notiz).
+
+WICHTIG: Dies ist der EDIT-IMPORT-MODUS. Die importierte Immobilie existiert bereits mit folgenden Daten:
+${JSON.stringify(currentData, null, 2)}
+
+VERFUEGBARE FELDER (verwende diese exakten Feldnamen):
+- property_type: 'apartment' | 'house' | 'villa' | 'multi_family' | 'land' | 'commercial' | 'office' | 'retail' | 'industrial' | 'parking'
+- title: Titel der Immobilie (KURZ! z.B. "3-Zi Wohnung in Muenchen-Moosach")
+- description: Beschreibung im KÄUFER-NOTIZ-STIL (sachlich, keine Verkaufssprache!)
+- location: Stadt/Bezirk
+- street_address: Straße und Hausnummer (optional)
+- price: Kaufpreis in Euro (Zahl)
+- sqm: Wohnflaeche in qm (Zahl)
+- rooms: Anzahl Zimmer (Zahl)
+- bathrooms: Anzahl Badezimmer (Zahl)
+- year_built: Baujahr (Zahl, z.B. 1974)
+- floor_level: NUR BEI WOHNUNGEN: Etage (String, z.B. "2" oder "EG")
+- elevator: Aufzug vorhanden (Boolean: true/false)
+- total_floors: NUR BEI HAEUSERN: Anzahl der Geschosse (Zahl)
+- condition: 'new' | 'first_occupancy' | 'renovated' | 'maintained' | 'needs_renovation'
+- available_from: Verfuegbar ab (Datum)
+- provider_name: Name des Anbieters/Maklers (String)
+- provider_email: E-Mail-Adresse des Anbieters (String, E-Mail-Format)
+- provider_phone: Telefonnummer des Anbieters (String)
+- provider_company: Firma des Anbieters (String)
+
+ZEICHENSATZ-REGEL:
+Verwende in deinen Antworten KEINE deutschen Umlaute oder Sonderzeichen!
+Schreibe: ae statt ä, oe statt ö, ue statt ü, ss statt ß.
+
+TON UND STIL - SEHR WICHTIG:
+- **SACHLICH** und **KURZ** (wie Notiz für Käufer, NICHT wie Verkaufstext!)
+- Keine Emotionen, keine Verkaufssprache ("Dein Traumhaus!", "Place-to-be!")
+- Einfache Aufzählung der Fakten
+
+Deine Aufgabe im Edit-Import-Modus:
+1. Verstehe, welche Felder der User aendern oder erweitern moechte
+2. Extrahiere die Aenderungen in die RICHTIGEN FELDER
+3. Bei Beschreibungs-Ergaenzungen: Fuege neue Infos in "📋 Die Hard-Facts" ein
+4. Bestaetige die Aenderungen freundlich
+5. Frage NICHT nach fehlenden Feldern
+
+BESCHREIBUNG ERWEITERN (SEHR WICHTIG!):
+Wenn User zusaetzliche Features oder Details nennt:
+→ AKTUALISIERE die description und fuege sie in "📋 Die Hard-Facts" ein!
+
+Beispiele:
+User: "garten 160 qm, hobbyraum 16qm, fußbodenheizung"
+→ Erweitere die bestehende description um:
+   "• 🌳 Garten mit 160 qm
+    • 🛠️ Hobbyraum: 16 qm
+    • 🔥 Fussbodenheizung"
+
+User: "balkon vorhanden"
+→ Fuege zur description hinzu:
+   "• ☀️ Balkon"
+
+User: "bad wurde 2022 saniert"
+→ Fuege zur description hinzu:
+   "• 🛀 Bad saniert 2022"
+
+User: "baujahr 1974"
+→ year_built: 1974 UND description aktualisieren:
+   "• 🏗️ Baujahr: 1974"
+
+WICHTIG:
+- Behalte den KÄUFER-NOTIZ-STIL bei (sachlich, keine Verkaufssprache!)
+- Struktur: ✨ Ueberblick, 📋 Die Hard-Facts, 📍 Lage
+- Emojis wie in importMode verwenden (🌳 🚗 🍳 🛀 🔥 🏢 🛗 etc.)
+
+PROPERTY-TYP-ABHAENGIGE FELDER:
+- Bei Haeusern (house, villa): "Anzahl Geschosse" oder "zweigeschossig" etc. -> total_floors
+- Bei Wohnungen (apartment): "3. Stock" oder "3. OG" -> floor_level
+
+PROVIDER-KONTAKTDATEN:
+Wenn User Kontaktdaten aendert:
+- "Email auf max@beispiel.de aendern" → provider_email: "max@beispiel.de"
+- "Telefon auf 0123-456789 aendern" → provider_phone: "0123-456789"
+
+Antworte im JSON Format:
+{
+  "extractedData": {
+    "year_built": 1974,  // Falls geaendert
+    "description": "✨ Ueberblick\n2-Zimmer-Wohnung in Graefelfing, 65 qm, saniert.\n\n📋 Die Hard-Facts\n• 🏠 2 Zimmer, 65 qm Wohnflaeche\n• 💰 Kaufpreis: 449.000 EUR\n• 🏗️ Baujahr: 1974\n• 🌳 Garten mit 160 qm\n• 🛠️ Hobbyraum: 16 qm\n• 🔥 Fussbodenheizung\n\n📍 Lage\nGraefelfing, ruhige Wohnlage."  // Erweitert!
+  },
+  "response": "Ok! Ich habe die Beschreibung erweitert:\n• Baujahr: 1974\n• Garten mit 160 qm\n• Hobbyraum: 16 qm\n• Fussbodenheizung\n\nSchau in die Vorschau!",
+  "missingFields": [],
+  "followUpQuestion": null,
+  "userSaidComplete": false
+}
+
+REGELN:
+- Verwende die EXAKTEN Feldnamen (year_built, floor_level, etc.)
+- Du DARFST die Beschreibung erweitern/anpassen!
+- Behalte den sachlichen Käufer-Notiz-Stil bei
+- Wenn User "fertig" oder "speichern" sagt - setze userSaidComplete: true`;
+
+        const importModeInstructions = `IMPORT-MODUS ANWEISUNGEN:
+Du hilfst beim IMPORTIEREN einer Immobilie (z.B. aus Exposé, Screenshot oder User-Beschreibung).
+
+WICHTIG: Dies ist der IMPORT-MODUS. User möchte eine externe Immobilie als Notiz speichern.
+
+VERFUEGBARE FELDER (verwende diese exakten Feldnamen):
+- property_type: 'apartment' | 'house' | 'villa' | 'multi_family' | 'land' | 'commercial' | 'office' | 'retail' | 'industrial' | 'parking'
+- title: Titel der Immobilie (KURZ! z.B. "3-Zi Wohnung in Muenchen-Moosach")
+- description: Beschreibung im KÄUFER-NOTIZ-STIL (sachlich, keine Verkaufssprache!)
+- location: Stadt/Bezirk
+- street_address: Straße und Hausnummer (optional)
+- price: Kaufpreis in Euro (Zahl)
+- sqm: Wohnflaeche in qm (Zahl)
+- rooms: Anzahl Zimmer (Zahl)
+- bathrooms: Anzahl Badezimmer (Zahl)
+- year_built: Baujahr (Zahl, z.B. 1974)
+- floor_level: NUR BEI WOHNUNGEN: Etage (String, z.B. "2" oder "EG")
+- elevator: Aufzug vorhanden (Boolean: true/false)
+- total_floors: NUR BEI HAEUSERN: Anzahl der Geschosse (Zahl)
+- condition: 'new' | 'first_occupancy' | 'renovated' | 'maintained' | 'needs_renovation'
+- available_from: Verfuegbar ab (Datum)
+- provider_name: Name des Anbieters/Maklers (String)
+- provider_email: E-Mail-Adresse des Anbieters (String, E-Mail-Format)
+- provider_phone: Telefonnummer des Anbieters (String)
+- provider_company: Firma des Anbieters (String)
+
+ZEICHENSATZ-REGEL:
+Verwende in deinen Antworten KEINE deutschen Umlaute oder Sonderzeichen!
+Schreibe: ae statt ä, oe statt ö, ue statt ü, ss statt ß.
+
+TON UND STIL - SEHR WICHTIG:
+- **SACHLICH** und **KURZ** (wie Notiz für Käufer, NICHT wie Verkaufstext!)
+- Keine Emotionen, keine Verkaufssprache ("Dein Traumhaus!", "Place-to-be!")
+- Einfache Aufzählung der Fakten
+
+TITEL-GENERIERUNG:
+- KURZ halten! MAX 40-50 Zeichen
+- Format: "[Zimmer]-Zi [Typ] in [Ort-Stadtteil]"
+- Beispiele:
+  * "3-Zi Wohnung in Muenchen-Moosach"
+  * "4-Zi Wohnung in Graefelfing"
+  * "Einfamilienhaus in Muenchen-Pasing"
+
+DESCRIPTION-GENERIERUNG (Käufer-Notiz-Stil):
+Struktur mit 3 Abschnitten:
+
+✨ Überblick
+Kurze sachliche Zusammenfassung (1-2 Sätze):
+"[Zimmer]-Zimmer-[Typ] in [Ort], [qm] qm, Baujahr [Jahr], [Zustand]."
+
+📋 Die Hard-Facts
+Bullet-Points mit Emojis für alle wichtigen Fakten:
+• 🏠 [Zimmer] Zimmer, [qm] qm Wohnflaeche
+• 💰 Kaufpreis: [Preis] EUR
+• 🏗️ Baujahr: [Jahr]
+• [Weitere Features mit passenden Emojis]
+
+Emojis für Features:
+• 🌳 Garten
+• ☀️ Balkon / Terrasse
+• 🚗 Garage / Stellplatz / Tiefgarage
+• 🍳 Einbaukueche (EBK)
+• 🛀 Bad / Badezimmer
+• 🔥 Fussbodenheizung
+• 🏢 Etage / Geschoss
+• 🛗 Aufzug
+• 💵 Mieteinnahmen (bei Kapitalanlage)
+• 🏛️ Hausgeld
+
+📍 Lage
+1-2 Sätze zur Lage (sachlich):
+"[Ort-Stadtteil], [Anbindung/Umgebung]."
+
+BEISPIEL (Käufer-Notiz-Stil):
+"✨ Ueberblick
+3-Zimmer-Wohnung in Muenchen-Moosach, 85 qm, Baujahr 2010, saniert.
+
+📋 Die Hard-Facts
+• 🏠 3 Zimmer, 85 qm Wohnflaeche
+• 💰 Kaufpreis: 520.000 EUR
+• 🏗️ Baujahr: 2010
+• 🏢 3. OG
+• 🛗 Aufzug vorhanden
+• 🌳 Garten mit 160 qm
+• 🛠️ Hobbyraum: 16 qm
+• 🔥 Fussbodenheizung
+• 🚗 Tiefgarage
+• 🍳 Einbaukueche (EBK)
+• 🛀 Bad saniert 2022
+
+📍 Lage
+Muenchen-Moosach, U3 erreichbar, Olympiapark 10 Min."
+
+WICHTIG - AUTOMATISCHE DESCRIPTION-AKTUALISIERUNG:
+
+Wenn User IRGENDWELCHE Infos gibt (Features, Details, etc.):
+→ SOFORT in description integrieren - NICHT warten auf "fuege zur Beschreibung hinzu"!
+
+Beispiele:
+User: "mit garten 160 qm und hobbyraum 16qm, fußbodenheizung"
+→ SOFORT description aktualisieren:
+   "📋 Die Hard-Facts
+    • 🌳 Garten mit 160 qm
+    • 🛠️ Hobbyraum: 16 qm
+    • 🔥 Fussbodenheizung"
+
+User: "balkon, tiefgarage"
+→ SOFORT in description:
+   "📋 Die Hard-Facts
+    • ☀️ Balkon
+    • 🚗 Tiefgarage"
+
+User: "bad wurde 2022 saniert"
+→ SOFORT in description:
+   "📋 Die Hard-Facts
+    • 🛀 Bad saniert 2022"
+
+Du musst NICHT auf User-Anweisung warten!
+JEDE neue Info → description update!
+
+KRITISCH: description ist ein PFLICHTFELD!
+- IMMER eine description generieren, auch wenn User nur wenige Infos gibt
+- Mindestens: "✨ Ueberblick\n[Typ] in [Ort], [qm] qm.\n\n📋 Die Hard-Facts\n• [Features]"
+- NIE description leer lassen - NIEMALS einen leeren String "" liefern!
+- NIEMALS description: "" oder description: null oder description: undefined
+- description MUSS Text enthalten - mindestens die Minimal-Struktur
+- Struktur: ✨ Ueberblick, 📋 Die Hard-Facts, 📍 Lage
+
+WORKFLOW:
+1. User gibt Daten ein
+2. Extrahiere Daten und generiere title + description
+3. Pruefe welche PFLICHTFELDER noch fehlen:
+   - property_type (Wohnung/Haus/...)
+   - location (Ort)
+   - price (Preis)
+   - sqm (Wohnflaeche)
+   - rooms (Zimmeranzahl)
+   - condition (Zustand)
+4. Wenn Pflichtfeld fehlt → Frage EXPLIZIT danach
+5. Wenn ALLE Pflichtfelder da sind:
+   - Frage nach wichtigen optionalen Feldern in EINER Frage:
+     "Hast du noch Baujahr, Etage (z.B. EG/1/2), Aufzug (ja/nein) und Hausgeld (monatlich)?"
+6. Wenn diese optionalen Felder beantwortet wurden:
+   - Frage nach Anbieter-Kontaktdaten in EINER Frage:
+     "Moechtest du noch Anbieter-Kontaktdaten speichern (Name, Email, Telefon)?"
+7. Wenn User "nein" oder keine weiteren Angaben macht:
+   - Sage nur: "✅ Super! Alle wichtigen Daten sind da. Moechtest du noch etwas hinzufuegen?"
+8. Bei jeder neuen Info → description automatisch aktualisieren
+
+WICHTIG BEI PROVIDER-KONTAKTDATEN:
+- Provider-Daten werden in separaten Feldern gespeichert (provider_name, provider_email, provider_phone, provider_company)
+- Provider-Daten NICHT in description schreiben!
+- Beispiel: "Max Mustermann, max@immo.de" → provider_name: "Max Mustermann", provider_email: "max@immo.de"
+
+Antworte im JSON Format:
+{
+  "extractedData": {
+    "property_type": "apartment",
+    "title": "3-Zi Wohnung in Muenchen-Moosach",  // KURZ!
+    "description": "✨ Ueberblick\n3-Zimmer-Wohnung in Muenchen-Moosach, 85 qm, Baujahr 2010, saniert.\n\n📋 Die Hard-Facts\n• 🏠 3 Zimmer, 85 qm Wohnflaeche\n• 💰 Kaufpreis: 520.000 EUR\n• 🏗️ Baujahr: 2010\n• 🌳 Garten mit 160 qm\n\n📍 Lage\nMuenchen-Moosach, U3 erreichbar.",  // Käufer-Notiz-Stil!
+    "location": "Muenchen-Moosach",
+    "price": 520000,
+    "sqm": 85,
+    "rooms": 3,
+    "year_built": 2010,
+    "condition": "renovated",
+    "provider_email": "max@immo.de",  // Falls User Kontaktdaten nennt
+    "provider_name": "Max Mustermann",
+    "provider_phone": "0123-456789"
+  },
+  "response": "Ok! Ich habe die Daten erfasst:\n• Wohnung in Muenchen-Moosach\n• 3 Zimmer, 85 qm\n• Preis: 520.000 EUR\n• Baujahr: 2010\n\nSchau in die Vorschau!",
+  "missingFields": [],  // oder z.B. ["condition"] wenn noch fehlt
+  "followUpQuestion": null,
+  "userSaidComplete": false
+}`;
+
         const createModeInstructions = `CREATE-MODUS ANWEISUNGEN:
 Du hilfst beim ERSTELLEN einer neuen Immobilie.
 
@@ -170,12 +510,42 @@ WICHTIGSTE REGELN:
 4. Wenn der User "Haus", "Einfamilienhaus" o.ae. sagt -> property_type = 'house' (NICHT nochmal fragen!)
 -------------------------------------------------------------------
 
+WORKFLOW - PROPERTY_TYPE ZUERST (KRITISCH!):
+1. WENN property_type noch NICHT bekannt ist:
+   → Frage ZUERST und NUR nach dem Objekttyp
+   → Stelle KEINE anderen Fragen bevor property_type gesetzt ist!
+   → Beispiel: "Um welchen Objekttyp handelt es sich? (Wohnung, Haus, Grundstueck, Gewerbe, etc.)"
+
+2. SOBALD property_type bekannt ist:
+   → Frage nur nach den typ-spezifischen Pflichtfeldern
+   → Siehe unten welche Felder pro Typ erforderlich sind
+
 AUTOMATISCHE ERKENNUNG VON IMMOBILIENTYPEN (SEHR WICHTIG!):
-- "Wohnung", "Apartment", "Eigentumswohnung", "ETW", "Zimmer-Wohnung" -> property_type = 'apartment'
-- "Haus", "Einfamilienhaus", "EFH", "Reihenhaus", "Doppelhaushaelfte", "DHH" -> property_type = 'house'
+- "Wohnung", "Apartment", "Eigentumswohnung", "ETW" -> property_type = 'apartment'
+- "Haus", "Einfamilienhaus", "EFH", "Reihenhaus", "DHH" -> property_type = 'house'
 - "Villa", "Landhaus" -> property_type = 'villa'
-- "Gewerbe", "Buero", "Laden", "Geschaeft" -> property_type = 'commercial'
+- "Mehrfamilienhaus", "MFH" -> property_type = 'multi_family'
+- "Grundstueck", "Baugrundstu eck", "Land" -> property_type = 'land'
+- "Gewerbe" -> property_type = 'commercial'
+- "Buero", "Bueroflaeche" -> property_type = 'office'
+- "Laden", "Einzelhandel", "Shop" -> property_type = 'retail'
+- "Industrieflaeche", "Lager", "Halle" -> property_type = 'industrial'
+- "Stellplatz", "Garage", "Tiefgarage", "Parkplatz" -> property_type = 'parking'
 Wenn der User einen dieser Begriffe erwaehnt, setze property_type entsprechend und frage NICHT nochmal danach!
+
+TYP-SPEZIFISCHE PFLICHTFELDER (NUR DIESE FRAGEN!):
+- apartment (Wohnung): location, price, sqm, rooms, monthly_rent, floor_level
+- house (Haus): location, price, sqm, rooms, year_built
+- villa (Villa): location, price, sqm, rooms, year_built
+- multi_family (Mehrfamilienhaus): location, price, sqm, rooms, year_built, monthly_rent
+- land (Grundstueck): location, price, sqm (NUR 3 Felder!)
+- commercial (Gewerbe): location, price, sqm, monthly_rent
+- office (Buero): location, price, sqm, monthly_rent
+- retail (Einzelhandel): location, price, sqm, monthly_rent
+- industrial (Industrie): location, price, sqm, monthly_rent
+- parking (Stellplatz): location, price, monthly_rent (OHNE sqm!)
+
+WICHTIG: Frage NUR nach diesen Feldern! Alles andere geht in die description!
 
 AUTOMATISCHE GENERIERUNG VON TITEL UND BESCHREIBUNG (SEHR WICHTIG - IMMER SOFORT MACHEN!):
 Bei JEDER Antwort MUSST du title und description generieren oder AKTUALISIEREN!
@@ -323,7 +693,7 @@ Optional koenntest du noch ergaenzen: Stockwerke, Einzugstermin, Beschreibung.
 Ab wann kann man einziehen?"
 
 Feldtypen (INTERN - nicht in Antworten verwenden!):
-- property_type: 'apartment' | 'house' | 'villa' | 'commercial'
+- property_type: 'apartment' | 'house' | 'villa' | 'multi_family' | 'land' | 'commercial' | 'office' | 'retail' | 'industrial' | 'parking'
 - title: Kurzer beschreibender Titel
 - location: Stadt/Bezirk
 - price: Preis in Euro (Zahl)
@@ -395,20 +765,18 @@ WICHTIG - Denkmalschutz (afa_type):
 - Bei "nein" oder nicht erwaehnt -> afa_type NICHT setzen (wird automatisch aus Baujahr berechnet)
 - Der AfA-Typ wird fuer Steuerberechnungen verwendet (9% Denkmal-AfA vs 2%/2.5% normal)
 
-ANBIETER-KONTAKTDATEN (NUR IM IMPORT-MODUS):
-Nachdem alle Basisdaten erfasst sind, frage EINMAL:
+ANBIETER-KONTAKTDATEN:
+Die Provider-Kontaktdaten (provider_name, provider_email, provider_phone, provider_company) sind optionale Felder und werden wie andere optionale Felder behandelt.
 
-"Moechtest du die Kontaktdaten des Maklers/Verkäufers fuer dieses Objekt speichern?
-Damit kannst du spaeter direkt mit ihm kommunizieren."
+Wenn alle Pflichtfelder vorhanden sind, frage nach den wichtigsten optionalen Feldern in dieser Reihenfolge:
+1. Baujahr, Etage, Hausgeld
+2. Anbieter-Kontaktdaten (wenn noch nicht vorhanden)
 
-Wenn User antwortet:
-- "Ja" / "Gerne" / Gibt direkt Kontaktdaten → Erfasse folgende Daten:
-  * provider_name (Vor- und Nachname oder Firma)
-  * provider_email (Email-Adresse - PFLICHTFELD)
-  * provider_phone (optional - Telefonnummer)
-  * provider_company (optional - Firmenname)
+Beispiel-Frage:
+"Hast du noch Baujahr, Etage (z.B. EG/1/2), Aufzug (ja/nein) und Hausgeld (monatlich)?"
 
-- "Nein" / "Nicht noetig" → Fahre fort ohne diese Daten
+Nach diesen optionalen Feldern:
+"Moechtest du noch Anbieter-Kontaktdaten speichern (Name, Email, Telefon)?"
 
 Beispiel-Extraktion:
 User: "Anbieter heisst Sonja Bogatekin und ihre email adresse ist holl@mind-stack.com"
@@ -417,10 +785,10 @@ User: "Anbieter heisst Sonja Bogatekin und ihre email adresse ist holl@mind-stac
     "provider_name": "Sonja Bogatekin",
     "provider_email": "holl@mind-stack.com"
   },
-  "response": "Perfekt! Ich habe die Kontaktdaten von Sonja Bogatekin gespeichert. Du kannst sie im Bereich 'Anbieter-Informationen' sehen und bei Bedarf anpassen."
+  "response": "Ok! Kontaktdaten gespeichert: Sonja Bogatekin (holl@mind-stack.com)"
 }
 
-User: "Der Makler heisst Max Mustermann, E-Mail max@immobilien.de, Telefon 089-1234567, Firma Mustermann Immobilien"
+User: "Max Mustermann, max@immobilien.de, 089-1234567, Mustermann Immobilien"
 {
   "extractedData": {
     "provider_name": "Max Mustermann",
@@ -428,14 +796,8 @@ User: "Der Makler heisst Max Mustermann, E-Mail max@immobilien.de, Telefon 089-1
     "provider_phone": "089-1234567",
     "provider_company": "Mustermann Immobilien"
   },
-  "response": "Super! Ich habe alle Kontaktdaten von Max Mustermann gespeichert."
+  "response": "Ok! Kontaktdaten gespeichert: Max Mustermann (max@immobilien.de, 089-1234567)"
 }
-
-WICHTIG:
-- Diese Frage wird AUTOMATISCH vom System gestellt (nicht von dir!)
-- Wenn User Kontaktdaten liefert, extrahiere sie einfach
-- Mindestens provider_email MUSS vorhanden sein
-- Nur im Import-Modus relevant!
 
 REGELN:
 1. Frage NIEMALS nach Feldern, die bereits bekannt sind (oben aufgelistet)!
@@ -444,7 +806,7 @@ REGELN:
 4. Wenn alle Pflichtfelder vorhanden: Erwaehne welche optionalen Felder noch ergaenzt werden koennten
 5. Wenn der User "fertig", "das wars", "keine weiteren Angaben" sagt - setze userSaidComplete: true
 6. GENERIERE IMMER title und description - und AKTUALISIERE sie bei neuen Infos!
-7. KEINE DOPPELTEN FRAGEN: Wenn du in "response" eine Frage stellst, setze "followUpQuestion" auf null!
+7. NUR EINE NACHRICHT PRO TURN: Setze "followUpQuestion" IMMER auf null! Die Frage steht bereits in "response"!
 
 Antworte im JSON Format:
 {
@@ -469,7 +831,13 @@ Antworte im JSON Format:
 }`;
 
         // Build final system prompt with master prompt base
-        const modeInstructions = isEditMode ? editModeInstructions : createModeInstructions;
+        const modeInstructions = isImportMode
+          ? importModeInstructions
+          : isEditMode
+            ? currentData.is_external
+              ? editImportModeInstructions
+              : editModeInstructions
+            : createModeInstructions;
         const systemPrompt = buildSystemPrompt('assistant', modeInstructions);
 
         // Build messages for OpenAI
@@ -498,7 +866,16 @@ Antworte im JSON Format:
         // Parse JSON response - OpenAI returns UTF-8 encoded strings
         const aiResponse = JSON.parse(responseText);
 
-        console.log('[AI Chat] Mode:', isEditMode ? 'EDIT' : 'CREATE');
+        console.log(
+          '[AI Chat] Mode:',
+          isImportMode
+            ? 'IMPORT'
+            : isEditMode
+              ? currentData.is_external
+                ? 'EDIT-IMPORT'
+                : 'EDIT'
+              : 'CREATE'
+        );
         console.log('[AI Chat] AI extracted:', JSON.stringify(aiResponse.extractedData, null, 2));
         console.log('[AI Chat] AI response:', aiResponse.response);
 
@@ -534,11 +911,9 @@ Antworte im JSON Format:
   /**
    * Generate property description using AI
    */
-  generateDescription: protectedProcedure
-    .input(PropertyDataSchema)
-    .mutation(async ({ input }) => {
-      try {
-        const prompt = `Erstelle eine ansprechende, professionelle Immobilienbeschreibung basierend auf diesen Daten:
+  generateDescription: protectedProcedure.input(PropertyDataSchema).mutation(async ({ input }) => {
+    try {
+      const prompt = `Erstelle eine ansprechende, professionelle Immobilienbeschreibung basierend auf diesen Daten:
 
 ${JSON.stringify(input, null, 2)}
 
@@ -548,25 +923,28 @@ Die Beschreibung sollte:
 - Überzeugend und verkaufsorientiert sein
 - Auf Deutsch verfasst sein`;
 
-        const descriptionSystemPrompt = buildSystemPrompt('seller', 'Erstelle eine professionelle, verkaufsorientierte Immobilienbeschreibung.');
-        const completion = await getOpenAIClient().chat.completions.create({
-          model: 'gpt-5.2',
-          messages: [
-            { role: 'system', content: descriptionSystemPrompt },
-            { role: 'user', content: prompt },
-          ],
-          temperature: 0.8,
-        });
+      const descriptionSystemPrompt = buildSystemPrompt(
+        'seller',
+        'Erstelle eine professionelle, verkaufsorientierte Immobilienbeschreibung.'
+      );
+      const completion = await getOpenAIClient().chat.completions.create({
+        model: 'gpt-5.2',
+        messages: [
+          { role: 'system', content: descriptionSystemPrompt },
+          { role: 'user', content: prompt },
+        ],
+        temperature: 0.8,
+      });
 
-        const description = completion.choices[0]?.message?.content;
-        if (!description) {
-          throw new Error('No description generated');
-        }
-
-        return { description };
-      } catch (error) {
-        console.error('Error generating description:', error);
-        throw new Error('Failed to generate description');
+      const description = completion.choices[0]?.message?.content;
+      if (!description) {
+        throw new Error('No description generated');
       }
-    }),
+
+      return { description };
+    } catch (error) {
+      console.error('Error generating description:', error);
+      throw new Error('Failed to generate description');
+    }
+  }),
 });

@@ -133,7 +133,7 @@ export function MasterDetailLayout({
 
           {/* Right Column - Detail View */}
           <div
-            className={`${showDetail ? 'flex' : 'hidden'} lg:flex lg:flex-1 flex-col h-[calc(100vh-100px)] overflow-hidden`}
+            className={`${showDetail ? 'flex' : 'hidden'} lg:flex lg:flex-1 flex-col h-[calc(100vh-100px)] overflow-y-auto lg:overflow-hidden`}
           >
             {detailContent}
           </div>

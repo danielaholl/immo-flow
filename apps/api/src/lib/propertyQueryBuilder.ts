@@ -53,7 +53,10 @@ export const STATISTICS_BASE = `
   COALESCE(ps.favorites_count, 0) as favorites_count,
   COALESCE(ps.rating_count, 0) as rating_count,
   ps.avg_rating,
-  ps.avg_suggested_price
+  ps.avg_suggested_price,
+  COALESCE(p.conversations_count, 0) as conversations_count,
+  COALESCE(p.shares_count, 0) as shares_count,
+  COALESCE(p.dismissed_count, 0) as dismissed_count
 `;
 
 // Erweiterte Statistiken (für Verkäufer-Ansicht)
@@ -69,7 +72,10 @@ export const STATISTICS_EXTENDED = `
   ps.avg_suggested_price,
   ps.positive_feedback_count,
   ps.neutral_feedback_count,
-  ps.negative_feedback_count
+  ps.negative_feedback_count,
+  COALESCE(p.conversations_count, 0) as conversations_count,
+  COALESCE(p.shares_count, 0) as shares_count,
+  COALESCE(p.dismissed_count, 0) as dismissed_count
 `;
 
 // Standard JOINs
@@ -188,7 +194,11 @@ export const PROPERTY_LIST_FIELDS = `
   'user_id', p.user_id,
   'created_at', p.created_at,
   'days_online', EXTRACT(DAY FROM (CURRENT_TIMESTAMP - p.created_at))::integer,
-  'documents_count', COALESCE(jsonb_array_length(p.documents), 0)
+  'documents_count', COALESCE(jsonb_array_length(p.documents), 0),
+  'favorites_count', COALESCE(ps.favorites_count, 0),
+  'conversations_count', COALESCE(p.conversations_count, 0),
+  'shares_count', COALESCE(p.shares_count, 0),
+  'dismissed_count', COALESCE(p.dismissed_count, 0)
 `;
 
 /**
@@ -243,6 +253,10 @@ export const PROPERTY_JSON_FIELDS = `
   'updated_at', p.updated_at,
   'days_online', EXTRACT(DAY FROM (CURRENT_TIMESTAMP - p.created_at))::integer,
   'documents_count', COALESCE(jsonb_array_length(p.documents), 0),
+  'favorites_count', COALESCE(ps.favorites_count, 0),
+  'conversations_count', COALESCE(p.conversations_count, 0),
+  'shares_count', COALESCE(p.shares_count, 0),
+  'dismissed_count', COALESCE(p.dismissed_count, 0),
   'provider_contact', (
     SELECT json_build_object(
       'provider_name', pc.provider_name,

@@ -15,6 +15,7 @@ export * from './shared/PropertyImageSlideshow'; // Platform-aware export (web/n
 export { ChatAssistant, type ChatAssistantProps, type Message as ChatMessage } from './web/ChatAssistant';
 export { ChatModal, type ChatModalProps } from './web/ChatModal';
 export { PropertyScoreBadge } from './web/PropertyScoreBadge';
+export { PropertyTypeBadge, type PropertyTypeBadgeProps } from './web/PropertyTypeBadge';
 export { InvestmentScoreBadge } from './web/InvestmentScoreBadge';
 export {
   GlassButton,

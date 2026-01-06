@@ -3,20 +3,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MapPin } from 'lucide-react';
-import type { PropertyInfoOverlayProps, PropertyType } from './PropertyInfoOverlay.types';
-
-const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
-  apartment: 'Wohnung',
-  house: 'Haus',
-  villa: 'Villa',
-  commercial: 'Gewerbe',
-  land: 'Grundstück',
-  office: 'Büro',
-  retail: 'Einzelhandel',
-  industrial: 'Industrie',
-  parking: 'Stellplatz',
-  multi_family: 'Mehrfamilienhaus',
-};
+import type { PropertyInfoOverlayProps } from './PropertyInfoOverlay.types';
+import { PropertyTypeBadge } from '../../web/PropertyTypeBadge';
 
 export function PropertyInfoOverlay({
   propertyType,
@@ -64,12 +52,7 @@ export function PropertyInfoOverlay({
 
       {/* Property Info */}
       <View style={[styles.infoOverlay, style]} className={className}>
-        {/* Property Type Badge */}
-        {propertyType && (
-          <span className="inline-flex w-fit px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-100/60 text-rose-700 backdrop-blur-sm border border-rose-200 shadow-sm mb-2">
-            {PROPERTY_TYPE_LABELS[propertyType] || 'Immobilie'}
-          </span>
-        )}
+        {/* Title */}
         <div
           className="text-white font-bold text-xl mb-0.5 truncate"
           style={{
@@ -80,6 +63,22 @@ export function PropertyInfoOverlay({
         >
           {title}
         </div>
+
+        {/* Price with Property Type Badge */}
+        <div className="flex items-center gap-2 mb-1.5">
+          <Text style={styles.price}>{formattedPrice}</Text>
+          {propertyType && (
+            <div className="flex-shrink-0">
+              <PropertyTypeBadge propertyType={propertyType} size="sm" />
+            </div>
+          )}
+        </div>
+        {displayAddress !== '-' && (
+          <View style={styles.locationRow}>
+            <MapPin size={14} color="rgba(255, 255, 255, 0.85)" strokeWidth={2} />
+            <Text style={styles.location}>{displayAddress}</Text>
+          </View>
+        )}
         <Text style={styles.details}>
           {rooms && <><Text style={styles.detailsBold}>{rooms}</Text> Zi</>}
           {rooms && ' • '}
@@ -89,13 +88,6 @@ export function PropertyInfoOverlay({
           {yearBuilt && ' • '}
           {yearBuilt && <>Bj. <Text style={styles.detailsBold}>{yearBuilt}</Text></>}
         </Text>
-        <Text style={styles.price}>{formattedPrice}</Text>
-        {displayAddress !== '-' && (
-          <View style={styles.locationRow}>
-            <MapPin size={14} color="rgba(255, 255, 255, 0.85)" strokeWidth={2} />
-            <Text style={styles.location}>{displayAddress}</Text>
-          </View>
-        )}
       </View>
     </>
   );
@@ -108,6 +100,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 16,
+    paddingRight: 80,
     paddingBottom: 20,
     pointerEvents: 'none',
   },
@@ -124,7 +117,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginBottom: 4,
+    marginBottom: 8,
   },
   location: {
     fontSize: 15,
@@ -144,7 +137,6 @@ const styles = StyleSheet.create({
   details: {
     fontSize: 16,
     color: 'rgba(255, 255, 255, 0.85)',
-    marginBottom: 8,
   },
   detailsBold: {
     fontWeight: '700',

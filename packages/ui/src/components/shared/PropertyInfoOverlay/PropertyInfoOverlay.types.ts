@@ -1,4 +1,4 @@
-export type PropertyType = 'apartment' | 'house' | 'villa' | 'commercial' | 'land' | 'office' | 'retail' | 'industrial' | 'parking' | 'multi_family';
+import type { PropertyType } from '../PropertyCard/PropertyCard.types';
 
 export interface PropertyInfoOverlayProps {
   /** Property type */

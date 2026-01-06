@@ -32,6 +32,12 @@ export interface Property {
   features?: string[];
   energyClass?: string;
   year_built?: number;
+
+  // Interaction counts (Instagram/TikTok style)
+  favorites_count?: number;
+  conversations_count?: number;
+  shares_count?: number;
+  dismissed_count?: number;
 }
 
 export interface PropertyCardProps {

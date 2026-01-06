@@ -60,10 +60,41 @@ export function useConversationalAI(): UseConversationalAIResult {
 
     // Different welcome messages based on mode
     if (mode === 'import') {
-      addBotMessage('Hey! Exposé, Screenshots, Bilder oder Videos hochladen - ich mach den Rest.');
+      addBotMessage(`Hey! 👋
+
+Lade ein Exposé, Screenshots oder Bilder hoch - oder beschreib die Immobilie.
+
+**Ich frage dich zuerst nach dem Objekttyp**, dann nur nach den wichtigsten Daten.
+
+Los geht's!`);
+    } else if (mode === 'edit') {
+      // Edit mode
+      addBotMessage(`Hey! 👋
+
+Du kannst jetzt deine Immobilie bearbeiten. Sag mir einfach, was du ändern möchtest.
+
+Beispiele:
+• "Ändere den Preis auf 500.000 Euro"
+• "Die Wohnung hat 4 Zimmer, nicht 3"
+• "Ergänze: Balkon mit Südausrichtung"
+
+Was möchtest du anpassen?`);
     } else {
-      // Default message for create/edit mode
-      addBotMessage('Hey! Beschreib deine Immobilie oder lade Exposé, Screenshots, Bilder oder Videos hoch.');
+      // Create mode
+      addBotMessage(`Hey! 👋
+
+Lass uns gemeinsam deine Immobilie erfassen.
+
+**Zuerst:** Um welchen Objekttyp handelt es sich?
+• Wohnung
+• Haus
+• Mehrfamilienhaus
+• Grundstück
+• Gewerbe/Büro
+• Stellplatz
+• ...
+
+Danach frage ich nur nach den wichtigsten Daten für die Berechnung. Alle weiteren Details kannst du optional ergänzen.`);
     }
   };
 

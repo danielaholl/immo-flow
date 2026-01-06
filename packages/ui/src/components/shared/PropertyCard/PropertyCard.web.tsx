@@ -56,12 +56,18 @@ export function PropertyCard({
             {showActionButtons && (
               <ImageOverlayActions
                 className="absolute bottom-5 right-3 z-20"
-                direction="horizontal"
+                direction="vertical"
                 isFavorite={isFavorite}
                 onFavorite={(e) => onFavorite?.(e as any)}
                 onMessage={(e) => onMessage?.(e as any)}
                 onShare={(e) => onShare?.(e as any)}
                 onDismiss={(e) => onDismiss?.(e as any)}
+                // Instagram/TikTok style counters
+                favoritesCount={property.favorites_count}
+                conversationsCount={property.conversations_count}
+                sharesCount={property.shares_count}
+                dismissedCount={property.dismissed_count}
+                showCounts={true}
               />
             )}
 

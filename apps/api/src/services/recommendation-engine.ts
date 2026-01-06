@@ -54,9 +54,15 @@ export async function getPersonalizedFeed(
   // Database Query from recommendations_cache table
   const offset = (page - 1) * limit;
   const results = await query<Property>(
-    `SELECT p.*, rc.final_score
+    `SELECT p.*, rc.final_score,
+            COALESCE(ps.favorites_count, 0) as favorites_count,
+            COALESCE(ps.total_views, 0) as total_views,
+            COALESCE(p.conversations_count, 0) as conversations_count,
+            COALESCE(p.shares_count, 0) as shares_count,
+            COALESCE(p.dismissed_count, 0) as dismissed_count
      FROM recommendations_cache rc
      JOIN properties p ON rc.property_id = p.id
+     LEFT JOIN property_statistics ps ON p.id = ps.property_id
      WHERE rc.user_id = $1 AND p.status = 'active'
      ORDER BY rc.final_score DESC
      LIMIT $2 OFFSET $3`,
@@ -97,9 +103,16 @@ export async function getTrendingProperties(limit: number = 20): Promise<Propert
 
   // Query trending from database
   const results = await query<Property>(
-    `SELECT p.*, COALESCE(pt.trending_score, 0) as trending_score
+    `SELECT p.*,
+            COALESCE(pt.trending_score, 0) as trending_score,
+            COALESCE(ps.favorites_count, 0) as favorites_count,
+            COALESCE(ps.total_views, 0) as total_views,
+            COALESCE(p.conversations_count, 0) as conversations_count,
+            COALESCE(p.shares_count, 0) as shares_count,
+            COALESCE(p.dismissed_count, 0) as dismissed_count
      FROM properties p
      LEFT JOIN property_trending pt ON p.id = pt.property_id
+     LEFT JOIN property_statistics ps ON p.id = ps.property_id
      WHERE p.status = 'active'
      ORDER BY COALESCE(pt.trending_score, 0) DESC, p.created_at DESC
      LIMIT $1`,
@@ -164,7 +177,12 @@ async function calculateRecommendationsOnDemand(userId: string, limit: number): 
 
   // Fetch properties
   const properties = await query<Property>(
-    `SELECT * FROM properties WHERE id = ANY($1) AND status = 'active'`,
+    `SELECT p.*,
+            COALESCE(ps.favorites_count, 0) as favorites_count,
+            COALESCE(ps.total_views, 0) as total_views
+     FROM properties p
+     LEFT JOIN property_statistics ps ON p.id = ps.property_id
+     WHERE p.id = ANY($1) AND p.status = 'active'`,
     [topPropertyIds]
   );
 

@@ -34,6 +34,7 @@ export const favoritesRouter = router({
         ) as property
        FROM favorites f
        JOIN properties p ON f.property_id = p.id
+       LEFT JOIN property_statistics ps ON p.id = ps.property_id
        LEFT JOIN user_profiles up ON p.user_id = up.user_id
        LEFT JOIN users u ON p.user_id = u.id
        WHERE f.user_id = $1 AND p.status = 'active'

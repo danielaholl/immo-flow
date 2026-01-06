@@ -41,6 +41,9 @@ export function ShareLinkModal({
     },
   });
 
+  // Record share interaction mutation
+  const recordShareMutation = trpc.properties.recordShare.useMutation();
+
   // Generate token when switching to full access tab
   useEffect(() => {
     if (activeTab === 'full' && !fullAccessToken && !generateTokenMutation.isLoading) {
@@ -66,6 +69,9 @@ export function ShareLinkModal({
     await navigator.clipboard.writeText(basicUrl);
     setCopiedBasic(true);
     setTimeout(() => setCopiedBasic(false), 2000);
+
+    // Track share interaction
+    recordShareMutation.mutate({ propertyId });
   };
 
   const handleCopyFull = async () => {
@@ -73,17 +79,26 @@ export function ShareLinkModal({
     await navigator.clipboard.writeText(fullAccessUrl);
     setCopiedFull(true);
     setTimeout(() => setCopiedFull(false), 2000);
+
+    // Track share interaction
+    recordShareMutation.mutate({ propertyId });
   };
 
   const handleWhatsAppShare = (url: string) => {
     const text = `Schau dir diese Immobilie an: ${propertyTitle}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text + '\n' + url)}`, '_blank');
+
+    // Track share interaction
+    recordShareMutation.mutate({ propertyId });
   };
 
   const handleEmailShare = (url: string) => {
     const subject = `Immobilie: ${propertyTitle}`;
     const body = `Ich möchte dir diese Immobilie zeigen:\n\n${propertyTitle}\n\n${url}`;
     window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
+
+    // Track share interaction
+    recordShareMutation.mutate({ propertyId });
   };
 
   const handleDownloadQR = (canvasId: string, filename: string) => {

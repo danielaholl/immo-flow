@@ -80,7 +80,8 @@ export function PropertyListingManager({ propertyId, mode = 'create', initialCal
 
   // Provider contact state (for import mode)
   const [showProviderContactEditor, setShowProviderContactEditor] = useState(false);
-  const [hasAskedForProviderContact, setHasAskedForProviderContact] = useState(false);
+  const [providerQuestionAsked, setProviderQuestionAsked] = useState(false);
+  const [providerQuestionAnswered, setProviderQuestionAnswered] = useState(false);
 
   // Custom hooks
   const {
@@ -282,31 +283,40 @@ export function PropertyListingManager({ propertyId, mode = 'create', initialCal
   // Track if welcome message was shown
   const welcomeShownRef = useRef(false);
 
-  // Ask for provider contact info in import mode (after property creation)
+  // Ask for provider contact info BEFORE property creation
   useEffect(() => {
-    // Only in import mode, when property has been created and saved
-    // Wait for provider contact query to finish loading before checking
-    if (!isImportMode || !listingData.id || hasAskedForProviderContact || isLoadingProviderContact) return;
+    if (!isImportMode) return;
+    if (providerQuestionAsked) return; // Already asked
+    if (listingData.id) return; // Already created property
 
-    // Check if provider contact already exists
-    if (providerContact?.provider_name || providerContact?.provider_email || providerContact?.provider_phone) {
-      // Already has provider contact data
+    // Check if all required fields are present
+    const requiredFields = ['property_type', 'location', 'price', 'sqm', 'rooms', 'condition'];
+    const hasAllRequiredFields = requiredFields.every(field => {
+      const value = listingData[field as keyof ListingData];
+      return value !== undefined && value !== null && value !== '';
+    });
+
+    if (!hasAllRequiredFields) {
+      console.log('[Provider Question] Nicht alle Felder vorhanden:', {
+        property_type: listingData.property_type,
+        location: listingData.location,
+        price: listingData.price,
+        sqm: listingData.sqm,
+        rooms: listingData.rooms,
+        condition: listingData.condition,
+      });
       return;
     }
 
-    // Ask user if they want to add provider contact info
-    setHasAskedForProviderContact(true);
+    console.log('[Provider Question] Alle Felder vorhanden! Frage Provider-Info...');
+
+    // All conditions met - ask for provider contact
+    setProviderQuestionAsked(true);
+
     setTimeout(() => {
-      addBotMessage(
-        '📋 Möchtest du noch die Kontaktdaten des Anbieters (Makler/Verkäufer) speichern?\n\n' +
-        'Das hilft dir später, den Makler oder Verkäufer zu kontaktieren.\n\n' +
-        'Du kannst mir einfach die Infos hier im Chat schreiben, z.B.:\n' +
-        '• "Der Makler heißt Max Mustermann, E-Mail max@immobilien.de, Telefon 0123-456789"\n' +
-        '• "Kontakt: Maria Schmidt, maria@maklerbüro.de"\n\n' +
-        'Oder antworte mit "Nein", wenn du das überspringen möchtest.'
-      );
-    }, 1000);
-  }, [isImportMode, listingData.id, providerContact, hasAskedForProviderContact, isLoadingProviderContact, addBotMessage]);
+      addBotMessage('✅ Super! Alle wichtigen Daten sind da. Möchtest du noch Anbieter-Kontaktdaten speichern?');
+    }, 800);
+  }, [isImportMode, listingData, providerQuestionAsked, addBotMessage]);
 
   // Initialize welcome messages
   useEffect(() => {
@@ -331,24 +341,24 @@ export function PropertyListingManager({ propertyId, mode = 'create', initialCal
         maximumFractionDigits: 0,
       }).format(initialCalculatorData.price);
 
-      const welcomeMessage = `Du möchtest ein Objekt in **${initialCalculatorData.location}** für **${formattedPrice}** und **${initialCalculatorData.sqm} qm** Wohnfläche importieren.
+      const welcomeMessage = `📋 Perfekt! Ich habe bereits:
+• Ort: **${initialCalculatorData.location}**
+• Preis: **${formattedPrice}**
+• Wohnfläche: **${initialCalculatorData.sqm} qm**
 
-Um das Objekt zu speichern, benötige ich noch:
-• **Objekttyp** (z.B. "Wohnung", "Haus", etc.)
-• **Zimmeranzahl**
+**Noch benötigt:**
+• Objekttyp (Wohnung / Haus / ...)
+• Zimmeranzahl
+• Zustand (z.B. saniert, renoviert, neuwertig...)
 
-Du kannst außerdem:
-• **Notizen hinzufügen** – Schreibe einfach ins Textfeld
-• **Bilder hochladen** – Klicke auf das + Symbol
-• **Dokumente hochladen** – Klicke auf das + Symbol
-
-Sobald Objekttyp und Zimmeranzahl angegeben sind, kannst du das Objekt **„In den Favoriten übernehmen"**.`;
+Gib mir einfach die fehlenden Infos! 💬`;
 
       addBotMessage(welcomeMessage);
 
       // Initialize listing data with calculator values
       setListingData(prev => ({
         ...prev,
+        property_type: 'apartment', // Default für Calculator-Import (meist Wohnungen)
         price: initialCalculatorData.price,
         sqm: initialCalculatorData.sqm,
         location: initialCalculatorData.location,
@@ -382,36 +392,47 @@ Sobald Objekttyp und Zimmeranzahl angegeben sind, kannst du das Objekt **„In d
     // Re-focus input field after sending
     setTimeout(() => textInputRef.current?.focus(), 100);
 
-    // Check if user is answering provider contact question
-    if (hasAskedForProviderContact && !showProviderContactEditor) {
+    // Handle provider question response
+    if (providerQuestionAsked && !providerQuestionAnswered) {
       const lowerMessage = userMessage.toLowerCase();
-      if (lowerMessage.includes('nein') || lowerMessage.includes('no') || lowerMessage.includes('nicht')) {
-        addBotMessage('Alles klar! Du kannst die Kontaktdaten später jederzeit im Bereich "Anbieter-Informationen" hinzufügen.');
+
+      // User wants to skip
+      if (
+        lowerMessage.includes('nein') ||
+        lowerMessage.includes('no') ||
+        lowerMessage.includes('skip') ||
+        lowerMessage.includes('überspringen') ||
+        lowerMessage === 'n'
+      ) {
+        setProviderQuestionAnswered(true);
+        addBotMessage('Alles klar! Du kannst die Kontaktdaten später jederzeit hinzufügen. 👍');
         setTimeout(() => textInputRef.current?.focus(), 200);
-        return;
+        return; // Don't proceed to AI extraction
       }
-      // If user provides info (not just "ja"), let AI extract it
-      // If user just says "ja", prompt for details
-      if ((lowerMessage === 'ja' || lowerMessage === 'yes' || lowerMessage === 'gerne') && userMessage.length < 10) {
+
+      // User says yes but no details
+      if ((lowerMessage === 'ja' || lowerMessage === 'yes' || lowerMessage === 'j') && userMessage.length < 10) {
         addBotMessage(
           'Super! Gib mir bitte die Kontaktdaten, z.B.:\n\n' +
-          '"Max Mustermann, E-Mail: max@immobilien.de, Telefon: 0123-456789, Firma: Mustermann Immobilien GmbH"'
+          '"Max Mustermann, max@immobilien.de, 0123-456789"'
         );
         setTimeout(() => textInputRef.current?.focus(), 200);
         return;
       }
-      // User provided details - let AI extract them
-      setShowProviderContactEditor(true);
+
+      // User provided details - mark as answered and proceed to AI extraction
+      setProviderQuestionAnswered(true);
     }
 
     try {
       // Call AI extraction (conversation history does NOT include the new user message yet)
-      // Use isEditMode for edit mode, OR isImportMode when modifying imported data
+      // Call AI extraction with explicit mode flags
       const result = await extractDataMutation.mutateAsync({
         message: userMessage,
         conversationHistory: conversationHistory || [],
         currentData: convertToEnglishEnums(listingData || {}),
-        isEditMode: isEditMode || isImportMode,
+        isEditMode: isEditMode,
+        isImportMode: isImportMode,
       });
 
       // Update listing data and convert German enums to English
@@ -423,10 +444,17 @@ Sobald Objekttyp und Zimmeranzahl angegeben sind, kannst du das Objekt **„In d
       console.log('[PropertyListingManager] Current listingData.price:', listingData.price);
       console.log('[PropertyListingManager] New price from AI:', newData.price);
 
+      // Debug: Check if description is being extracted
+      console.log('[AI Extraction] description:', newData.description);
+      console.log('[AI Extraction] description length:', newData.description?.length || 0);
+
+      // Extract provider fields from newData (they're flat in AI response)
+      const { provider_name, provider_email, provider_phone, provider_company, ...dataWithoutProvider } = newData as any;
+
       setListingData(prev => {
         const updated = {
           ...prev, // Keep all existing data (important for edit mode!)
-          ...newData, // Merge in the changes
+          ...dataWithoutProvider, // Merge in the changes (without provider fields)
           // Explicitly clear AI rating fields after data extraction
           ai_rating_explanation: undefined,
           strengths: undefined,
@@ -450,35 +478,44 @@ Sobald Objekttyp und Zimmeranzahl angegeben sind, kannst du das Objekt **„In d
       // Add bot response (AI already provides confirmation)
       addBotMessage(result.response, result.extractedData);
 
-      // If provider contact data was extracted, save it immediately
-      if (listingData.id && newData.provider_email) {
-        console.log('[PropertyListingManager] Provider contact data extracted, saving...');
-        console.log('[PropertyListingManager] Provider data:', {
-          provider_name: newData.provider_name,
-          provider_email: newData.provider_email,
-          provider_phone: newData.provider_phone,
-          provider_company: newData.provider_company,
-        });
-        try {
-          await saveProviderContactMutation.mutateAsync({
-            property_id: listingData.id,
-            provider_name: newData.provider_name || undefined,
-            provider_email: newData.provider_email,
-            provider_phone: newData.provider_phone || undefined,
-            provider_company: newData.provider_company || undefined,
-          });
-          console.log('[PropertyListingManager] Provider contact saved successfully');
-          // Refetch provider contact to update UI
-          await refetchProviderContact();
-          // Show editor to display the saved data
-          setShowProviderContactEditor(true);
-          // Add confirmation message
-          setTimeout(() => {
-            addBotMessage('✅ Perfekt! Ich habe die Kontaktdaten gespeichert. Du kannst sie unten im Bereich "Anbieter-Informationen" sehen und bei Bedarf anpassen.');
-          }, 500);
-        } catch (error) {
-          console.error('[PropertyListingManager] Error saving provider contact:', error);
-          addBotMessage('⚠️ Fehler beim Speichern der Kontaktdaten. Bitte versuche es erneut.');
+      // Store provider data in listingData if extracted
+      if (provider_email) {
+        const providerData = {
+          provider_name: provider_name || null,
+          provider_email: provider_email,
+          provider_phone: provider_phone || null,
+          provider_company: provider_company || null,
+        };
+
+        // If property exists, save to database
+        if (listingData.id) {
+          console.log('[PropertyListingManager] Provider contact data extracted, saving to database...');
+          try {
+            await saveProviderContactMutation.mutateAsync({
+              property_id: listingData.id,
+              ...providerData,
+            });
+            console.log('[PropertyListingManager] Provider contact saved successfully');
+            await refetchProviderContact();
+            setShowProviderContactEditor(true);
+            setTimeout(() => {
+              addBotMessage('✅ Perfekt! Ich habe die Kontaktdaten gespeichert.');
+            }, 500);
+          } catch (error) {
+            console.error('[PropertyListingManager] Error saving provider contact:', error);
+            addBotMessage('⚠️ Fehler beim Speichern der Kontaktdaten. Bitte versuche es erneut.');
+          }
+        } else {
+          // Property doesn't exist yet - store in listingData for later
+          console.log('[PropertyListingManager] Storing provider data in listingData for later save');
+          setListingData(prev => ({
+            ...prev,
+            provider_contact: providerData,
+          }));
+          addBotMessage(
+            '✅ Perfekt! Ich habe die Kontaktdaten gespeichert. ' +
+            'Du siehst sie gleich in der Vorschau.'
+          );
         }
       }
 
@@ -508,7 +545,7 @@ Sobald Objekttyp und Zimmeranzahl angegeben sind, kannst du das Objekt **„In d
         'Entschuldigung, da ist etwas schiefgegangen. Kannst du es bitte nochmal versuchen?'
       );
     }
-  }, [textInput, extractDataMutation, listingData, conversationHistory, addUserMessage, setTextInput, updateConversationHistory, addBotMessage, setIsComplete, textInputRef, isEditMode, isImportMode, hasAskedForProviderContact, showProviderContactEditor]);
+  }, [textInput, extractDataMutation, listingData, conversationHistory, addUserMessage, setTextInput, updateConversationHistory, addBotMessage, setIsComplete, textInputRef, isEditMode, isImportMode, providerQuestionAsked, providerQuestionAnswered, setProviderQuestionAnswered, saveProviderContactMutation, setListingData, refetchProviderContact, setShowProviderContactEditor]);
 
   // Convert German enum values to English
   const convertToEnglishEnums = (data: any) => {
@@ -632,7 +669,15 @@ Sobald Objekttyp und Zimmeranzahl angegeben sind, kannst du das Objekt **„In d
     if (totalFloors) lines.push(`• Geschosse: ${totalFloors}`);
     if (heatingType) lines.push(`• Heizung: ${heatingType}`);
     if (energyClass) lines.push(`• Energieklasse: ${energyClass}`);
-    if (data.features?.length) lines.push(`• Ausstattung: ${data.features.join(', ')}`);
+    // Features sind jetzt in description integriert - kein separates Array mehr
+    // if (data.features?.length) lines.push(`• Ausstattung: ${data.features.join(', ')}`);
+
+    // Beschreibung (erste 100 Zeichen als Preview)
+    if (data.description) {
+      const descPreview = data.description.slice(0, 100).trim();
+      const suffix = data.description.length > 100 ? '...' : '';
+      lines.push(`• Beschreibung: ${descPreview}${suffix}`);
+    }
 
     return lines.length > 0 ? lines.join('\n') : 'Keine Daten erkannt';
   };
@@ -840,6 +885,24 @@ Sobald Objekttyp und Zimmeranzahl angegeben sind, kannst du das Objekt **„In d
           id: createdProperty.id,
           is_external: true,
         }));
+
+        // Save provider contact if exists
+        if (createdProperty?.id && listingData.provider_contact?.provider_email) {
+          console.log('[Import] Saving provider contact after property creation');
+          try {
+            await saveProviderContactMutation.mutateAsync({
+              property_id: createdProperty.id,
+              provider_name: listingData.provider_contact.provider_name || undefined,
+              provider_email: listingData.provider_contact.provider_email,
+              provider_phone: listingData.provider_contact.provider_phone || undefined,
+              provider_company: listingData.provider_contact.provider_company || undefined,
+            });
+            console.log('[Import] Provider contact saved successfully');
+          } catch (error) {
+            console.error('[Import] Error saving provider contact:', error);
+            // Don't fail entire property creation
+          }
+        }
 
         // Add to favorites
         if (createdProperty?.id) {
@@ -1795,7 +1858,8 @@ Sobald Objekttyp und Zimmeranzahl angegeben sind, kannst du das Objekt **„In d
       phone: profile?.phone || null,
     } : undefined,
     // Provider contact (for external properties)
-    provider_contact: providerContact || undefined,
+    // Use listingData.provider_contact first (before property is saved), then providerContact (from DB)
+    provider_contact: listingData.provider_contact || providerContact || undefined,
     is_external: listingData.is_external,
     // Note: Seller evaluation is shown separately via SellerAnalysis component
   }), [listingData, uploadedImages, videoUrl, documents, user, profile, hasRequiredFields, determineAfaType, providerContact]);
@@ -1812,7 +1876,7 @@ Sobald Objekttyp und Zimmeranzahl angegeben sind, kannst du das Objekt **„In d
   return (
     <SlideshowManagerProvider>
       <div
-        className="w-full relative"
+        className="w-full relative max-w-[1800px] mx-auto"
         style={{ height: 'calc(100vh - 80px)' }}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
@@ -1831,7 +1895,7 @@ Sobald Objekttyp und Zimmeranzahl angegeben sind, kannst du das Objekt **„In d
         )}
 
         {/* Mobile Tab Navigation */}
-        <div className="lg:hidden px-2 sm:px-4 py-3">
+        <div className="lg:hidden px-4 lg:px-6 py-3">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-1 flex gap-1">
             <button
               onClick={() => setMobileView('chat')}
@@ -1932,6 +1996,7 @@ Sobald Objekttyp und Zimmeranzahl angegeben sind, kannst du das Objekt **„In d
                           console.log('[PropertyListingManager] Provider contact updated, refetching...');
                           refetchProviderContact();
                         }}
+                        isImportMode={isImportMode}
                       />
                     </div>
 

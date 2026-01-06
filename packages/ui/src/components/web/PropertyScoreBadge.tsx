@@ -85,7 +85,7 @@ export function PropertyScoreBadge({
             cx={ringSize / 2}
             cy={ringSize / 2}
             r={radius}
-            stroke="rgba(255, 255, 255, 0.3)"
+            stroke="rgba(255, 255, 255, 0.5)"
             strokeWidth={strokeWidth}
             strokeLinecap="round"
             fill="none"
@@ -112,7 +112,7 @@ export function PropertyScoreBadge({
             left: strokeWidth + 4,
             right: strokeWidth + 4,
             bottom: strokeWidth + 4,
-            background: 'rgba(0, 0, 0, 0.25)',
+            background: 'rgba(0, 0, 0, 0.35)',
           }}
         >
           <span

@@ -1,18 +1,7 @@
 'use client';
 
 import { ImageOff } from 'lucide-react';
-
-export type PropertyType =
-  | 'apartment'
-  | 'house'
-  | 'villa'
-  | 'commercial'
-  | 'land'
-  | 'office'
-  | 'retail'
-  | 'industrial'
-  | 'parking'
-  | 'multi_family';
+import type { PropertyType } from '../shared/PropertyCard/PropertyCard.types';
 
 export interface PropertyImagePlaceholderProps {
   /** Additional CSS classes */

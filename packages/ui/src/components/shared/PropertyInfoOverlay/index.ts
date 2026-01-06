@@ -1,2 +1,2 @@
 export * from './PropertyInfoOverlay.types';
-export { PropertyInfoOverlay } from './PropertyInfoOverlay';
+export { PropertyInfoOverlay } from './PropertyInfoOverlay.web';

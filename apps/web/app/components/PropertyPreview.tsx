@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { Bath, Sparkles, DoorClosed, Square, Layers, Euro, Building2, Clock, Flame, Zap, ChevronDown, ChevronRight, Star, Eye, Heart, Mail, FileText, Loader2, Landmark, TrendingDown, TrendingUp, Equal, Info, ArrowUpDown, Calendar, Wallet, FileCheck, TreePine, Calculator, Home, X } from 'lucide-react';
-import { PropertyScoreBadge } from '@rendito/ui';
+import { Bath, Sparkles, DoorClosed, Square, Layers, Building2, Clock, Flame, Zap, ChevronDown, ChevronRight, Heart, Mail, FileText, Loader2, Landmark, TrendingDown, TrendingUp, Equal, Info, ArrowUpDown, Calendar, Wallet, FileCheck, TreePine, Calculator, Home, X } from 'lucide-react';
+import { PropertyScoreBadge, PropertyTypeBadge, type PropertyType } from '@rendito/ui';
 import { LocationDisplay } from './LocationDisplay';
 import { MarketComparisonBar } from './MarketComparisonBar';
 
@@ -301,6 +301,8 @@ export interface PropertyPreviewProps {
   showProviderContactEditor?: boolean;
   /** Callback after provider contact update (to refetch data) */
   onProviderContactUpdate?: () => void;
+  /** Whether this is import mode (to show provider contact before property is saved) */
+  isImportMode?: boolean;
 }
 
 /**
@@ -412,6 +414,7 @@ export function PropertyPreview({
   hideMetricsCards = false,
   showProviderContactEditor = false,
   onProviderContactUpdate,
+  isImportMode = false,
 }: PropertyPreviewProps) {
   // State for selected document
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | undefined>();
@@ -434,8 +437,6 @@ export function PropertyPreview({
   const [isHighlightsExpanded, setIsHighlightsExpanded] = useState(false);
   // State for market comparison accordion
   const [isMarketComparisonExpanded, setIsMarketComparisonExpanded] = useState(false);
-  // State for all details panel (shown when clicking the details card)
-  const [isAllDetailsExpanded, setIsAllDetailsExpanded] = useState(false);
   // State for documents accordion
   const [isDocumentsExpanded, setIsDocumentsExpanded] = useState(false);
   // State for price optimization suggestion
@@ -565,60 +566,31 @@ export function PropertyPreview({
 
   return (
     <div className={`${className} relative`}>
-      {/* Sticky Badges - Top Right */}
-      {(statusBadge || data.total_views !== undefined || data.favorites_count !== undefined || data.avg_rating !== undefined) ? (
-        <div className="sticky top-4 z-10 flex flex-wrap justify-end gap-2 mb-4">
-          {/* Views Badge */}
-          {data.total_views !== undefined && data.total_views > 0 && (
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-              <Eye size={16} />
-              {data.total_views}
-            </span>
-          )}
-
-          {/* Favorites Badge */}
-          {data.favorites_count !== undefined && data.favorites_count > 0 && (
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-pink-100 dark:bg-pink-900/40 text-pink-700 dark:text-pink-300">
-              <Heart size={16} />
-              {data.favorites_count}
-            </span>
-          )}
-
-          {/* Rating Badge */}
-          {data.avg_rating !== undefined && data.rating_count !== undefined && data.rating_count > 0 && (
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300">
-              <Star size={16} fill="currentColor" />
-              {Number(data.avg_rating).toFixed(1)}
-              <span className="text-yellow-600 dark:text-yellow-400">({data.rating_count})</span>
-            </span>
-          )}
-
-          {/* Average Suggested Price Badge */}
-          {data.avg_suggested_price !== undefined && data.avg_suggested_price > 0 && (
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300">
-              <Euro size={16} />
-              Ø {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(data.avg_suggested_price)}
-            </span>
-          )}
-
-          {/* Status Badge */}
-          {statusBadge && (
-            <span className={`inline-flex px-4 py-2 rounded-full text-sm font-medium ${statusBadge.bg} ${statusBadge.text}`}>
-              {statusBadge.label}
-            </span>
-          )}
-        </div>
-      ) : null}
-
       {/* Property Details */}
       <div>
         {/* Price Card - Premium Gradient */}
-        <div className="mb-6 p-4 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700">
-          {/* Property Type, Title, Location */}
+        <div className="mb-6 px-4 pb-4 pt-4 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700">
+          {/* Badge Row - Property Type links, Status rechts */}
+          <div className="flex items-center justify-between mb-3">
+            {/* Property Type Badge - links */}
+            {data.type && (
+              <PropertyTypeBadge
+                propertyType={data.type as PropertyType}
+                size="md"
+                variant="dark"
+              />
+            )}
+
+            {/* Status Badge - rechts */}
+            {statusBadge && (
+              <span className={`inline-flex px-4 py-2 rounded-full text-sm font-medium ${statusBadge.bg} ${statusBadge.text}`}>
+                {statusBadge.label}
+              </span>
+            )}
+          </div>
+
+          {/* Title, Location */}
           <div className="mb-4">
-            <span className="inline-flex px-3 py-1 rounded-full text-sm font-medium bg-rose-100/60 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 backdrop-blur-sm border border-rose-200 dark:border-rose-800 shadow-sm mb-2">
-              {getPropertyTypeLabel(data.type)}
-            </span>
             <h2 className="font-semibold text-gray-900 dark:text-white text-lg leading-tight mb-2">{data.title}</h2>
             <LocationDisplay
               location={data.location}
@@ -663,220 +635,14 @@ export function PropertyPreview({
 
         </div>
 
-        {/* Property Details Cards - Wohnfläche, Zimmer, Baujahr, Details */}
-        {(() => {
-          // Berechne Details-Count vorab für Grid-Layout (inkl. Energie und Geschoss)
-          const detailsCount = [
-            energyEfficiencyClass,
-            data.floor_level || data.total_floors,
-            data.bathrooms && data.bathrooms > 0,
-            conditionLabel,
-            typeof data.elevator === 'boolean',
-            data.heating_type,
-            data.energy_source,
-            data.energy_certificate,
-            data.monthly_fee && data.monthly_fee > 0,
-            data.available_from,
-            data.afa_type,
-            data.type === 'house' && data.plot_size && data.plot_size > 0,
-            data.usable_area && data.usable_area > 0,
-          ].filter(Boolean).length;
-
-          return (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-          {/* Wohnfläche */}
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-3 text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 flex items-center justify-center gap-1.5">
-              <Square size={24} className="text-blue-500" />
-              Wohnfläche
-            </p>
-            <p className="text-xl font-semibold text-gray-900 dark:text-white">
-              {data.sqm ? `${Math.ceil(data.sqm)} m²` : '–'}
-            </p>
-          </div>
-
-          {/* Zimmer */}
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-3 text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 flex items-center justify-center gap-1.5">
-              <DoorClosed size={24} className="text-violet-500" />
-              Zimmer
-            </p>
-            <p className="text-xl font-semibold text-gray-900 dark:text-white">
-              {data.rooms
-                ? (data.rooms % 1 === 0
-                    ? Math.floor(data.rooms)
-                    : data.rooms.toFixed(1).replace('.', ','))
-                : '–'}
-            </p>
-          </div>
-
-          {/* Baujahr */}
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-3 text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 flex items-center justify-center gap-1.5">
-              <Building2 size={24} className="text-amber-500" />
-              Baujahr
-            </p>
-            <p className="text-xl font-semibold text-gray-900 dark:text-white">
-              {data.year_built ? data.year_built : '–'}
-            </p>
-          </div>
-
-          {/* Alle Details - Clickable Card */}
-          <div
-            onClick={() => setIsAllDetailsExpanded(!isAllDetailsExpanded)}
-            className={`bg-white dark:bg-gray-900 rounded-xl border p-3 text-center cursor-pointer transition-all duration-200 ${
-              isAllDetailsExpanded
-                ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-950'
-                : 'border-gray-200 dark:border-gray-700 hover:border-indigo-300 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/50'
-            }`}
-          >
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 flex items-center justify-center gap-1.5">
-              <Info size={24} className="text-indigo-500" />
-              Details
-            </p>
-            <p className="text-xl font-semibold text-indigo-600 dark:text-indigo-400">
-              +{detailsCount}
-            </p>
-          </div>
-        </div>
-          );
-        })()}
-
-        {/* All Details Panel - Expandable */}
-        {isAllDetailsExpanded && (
-          <div className="mb-6 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 animate-in fade-in slide-in-from-top-2 duration-200">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {/* Energieeffizienzklasse */}
-              {energyEfficiencyClass && (
-                <div className="flex items-center gap-2">
-                  <Zap size={20} className="text-green-500" />
-                  <span className="text-base font-medium text-gray-900 dark:text-white">Energieeffizienz {energyEfficiencyClass}</span>
-                </div>
-              )}
-
-              {/* Geschoss */}
-              {(data.floor_level || data.total_floors) && (
-                <div className="flex items-center gap-2">
-                  <Layers size={20} className="text-purple-500" />
-                  <span className="text-base font-medium text-gray-900 dark:text-white">
-                    {data.floor_level && data.total_floors
-                      ? `${data.floor_level}/${data.total_floors} Geschoss`
-                      : data.floor_level
-                        ? `${data.floor_level}`
-                        : `${data.total_floors} Geschosse`}
-                  </span>
-                </div>
-              )}
-
-              {/* Badezimmer */}
-              {data.bathrooms && data.bathrooms > 0 && (
-                <div className="flex items-center gap-2">
-                  <Bath size={20} className="text-cyan-600" />
-                  <span className="text-base font-medium text-gray-900 dark:text-white">{data.bathrooms} Badezimmer</span>
-                </div>
-              )}
-
-              {/* Zustand */}
-              {conditionLabel && (
-                <div className="flex items-center gap-2">
-                  <Sparkles size={20} className="text-purple-600" />
-                  <span className="text-base font-medium text-gray-900 dark:text-white">{conditionLabel}</span>
-                </div>
-              )}
-
-              {/* Aufzug */}
-              {typeof data.elevator === 'boolean' && (
-                <div className="flex items-center gap-2">
-                  <ArrowUpDown size={20} className="text-green-600" />
-                  <span className="text-base font-medium text-gray-900 dark:text-white">{data.elevator ? 'Mit Aufzug' : 'Ohne Aufzug'}</span>
-                </div>
-              )}
-
-              {/* Heizungsart */}
-              {data.heating_type && (
-                <div className="flex items-center gap-2">
-                  <Flame size={20} className="text-orange-600" />
-                  <span className="text-base font-medium text-gray-900 dark:text-white">{heatingTypeLabel}</span>
-                </div>
-              )}
-
-              {/* Energiequelle */}
-              {data.energy_source && (
-                <div className="flex items-center gap-2">
-                  <Zap size={20} className="text-yellow-600" />
-                  <span className="text-base font-medium text-gray-900 dark:text-white">{energySourceLabel}</span>
-                </div>
-              )}
-
-              {/* Energieausweis */}
-              {data.energy_certificate && (
-                <div className="flex items-center gap-2">
-                  <FileCheck size={20} className="text-teal-600" />
-                  <span className="text-base font-medium text-gray-900 dark:text-white">{energyCertificateLabel}</span>
-                </div>
-              )}
-
-              {/* Hausgeld */}
-              {data.monthly_fee && data.monthly_fee > 0 && (
-                <div className="flex items-center gap-2">
-                  <Wallet size={20} className="text-rose-600" />
-                  <span className="text-base font-medium text-gray-900 dark:text-white">
-                    {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(data.monthly_fee)} Hausgeld
-                  </span>
-                </div>
-              )}
-
-              {/* Verfügbar ab */}
-              {data.available_from && (
-                <div className="flex items-center gap-2">
-                  <Calendar size={20} className="text-indigo-600" />
-                  <span className="text-base font-medium text-gray-900 dark:text-white">{availableFromLabel}</span>
-                </div>
-              )}
-
-              {/* AfA-Typ */}
-              {data.afa_type && (
-                <div className="flex items-center gap-2">
-                  <Calculator size={20} className={
-                    data.afa_type === 'denkmal' ? 'text-amber-600' :
-                    data.afa_type === 'neubau' ? 'text-green-600' :
-                    data.afa_type === 'altbau' ? 'text-purple-600' : 'text-gray-600'
-                  } />
-                  <span className="text-base font-medium text-gray-900 dark:text-white">
-                    AfA {data.afa_type === 'denkmal' ? 'Denkmal (9%)' :
-                     data.afa_type === 'neubau' ? 'Neubau (5%)' :
-                     data.afa_type === 'altbau' ? 'Altbau (2,5%)' : 'Bestand (2%)'}
-                  </span>
-                </div>
-              )}
-
-              {/* Grundstückfläche (nur für Häuser) */}
-              {data.type === 'house' && data.plot_size && data.plot_size > 0 && (
-                <div className="flex items-center gap-2">
-                  <TreePine size={20} className="text-green-600" />
-                  <span className="text-base font-medium text-gray-900 dark:text-white">{data.plot_size} m² Grundstück</span>
-                </div>
-              )}
-
-              {/* Nutzfläche */}
-              {data.usable_area && data.usable_area > 0 && (
-                <div className="flex items-center gap-2">
-                  <Layers size={20} className="text-gray-600 dark:text-gray-400" />
-                  <span className="text-base font-medium text-gray-900 dark:text-white">{data.usable_area} m² Nutzfläche</span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* AI-Analyse & Cashflow Cards - Not shown for owner or in import mode */}
         {propertyId && !isOwner && !hideMetricsCards && (
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="grid gap-4 mb-6" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))' }}>
             {/* AI-Analyse Card */}
             {data.ai_investment_score !== undefined && data.ai_investment_score > 0 && (
               <a
                 href={`/property/${propertyId}/ai-score`}
-                className={`flex-[0.8] rounded-xl border overflow-hidden block cursor-pointer hover:shadow-md transition-shadow p-4 ${
+                className={`rounded-xl border overflow-hidden block cursor-pointer hover:shadow-md transition-shadow p-4 ${
                   data.ai_investment_score >= 85
                     ? 'bg-green-100 dark:bg-green-900/40 border-green-300 dark:border-green-700'
                     : data.ai_investment_score >= 60
@@ -950,7 +716,7 @@ export function PropertyPreview({
               return (
                 <a
                   href={`/property/${propertyId}/calculator?mode=investor`}
-                  className={`flex-[0.8] rounded-xl border ${cardColors.border} ${cardColors.bg} overflow-hidden block cursor-pointer hover:shadow-md transition-shadow p-4`}
+                  className={`rounded-xl border ${cardColors.border} ${cardColors.bg} overflow-hidden block cursor-pointer hover:shadow-md transition-shadow p-4`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -1018,12 +784,12 @@ export function PropertyPreview({
                   return { text: 'Berechnen', icon: null };
                 }
                 if (buyVsRentYears <= 15) {
-                  return { text: 'Kaufen lohnt sich', icon: <TrendingUp size={14} /> };
+                  return { text: 'Kaufen', icon: <TrendingUp size={14} /> };
                 }
                 if (buyVsRentYears <= 25) {
-                  return { text: 'Abwägen empfohlen', icon: null };
+                  return { text: 'Abwägen', icon: <Equal size={14} /> };
                 }
-                return { text: 'Mieten günstiger', icon: <TrendingDown size={14} /> };
+                return { text: 'Mieten', icon: <TrendingDown size={14} /> };
               };
 
               const status = getStatusText();
@@ -1031,7 +797,7 @@ export function PropertyPreview({
               return (
                 <a
                   href={`/property/${propertyId}/calculator?mode=eigennutzer`}
-                  className={`flex-[1.4] rounded-xl border ${cardColors.border} ${cardColors.bg} overflow-hidden block cursor-pointer hover:shadow-md transition-shadow p-4`}
+                  className={`rounded-xl border ${cardColors.border} ${cardColors.bg} overflow-hidden block cursor-pointer hover:shadow-md transition-shadow p-4`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -1061,7 +827,7 @@ export function PropertyPreview({
             : data.description;
 
           return (
-            <div className="mb-6 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden p-4">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden p-4">
               {/* Important Notes - Show if exists */}
               {data.important_notes && (
                 <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl mb-4">
@@ -1088,9 +854,117 @@ export function PropertyPreview({
                   />
                 </button>
               )}
+
+              {/* Provider/Owner Contact Information - Display with avatar */}
+              {(() => {
+                // Check for provider_contact data (imported properties)
+                const hasProviderData = data.provider_contact && (
+                  data.provider_contact.provider_name ||
+                  data.provider_contact.provider_email ||
+                  data.provider_contact.provider_phone ||
+                  data.provider_contact.provider_company
+                );
+
+                // Check for owner data (normal properties)
+                const hasOwnerData = data.owner && !data.is_external && (
+                  data.owner.first_name ||
+                  data.owner.last_name ||
+                  data.owner.email ||
+                  data.owner_profile?.email
+                );
+
+                // Priority: provider_contact for imported, owner for normal properties
+                if (hasProviderData && data.provider_contact) {
+                  // Store provider contact in a local variable for type narrowing
+                  const providerContact = data.provider_contact;
+
+                  // Build provider text from available fields
+                  const providerParts = [];
+
+                  if (providerContact.provider_name) {
+                    let namePart = providerContact.provider_name;
+                    if (providerContact.provider_company) {
+                      namePart += ` (${providerContact.provider_company})`;
+                    }
+                    providerParts.push(namePart);
+                  } else if (providerContact.provider_company) {
+                    providerParts.push(providerContact.provider_company);
+                  }
+
+                  if (providerContact.provider_phone) {
+                    providerParts.push(`Tel. ${providerContact.provider_phone}`);
+                  }
+
+                  if (providerContact.provider_email) {
+                    providerParts.push(`E-Mail: ${providerContact.provider_email}`);
+                  }
+
+                  const providerText = providerParts.join(', ');
+
+                  return (
+                    <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                      <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                        {providerText}
+                      </p>
+                    </div>
+                  );
+                } else if (hasOwnerData && data.owner) {
+                  // Build owner text from name and email
+                  const ownerParts = [];
+
+                  const ownerName = `${data.owner.first_name || ''} ${data.owner.last_name || ''}`.trim();
+                  if (ownerName) {
+                    ownerParts.push(ownerName);
+                  } else {
+                    ownerParts.push('Privater Anbieter');
+                  }
+
+                  const ownerEmail = data.owner.email || data.owner_profile?.email;
+                  if (ownerEmail) {
+                    ownerParts.push(`E-Mail: ${ownerEmail}`);
+                  }
+
+                  const ownerText = ownerParts.join(', ');
+
+                  return (
+                    <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 flex items-center gap-3">
+                      {/* Avatar */}
+                      <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-gray-100 dark:bg-gray-800">
+                        {data.owner?.avatar_url ? (
+                          <img
+                            src={data.owner.avatar_url}
+                            alt={ownerName || 'Anbieter'}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-sm font-semibold">
+                            {(data.owner?.first_name?.[0] || data.owner?.last_name?.[0] || 'A').toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Contact text */}
+                      <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                        {ownerText}
+                      </p>
+                    </div>
+                  );
+                }
+
+                return null;
+              })()}
             </div>
           );
         })()}
+
+        {/* Warning wenn description fehlt (für Debugging) */}
+        {!data.description && (
+          <div className="mb-6 bg-yellow-50 dark:bg-yellow-900/30 rounded-2xl border border-yellow-200 dark:border-yellow-700 p-4">
+            <p className="text-sm text-yellow-700 dark:text-yellow-300">
+              ⚠️ Keine Beschreibung vorhanden. Die KI hat noch keine Beschreibung generiert.
+            </p>
+          </div>
+        )}
 
         {/* Investment Analysis Button - Show when essential data is available */}
         {showInvestmentAnalysisButton && onTriggerInvestmentAnalysis && (
@@ -1316,77 +1190,6 @@ export function PropertyPreview({
             </>
           );
         })()}
-
-        {/* Provider Contact Editor - Show for external properties if data exists */}
-        {(() => {
-          // Check if provider contact data exists
-          const hasProviderData = data.provider_contact && (
-            data.provider_contact.provider_name ||
-            data.provider_contact.provider_email ||
-            data.provider_contact.provider_phone ||
-            data.provider_contact.provider_company
-          );
-
-          return data.is_external && propertyId && hasProviderData && (
-            <div className="mb-6">
-              <ProviderContactEditor
-                propertyId={propertyId}
-                providerContact={data.provider_contact}
-                readOnly={true}
-                onUpdate={() => {
-                  // Callback after update - refetch provider contact data
-                  console.log('Provider contact updated');
-                  onProviderContactUpdate?.();
-                }}
-              />
-            </div>
-          );
-        })()}
-
-        {/* Anbieter Info - Only show when owner data exists and not external property */}
-        {!hideProviderInfo && data.owner && !data.is_external && (
-          <div className="mb-6 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-start gap-4">
-              {/* Avatar */}
-              <div className="w-14 h-14 rounded-full overflow-hidden flex-shrink-0 bg-gray-100 dark:bg-gray-800">
-                {data.owner?.avatar_url ? (
-                  <img
-                    src={data.owner.avatar_url}
-                    alt={`${data.owner.first_name || ''} ${data.owner.last_name || ''}`.trim() || 'Anbieter'}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-lg font-semibold">
-                    {(data.owner?.first_name?.[0] || data.owner?.last_name?.[0] || 'A').toUpperCase()}
-                  </div>
-                )}
-              </div>
-
-              {/* Name, Bio und E-Mail */}
-              <div className="flex flex-col gap-1 min-w-0 flex-1">
-                <p className="text-base font-semibold text-gray-900 dark:text-white">
-                  {data.owner?.first_name || data.owner?.last_name
-                    ? `${data.owner.first_name || ''} ${data.owner.last_name || ''}`.trim()
-                    : 'Privater Anbieter'}
-                </p>
-                {data.owner?.bio && (
-                  <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-                    {data.owner.bio}
-                  </p>
-                )}
-                {(data.owner?.email || data.owner_profile?.email) && (
-                  <a
-                    href={`mailto:${data.owner?.email || data.owner_profile?.email}`}
-                    className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-primary transition-colors mt-1"
-                  >
-                    <Mail size={14} />
-                    <span>{data.owner?.email || data.owner_profile?.email}</span>
-                  </a>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Empty State */}
         {!data.title && !data.location && !data.description && data.price === 0 && (

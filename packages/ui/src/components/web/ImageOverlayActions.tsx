@@ -21,6 +21,18 @@ export interface ImageOverlayActionsProps {
   direction?: 'vertical' | 'horizontal';
   /** Size of the buttons */
   size?: 'sm' | 'md' | 'lg' | 'responsive';
+
+  // Interaction counts (Instagram/TikTok style)
+  /** Number of favorites */
+  favoritesCount?: number;
+  /** Number of conversations */
+  conversationsCount?: number;
+  /** Number of shares */
+  sharesCount?: number;
+  /** Number of dismissed */
+  dismissedCount?: number;
+  /** Whether to show counters (default: true) */
+  showCounts?: boolean;
 }
 
 /**
@@ -37,6 +49,11 @@ export function ImageOverlayActions({
   className = '',
   direction = 'vertical',
   size = 'md',
+  favoritesCount,
+  conversationsCount,
+  sharesCount,
+  dismissedCount,
+  showCounts = true,
 }: ImageOverlayActionsProps) {
   const containerClasses = direction === 'vertical'
     ? `flex flex-col gap-2 ${className}`
@@ -52,6 +69,8 @@ export function ImageOverlayActions({
         onClick={(e) => onFavorite?.(e as any)}
         tooltip={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
         ariaLabel={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+        count={favoritesCount}
+        showCount={showCounts}
       />
 
       {/* 2. Message */}
@@ -62,6 +81,8 @@ export function ImageOverlayActions({
         onClick={(e) => onMessage?.(e as any)}
         tooltip="Nachricht senden"
         ariaLabel="Nachricht senden"
+        count={conversationsCount}
+        showCount={showCounts}
       />
 
       {/* 3. Share */}
@@ -72,6 +93,8 @@ export function ImageOverlayActions({
         onClick={(e) => onShare?.(e as any)}
         tooltip="Teilen"
         ariaLabel="Teilen"
+        count={sharesCount}
+        showCount={showCounts}
       />
 
       {/* 4. Dismiss (X) */}
@@ -83,6 +106,8 @@ export function ImageOverlayActions({
           onClick={(e) => onDismiss?.(e as any)}
           tooltip="Nicht interessiert"
           ariaLabel="Nicht interessiert"
+          count={dismissedCount}
+          showCount={showCounts}
         />
       )}
     </div>

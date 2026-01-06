@@ -12,7 +12,7 @@ interface ProviderContactData {
 }
 
 interface ProviderContactEditorProps {
-  propertyId: string;
+  propertyId?: string; // Optional - undefined if property not saved yet
   providerContact?: ProviderContactData | null;
   onUpdate?: () => void;
   readOnly?: boolean; // If true, only show data without edit controls
@@ -30,6 +30,11 @@ export function ProviderContactEditor({ propertyId, providerContact, onUpdate, r
   const saveProviderContactMutation = trpc.properties.saveProviderContact.useMutation();
 
   const handleSave = async () => {
+    if (!propertyId) {
+      alert('Die Immobilie muss erst gespeichert werden, bevor Anbieter-Informationen bearbeitet werden können.');
+      return;
+    }
+
     if (!formData.provider_email) {
       alert('Bitte geben Sie mindestens eine E-Mail-Adresse ein.');
       return;
@@ -86,13 +91,15 @@ export function ProviderContactEditor({ propertyId, providerContact, onUpdate, r
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
             Keine Anbieter-Informationen vorhanden
           </p>
-          <button
-            onClick={() => setIsEditing(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
-          >
-            <Edit2 size={16} />
-            Anbieter hinzufügen
-          </button>
+          {propertyId && (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+            >
+              <Edit2 size={16} />
+              Anbieter hinzufügen
+            </button>
+          )}
         </div>
       </div>
     );
@@ -271,8 +278,8 @@ export function ProviderContactEditor({ propertyId, providerContact, onUpdate, r
           </div>
         )}
 
-        {/* Edit Button - only show if not readOnly */}
-        {!readOnly && (
+        {/* Edit Button - only show if not readOnly and property is saved */}
+        {!readOnly && propertyId && (
           <div className="pt-4 border-t border-gray-200">
             <button
               onClick={() => setIsEditing(true)}

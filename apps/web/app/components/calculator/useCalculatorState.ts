@@ -35,6 +35,85 @@ export function useCalculatorContext() {
   return context;
 }
 
+// Helper function to calculate default Hausgeld value
+function calculateDefaultHausgeld(
+  monthlyFee: number | null | undefined,
+  sqm: number | null | undefined,
+  yearBuilt: number | null | undefined,
+  calculatorDefaults: any
+): number {
+  if (monthlyFee && monthlyFee > 0) return monthlyFee;
+  if (sqm) {
+    const hausgeldModern = calculatorDefaults?.hausgeldPerSqmModern ?? DEFAULT_HAUSGELD_MODERN;
+    const hausgeldOld = calculatorDefaults?.hausgeldPerSqmOld ?? DEFAULT_HAUSGELD_OLD;
+    const hausgeldProQm = yearBuilt && yearBuilt >= 1980 ? hausgeldModern : hausgeldOld;
+    return sqm * hausgeldProQm;
+  }
+  return 0;
+}
+
+// Helper function to calculate all default EditState values
+function calculateDefaultEditState(
+  props: CalculatorProps,
+  userParams: any,
+  currentMarketRate: { interestRate: number } | undefined,
+  plzMarketRent: number | null,
+  calculatorDefaults: any
+): EditState {
+  const {
+    purchasePrice,
+    equityPercentage,
+    interestRate = 4.25,
+    amortizationRate,
+    commissionRate = 0,
+    renovationCosts = 0,
+    monthlyFee,
+    monthlyRent,
+    estimatedRentPerSqm,
+    sqm,
+    yearBuilt,
+    mode,
+    marketRent,
+  } = props;
+
+  // Calculate monthly rent with priority chain
+  const defaultMonthlyRent =
+    userParams?.monthly_rent ??
+    (mode === 'eigennutzer'
+      ? (marketRent ?? plzMarketRent ?? null)
+      : (
+        plzMarketRent ??
+        (estimatedRentPerSqm && sqm ? estimatedRentPerSqm * sqm : null) ??
+        monthlyRent ??
+        (sqm ? sqm * 10 : null)
+      )
+    );
+
+  // Calculate default Hausgeld
+  const defaultHausgeld = calculateDefaultHausgeld(
+    userParams?.monthly_fee ?? monthlyFee,
+    sqm,
+    yearBuilt,
+    calculatorDefaults
+  );
+
+  return {
+    purchasePrice: userParams?.purchase_price ?? purchasePrice ?? null,
+    equityPercent: userParams?.equity_percentage ?? equityPercentage ?? 20,
+    eigenkapitalBetrag: null, // Will be calculated from equityPercent
+    darlehensbetrag: null, // Will be calculated from equityPercent
+    interestRate: userParams?.interest_rate ?? currentMarketRate?.interestRate ?? interestRate ?? 4.25,
+    amortizationRate: userParams?.amortization_rate ?? amortizationRate ?? 2.0,
+    brokerCommission: userParams?.broker_commission ?? commissionRate ?? 0,
+    renovationCosts: userParams?.renovation_costs ?? renovationCosts ?? 0,
+    monthlyFee: userParams?.monthly_fee ?? (defaultHausgeld > 0 ? defaultHausgeld : monthlyFee) ?? null,
+    monthlyRent: defaultMonthlyRent,
+    maintenanceCosts: null, // Will be calculated from sqm
+    afaRate: null, // Will be calculated from yearBuilt
+    grenzsteuersatz: null, // Will be calculated from tax profile
+  };
+}
+
 export function useCalculatorState(props: CalculatorProps): CalculatorContextValue {
   const {
     purchasePrice,
@@ -255,26 +334,41 @@ export function useCalculatorState(props: CalculatorProps): CalculatorContextVal
           grenzsteuersatz: initialEditState.grenzsteuersatz ?? null,
         });
       } else {
-        // No saved values, initialize from DB defaults or props
-        setEditState({
-          purchasePrice: purchasePrice ?? null,
-          equityPercent: equityPercentage ?? null,
-          eigenkapitalBetrag: null,
-          darlehensbetrag: null,
-          interestRate: interestRate ?? null,
-          amortizationRate: amortizationRate ?? null,
-          brokerCommission: commissionRate ?? null,
-          renovationCosts: renovationCosts ?? null,
-          monthlyFee: monthlyFee ?? null,
-          monthlyRent: monthlyRent ?? null,
-          maintenanceCosts: null,
-          afaRate: null,
-          grenzsteuersatz: null,
-        });
+        // No saved values, calculate all defaults from available data
+        const defaultState = calculateDefaultEditState(
+          props,
+          userParams,
+          currentMarketRate,
+          plzMarketRent,
+          calculatorDefaults
+        );
+        setEditState(defaultState);
       }
       setHasInitialized(true);
     }
-  }, [startInEditMode, hasInitialized, purchasePrice, equityPercentage, interestRate, amortizationRate, commissionRate, renovationCosts, monthlyFee, monthlyRent, initialEditState]);
+  }, [
+    startInEditMode,
+    hasInitialized,
+    purchasePrice,
+    equityPercentage,
+    interestRate,
+    amortizationRate,
+    commissionRate,
+    renovationCosts,
+    monthlyFee,
+    monthlyRent,
+    initialEditState,
+    plzMarketRent,
+    currentMarketRate,
+    calculatorDefaults,
+    sqm,
+    yearBuilt,
+    estimatedRentPerSqm,
+    userParams,
+    mode,
+    marketRent,
+    props,
+  ]);
 
   // Detect state from location (needed for detectedState export)
   const detectedState = detectStateFromLocation(location);

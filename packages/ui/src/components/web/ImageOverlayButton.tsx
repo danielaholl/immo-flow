@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { formatCount } from '../../utils/formatCount';
 
 export type ImageOverlayButtonVariant = 'default' | 'danger' | 'success' | 'warning' | 'primary' | 'favorite';
 export type ImageOverlayButtonSize = 'sm' | 'md' | 'lg' | 'responsive';
@@ -24,6 +25,10 @@ export interface ImageOverlayButtonProps {
   tooltip?: string;
   /** Accessibility label */
   ariaLabel?: string;
+  /** Counter value to display below the icon */
+  count?: number;
+  /** Whether to show the counter (default: true) */
+  showCount?: boolean;
 }
 
 // Variant colors for border and icons
@@ -78,11 +83,17 @@ export function ImageOverlayButton({
   className = '',
   tooltip,
   ariaLabel,
+  count,
+  showCount = true,
 }: ImageOverlayButtonProps) {
   const { color, hoverBg } = variantConfig[variant];
   const isResponsive = size === 'responsive';
   const sizeStyles = isResponsive ? null : sizeConfig[size];
   const isDisabled = disabled || loading;
+
+  // Format count for display
+  const formattedCount = formatCount(count);
+  const hasCount = showCount && formattedCount !== '';
 
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
@@ -140,30 +151,50 @@ export function ImageOverlayButton({
 
   return (
     <div className={`relative group inline-block ${className}`}>
+      {/* Icon Button */}
       <button
         type="button"
         onClick={handleClick}
         disabled={isDisabled}
         aria-label={ariaLabel}
-        className="flex items-center justify-center cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-full"
+        className="relative flex items-center justify-center cursor-pointer transition-all duration-200 hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
         style={{
           width: isResponsive ? responsiveSizeConfig.size : sizeStyles!.size,
           height: isResponsive ? responsiveSizeConfig.size : sizeStyles!.size,
-          backdropFilter: 'blur(2px)',
-          WebkitBackdropFilter: 'blur(2px)',
-          border: '1.5px solid rgba(255, 255, 255, 0.7)',
           background: 'transparent',
+          border: 'none',
+          filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))',
         }}
         onMouseEnter={(e) => {
           if (!isDisabled) {
-            e.currentTarget.style.background = hoverBg;
+            e.currentTarget.style.filter = 'drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4))';
           }
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'transparent';
+          e.currentTarget.style.filter = 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))';
         }}
       >
-        {renderIcon()}
+        <div className="relative inline-flex items-center justify-center">
+          {renderIcon()}
+
+          {/* Counter Label - absolutely positioned 2px below icon */}
+          {hasCount && (
+            <span
+              className="absolute font-semibold text-white pointer-events-none select-none"
+              style={{
+                fontSize: isResponsive ? 'clamp(0.6rem, 2vw, 0.75rem)' : '0.75rem',
+                textShadow: '0 1px 3px rgba(0, 0, 0, 0.8), 0 1px 2px rgba(0, 0, 0, 0.6)',
+                letterSpacing: '0.01em',
+                top: '100%',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                marginTop: '2px',
+              }}
+            >
+              {formattedCount}
+            </span>
+          )}
+        </div>
       </button>
 
       {/* Tooltip */}
