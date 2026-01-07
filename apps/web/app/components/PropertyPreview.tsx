@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { Bath, Sparkles, DoorClosed, Square, Layers, Building2, Clock, Flame, Zap, ChevronDown, ChevronRight, Heart, Mail, FileText, Loader2, Landmark, TrendingDown, TrendingUp, Equal, Info, ArrowUpDown, Calendar, Wallet, FileCheck, TreePine, Calculator, Home, X } from 'lucide-react';
+import { Bath, Sparkles, DoorClosed, Square, Layers, Building2, Clock, Flame, Zap, ChevronDown, ChevronRight, Heart, Mail, FileText, Loader2, Landmark, Info, ArrowUpDown, Calendar, Wallet, FileCheck, TreePine, Calculator, Home, X } from 'lucide-react';
 import { PropertyScoreBadge, PropertyTypeBadge, type PropertyType, calculateQuickBreakEven, type BreakEvenResult } from '@rendito/ui';
 import { LocationDisplay } from './LocationDisplay';
 import { MarketComparisonBar } from './MarketComparisonBar';
@@ -637,7 +637,8 @@ export function PropertyPreview({
 
         {/* AI-Analyse & Cashflow Cards - Not shown for owner or in import mode */}
         {propertyId && !isOwner && !hideMetricsCards && (
-          <div className="grid gap-4 mb-6" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))' }}>
+          <div className="metrics-cards-container" style={{ fontSize: 'clamp(0.75rem, 0.5rem + 1.5vw, 1rem)' }}>
+            <div className="grid gap-4 mb-6 grid-cols-1 sm:grid-cols-3" style={{ minWidth: '230px' }}>
             {/* AI-Analyse Card */}
             {data.ai_investment_score !== undefined && data.ai_investment_score > 0 && (
               <a
@@ -652,26 +653,26 @@ export function PropertyPreview({
                         : 'bg-rose-50 dark:bg-rose-900/40 border-rose-200 dark:border-rose-700'
                 }`}
               >
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-2">
+                  {/* Label */}
+                  <p className="text-xs text-gray-500 dark:text-gray-400 text-center">AI-Score</p>
+
+                  {/* Value row: Icon + Value + Chevron all on same level */}
                   <div className="flex items-center gap-3">
-                    {/* AI Score Ring Badge */}
-                    <PropertyScoreBadge score={data.ai_investment_score} variant="ring" />
-                    <div>
-                      <p className="text-lg font-bold text-gray-900 dark:text-white">AI-Score</p>
-                      <p className={`text-sm font-medium ${
-                        data.ai_investment_score >= 85
-                          ? 'text-green-600 dark:text-green-400'
-                          : data.ai_investment_score >= 60
-                            ? 'text-emerald-600 dark:text-emerald-400'
-                            : data.ai_investment_score >= 40
-                              ? 'text-amber-600 dark:text-amber-400'
-                              : 'text-rose-600 dark:text-rose-400'
-                      }`}>
-                        {(data.ai_investment_score / 10).toFixed(1)}/10
-                      </p>
-                    </div>
+                    <PropertyScoreBadge score={data.ai_investment_score} variant="ring" size="sm" />
+                    <p className={`flex-1 text-xl font-semibold ${
+                      data.ai_investment_score >= 85
+                        ? 'text-emerald-700 dark:text-emerald-400'
+                        : data.ai_investment_score >= 60
+                          ? 'text-emerald-700 dark:text-emerald-400'
+                          : data.ai_investment_score >= 40
+                            ? 'text-amber-700 dark:text-amber-400'
+                            : 'text-rose-700 dark:text-rose-400'
+                    }`}>
+                      {(data.ai_investment_score / 10).toFixed(1)}/10
+                    </p>
+                    <ChevronRight className="text-gray-400 w-[1.25em] h-[1.25em] flex-shrink-0" />
                   </div>
-                  <ChevronRight size={20} className="text-gray-400" />
                 </div>
               </a>
             )}
@@ -718,25 +719,26 @@ export function PropertyPreview({
                   href={`/property/${propertyId}/calculator?mode=investor`}
                   className={`rounded-xl border ${cardColors.border} ${cardColors.bg} overflow-hidden block cursor-pointer hover:shadow-md transition-shadow p-4`}
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-2">
+                    {/* Label */}
+                    <p className="text-xs text-gray-500 dark:text-gray-400 text-center">Rendite</p>
+
+                    {/* Value row: Icon + Value + Chevron all on same level */}
                     <div className="flex items-center gap-3">
-                      <Calculator size={40} className={`${cardColors.iconColor} flex-shrink-0`} />
-                      <div>
-                        <p className="text-lg font-bold text-gray-900 dark:text-white">Rendite</p>
-                        {rendite !== undefined && rendite !== null ? (
-                          <p className={`text-sm font-medium ${
-                            rendite >= 7 ? 'text-green-600 dark:text-green-400' :
-                            rendite >= 5 ? 'text-emerald-600 dark:text-emerald-400' :
-                            rendite >= 3 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'
-                          }`}>
-                            {rendite.toFixed(1)}%
-                          </p>
-                        ) : (
-                          <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Berechnung starten →</p>
-                        )}
-                      </div>
+                      <Calculator className={`${cardColors.iconColor} flex-shrink-0 w-[2.5em] h-[2.5em]`} />
+                      {rendite !== undefined && rendite !== null ? (
+                        <p className={`flex-1 text-xl font-semibold ${
+                          rendite >= 7 ? 'text-emerald-700 dark:text-emerald-400' :
+                          rendite >= 5 ? 'text-emerald-700 dark:text-emerald-400' :
+                          rendite >= 3 ? 'text-amber-700 dark:text-amber-400' : 'text-rose-700 dark:text-rose-400'
+                        }`}>
+                          {rendite.toFixed(1)}%
+                        </p>
+                      ) : (
+                        <p className="flex-1 text-xl font-semibold text-blue-600 dark:text-blue-400">—</p>
+                      )}
+                      <ChevronRight className="text-gray-400 w-[1.25em] h-[1.25em] flex-shrink-0" />
                     </div>
-                    <ChevronRight size={20} className="text-gray-400" />
                   </div>
                 </a>
               );
@@ -775,6 +777,7 @@ export function PropertyPreview({
                     border: 'border-emerald-200 dark:border-emerald-700',
                     bg: 'bg-emerald-50 dark:bg-emerald-900/40',
                     iconColor: 'text-emerald-600 dark:text-emerald-400',
+                    valueColor: 'text-emerald-700 dark:text-emerald-400',
                     label: 'Kaufen'
                   };
                   // Abwägen (15-25 Jahre)
@@ -782,6 +785,7 @@ export function PropertyPreview({
                     border: 'border-amber-200 dark:border-amber-700',
                     bg: 'bg-amber-50 dark:bg-amber-900/40',
                     iconColor: 'text-amber-600 dark:text-amber-400',
+                    valueColor: 'text-amber-700 dark:text-amber-400',
                     label: 'Abwägen'
                   };
                   // Mieten günstiger (>25 Jahre)
@@ -789,6 +793,7 @@ export function PropertyPreview({
                     border: 'border-rose-200 dark:border-rose-700',
                     bg: 'bg-rose-50 dark:bg-rose-900/40',
                     iconColor: 'text-rose-600 dark:text-rose-400',
+                    valueColor: 'text-rose-700 dark:text-rose-400',
                     label: 'Mieten'
                   };
                 }
@@ -796,59 +801,35 @@ export function PropertyPreview({
                   border: 'border-blue-200 dark:border-blue-700',
                   bg: 'bg-blue-50 dark:bg-blue-900/40',
                   iconColor: 'text-blue-600 dark:text-blue-400',
+                  valueColor: 'text-blue-600 dark:text-blue-400',
                   label: 'Kaufen vs Mieten'
                 };
               };
 
               const cardColors = getCardColors();
 
-              // Status-Icon basierend auf buyVsRentYears
-              const getStatusIcon = () => {
-                if (buyVsRentYears === null || buyVsRentYears.years === undefined) {
-                  return null;
-                }
-
-                // Kaufen lohnt sich (<=15 Jahre)
-                if (buyVsRentYears.years <= 15) {
-                  return <TrendingUp size={14} />;
-                }
-
-                // Abwägen (15-25 Jahre)
-                if (buyVsRentYears.years <= 25) {
-                  return <Equal size={14} />;
-                }
-
-                // Mieten ist günstiger
-                return <TrendingDown size={14} />;
-              };
-
-              const statusIcon = getStatusIcon();
-
               return (
                 <a
                   href={`/property/${propertyId}/calculator?mode=eigennutzer`}
                   className={`rounded-xl border ${cardColors.border} ${cardColors.bg} overflow-hidden block cursor-pointer hover:shadow-md transition-shadow p-4`}
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-2">
+                    {/* Label */}
+                    <p className="text-xs text-gray-500 dark:text-gray-400 text-center">Kaufen vs Mieten</p>
+
+                    {/* Value row: Icon + Value + Chevron all on same level */}
                     <div className="flex items-center gap-3">
-                      <Home size={40} className={`${cardColors.iconColor} flex-shrink-0`} />
-                      <div>
-                        <p className="text-lg font-bold text-gray-900 dark:text-white">{cardColors.label}</p>
-                        {buyVsRentYears !== null && buyVsRentYears.years !== undefined ? (
-                          <p className={`text-sm font-medium ${cardColors.iconColor} flex items-center gap-1`}>
-                            {statusIcon}
-                            {buyVsRentYears.years} Jahre
-                          </p>
-                        ) : (
-                          <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Berechnung starten →</p>
-                        )}
-                      </div>
+                      <Home className={`${cardColors.iconColor} flex-shrink-0 w-[2.5em] h-[2.5em]`} />
+                      <p className={`flex-1 text-xl font-semibold ${cardColors.valueColor}`}>
+                        {cardColors.label}
+                      </p>
+                      <ChevronRight className="text-gray-400 w-[1.25em] h-[1.25em] flex-shrink-0" />
                     </div>
-                    <ChevronRight size={20} className="text-gray-400" />
                   </div>
                 </a>
               );
             })()}
+            </div>
           </div>
         )}
 

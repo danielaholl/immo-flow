@@ -586,7 +586,7 @@ export default function PropertyPage() {
 
       {/* Two Column Layout - Height adapts to content */}
       <PageContainer noPaddingY>
-        <div className="flex flex-col lg:flex-row lg:items-stretch relative">
+        <div className="flex flex-col lg:flex-row lg:items-stretch relative overflow-x-hidden">
         {/* Left Column - Property Details */}
         <div className="w-full lg:w-1/2 py-8 lg:pr-6 order-2 lg:order-1">
 
@@ -627,8 +627,8 @@ export default function PropertyPage() {
 
         {/* Right Column - Property Card with Slideshow or Document Viewer */}
         {/* On mobile: fixed height, On desktop: stretches to match left column */}
-        <div className="w-full lg:w-1/2 h-[480px] lg:h-auto pt-0 pb-8 lg:py-8 lg:pl-6 order-1 lg:order-2 lg:flex lg:flex-col">
-          <div className="h-full rounded-2xl overflow-hidden">
+        <div className="w-full max-w-full lg:w-1/2 h-[480px] lg:h-auto lg:aspect-video pt-0 pb-0 lg:pt-8 lg:pb-14 lg:pl-6 order-1 lg:order-2 lg:flex lg:flex-col">
+          <div className="h-full rounded-2xl max-w-full">
           {selectedDocument && !isMobile ? (
             <DocumentViewer
               document={selectedDocument}
@@ -640,7 +640,7 @@ export default function PropertyPage() {
               videoUrl={property.video_url}
               title={property.title}
               className="h-full"
-              aspectRatio="video"
+              aspectRatio="auto"
               showCounter={true}
               showProgressBars={true}
               propertyType={property.property_type || undefined}

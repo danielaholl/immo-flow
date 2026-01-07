@@ -462,7 +462,7 @@ export default function CalculatorPage() {
   // Loading state (property mode)
   if (propertyId && propertyLoading) {
     return (
-      <main className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <main className="min-h-screen bg-white dark:bg-[#030712]">
         <Header />
         <div className="flex items-center justify-center h-[60vh]">
           <Loader2 className="w-8 h-8 animate-spin text-rose-500" />
@@ -474,7 +474,7 @@ export default function CalculatorPage() {
   // Not found (property mode)
   if (propertyId && !property && !propertyLoading) {
     return (
-      <main className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <main className="min-h-screen bg-white dark:bg-[#030712]">
         <Header />
         <div className="flex items-center justify-center h-[60vh]">
           <p className="text-gray-500 dark:text-gray-400">Immobilie nicht gefunden</p>
@@ -490,7 +490,7 @@ export default function CalculatorPage() {
   const displayYearBuilt = propertyId && property ? property.year_built : (formData.yearBuilt ? Number(formData.yearBuilt) : undefined);
 
   return (
-    <main className="min-h-screen bg-white dark:bg-gray-950">
+    <main className="min-h-screen bg-white dark:bg-[#030712]">
       <Header />
 
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6 sm:py-8">

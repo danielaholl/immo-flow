@@ -12,6 +12,8 @@ interface PageContainerProps {
   noPaddingX?: boolean;
   /** Custom height style (e.g., 'calc(100vh - 80px)') */
   height?: string;
+  /** Use responsive height (prevents inline style, allows Tailwind to control height) */
+  useResponsiveHeight?: boolean;
 }
 
 /**
@@ -26,11 +28,25 @@ export function PageContainer({
   noPaddingY = false,
   noPaddingX = false,
   height,
+  useResponsiveHeight = false,
 }: PageContainerProps) {
+  // Style-Objekt bauen
+  const style: React.CSSProperties = {};
+
+  if (height) {
+    // CSS Variable immer setzen (für Tailwind max-height)
+    (style as any)['--layout-height'] = height;
+
+    // Inline height NUR wenn NICHT responsive mode
+    if (!useResponsiveHeight) {
+      style.height = height;
+    }
+  }
+
   return (
     <div
       className={`max-w-[1800px] mx-auto ${noPaddingX ? '' : 'px-4 lg:px-6'} ${noPaddingY ? '' : 'py-4 lg:py-6'} ${className}`}
-      style={height ? { height } : undefined}
+      style={Object.keys(style).length > 0 ? style : undefined}
     >
       {children}
     </div>

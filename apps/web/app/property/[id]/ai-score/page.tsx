@@ -221,7 +221,7 @@ export default function AIScorePage() {
 
   if (isLoading) {
     return (
-      <main className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <main className="min-h-screen bg-white dark:bg-[#030712]">
         <Header />
         <div className="flex items-center justify-center h-[60vh]">
           <Loader2 className="w-8 h-8 animate-spin text-rose-500" />
@@ -232,7 +232,7 @@ export default function AIScorePage() {
 
   if (!property) {
     return (
-      <main className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <main className="min-h-screen bg-white dark:bg-[#030712]">
         <Header />
         <div className="flex items-center justify-center h-[60vh]">
           <p className="text-gray-500 dark:text-gray-400">Immobilie nicht gefunden</p>
@@ -242,7 +242,7 @@ export default function AIScorePage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <main className="min-h-screen bg-white dark:bg-[#030712]">
       <Header />
 
       {/* Wrapper für Zurück-Button außerhalb des Inhaltsbereichs */}

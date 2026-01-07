@@ -87,28 +87,39 @@ export function MasterDetailLayout({
         </PageContainer>
       )}
 
-      <PageContainer noPaddingX noPaddingY height={height} className={className}>
+      <PageContainer
+        noPaddingX
+        noPaddingY
+        height={height}
+        useResponsiveHeight={true}
+        className={`${className} h-full lg:max-h-[var(--layout-height)] lg:h-auto relative`}
+      >
+        {/* Toggle Button - Desktop only, centered on border line */}
+        <button
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          className="hidden lg:flex absolute top-1/2 -translate-y-1/2 z-30 w-8 h-8 items-center justify-center rounded-full
+                     bg-white dark:bg-gray-800
+                     hover:bg-gray-50 dark:hover:bg-gray-700
+                     text-gray-600 dark:text-gray-300
+                     shadow-lg
+                     border border-gray-200 dark:border-gray-700
+                     transition-all duration-200"
+          style={{ left: sidebarCollapsed ? 'calc(128px - 16px)' : 'calc(420px - 16px)' }}
+          title={sidebarCollapsed ? 'Sidebar öffnen' : 'Sidebar schließen'}
+        >
+          {sidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+        </button>
+
         <div
-          className="flex flex-col lg:flex-row overflow-hidden h-full"
+          className="flex flex-col lg:flex-row overflow-hidden h-full lg:h-auto lg:min-h-0"
           style={{ '--sidebar-width': sidebarCollapsed ? '128px' : '420px' } as React.CSSProperties}
         >
           {/* Left Column - Master List */}
           <div
-            className={`${showDetail ? 'hidden' : 'block'} w-full lg:block lg:flex-shrink-0 lg:border-r lg:border-gray-200 dark:lg:border-gray-800 overflow-y-auto relative transition-all duration-300 ease-in-out ${
-              sidebarCollapsed ? 'lg:w-[128px]' : 'lg:w-[420px]'
+            className={`${showDetail ? 'hidden lg:block' : 'block'} w-full lg:flex-shrink-0 lg:border-r lg:border-gray-200 dark:lg:border-gray-800 relative transition-all duration-300 ease-in-out ${
+              sidebarCollapsed ? 'lg:w-[128px] overflow-y-auto' : 'lg:w-[420px] overflow-y-auto lg:max-h-full'
             }`}
           >
-            {/* Toggle Button - Desktop only, at top */}
-            <div className="hidden lg:flex sticky top-0 z-20 bg-white dark:bg-[#030712] border-b border-gray-100 dark:border-gray-800 p-2 justify-end">
-              <button
-                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg
-                           bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
-                title={sidebarCollapsed ? 'Sidebar öffnen' : 'Sidebar schließen'}
-              >
-                {sidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-              </button>
-            </div>
 
             {/* Collapsed Content - Small thumbnails */}
             {sidebarCollapsed && collapsedContent && (
@@ -133,7 +144,7 @@ export function MasterDetailLayout({
 
           {/* Right Column - Detail View */}
           <div
-            className={`${showDetail ? 'flex' : 'hidden'} lg:flex lg:flex-1 flex-col h-[calc(100vh-100px)] overflow-y-auto lg:overflow-hidden`}
+            className={`${showDetail ? 'flex' : 'hidden'} lg:flex lg:flex-1 flex-col h-[calc(100vh-100px)] lg:h-auto overflow-y-auto lg:max-h-full`}
           >
             {detailContent}
           </div>

@@ -90,7 +90,7 @@ export function CashflowCard({ className = '' }: CardProps) {
               <Home size={18} className="text-indigo-600 dark:text-gray-300" />
             )}
             <h4 className="font-semibold text-gray-900 dark:text-white text-xl">
-              {mode === 'investor' ? 'Cashflow' : 'Miete vs. Kauf'}
+              {mode === 'investor' ? 'Cashflow' : 'Differenz Miete-Kauf'}
             </h4>
           </div>
           {!isExpanded && (

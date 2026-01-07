@@ -343,7 +343,7 @@ export default function AIScorePage() {
   // ============= PROPERTY MODE =============
   if (propertyId && propertyData) {
     return (
-      <main className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <main className="min-h-screen bg-white dark:bg-[#030712]">
         <Header />
 
         <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
@@ -665,7 +665,7 @@ export default function AIScorePage() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <main className="min-h-screen bg-white dark:bg-[#030712]">
       <Header />
 
       <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
