@@ -672,8 +672,8 @@ function CashflowWaterfallCard({ properties }: { properties: PortfolioProperty[]
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
-            <h4 className="text-sm font-semibold text-gray-900">Cashflow</h4>
-            <span className={`text-xs font-bold ${totalCashflow >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+            <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Cashflow</h4>
+            <span className={`text-xs font-bold ${totalCashflow >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
               {totalCashflow >= 0 ? '+' : ''}{formatShort(totalCashflow)} €
             </span>
           </div>

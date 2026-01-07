@@ -69,6 +69,40 @@ export interface InvestorAdviceResult {
 }
 
 /**
+ * Eigennutzer (Owner-Occupier) Advice Types
+ */
+export interface EigennutzerAdviceInput {
+  propertyTitle: string;
+  price: number;
+  sqm: number;
+  location: string;
+  postalCode?: string;
+  yearBuilt?: number;
+
+  // Eigennutzer-spezifische Metriken
+  breakEvenYears: number;
+  monthlyRentCost: number;       // Miete, die man zahlen würde
+  monthlyOwnershipCost: number;  // Monatliche Kosten beim Kauf (Rate + Hausgeld + Instandhaltung)
+  monthlyCostDifference: number; // Differenz (positiv = Kaufen günstiger)
+
+  // Finanzierung
+  eigenkapital: number;          // Eigenkapital in EUR (nicht %)
+  eigenkapitalPercent: number;   // Eigenkapital in %
+  interestRate: number;
+  amortizationRate: number;
+
+  // Optional: Marktdaten
+  marketAvgRentPerSqm?: number;
+  marketAvgPricePerSqm?: number;
+}
+
+export interface EigennutzerAdviceResult {
+  fazit: string;
+  recommendation: 'KAUFEN' | 'MIETEN' | 'AUSGEGLICHEN';
+  reasoning: string;
+}
+
+/**
  * Generate investor negotiation advice using OpenAI GPT-4o
  * Focus: Deal optimization and aggressive negotiation
  */
@@ -224,6 +258,142 @@ MIETOPTIMIERUNG bei negativem/niedrigem Cashflow:
       empfehlung: input.actualYield >= 0.04 && input.cashflow > 0
         ? 'KAUFEN - Rendite und Cashflow sind gut'
         : 'VERHANDELN & KAUFEN - Preis auf Fair Value reduzieren',
+    };
+  }
+}
+
+/**
+ * Generate owner-occupier buy-vs-rent advice using OpenAI GPT-4o
+ * Focus: Personal finance, flexibility, life planning perspective
+ */
+export async function generateOpenAIEigennutzerAdvice(
+  input: EigennutzerAdviceInput
+): Promise<EigennutzerAdviceResult> {
+  const client = getOpenAIClient();
+
+  const systemPrompt = `Du bist ein persönlicher Finanzberater, der Eigennutzer bei der Entscheidung "Kaufen vs. Mieten" unterstützt.
+
+BEWERTUNGSMETHODIK:
+1. **Break-Even Analyse**: Wie schnell amortisieren sich die Kaufnebenkosten?
+2. **Monatliche Belastung**: Kaufen vs. Mieten im direkten Vergleich
+3. **Flexibilität**: Lebensplanung, Jobwechsel, Familie
+4. **Vermögensaufbau**: Eigenkapital-Bindung vs. Tilgung als Sparplan
+
+ENTSCHEIDUNGSLOGIK:
+- **KAUFEN**:
+  * Break-Even ≤ 10 Jahre
+  * UND monatliche Kosten ≤ Miete (+10% Toleranz)
+  * UND Standortsicherheit (Job, Familie)
+  * Begründung: "Schnelle Amortisation + günstige Kosten + Vermögensaufbau"
+
+- **AUSGEGLICHEN**:
+  * Break-Even 10-20 Jahre
+  * ODER monatliche Kosten 10-30% über Miete
+  * ODER mittelfristige Bindung möglich
+  * Begründung: "Hängt von persönlicher Situation ab"
+
+- **MIETEN**:
+  * Break-Even > 20 Jahre
+  * ODER monatliche Kosten > 30% über Miete
+  * ODER hohe Flexibilität benötigt
+  * Begründung: "Finanziell nicht optimal oder zu geringe Planungssicherheit"
+
+WICHTIG:
+- Nenne konkrete Zahlen: Break-Even, monatliche Differenz
+- Berücksichtige Lebensplanung und Flexibilität
+- Bei Altbau (>50 Jahre): Instandhaltungsrisiko erwähnen
+- Bei hohem EK: Opportunitätskosten (ETF-Alternative) erwähnen
+
+Antworte NUR mit validem JSON:
+{
+  "fazit": "4-5 prägnante Sätze: Break-Even, monatliche Kosten, Flexibilität, Empfehlung",
+  "recommendation": "KAUFEN | MIETEN | AUSGEGLICHEN",
+  "reasoning": "1-2 Sätze: Warum diese Empfehlung, Kernpunkte"
+}`;
+
+  // Calculate metrics
+  const monthlyDiff = input.monthlyRentCost - input.monthlyOwnershipCost;
+  const monthlyDiffPercent = input.monthlyRentCost > 0
+    ? (monthlyDiff / input.monthlyRentCost * 100).toFixed(1)
+    : '0';
+
+  const propertyAge = input.yearBuilt ? new Date().getFullYear() - input.yearBuilt : null;
+
+  // Market comparison
+  const marketRent = input.marketAvgRentPerSqm && input.sqm > 0
+    ? input.marketAvgRentPerSqm * input.sqm
+    : null;
+  const rentVsMarket = marketRent && input.monthlyRentCost
+    ? ((input.monthlyRentCost - marketRent) / marketRent * 100).toFixed(1)
+    : 'unbekannt';
+
+  const userMessage = `Bewerte diese Immobilie für Eigennutzer (Kaufen vs. Mieten):
+
+IMMOBILIE:
+- Objekt: ${input.propertyTitle}
+- Kaufpreis: ${input.price.toLocaleString('de-DE')}€
+- Wohnfläche: ${input.sqm}m²
+- Lage: ${input.location}${input.postalCode ? ` (PLZ: ${input.postalCode})` : ''}
+${input.yearBuilt ? `- Baujahr: ${input.yearBuilt} (${propertyAge} Jahre alt)` : ''}
+
+KAUFEN VS. MIETEN:
+- Break-Even: ${input.breakEvenYears} Jahre
+- Miete/Monat: ${input.monthlyRentCost.toLocaleString('de-DE')}€
+- Kauf/Monat: ${input.monthlyOwnershipCost.toLocaleString('de-DE')}€ (Rate + Hausgeld + Instandhaltung)
+- Differenz: ${monthlyDiff >= 0 ? '+' : ''}${monthlyDiff.toFixed(2)}€/Mo (${monthlyDiff >= 0 ? 'Kaufen günstiger' : 'Mieten günstiger'} um ${Math.abs(Number(monthlyDiffPercent))}%)
+
+FINANZIERUNG:
+- Eigenkapital: ${input.eigenkapital.toLocaleString('de-DE')}€ (${input.eigenkapitalPercent}%)
+- Zinssatz: ${input.interestRate}%
+- Tilgung: ${input.amortizationRate}%
+
+${marketRent ? `MARKTKONTEXT:\n- Markt-Miete: ${marketRent.toLocaleString('de-DE')}€/Mo\n- Ihre Miete vs. Markt: ${rentVsMarket}%\n` : ''}
+
+AUFGABE:
+1. Ist der Break-Even von ${input.breakEvenYears} Jahren akzeptabel?
+2. Sind die monatlichen Kosten (${input.monthlyOwnershipCost.toLocaleString('de-DE')}€) vs. Miete (${input.monthlyRentCost.toLocaleString('de-DE')}€) fair?
+3. KAUFEN (schneller Break-Even + günstig) oder MIETEN (lange Amortisation oder hohe Kosten)?
+4. Flexibilitätsaspekte basierend auf Standort und Objektalter
+
+ZUSÄTZLICH:
+${input.eigenkapital > 100000 ? `- Bei ${input.eigenkapital.toLocaleString('de-DE')}€ EK: ETF-Alternative mit 6-7% p.a. erwähnen` : ''}
+${propertyAge && propertyAge > 50 ? '- Altbau >50 Jahre: Instandhaltungsrisiko beachten' : ''}`;
+
+  const response = await client.chat.completions.create({
+    model: 'gpt-4o',
+    temperature: 0.3,
+    max_tokens: 800,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userMessage },
+    ],
+    response_format: { type: 'json_object' },
+  });
+
+  const content = response.choices[0]?.message?.content || '{}';
+
+  try {
+    const parsed = JSON.parse(content);
+
+    return {
+      fazit: parsed.fazit || 'Keine Analyse verfügbar.',
+      recommendation: ['KAUFEN', 'MIETEN', 'AUSGEGLICHEN'].includes(parsed.recommendation)
+        ? parsed.recommendation
+        : 'AUSGEGLICHEN',
+      reasoning: parsed.reasoning || 'Bewertung basierend auf Break-Even und monatlichen Kosten.',
+    };
+  } catch (error) {
+    // Fallback recommendation
+    const fallbackRec = input.breakEvenYears <= 10 && monthlyDiff >= 0
+      ? 'KAUFEN'
+      : input.breakEvenYears > 20 || monthlyDiff < -200
+        ? 'MIETEN'
+        : 'AUSGEGLICHEN';
+
+    return {
+      fazit: content || 'OpenAI-Analyse konnte nicht durchgeführt werden.',
+      recommendation: fallbackRec,
+      reasoning: 'Bewertung basierend auf Break-Even und Kostenvergleich.',
     };
   }
 }

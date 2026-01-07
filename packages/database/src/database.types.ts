@@ -271,7 +271,7 @@ export type Database = {
           monthly_fee: number | null
           postal_code: string | null
           price: number
-          property_type: string | null
+          property_type: 'apartment' | 'house' | 'villa' | 'multi_family' | 'land' | 'commercial' | 'office' | 'retail' | 'industrial' | 'parking' | null
           red_flags: string[] | null
           require_address_consent: boolean | null
           rooms: number

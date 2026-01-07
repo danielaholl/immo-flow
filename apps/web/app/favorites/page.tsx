@@ -12,8 +12,7 @@ import { CommissionConsentDialog } from '../components/CommissionConsentDialog';
 import { ShareLinkModal } from '../components/ShareLinkModal';
 import type { PropertyDocument } from '../create-listing/types';
 import { mapToPropertyPreviewData } from '../utils/propertyMapper';
-import { PropertyActionButtons } from '../components/PropertyActionButtons';
-import { InvestmentScoreBadge, PropertyScoreBadge, PropertyImageSlideshow } from '@rendito/ui';
+import { InvestmentScoreBadge, PropertyScoreBadge, PropertyImageSlideshow, ImageOverlayActions } from '@rendito/ui';
 import { MobileDetailHeader } from '../components/MobileDetailHeader';
 // import { PropertyFeedbackModal } from '@rendito/ui'; // Component doesn't exist
 import { Heart, Plus } from 'lucide-react';
@@ -385,25 +384,7 @@ export default function FavoritesPage() {
     <main className="min-h-screen bg-white dark:bg-[#030712]">
       <Header />
 
-      {/* Action Buttons - reused in mobile and desktop */}
       {(() => {
-        const ActionButtons = selectedProperty ? (
-          <PropertyActionButtons
-            isOwner={false}
-            isFavorite={true}
-            onToggleFavorite={() => handleRemoveFavorite(selectedProperty.id)}
-            onDismiss={handleDismiss}
-            onStartMessage={handleStartMessage}
-            onOpenFeedback={() => setIsPropertyFeedbackModalOpen(true)}
-            isDismissLoading={dismissMutation.isLoading}
-            isMessageLoading={getOrCreateConversationMutation.isLoading}
-            favoriteButtonLabel="Favorit"
-            propertyUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/property/${selectedProperty.id}`}
-            isImported={(selectedProperty as any).is_external || false}
-            onEdit={handleEdit}
-          />
-        ) : null;
-
         return (
           <MasterDetailLayout
             storageKey="favorites"
@@ -529,7 +510,7 @@ export default function FavoritesPage() {
                     />
                   )}
 
-                  <div className="flex flex-col lg:flex-row lg:items-stretch p-4 lg:p-8 lg:h-[80vh] relative">
+                  <div className="flex flex-col lg:flex-row lg:items-stretch p-4 lg:p-8 relative">
                     {/* Left Column - Property Details */}
                     <div className="w-full lg:w-1/2 lg:pr-6 order-2 lg:order-1 flex flex-col lg:h-full">
                       {/* Scrollable PropertyPreview - Full height on mobile, 80vh on md+ */}
@@ -562,11 +543,6 @@ export default function FavoritesPage() {
                           />
                         )}
                       </div>
-
-                      {/* Action Buttons - Below on mobile, fixed on md+ */}
-                      <div className="md:mt-auto">
-                        {ActionButtons}
-                      </div>
                     </div>
 
                     {/* Right Column - Images or Document Viewer */}
@@ -589,12 +565,29 @@ export default function FavoritesPage() {
                             propertyType={selectedProperty.property_type || undefined}
                             overlay={
                               <>
-                                {/* AI Score Badge - Ring Variant */}
+                                {/* AI-Score Badge - Top Right */}
                                 {selectedProperty.ai_score && selectedProperty.ai_score > 0 && (
-                                  <div className="absolute top-8 right-4 z-10 pointer-events-none">
+                                  <div className="absolute top-8 right-4 z-20 cursor-pointer hover:scale-105 transition-transform">
                                     <PropertyScoreBadge score={selectedProperty.ai_score} variant="ring" />
                                   </div>
                                 )}
+
+                                {/* Action Buttons - Bottom Right */}
+                                <ImageOverlayActions
+                                  className="absolute bottom-5 right-3 z-20"
+                                  direction="vertical"
+                                  size="responsive"
+                                  isFavorite={true}
+                                  onFavorite={() => handleRemoveFavorite(selectedProperty.id)}
+                                  onMessage={handleStartMessage}
+                                  onShare={() => setIsShareModalOpen(true)}
+                                  onDismiss={handleDismiss}
+                                  favoritesCount={selectedProperty.favorites_count}
+                                  conversationsCount={selectedProperty.conversations_count}
+                                  sharesCount={selectedProperty.shares_count}
+                                  dismissedCount={selectedProperty.dismissed_count}
+                                  showCounts={true}
+                                />
                               </>
                             }
                           />

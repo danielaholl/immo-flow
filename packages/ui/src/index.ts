@@ -7,3 +7,5 @@
 export * from './components';
 export * from './theme';
 export * from './utils/formatCount';
+export { calculateQuickBreakEven } from './utils/breakEvenCalculation';
+export type { QuickBreakEvenParams, BreakEvenResult } from './utils/breakEvenCalculation';

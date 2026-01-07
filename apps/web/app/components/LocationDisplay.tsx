@@ -76,7 +76,7 @@ export function LocationDisplay({
   // Show locked icon if address is hidden but available (consent not given)
   if (!showAddress && address && onRequestAddress) {
     return (
-      <div className={`flex items-center gap-2 text-gray-600 ${className}`} style={style}>
+      <div className={`flex items-center gap-2 text-gray-600 dark:text-gray-200 ${className}`} style={style}>
         <MapPin size={iconSize} className="flex-shrink-0" />
         <span style={{ fontSize }}>
           {[postalCode, location].filter(Boolean).join(' ') || '-'}
@@ -105,12 +105,12 @@ export function LocationDisplay({
   // With Google Maps link and unlocked icon (consent given)
   if (linkToMaps && displayAddress !== '-') {
     return (
-      <div className={`flex items-center gap-2 text-gray-600 ${className}`} style={style}>
+      <div className={`flex items-center gap-2 text-gray-600 dark:text-gray-200 ${className}`} style={style}>
         <a
           href={googleMapsUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-2 hover:text-primary transition-colors cursor-pointer"
+          className="flex items-center gap-2 hover:text-primary dark:hover:text-primary-light transition-colors cursor-pointer"
         >
           {content}
         </a>
@@ -129,7 +129,7 @@ export function LocationDisplay({
 
   // Without link
   return (
-    <div className={`flex items-center gap-2 text-gray-600 ${className}`} style={style}>
+    <div className={`flex items-center gap-2 text-gray-600 dark:text-gray-200 ${className}`} style={style}>
       {content}
       {/* Show unlocked icon if address is visible and was protected - only for non-owners */}
       {showLockIcon && !isOwner && showAddress && address && (

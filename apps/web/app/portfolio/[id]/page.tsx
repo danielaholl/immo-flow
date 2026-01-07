@@ -67,13 +67,13 @@ const getPropertyIcon = (type: string | null) => {
 
 // Get color based on value
 const getCashflowColor = (value: number): string => {
-  return value >= 0 ? 'text-green-600' : 'text-red-600';
+  return value >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
 };
 
 const getYieldColor = (value: number): string => {
-  if (value >= 4) return 'text-green-600';
-  if (value >= 2) return 'text-yellow-600';
-  return 'text-red-600';
+  if (value >= 4) return 'text-emerald-600 dark:text-emerald-400';
+  if (value >= 2) return 'text-yellow-600 dark:text-yellow-400';
+  return 'text-rose-600 dark:text-rose-400';
 };
 
 export default function PropertyDetailPage() {
@@ -193,7 +193,7 @@ export default function PropertyDetailPage() {
               </button>
               <button
                 onClick={() => setShowDeleteConfirm(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 border border-red-200 text-red-600 rounded-xl hover:bg-red-50 transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 border border-rose-200 dark:border-rose-700 text-rose-600 dark:text-rose-400 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
               >
                 <Trash2 size={18} />
               </button>
@@ -383,12 +383,12 @@ export default function PropertyDetailPage() {
 
           {/* Rental Income - Deal-Insights Style (Cashflow) */}
           {(property.monthly_rent || property.monthly_fee) && (
-            <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6 shadow-sm">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-green-100 rounded-xl">
-                  <TrendingUp className="w-5 h-5 text-green-600" />
+                <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl">
+                  <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <h2 className="font-semibold text-gray-900">Monatlicher Cashflow</h2>
+                <h2 className="font-semibold text-gray-900 dark:text-white">Monatlicher Cashflow</h2>
               </div>
 
               {(() => {
@@ -412,8 +412,8 @@ export default function PropertyDetailPage() {
                   <div className="space-y-3 text-sm">
                     {/* Mieteinnahmen */}
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Mieteinnahmen (Kaltmiete)</span>
-                      <span className="font-semibold text-green-600">+{formatCurrency(monthlyRent)}</span>
+                      <span className="text-gray-600 dark:text-gray-400">Mieteinnahmen (Kaltmiete)</span>
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">+{formatCurrency(monthlyRent)}</span>
                     </div>
 
                     {/* Kreditrate */}
@@ -545,17 +545,17 @@ export default function PropertyDetailPage() {
 
                     {/* AfA */}
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-600">
+                      <span className="text-gray-600 dark:text-gray-400">
                         − AfA / Monat
-                        <span className="text-xs text-gray-400 ml-1">({AFA_LABELS[taxEffect.afaStrategy] || taxEffect.afaStrategy})</span>
+                        <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">({AFA_LABELS[taxEffect.afaStrategy] || taxEffect.afaStrategy})</span>
                       </span>
-                      <span className="font-semibold text-green-600">−{formatCurrency(monthlyAfa)}</span>
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">−{formatCurrency(monthlyAfa)}</span>
                     </div>
 
                     {/* Steuerliches Ergebnis */}
-                    <div className="flex justify-between items-center pt-3 border-t border-gray-200">
-                      <span className="text-gray-900 font-medium">Steuerliches Ergebnis</span>
-                      <span className={`font-semibold ${steuerlichesErgebnisMonatlich < 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <div className="flex justify-between items-center pt-3 border-t border-gray-200 dark:border-gray-700">
+                      <span className="text-gray-900 dark:text-white font-medium">Steuerliches Ergebnis</span>
+                      <span className={`font-semibold ${steuerlichesErgebnisMonatlich < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                         {formatCurrency(steuerlichesErgebnisMonatlich)}
                       </span>
                     </div>
@@ -572,11 +572,11 @@ export default function PropertyDetailPage() {
                     </div>
 
                     {/* Steuerersparnis / Steuerlast */}
-                    <div className="flex justify-between items-center pt-3 border-t border-gray-200">
-                      <span className="text-gray-900 font-medium">
+                    <div className="flex justify-between items-center pt-3 border-t border-gray-200 dark:border-gray-700">
+                      <span className="text-gray-900 dark:text-white font-medium">
                         {isSaving ? 'Steuerersparnis / Monat' : 'Steuerlast / Monat'}
                       </span>
-                      <span className={`font-semibold ${isSaving ? 'text-green-600' : 'text-red-600'}`}>
+                      <span className={`font-semibold ${isSaving ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                         {isSaving ? '+' : ''}{formatCurrency(Math.abs(steuereffektMonatlich))}
                       </span>
                     </div>

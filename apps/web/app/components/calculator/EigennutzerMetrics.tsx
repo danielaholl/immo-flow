@@ -70,7 +70,7 @@ export function EigennutzerMetrics() {
         : '';
       return {
         icon: TrendingUp,
-        title: 'Kaufen lohnt sich',
+        title: 'Kaufen',
         text: `${ersparnisSatz}Nach nur ${breakEvenYears} Jahren haben sich die Kaufnebenkosten amortisiert.`,
         color: 'emerald' as const,
       };
@@ -82,7 +82,7 @@ export function EigennutzerMetrics() {
         : '';
       return {
         icon: TrendingUp,
-        title: 'Kaufen ist eine gute Wahl',
+        title: 'Kaufen',
         text: `${ersparnisSatz}Die Kaufnebenkosten sind nach ${breakEvenYears} Jahren ausgeglichen.`,
         color: 'emerald' as const,
       };
@@ -328,7 +328,7 @@ export function EigennutzerMetrics() {
 
         {/* Error State */}
         {error && (
-          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          <div className="mt-4 p-3 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-lg text-sm text-rose-700 dark:text-rose-400">
             {error}
           </div>
         )}

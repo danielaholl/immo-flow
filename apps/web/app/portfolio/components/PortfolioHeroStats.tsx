@@ -55,22 +55,22 @@ const formatCurrency = (amount: number): string => {
 
 // Get cashflow color
 const getCashflowColor = (value: number): string => {
-  return value >= 0 ? 'text-green-600' : 'text-red-600';
+  return value >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
 };
 
 // Get yield color
 const getYieldColor = (value: number): string => {
-  if (value >= 4) return 'text-green-600';
-  if (value >= 2) return 'text-yellow-600';
-  return 'text-red-600';
+  if (value >= 4) return 'text-emerald-600 dark:text-emerald-400';
+  if (value >= 2) return 'text-yellow-600 dark:text-yellow-400';
+  return 'text-rose-600 dark:text-rose-400';
 };
 
 // Get AI score color (matching PropertyScoreBadge thresholds)
 const getAiScoreColor = (value: number): string => {
-  if (value >= 85) return 'text-[#06d551]'; // Sehr gut - Custom bright green
-  if (value >= 60) return 'text-green-600'; // Gut
-  if (value >= 40) return 'text-yellow-600'; // OK
-  return 'text-red-600'; // Schwach
+  if (value >= 85) return 'text-green-600 dark:text-green-400'; // Sehr gut
+  if (value >= 60) return 'text-emerald-600 dark:text-emerald-400'; // Gut
+  if (value >= 40) return 'text-yellow-600 dark:text-yellow-400'; // OK
+  return 'text-rose-600 dark:text-rose-400'; // Schwach
 };
 
 export function PortfolioHeroStats({ summary, canAccessAnalytics, properties, taxEffectsData }: PortfolioHeroStatsProps) {
@@ -109,8 +109,8 @@ export function PortfolioHeroStats({ summary, canAccessAnalytics, properties, ta
       value: `${summary.totalMonthlyCashflow >= 0 ? '+' : ''}${formatCurrency(summary.totalMonthlyCashflow)}`,
       valueColor: getCashflowColor(summary.totalMonthlyCashflow),
       icon: Wallet,
-      iconBg: summary.totalMonthlyCashflow >= 0 ? 'bg-green-100' : 'bg-red-100',
-      iconColor: summary.totalMonthlyCashflow >= 0 ? 'text-green-600' : 'text-red-600',
+      iconBg: summary.totalMonthlyCashflow >= 0 ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-rose-100 dark:bg-rose-900/30',
+      iconColor: summary.totalMonthlyCashflow >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400',
       sublabel: `${formatCurrency(summary.totalAnnualCashflow)} / Jahr`,
     },
     {
@@ -138,10 +138,10 @@ export function PortfolioHeroStats({ summary, canAccessAnalytics, properties, ta
     {
       label: isVerlust ? 'Steuerersparnis' : 'Steuerlast',
       value: hasTaxData ? `${isVerlust ? '+' : ''}${formatCurrency(Math.abs(steuerEffekt))}` : '–',
-      valueColor: hasTaxData ? (isVerlust ? 'text-green-600' : 'text-red-600') : undefined,
+      valueColor: hasTaxData ? (isVerlust ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400') : undefined,
       icon: Calculator,
-      iconBg: isVerlust ? 'bg-green-100' : 'bg-red-100',
-      iconColor: isVerlust ? 'text-green-600' : 'text-red-600',
+      iconBg: isVerlust ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-rose-100 dark:bg-rose-900/30',
+      iconColor: isVerlust ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400',
       sublabel: hasTaxData ? `${formatCurrency(Math.abs(steuerEffekt * 12))} / Jahr` : 'Keine Daten',
     },
   ];
@@ -158,7 +158,7 @@ export function PortfolioHeroStats({ summary, canAccessAnalytics, properties, ta
               <div className={`p-1.5 rounded-lg ${stat.iconBg} dark:bg-opacity-20`}>
                 <stat.icon className={`w-4 h-4 ${stat.iconColor}`} />
               </div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{stat.label}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-300">{stat.label}</p>
             </div>
             <p className={`text-2xl font-bold ${stat.valueColor || 'text-gray-900 dark:text-white'}`}>
               {stat.value}
@@ -167,7 +167,7 @@ export function PortfolioHeroStats({ summary, canAccessAnalytics, properties, ta
               <p className="text-xs text-gray-400 dark:text-gray-500">{stat.sublabel}</p>
             )}
             {stat.extraInfo && (
-              <p className={`text-xs font-medium ${stat.extraInfo.isPositive ? 'text-green-600' : 'text-red-600'}`}>
+              <p className={`text-xs font-medium ${stat.extraInfo.isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                 {stat.extraInfo.value} ({stat.extraInfo.percent})
               </p>
             )}

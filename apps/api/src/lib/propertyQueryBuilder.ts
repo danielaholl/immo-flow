@@ -204,8 +204,11 @@ export const PROPERTY_LIST_FIELDS = `
 /**
  * Full Property-Felder für json_build_object in Subqueries (z.B. favorites, detail views)
  * Enthält alle Felder inkl. documents - nur für Detail-Ansichten verwenden!
+ *
+ * WICHTIG: Split in zwei Teile wegen PostgreSQL 100-Argument-Limit für jsonb_build_object
+ * Verwende: jsonb_build_object(PROPERTY_JSON_FIELDS_PART1) || jsonb_build_object(PROPERTY_JSON_FIELDS_PART2)
  */
-export const PROPERTY_JSON_FIELDS = `
+export const PROPERTY_JSON_FIELDS_PART1 = `
   'id', p.id,
   'title', p.title,
   'description', p.description,
@@ -230,7 +233,10 @@ export const PROPERTY_JSON_FIELDS = `
   'yield', p.yield,
   'year_built', p.year_built,
   'floor_level', p.floor_level,
-  'total_floors', p.total_floors,
+  'total_floors', p.total_floors
+`;
+
+export const PROPERTY_JSON_FIELDS_PART2 = `
   'heating_type', p.heating_type,
   'energy_source', p.energy_source,
   'energy_certificate', p.energy_certificate,
@@ -268,3 +274,9 @@ export const PROPERTY_JSON_FIELDS = `
     WHERE pc.property_id = p.id
   )
 `;
+
+/**
+ * Backward compatibility: Kombiniert beide Teile
+ * DEPRECATED: Nicht mehr verwenden! Verwende stattdessen die getrennten Teile mit ||
+ */
+export const PROPERTY_JSON_FIELDS = PROPERTY_JSON_FIELDS_PART1;

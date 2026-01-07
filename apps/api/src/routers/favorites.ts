@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure, getUserPlan } from '../trpc.js';
 import { query, queryOne } from '../db.js';
-import { PROPERTY_JSON_FIELDS } from '../lib/propertyQueryBuilder.js';
+import { PROPERTY_JSON_FIELDS_PART1, PROPERTY_JSON_FIELDS_PART2 } from '../lib/propertyQueryBuilder.js';
 
 // Maximum favorites for free users
 const FREE_FAVORITES_LIMIT = 5;
@@ -18,18 +18,21 @@ export const favoritesRouter = router({
     const favorites = await query(
       `SELECT
         f.*,
-        json_build_object(
-          ${PROPERTY_JSON_FIELDS},
-          'owner', json_build_object(
-            'id', up.id,
-            'user_id', up.user_id,
-            'first_name', up.first_name,
-            'last_name', up.last_name,
-            'phone', up.phone,
-            'company', up.company,
-            'avatar_url', up.avatar_url,
-            'bio', up.bio,
-            'email', u.email
+        (
+          jsonb_build_object(${PROPERTY_JSON_FIELDS_PART1}) ||
+          jsonb_build_object(${PROPERTY_JSON_FIELDS_PART2}) ||
+          jsonb_build_object(
+            'owner', jsonb_build_object(
+              'id', up.id,
+              'user_id', up.user_id,
+              'first_name', up.first_name,
+              'last_name', up.last_name,
+              'phone', up.phone,
+              'company', up.company,
+              'avatar_url', up.avatar_url,
+              'bio', up.bio,
+              'email', u.email
+            )
           )
         ) as property
        FROM favorites f

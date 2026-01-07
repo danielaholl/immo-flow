@@ -119,6 +119,40 @@ export interface ClaudeInvestorAdviceResult {
 }
 
 /**
+ * Eigennutzer (Owner-Occupier) Advice Types
+ */
+export interface ClaudeEigennutzerAdviceInput {
+  propertyTitle: string;
+  price: number;
+  sqm: number;
+  location: string;
+  postalCode?: string;
+  yearBuilt?: number;
+
+  // Eigennutzer-spezifische Metriken
+  breakEvenYears: number;
+  monthlyRentCost: number;
+  monthlyOwnershipCost: number;
+  monthlyCostDifference: number;
+
+  // Finanzierung
+  eigenkapital: number;
+  eigenkapitalPercent: number;
+  interestRate: number;
+  amortizationRate: number;
+
+  // Optional: Marktdaten
+  marketAvgRentPerSqm?: number;
+  marketAvgPricePerSqm?: number;
+}
+
+export interface ClaudeEigennutzerAdviceResult {
+  fazit: string;
+  recommendation: 'KAUFEN' | 'MIETEN' | 'AUSGEGLICHEN';
+  reasoning: string;
+}
+
+/**
  * Generate investor negotiation advice using Claude Opus
  * Focus: Aggressive leverage optimization and maximum returns
  */
@@ -351,6 +385,124 @@ Antworte NUR mit diesem JSON-Format:
         appreciation: 50,
         rentability: 50,
       },
+    };
+  }
+}
+
+/**
+ * Generate owner-occupier buy-vs-rent advice using Claude Opus
+ * Focus: Holistic life planning, risk assessment, long-term perspective
+ */
+export async function generateClaudeEigennutzerAdvice(
+  input: ClaudeEigennutzerAdviceInput
+): Promise<ClaudeEigennutzerAdviceResult> {
+  const client = getClaudeClient();
+
+  const systemPrompt = `Du bist ein persönlicher Finanzberater, der Eigennutzer bei der Entscheidung "Kaufen vs. Mieten" unterstützt.
+
+BEWERTUNGSMETHODIK:
+1. **Break-Even Analyse**: Wie schnell amortisieren sich die Kaufnebenkosten?
+2. **Monatliche Belastung**: Kaufen vs. Mieten im direkten Vergleich
+3. **Flexibilität**: Lebensplanung, Jobwechsel, Familie
+4. **Vermögensaufbau**: Eigenkapital-Bindung vs. Tilgung als Sparplan
+
+ENTSCHEIDUNGSLOGIK:
+- **KAUFEN**:
+  * Break-Even ≤ 10 Jahre
+  * UND monatliche Kosten ≤ Miete (+10% Toleranz)
+  * UND Standortsicherheit (Job, Familie)
+
+- **AUSGEGLICHEN**:
+  * Break-Even 10-20 Jahre
+  * ODER monatliche Kosten 10-30% über Miete
+  * ODER mittelfristige Bindung möglich
+
+- **MIETEN**:
+  * Break-Even > 20 Jahre
+  * ODER monatliche Kosten > 30% über Miete
+  * ODER hohe Flexibilität benötigt
+
+WICHTIG:
+- Nenne konkrete Zahlen und Szenarien
+- Berücksichtige persönliche Lebensplanung
+- Erwähne Risiken (Zinsbindung, Instandhaltung)
+
+Antworte NUR mit validem JSON:
+{
+  "fazit": "4-5 prägnante Sätze mit konkreten Zahlen und Empfehlung",
+  "recommendation": "KAUFEN | MIETEN | AUSGEGLICHEN",
+  "reasoning": "1-2 Sätze Begründung"
+}`;
+
+  const monthlyDiff = input.monthlyRentCost - input.monthlyOwnershipCost;
+  const monthlyDiffPercent = input.monthlyRentCost > 0
+    ? (monthlyDiff / input.monthlyRentCost * 100).toFixed(1)
+    : '0';
+
+  const propertyAge = input.yearBuilt ? new Date().getFullYear() - input.yearBuilt : null;
+
+  const marketRent = input.marketAvgRentPerSqm && input.sqm > 0
+    ? input.marketAvgRentPerSqm * input.sqm
+    : null;
+
+  const userMessage = `Bewerte diese Immobilie für Eigennutzer (Kaufen vs. Mieten):
+
+IMMOBILIE:
+- Objekt: ${input.propertyTitle}
+- Kaufpreis: ${input.price.toLocaleString('de-DE')}€
+- Wohnfläche: ${input.sqm}m²
+- Lage: ${input.location}${input.postalCode ? ` (PLZ: ${input.postalCode})` : ''}
+${input.yearBuilt ? `- Baujahr: ${input.yearBuilt} (${propertyAge} Jahre alt)` : ''}
+
+KAUFEN VS. MIETEN:
+- Break-Even: ${input.breakEvenYears} Jahre
+- Miete/Monat: ${input.monthlyRentCost.toLocaleString('de-DE')}€
+- Kauf/Monat: ${input.monthlyOwnershipCost.toLocaleString('de-DE')}€
+- Differenz: ${monthlyDiff >= 0 ? '+' : ''}${monthlyDiff.toFixed(2)}€/Mo
+
+FINANZIERUNG:
+- Eigenkapital: ${input.eigenkapital.toLocaleString('de-DE')}€ (${input.eigenkapitalPercent}%)
+- Zinssatz: ${input.interestRate}%
+- Tilgung: ${input.amortizationRate}%
+
+${marketRent ? `MARKTKONTEXT:\n- Markt-Miete: ${marketRent.toLocaleString('de-DE')}€/Mo` : ''}
+
+Bewerte: Sollte man kaufen oder mieten?`;
+
+  const response = await client.messages.create({
+    model: 'claude-opus-4-5-20251101',
+    max_tokens: 800,
+    temperature: 0.3,
+    system: systemPrompt,
+    messages: [{ role: 'user', content: userMessage }],
+  });
+
+  const textContent = response.content.find(block => block.type === 'text');
+  const rawContent = textContent?.type === 'text' ? textContent.text : '{}';
+
+  try {
+    const jsonMatch = rawContent.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, rawContent];
+    const jsonStr = jsonMatch[1]?.trim() || rawContent.trim();
+    const parsed = JSON.parse(jsonStr);
+
+    return {
+      fazit: parsed.fazit || 'Keine Analyse verfügbar.',
+      recommendation: ['KAUFEN', 'MIETEN', 'AUSGEGLICHEN'].includes(parsed.recommendation)
+        ? parsed.recommendation
+        : 'AUSGEGLICHEN',
+      reasoning: parsed.reasoning || 'Bewertung basierend auf Break-Even.',
+    };
+  } catch (error) {
+    const fallbackRec = input.breakEvenYears <= 10 && monthlyDiff >= 0
+      ? 'KAUFEN'
+      : input.breakEvenYears > 20 || monthlyDiff < -200
+        ? 'MIETEN'
+        : 'AUSGEGLICHEN';
+
+    return {
+      fazit: rawContent || 'Claude-Analyse konnte nicht durchgeführt werden.',
+      recommendation: fallbackRec,
+      reasoning: 'Bewertung basierend auf Break-Even.',
     };
   }
 }

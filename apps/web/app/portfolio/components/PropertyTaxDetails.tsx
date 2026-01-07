@@ -49,11 +49,11 @@ export function PropertyTaxDetails({
   const [isExpanded, setIsExpanded] = useState(false);
 
   const isSaving = annualTaxEffect > 0;
-  const effectColor = isSaving ? 'text-green-600' : 'text-red-600';
+  const effectColor = isSaving ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
   const bgGradient = isSaving
-    ? 'from-green-50 to-green-100/50'
-    : 'from-red-50 to-red-100/50';
-  const borderColor = isSaving ? 'border-green-200' : 'border-red-200';
+    ? 'from-emerald-50 to-emerald-100/50 dark:from-emerald-900/20 dark:to-emerald-900/10'
+    : 'from-rose-50 to-rose-100/50 dark:from-rose-900/20 dark:to-rose-900/10';
+  const borderColor = isSaving ? 'border-emerald-200 dark:border-emerald-700' : 'border-rose-200 dark:border-rose-700';
 
   // Don't render if no tax rate is set (marginalTaxRate = 0)
   if (marginalTaxRate === 0) {
@@ -118,18 +118,18 @@ export function PropertyTaxDetails({
             </div>
 
             <div className="flex justify-between text-xs">
-              <span className="text-gray-500">Mieteinnahmen</span>
-              <span className="text-red-600">+{formatCurrency(breakdown.annualRent)}</span>
+              <span className="text-gray-500 dark:text-gray-400">Mieteinnahmen</span>
+              <span className="text-rose-600 dark:text-rose-400">+{formatCurrency(breakdown.annualRent)}</span>
             </div>
 
             <div className="flex justify-between text-xs">
-              <span className="text-gray-500">Zinsen (abzugsfähig)</span>
-              <span className="text-green-600">-{formatCurrency(breakdown.annualInterest)}</span>
+              <span className="text-gray-500 dark:text-gray-400">Zinsen (abzugsfähig)</span>
+              <span className="text-emerald-600 dark:text-emerald-400">-{formatCurrency(breakdown.annualInterest)}</span>
             </div>
 
             <div className="flex justify-between text-xs">
-              <span className="text-gray-500">AfA ({Math.round(afaRate * 100)}%)</span>
-              <span className="text-green-600">-{formatCurrency(breakdown.annualAfa)}</span>
+              <span className="text-gray-500 dark:text-gray-400">AfA ({Math.round(afaRate * 100)}%)</span>
+              <span className="text-emerald-600 dark:text-emerald-400">-{formatCurrency(breakdown.annualAfa)}</span>
             </div>
 
             <div className="pt-2 mt-2 border-t border-gray-100 flex justify-between">
@@ -138,7 +138,7 @@ export function PropertyTaxDetails({
               </span>
               <span
                 className={`text-xs font-bold ${
-                  breakdown.taxableIncome < 0 ? 'text-green-600' : 'text-red-600'
+                  breakdown.taxableIncome < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
                 }`}
               >
                 {formatCurrency(Math.abs(breakdown.taxableIncome))}

@@ -178,10 +178,10 @@ export function PropertyDocumentsList({
           {!isOwner && hasProtectedDocuments && !isLoadingDocuments && (
             hasFullAccess ? (
               <span
-                className="relative z-10 flex items-center justify-center w-10 h-10 rounded-full bg-green-50 border border-green-200"
+                className="relative z-10 flex items-center justify-center w-10 h-10 rounded-full bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700"
                 title="Alle Unterlagen freigeschaltet"
               >
-                <LockOpen size={20} className="text-green-600" />
+                <LockOpen size={20} className="text-green-600 dark:text-green-400" />
               </span>
             ) : (
               <span
@@ -201,10 +201,10 @@ export function PropertyDocumentsList({
                     if (!isExpanded) setIsExpanded(true);
                   }
                 }}
-                className="relative z-10 flex items-center justify-center w-10 h-10 rounded-full bg-amber-50 hover:bg-amber-100 border border-amber-300 hover:border-amber-400 transition-all shadow-sm hover:shadow-md cursor-pointer"
+                className="relative z-10 flex items-center justify-center w-10 h-10 rounded-full bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 border border-amber-300 hover:border-amber-400 dark:border-amber-700 dark:hover:border-amber-600 transition-all shadow-sm hover:shadow-md cursor-pointer"
                 title="Unterlagen freischalten"
               >
-                <Lock size={20} className="text-amber-600" />
+                <Lock size={20} className="text-amber-600 dark:text-amber-400" />
               </span>
             )
           )}
@@ -213,16 +213,16 @@ export function PropertyDocumentsList({
           {isLoadingDocuments ? (
             <Loader2 size={16} className="text-gray-400 animate-spin" />
           ) : (
-            <span className="text-sm text-gray-500 dark:text-gray-400 font-normal">
+            <span className="text-sm text-gray-500 dark:text-gray-300 font-normal">
               <span className="lg:hidden">({documentCount})</span>
               <span className="hidden lg:inline">({documentCount} {documentCount === 1 ? 'Datei' : 'Dateien'})</span>
             </span>
           )}
         </div>
         {isExpanded ? (
-          <ChevronUp size={20} className="text-gray-500 dark:text-gray-400" />
+          <ChevronUp size={20} className="text-gray-500 dark:text-gray-300" />
         ) : (
-          <ChevronDown size={20} className="text-gray-500 dark:text-gray-400" />
+          <ChevronDown size={20} className="text-gray-500 dark:text-gray-300" />
         )}
       </button>
 

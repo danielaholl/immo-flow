@@ -137,7 +137,7 @@ export function PropertyFormStep({
                 }`}
               />
               {errors.title && (
-                <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                <p className="mt-1.5 text-sm text-rose-600 dark:text-rose-400 flex items-center gap-1">
                   <AlertCircle size={14} />
                   {errors.title}
                 </p>
@@ -210,7 +210,7 @@ export function PropertyFormStep({
                 }`}
               />
               {errors.location && (
-                <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                <p className="mt-1.5 text-sm text-rose-600 dark:text-rose-400 flex items-center gap-1">
                   <AlertCircle size={14} />
                   {errors.location}
                 </p>
@@ -248,7 +248,7 @@ export function PropertyFormStep({
                   }`}
                 />
                 {errors.sqm && (
-                  <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                  <p className="mt-1.5 text-sm text-rose-600 dark:text-rose-400 flex items-center gap-1">
                     <AlertCircle size={14} />
                     {errors.sqm}
                   </p>
@@ -326,7 +326,7 @@ export function PropertyFormStep({
                 }`}
               />
               {errors.purchasePrice && (
-                <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                <p className="mt-1.5 text-sm text-rose-600 dark:text-rose-400 flex items-center gap-1">
                   <AlertCircle size={14} />
                   {errors.purchasePrice}
                 </p>
@@ -567,23 +567,23 @@ export function PropertyFormStep({
               <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 space-y-2">
                 <p className="text-sm font-medium text-gray-700">Vorschau</p>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Kaltmiete</span>
-                  <span className="text-green-600">
+                  <span className="text-gray-500 dark:text-gray-400">Kaltmiete</span>
+                  <span className="text-emerald-600 dark:text-emerald-400">
                     +{parseFloat(formData.monthlyRent).toLocaleString('de-DE')} EUR
                   </span>
                 </div>
                 {formData.monthlyFee && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Hausgeld</span>
-                    <span className="text-red-600">
+                    <span className="text-gray-500 dark:text-gray-400">Hausgeld</span>
+                    <span className="text-rose-600 dark:text-rose-400">
                       -{parseFloat(formData.monthlyFee).toLocaleString('de-DE')} EUR
                     </span>
                   </div>
                 )}
                 {formData.loanAmount && formData.interestRate && formData.amortizationRate && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Kreditrate</span>
-                    <span className="text-red-600">
+                    <span className="text-gray-500 dark:text-gray-400">Kreditrate</span>
+                    <span className="text-rose-600 dark:text-rose-400">
                       -
                       {Math.ceil(
                         (parseFloat(formData.loanAmount) *
@@ -614,7 +614,7 @@ export function PropertyFormStep({
                     const cashflow = rent - fee - loanPayment;
                     const isPositive = cashflow >= 0;
                     return (
-                      <span className={isPositive ? 'text-green-600' : 'text-red-600'}>
+                      <span className={isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>
                         {isPositive ? '+' : ''}
                         {cashflow.toLocaleString('de-DE')} EUR
                       </span>
@@ -663,12 +663,12 @@ export function PropertyFormStep({
 
                   {/* Score as X.X / 10 */}
                   <div className={`text-5xl font-bold mb-2 ${
-                    aiScore >= 85 ? 'text-[#06d551]' : aiScore >= 60 ? 'text-green-600' : aiScore >= 40 ? 'text-yellow-600' : 'text-red-600'
+                    aiScore >= 85 ? 'text-green-600 dark:text-green-400' : aiScore >= 60 ? 'text-emerald-600 dark:text-emerald-400' : aiScore >= 40 ? 'text-yellow-600 dark:text-yellow-400' : 'text-rose-600 dark:text-rose-400'
                   }`}>
-                    {(aiScore / 10).toFixed(1)} <span className="text-2xl text-gray-400">/ 10</span>
+                    {(aiScore / 10).toFixed(1)} <span className="text-2xl text-gray-400 dark:text-gray-500">/ 10</span>
                   </div>
                   <p className={`text-lg font-medium ${
-                    aiScore >= 85 ? 'text-[#06d551]' : aiScore >= 60 ? 'text-green-600' : aiScore >= 40 ? 'text-yellow-600' : 'text-red-600'
+                    aiScore >= 85 ? 'text-green-600 dark:text-green-400' : aiScore >= 60 ? 'text-emerald-600 dark:text-emerald-400' : aiScore >= 40 ? 'text-yellow-600 dark:text-yellow-400' : 'text-rose-600 dark:text-rose-400'
                   }`}>
                     {aiScore >= 85 ? 'Sehr gutes Investment' : aiScore >= 60 ? 'Gutes Investment' : aiScore >= 40 ? 'Solides Investment' : 'Vorsicht geboten'}
                   </p>

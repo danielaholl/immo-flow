@@ -392,7 +392,7 @@ export function Header() {
                   alt="Profile"
                   width={20}
                   height={20}
-                  className={`rounded-full object-cover ${
+                  className={`w-5 h-5 rounded-full object-cover ${
                     pathname === '/profile' ? 'ring-2 ring-primary' : ''
                   }`}
                 />

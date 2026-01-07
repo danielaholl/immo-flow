@@ -97,22 +97,22 @@ const getPropertyTypeLabel = (type: string | null): string => {
 
 // Get cashflow color
 const getCashflowColor = (value: number): string => {
-  return value >= 0 ? 'text-green-600' : 'text-red-600';
+  return value >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
 };
 
 // Get yield color
 const getYieldColor = (value: number): string => {
-  if (value >= 4) return 'text-green-600';
-  if (value >= 2) return 'text-yellow-600';
-  return 'text-red-600';
+  if (value >= 4) return 'text-emerald-600 dark:text-emerald-400';
+  if (value >= 2) return 'text-yellow-600 dark:text-yellow-400';
+  return 'text-rose-600 dark:text-rose-400';
 };
 
 // Get AI score color (matching PropertyScoreBadge thresholds)
 const getAiScoreColor = (value: number): string => {
-  if (value >= 85) return 'text-[#06d551]'; // Sehr gut - Custom bright green
-  if (value >= 60) return 'text-green-600'; // Gut
-  if (value >= 40) return 'text-yellow-600'; // OK
-  return 'text-red-600'; // Schwach
+  if (value >= 85) return 'text-green-600 dark:text-green-400'; // Sehr gut
+  if (value >= 60) return 'text-emerald-600 dark:text-emerald-400'; // Gut
+  if (value >= 40) return 'text-yellow-600 dark:text-yellow-400'; // OK
+  return 'text-rose-600 dark:text-rose-400'; // Schwach
 };
 
 export function PortfolioPropertyList({
@@ -200,7 +200,7 @@ export function PortfolioPropertyList({
                       const isSaving = steuereffektMonatlich < 0;
 
                       return (
-                        <p className={`font-semibold ${isSaving ? 'text-green-600' : 'text-red-600'}`}>
+                        <p className={`font-semibold ${isSaving ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                           {isSaving ? '+' : ''}{formatCurrency(Math.abs(steuereffektMonatlich))}
                         </p>
                       );

@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Bath, Sparkles, DoorClosed, Square, Layers, Building2, Clock, Flame, Zap, ChevronDown, ChevronRight, Heart, Mail, FileText, Loader2, Landmark, TrendingDown, TrendingUp, Equal, Info, ArrowUpDown, Calendar, Wallet, FileCheck, TreePine, Calculator, Home, X } from 'lucide-react';
-import { PropertyScoreBadge, PropertyTypeBadge, type PropertyType } from '@rendito/ui';
+import { PropertyScoreBadge, PropertyTypeBadge, type PropertyType, calculateQuickBreakEven, type BreakEvenResult } from '@rendito/ui';
 import { LocationDisplay } from './LocationDisplay';
 import { MarketComparisonBar } from './MarketComparisonBar';
 
@@ -604,10 +604,10 @@ export function PropertyPreview({
           </div>
 
           {/* Price and Price per sqm - Responsive Layout */}
-          <div className="flex flex-wrap justify-between items-center gap-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+          <div className="flex flex-wrap justify-between items-center gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
             {/* Left: Kaufpreis */}
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Kaufpreis</p>
+              <p className="text-sm text-gray-500 dark:text-gray-300 mb-2">Kaufpreis</p>
               <h1 className="font-bold text-gray-900 dark:text-white" style={{ fontSize: '40px', lineHeight: '1' }}>
                 {data.price > 0 ? formatPrice(data.price) : '-'}
               </h1>
@@ -615,7 +615,7 @@ export function PropertyPreview({
 
             {/* Right: Preis pro m² */}
             <div className="text-right">
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Preis pro m²</p>
+              <p className="text-sm text-gray-500 dark:text-gray-300 mb-1">Preis pro m²</p>
               <h2 className="font-bold text-gray-900 dark:text-white" style={{ fontSize: '28px', lineHeight: '1' }}>
                 {pricePerSqm > 0 ? formatPrice(pricePerSqm) : '-'}
               </h2>
@@ -625,8 +625,8 @@ export function PropertyPreview({
           {/* Commission */}
           <p className={`text-base mt-1 ${
             data.commission_rate != null && data.commission_rate > 0
-              ? 'text-gray-600'
-              : 'text-green-600 font-medium'
+              ? 'text-gray-600 dark:text-gray-400'
+              : 'text-emerald-600 dark:text-emerald-400 font-medium'
           }`}>
             {data.commission_rate != null && data.commission_rate > 0
               ? `Provision: ${Number(data.commission_rate).toFixed(2).replace('.', ',')} % inkl. MwSt.`
@@ -744,55 +744,85 @@ export function PropertyPreview({
 
             {/* Eigenheim Card - Traffic Light basierend auf buyVsRentYears */}
             {(() => {
-              const buyVsRentYears = data.buyer_evaluation?.buyer_selfuse?.buyVsRentYears;
-
-              // Karten-Farbe basierend auf Break-Even Jahren: <= 15 grün, 16-25 amber, > 25 rot
-              const getCardColors = () => {
-                if (buyVsRentYears !== undefined && buyVsRentYears !== null) {
-                  if (buyVsRentYears <= 15) return {
-                    border: 'border-green-300 dark:border-green-700',
-                    bg: 'bg-green-100 dark:bg-green-900/40',
-                    iconColor: 'text-green-600 dark:text-green-400',
-                    indicatorColor: 'text-green-500'
+              // Kaufen vs Mieten Card - mit Quick Calculation Fallback
+              const buyVsRentYears = (() => {
+                // Priorität 1: AI Evaluation vorhanden
+                if (data.buyer_evaluation?.buyer_selfuse?.buyVsRentYears) {
+                  return {
+                    years: data.buyer_evaluation.buyer_selfuse.buyVsRentYears,
+                    isQuick: false,
                   };
-                  if (buyVsRentYears <= 25) return {
+                }
+
+                // Priorität 2: Quick Calculation
+                const quickResult = calculateQuickBreakEven({
+                  purchasePrice: data.price,
+                  sqm: data.sqm,
+                  yearBuilt: data.year_built,
+                  estimatedRentPerSqm: data.rental_income?.rent_per_sqm,
+                });
+
+                return quickResult
+                  ? { years: quickResult.years, isQuick: true, confidence: quickResult.confidence }
+                  : null;
+              })();
+
+              // Karten-Farbe und Label basierend auf Break-Even Jahren
+              const getCardColors = () => {
+                if (buyVsRentYears !== null && buyVsRentYears.years !== undefined) {
+                  // Kaufen lohnt sich (<=15 Jahre)
+                  if (buyVsRentYears.years <= 15) return {
+                    border: 'border-emerald-200 dark:border-emerald-700',
+                    bg: 'bg-emerald-50 dark:bg-emerald-900/40',
+                    iconColor: 'text-emerald-600 dark:text-emerald-400',
+                    label: 'Kaufen'
+                  };
+                  // Abwägen (15-25 Jahre)
+                  if (buyVsRentYears.years <= 25) return {
                     border: 'border-amber-200 dark:border-amber-700',
                     bg: 'bg-amber-50 dark:bg-amber-900/40',
                     iconColor: 'text-amber-600 dark:text-amber-400',
-                    indicatorColor: 'text-amber-500'
+                    label: 'Abwägen'
                   };
+                  // Mieten günstiger (>25 Jahre)
                   return {
                     border: 'border-rose-200 dark:border-rose-700',
                     bg: 'bg-rose-50 dark:bg-rose-900/40',
                     iconColor: 'text-rose-600 dark:text-rose-400',
-                    indicatorColor: 'text-rose-500'
+                    label: 'Mieten'
                   };
                 }
                 return {
                   border: 'border-blue-200 dark:border-blue-700',
                   bg: 'bg-blue-50 dark:bg-blue-900/40',
                   iconColor: 'text-blue-600 dark:text-blue-400',
-                  indicatorColor: 'text-gray-400'
+                  label: 'Kaufen vs Mieten'
                 };
               };
 
               const cardColors = getCardColors();
 
-              // Text basierend auf buyVsRentYears
-              const getStatusText = () => {
-                if (buyVsRentYears === undefined || buyVsRentYears === null) {
-                  return { text: 'Berechnen', icon: null };
+              // Status-Icon basierend auf buyVsRentYears
+              const getStatusIcon = () => {
+                if (buyVsRentYears === null || buyVsRentYears.years === undefined) {
+                  return null;
                 }
-                if (buyVsRentYears <= 15) {
-                  return { text: 'Kaufen', icon: <TrendingUp size={14} /> };
+
+                // Kaufen lohnt sich (<=15 Jahre)
+                if (buyVsRentYears.years <= 15) {
+                  return <TrendingUp size={14} />;
                 }
-                if (buyVsRentYears <= 25) {
-                  return { text: 'Abwägen', icon: <Equal size={14} /> };
+
+                // Abwägen (15-25 Jahre)
+                if (buyVsRentYears.years <= 25) {
+                  return <Equal size={14} />;
                 }
-                return { text: 'Mieten', icon: <TrendingDown size={14} /> };
+
+                // Mieten ist günstiger
+                return <TrendingDown size={14} />;
               };
 
-              const status = getStatusText();
+              const statusIcon = getStatusIcon();
 
               return (
                 <a
@@ -803,11 +833,15 @@ export function PropertyPreview({
                     <div className="flex items-center gap-3">
                       <Home size={40} className={`${cardColors.iconColor} flex-shrink-0`} />
                       <div>
-                        <p className="text-lg font-bold text-gray-900 dark:text-white">Kaufen vs Mieten</p>
-                        <p className={`text-sm font-medium ${cardColors.iconColor} flex items-center gap-1`}>
-                          {status.icon}
-                          {status.text}
-                        </p>
+                        <p className="text-lg font-bold text-gray-900 dark:text-white">{cardColors.label}</p>
+                        {buyVsRentYears !== null && buyVsRentYears.years !== undefined ? (
+                          <p className={`text-sm font-medium ${cardColors.iconColor} flex items-center gap-1`}>
+                            {statusIcon}
+                            {buyVsRentYears.years} Jahre
+                          </p>
+                        ) : (
+                          <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Berechnung starten →</p>
+                        )}
                       </div>
                     </div>
                     <ChevronRight size={20} className="text-gray-400" />
@@ -827,18 +861,18 @@ export function PropertyPreview({
             : data.description;
 
           return (
-            <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden p-4">
+            <div className="mb-6 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden p-4">
               {/* Important Notes - Show if exists */}
               {data.important_notes && (
                 <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl mb-4">
-                  <p className="text-base text-gray-700 dark:text-gray-300 leading-relaxed">
+                  <p className="text-base text-gray-700 dark:text-white leading-relaxed">
                     {data.important_notes}
                   </p>
                 </div>
               )}
 
               {/* Description Text - whitespace-pre-line preserves newlines for structured content */}
-              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base whitespace-pre-line">
+              <p className="text-gray-700 dark:text-white leading-relaxed text-base whitespace-pre-line">
                 {isDescriptionExpanded || !isLongDescription ? data.description : previewText}
               </p>
 
@@ -903,7 +937,7 @@ export function PropertyPreview({
 
                   return (
                     <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                      <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                      <p className="text-gray-700 dark:text-white leading-relaxed text-base">
                         {providerText}
                       </p>
                     </div>
@@ -944,7 +978,7 @@ export function PropertyPreview({
                       </div>
 
                       {/* Contact text */}
-                      <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">
+                      <p className="text-gray-700 dark:text-white leading-relaxed text-base">
                         {ownerText}
                       </p>
                     </div>
@@ -1031,7 +1065,7 @@ export function PropertyPreview({
                     <div className="flex items-center gap-2">
                       <FileText size={20} className="text-gray-700 dark:text-gray-300" />
                       <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Objektunterlagen</h3>
-                      <span className="text-sm text-gray-500 dark:text-gray-400 font-normal">
+                      <span className="text-sm text-gray-500 dark:text-gray-300 font-normal">
                         ({data.documents?.length || 0} {data.documents?.length === 1 ? 'Datei' : 'Dateien'})
                       </span>
                     </div>
@@ -1066,7 +1100,7 @@ export function PropertyPreview({
                     <div className="flex items-center gap-2">
                       <FileText size={20} className="text-gray-700 dark:text-gray-300" />
                       <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Objektunterlagen</h3>
-                      <span className="text-sm text-gray-500 dark:text-gray-400 font-normal">
+                      <span className="text-sm text-gray-500 dark:text-gray-300 font-normal">
                         ({data.documents?.length || 0} {data.documents?.length === 1 ? 'Datei' : 'Dateien'})
                       </span>
                     </div>
@@ -1146,7 +1180,7 @@ export function PropertyPreview({
                     <div className="flex items-center gap-2">
                       <FileText size={20} className="text-gray-700 dark:text-gray-300" />
                       <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Objektunterlagen</h3>
-                      <span className="text-sm text-gray-500 dark:text-gray-400 font-normal">(0 Dateien)</span>
+                      <span className="text-sm text-gray-500 dark:text-gray-300 font-normal">(0 Dateien)</span>
                     </div>
                     <ChevronDown
                       className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isDocumentsExpanded ? 'rotate-180' : ''}`}

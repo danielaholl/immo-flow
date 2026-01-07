@@ -627,7 +627,7 @@ export default function PropertyPage() {
 
         {/* Right Column - Property Card with Slideshow or Document Viewer */}
         {/* On mobile: fixed height, On desktop: stretches to match left column */}
-        <div className="w-full lg:w-1/2 h-[50vh] lg:h-full py-8 lg:pl-6 order-1 lg:order-2 lg:flex lg:flex-col" style={{ height: 'auto' }}>
+        <div className="w-full lg:w-1/2 h-[480px] lg:h-auto pt-0 pb-8 lg:py-8 lg:pl-6 order-1 lg:order-2 lg:flex lg:flex-col">
           <div className="h-full rounded-2xl overflow-hidden">
           {selectedDocument && !isMobile ? (
             <DocumentViewer

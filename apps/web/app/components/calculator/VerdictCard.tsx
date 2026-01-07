@@ -240,7 +240,7 @@ export function VerdictCard({ className = '' }: CardProps) {
 
       {/* Error State */}
       {error && (
-        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+        <div className="mt-4 p-3 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-lg text-sm text-rose-700 dark:text-rose-400">
           {error}
         </div>
       )}

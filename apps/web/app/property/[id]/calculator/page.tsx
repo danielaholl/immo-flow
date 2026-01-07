@@ -30,7 +30,7 @@ export default function CalculatorPage() {
   const utils = trpc.useUtils();
 
   const propertyId = params.id as string;
-  const initialTab = (searchParams.get('tab') as TabType) || 'investor';
+  const initialTab = (searchParams.get('mode') as TabType) || 'investor';
   const [activeTab, setActiveTab] = useState<TabType>(initialTab);
 
   // Editable property values for calculations
@@ -202,8 +202,6 @@ export default function CalculatorPage() {
     };
     const hausgeld = parseNum(userPropertyParams?.monthly_fee, calculateHausgeld());
 
-    if (monthlyRent <= 0 || purchasePrice <= 0) return null;
-
     const detectedState = detectStateFromLocation(property.location);
     const grunderwerbsteuerRate = detectedState ? GRUNDERWERBSTEUER_SAETZE[detectedState] : 5.0;
 
@@ -325,27 +323,14 @@ export default function CalculatorPage() {
               <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{property.location}</p>
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-sm text-gray-500 dark:text-gray-400">Kaufpreis:</span>
-                <div className="relative inline-flex items-center">
-                  <input
-                    type="text"
-                    value={editablePurchasePrice ? new Intl.NumberFormat('de-DE').format(Number(editablePurchasePrice)) : ''}
-                    onChange={(e) => {
-                      const rawValue = e.target.value.replace(/[^\d]/g, '');
-                      setEditablePurchasePrice(rawValue);
-                    }}
-                    placeholder={new Intl.NumberFormat('de-DE').format(property.price ?? 0)}
-                    className="w-32 sm:w-40 pl-3 pr-8 py-1.5 border-2 border-gray-300 dark:border-gray-500 bg-gray-50 dark:bg-gray-800 rounded-lg text-base font-semibold text-gray-900 dark:text-white focus:ring-[3px] focus:ring-primary/30 focus:border-primary outline-none text-right"
-                  />
-                  <span className="absolute right-3 text-gray-500 dark:text-gray-400 text-sm pointer-events-none">€</span>
+                <div className="inline-flex items-center gap-1">
+                  <span className="text-base font-semibold text-gray-900 dark:text-white">
+                    {new Intl.NumberFormat('de-DE').format(property.price ?? 0)}
+                  </span>
+                  <span className="text-base font-semibold text-gray-900 dark:text-white">€</span>
                 </div>
               </div>
             </div>
-            {/* Days Online Badge - Glass Style */}
-            {property.days_online !== undefined && (
-              <span className="inline-flex items-center justify-center h-10 px-4 rounded-full text-sm font-medium backdrop-blur-sm bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-200/50 dark:border-blue-700/50 flex-shrink-0">
-                {property.days_online === 0 ? 'Neu' : `Seit ${property.days_online} ${property.days_online === 1 ? 'Tag' : 'Tagen'} online`}
-              </span>
-            )}
             {/* Import Button */}
             <Link href="/import-listing">
               <button className="flex items-center gap-1.5 px-3 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors flex-shrink-0">
@@ -474,6 +459,7 @@ export default function CalculatorPage() {
                 onSaveParams={handleSaveUserPropertyParams}
                 isSavingParams={saveUserPropertyParamsMutation.isPending}
                 canEdit={true}
+                startInEditMode={true}
               />
           </>
         )}
@@ -548,6 +534,7 @@ export default function CalculatorPage() {
                 onSaveParams={handleSaveUserPropertyParams}
                 isSavingParams={saveUserPropertyParamsMutation.isPending}
                 canEdit={true}
+                startInEditMode={true}
               />
           </>
         )}

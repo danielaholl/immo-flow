@@ -8,8 +8,8 @@ import { query, queryOne } from '../db.js';
 import { evaluatePropertyInvestment } from '../services/property-investment-evaluator.js';
 import { getOpenAIClient, buildSystemPrompt } from '../utils/openai.js';
 import { generateClaudeFazit, generateAIScoreAnalysis, AIScoreAnalysisInput } from '../utils/claude.js';
-import { generateOpenAIInvestorAdvice } from '../utils/openai.js';
-import { generateClaudeInvestorAdvice } from '../utils/claude.js';
+import { generateOpenAIInvestorAdvice, generateOpenAIEigennutzerAdvice } from '../utils/openai.js';
+import { generateClaudeInvestorAdvice, generateClaudeEigennutzerAdvice } from '../utils/claude.js';
 import { calculateOptimalNegotiationPrice, calculateFairValue } from '../services/negotiation-calculator.js';
 import { getEffectiveDefaults, getHausgeldPerSqmForYear } from '../services/calculator-defaults-service.js';
 import crypto from 'crypto';
@@ -946,6 +946,292 @@ Antworte im angeforderten JSON-Format mit Fazit und Tipps.`;
       } catch (error) {
         console.error('Investor negotiation advice error:', error);
         throw new Error('Verhandlungsempfehlung konnte nicht generiert werden');
+      }
+    }),
+
+  /**
+   * Generate Eigennutzer (Owner-Occupier) AI Advice
+   * Provides buy-vs-rent recommendation with OpenAI and Claude analysis
+   */
+  generateEigennutzerAdvice: protectedProcedure
+    .input(z.object({
+      propertyId: z.string().uuid().optional(), // Optional for manual calculator
+      propertyData: z.object({
+        title: z.string().optional(),
+        sqm: z.number(),
+        location: z.string().optional(),
+        postalCode: z.string().optional(),
+        yearBuilt: z.number().optional(),
+      }),
+      calculatorInputs: z.object({
+        kaufpreis: z.number(),
+        breakEvenYears: z.number(),
+        monthlyRentCost: z.number(),      // Was man als Miete zahlen würde
+        monthlyOwnershipCost: z.number(), // Monatliche Kosten beim Kauf
+        eigenkapital: z.number(),         // In EUR
+        eigenkapitalPercent: z.number(),  // In %
+        zinssatz: z.number(),
+        tilgung: z.number(),
+      }),
+      forceRegenerate: z.boolean().optional().default(false),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      try {
+        // Load property info (same pattern as investor advice)
+        let propertyInfo: {
+          title: string;
+          sqm: number;
+          location: string;
+          postal_code: string | null;
+          year_built: number | null;
+        };
+
+        if (input.propertyId) {
+          const property = await queryOne<{
+            id: string;
+            user_id: string;
+            title: string;
+            sqm: number;
+            location: string;
+            postal_code: string | null;
+            year_built: number | null;
+          }>(
+            `SELECT id, user_id, title, sqm, location, postal_code, year_built
+             FROM properties WHERE id = $1`,
+            [input.propertyId]
+          );
+
+          if (!property || property.user_id !== ctx.user.id) {
+            throw new Error('Property not found or unauthorized');
+          }
+
+          propertyInfo = {
+            title: property.title,
+            sqm: property.sqm,
+            location: property.location,
+            postal_code: property.postal_code,
+            year_built: property.year_built,
+          };
+        } else {
+          propertyInfo = {
+            title: input.propertyData.title || 'Manueller Rechner',
+            sqm: input.propertyData.sqm,
+            location: input.propertyData.location || 'Nicht angegeben',
+            postal_code: input.propertyData.postalCode || null,
+            year_built: input.propertyData.yearBuilt || null,
+          };
+        }
+
+        // Load market data if postal code available
+        let marketData: { avg_rent_sqm: number | null; avg_purchase_price_sqm: number | null } | null = null;
+        if (propertyInfo.postal_code) {
+          marketData = await queryOne<{
+            avg_rent_sqm: number | null;
+            avg_purchase_price_sqm: number | null;
+          }>(
+            `SELECT avg_rent_sqm, avg_purchase_price_sqm
+             FROM plz_market_data WHERE plz = $1`,
+            [propertyInfo.postal_code]
+          );
+        }
+
+        // Generate input hash for caching
+        const inputHash = crypto
+          .createHash('sha256')
+          .update(JSON.stringify({
+            version: 'v1-eigennutzer',
+            kaufpreis: input.calculatorInputs.kaufpreis,
+            breakEvenYears: input.calculatorInputs.breakEvenYears,
+            monthlyRentCost: input.calculatorInputs.monthlyRentCost,
+            monthlyOwnershipCost: input.calculatorInputs.monthlyOwnershipCost,
+          }))
+          .digest('hex');
+
+        // Check cache if not forcing regeneration AND propertyId exists
+        if (!input.forceRegenerate && input.propertyId) {
+          const cached = await queryOne<{
+            eigennutzer_advice_openai: string | null;
+            eigennutzer_advice_claude: string | null;
+            eigennutzer_recommendation_openai: string | null;
+            eigennutzer_recommendation_claude: string | null;
+            eigennutzer_advice_generated_at: Date | null;
+            eigennutzer_advice_inputs_hash: string | null;
+          }>(
+            `SELECT eigennutzer_advice_openai, eigennutzer_advice_claude,
+                    eigennutzer_recommendation_openai, eigennutzer_recommendation_claude,
+                    eigennutzer_advice_generated_at, eigennutzer_advice_inputs_hash
+             FROM user_property_parameters
+             WHERE user_id = $1 AND property_id = $2 AND eigennutzer_advice_inputs_hash = $3`,
+            [ctx.user.id, input.propertyId, inputHash]
+          );
+
+          // Cache valid if exists and < 24h old
+          if (cached?.eigennutzer_advice_openai && cached?.eigennutzer_advice_claude && cached?.eigennutzer_advice_generated_at) {
+            const cacheAge = Date.now() - new Date(cached.eigennutzer_advice_generated_at).getTime();
+            const cacheTTL = 24 * 60 * 60 * 1000; // 24 hours
+
+            if (cacheAge < cacheTTL) {
+              return {
+                openai: {
+                  fazit: cached.eigennutzer_advice_openai,
+                  recommendation: cached.eigennutzer_recommendation_openai || 'AUSGEGLICHEN',
+                },
+                claude: {
+                  fazit: cached.eigennutzer_advice_claude,
+                  recommendation: cached.eigennutzer_recommendation_claude || 'AUSGEGLICHEN',
+                },
+                cached: true,
+                generatedAt: cached.eigennutzer_advice_generated_at,
+              };
+            }
+          }
+        }
+
+        // Prepare AI input
+        const aiInput = {
+          propertyTitle: propertyInfo.title,
+          price: input.calculatorInputs.kaufpreis,
+          sqm: propertyInfo.sqm,
+          location: propertyInfo.location,
+          postalCode: propertyInfo.postal_code || undefined,
+          yearBuilt: propertyInfo.year_built || undefined,
+          breakEvenYears: input.calculatorInputs.breakEvenYears,
+          monthlyRentCost: input.calculatorInputs.monthlyRentCost,
+          monthlyOwnershipCost: input.calculatorInputs.monthlyOwnershipCost,
+          monthlyCostDifference: input.calculatorInputs.monthlyRentCost - input.calculatorInputs.monthlyOwnershipCost,
+          eigenkapital: input.calculatorInputs.eigenkapital,
+          eigenkapitalPercent: input.calculatorInputs.eigenkapitalPercent,
+          interestRate: input.calculatorInputs.zinssatz,
+          amortizationRate: input.calculatorInputs.tilgung,
+          marketAvgRentPerSqm: marketData?.avg_rent_sqm || undefined,
+          marketAvgPricePerSqm: marketData?.avg_purchase_price_sqm || undefined,
+        };
+
+        // Run both AIs in parallel
+        const [openaiResult, claudeResult] = await Promise.allSettled([
+          generateOpenAIEigennutzerAdvice(aiInput),
+          generateClaudeEigennutzerAdvice(aiInput),
+        ]);
+
+        // Extract results with fallback
+        const openaiAdvice = openaiResult.status === 'fulfilled'
+          ? openaiResult.value
+          : {
+              fazit: 'OpenAI-Analyse aktuell nicht verfügbar.',
+              recommendation: 'AUSGEGLICHEN' as const,
+              reasoning: 'Bitte versuchen Sie es später erneut.',
+            };
+
+        const claudeAdvice = claudeResult.status === 'fulfilled'
+          ? claudeResult.value
+          : {
+              fazit: 'Claude-Analyse aktuell nicht verfügbar.',
+              recommendation: 'AUSGEGLICHEN' as const,
+              reasoning: 'Bitte versuchen Sie es später erneut.',
+            };
+
+        // Store in database only if propertyId exists
+        if (input.propertyId) {
+          await query(
+            `INSERT INTO user_property_parameters (
+              user_id, property_id,
+              eigennutzer_advice_openai, eigennutzer_advice_claude,
+              eigennutzer_recommendation_openai, eigennutzer_recommendation_claude,
+              eigennutzer_advice_generated_at, eigennutzer_advice_inputs_hash
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7)
+            ON CONFLICT (user_id, property_id)
+            DO UPDATE SET
+              eigennutzer_advice_openai = EXCLUDED.eigennutzer_advice_openai,
+              eigennutzer_advice_claude = EXCLUDED.eigennutzer_advice_claude,
+              eigennutzer_recommendation_openai = EXCLUDED.eigennutzer_recommendation_openai,
+              eigennutzer_recommendation_claude = EXCLUDED.eigennutzer_recommendation_claude,
+              eigennutzer_advice_generated_at = EXCLUDED.eigennutzer_advice_generated_at,
+              eigennutzer_advice_inputs_hash = EXCLUDED.eigennutzer_advice_inputs_hash`,
+            [
+              ctx.user.id,
+              input.propertyId,
+              openaiAdvice.fazit,
+              claudeAdvice.fazit,
+              openaiAdvice.recommendation,
+              claudeAdvice.recommendation,
+              inputHash,
+            ]
+          );
+        }
+
+        return {
+          openai: {
+            fazit: openaiAdvice.fazit,
+            recommendation: openaiAdvice.recommendation,
+            reasoning: openaiAdvice.reasoning,
+          },
+          claude: {
+            fazit: claudeAdvice.fazit,
+            recommendation: claudeAdvice.recommendation,
+            reasoning: claudeAdvice.reasoning,
+          },
+          cached: false,
+          generatedAt: new Date(),
+        };
+      } catch (error) {
+        console.error('Eigennutzer advice error:', error);
+        throw new Error('Eigennutzer-Empfehlung konnte nicht generiert werden');
+      }
+    }),
+
+  /**
+   * Get cached Eigennutzer AI Advice
+   * Returns cached advice if available, null otherwise
+   */
+  getEigennutzerAdvice: protectedProcedure
+    .input(z.object({
+      propertyId: z.string().uuid(),
+    }))
+    .query(async ({ input, ctx }) => {
+      try {
+        const cached = await queryOne<{
+          eigennutzer_advice_openai: string | null;
+          eigennutzer_advice_claude: string | null;
+          eigennutzer_recommendation_openai: string | null;
+          eigennutzer_recommendation_claude: string | null;
+          eigennutzer_advice_generated_at: Date | null;
+        }>(
+          `SELECT eigennutzer_advice_openai, eigennutzer_advice_claude,
+                  eigennutzer_recommendation_openai, eigennutzer_recommendation_claude,
+                  eigennutzer_advice_generated_at
+           FROM user_property_parameters
+           WHERE user_id = $1 AND property_id = $2`,
+          [ctx.user.id, input.propertyId]
+        );
+
+        // Return null if no advice exists or if it's too old (>24h)
+        if (!cached?.eigennutzer_advice_openai || !cached?.eigennutzer_advice_claude || !cached?.eigennutzer_advice_generated_at) {
+          return null;
+        }
+
+        const cacheAge = Date.now() - new Date(cached.eigennutzer_advice_generated_at).getTime();
+        const cacheTTL = 24 * 60 * 60 * 1000; // 24 hours
+
+        if (cacheAge >= cacheTTL) {
+          return null;
+        }
+
+        return {
+          openai: {
+            fazit: cached.eigennutzer_advice_openai,
+            recommendation: cached.eigennutzer_recommendation_openai || 'AUSGEGLICHEN',
+          },
+          claude: {
+            fazit: cached.eigennutzer_advice_claude,
+            recommendation: cached.eigennutzer_recommendation_claude || 'AUSGEGLICHEN',
+          },
+          cached: true,
+          generatedAt: cached.eigennutzer_advice_generated_at,
+        };
+      } catch (error) {
+        console.error('Get eigennutzer advice error:', error);
+        return null;
       }
     }),
 });

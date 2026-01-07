@@ -15,7 +15,12 @@ import { generateAIScoreAnalysis } from '../utils/claude.js';
 const portfolioPropertySchema = z.object({
   // Basic Info
   title: z.string().min(1).max(200),
-  propertyType: z.enum(['apartment', 'house', 'commercial', 'multi_family']).optional(),
+  propertyType: z.enum([
+    'apartment', 'house', 'villa', 'multi_family',
+    'land',
+    'commercial', 'office', 'retail', 'industrial',
+    'parking'
+  ]).optional(),
   location: z.string().min(1).max(200),
   postalCode: z.string().max(20).optional(),
   streetAddress: z.string().max(200).optional(),
