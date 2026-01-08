@@ -20,7 +20,7 @@ export const searchHistoryRouter = router({
       const limit = input?.limit || 10;
 
       try {
-        const results = await query(
+        const results = await query<any[]>(
           `SELECT * FROM search_history
            WHERE user_id = $1
            ORDER BY last_searched_at DESC
@@ -49,30 +49,32 @@ export const searchHistoryRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         // Check if this exact query already exists for this user
-        const existing = await queryOne(
-          'SELECT * FROM search_history WHERE user_id = $1 AND query = $2',
+        const existing = await queryOne<any>(
+          `SELECT * FROM search_history
+           WHERE user_id = $1 AND query = $2
+           LIMIT 1`,
           [ctx.user.id, input.query]
         );
 
         if (existing) {
           // Update existing search
-          const updated = await queryOne(
+          const updated = await queryOne<any>(
             `UPDATE search_history
-             SET last_searched_at = $1, results_count = $2, criteria = $3, updated_at = NOW()
+             SET last_searched_at = $1, results_count = $2, criteria = $3, updated_at = $1
              WHERE id = $4
              RETURNING *`,
             [
               new Date().toISOString(),
               input.resultsCount ?? existing.results_count,
               JSON.stringify(input.criteria ?? existing.criteria),
-              existing.id,
+              existing.id
             ]
           );
 
           return updated;
         } else {
           // Create new search history entry
-          const inserted = await queryOne(
+          const inserted = await queryOne<any>(
             `INSERT INTO search_history (user_id, query, criteria, results_count, last_searched_at)
              VALUES ($1, $2, $3, $4, $5)
              RETURNING *`,
@@ -81,7 +83,7 @@ export const searchHistoryRouter = router({
               input.query,
               JSON.stringify(input.criteria ?? {}),
               input.resultsCount ?? 0,
-              new Date().toISOString(),
+              new Date().toISOString()
             ]
           );
 
@@ -100,10 +102,10 @@ export const searchHistoryRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {
-        await query('DELETE FROM search_history WHERE id = $1 AND user_id = $2', [
-          input.id,
-          ctx.user.id,
-        ]);
+        await query(
+          'DELETE FROM search_history WHERE id = $1 AND user_id = $2',
+          [input.id, ctx.user.id]
+        );
 
         return { success: true };
       } catch (error) {

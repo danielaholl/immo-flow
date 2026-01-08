@@ -11,7 +11,7 @@ export const dismissedRouter = router({
   dismiss: protectedProcedure
     .input(z.object({ propertyId: z.string().uuid() }))
     .mutation(async ({ input, ctx }) => {
-      const dismissed = await queryOne(
+      const dismissed = await queryOne<any>(
         `INSERT INTO user_dismissed_properties (user_id, property_id)
          VALUES ($1, $2)
          ON CONFLICT (user_id, property_id) DO NOTHING
@@ -19,7 +19,7 @@ export const dismissedRouter = router({
         [ctx.user.id, input.propertyId]
       );
 
-      return dismissed;
+      return dismissed || null;
     }),
 
   // Remove property from dismissed list (un-dismiss)
@@ -38,8 +38,10 @@ export const dismissedRouter = router({
   isDismissed: protectedProcedure
     .input(z.object({ propertyId: z.string().uuid() }))
     .query(async ({ input, ctx }) => {
-      const dismissed = await queryOne(
-        'SELECT id FROM user_dismissed_properties WHERE user_id = $1 AND property_id = $2',
+      const dismissed = await queryOne<{ id: string }>(
+        `SELECT id FROM user_dismissed_properties
+         WHERE user_id = $1 AND property_id = $2
+         LIMIT 1`,
         [ctx.user.id, input.propertyId]
       );
 
@@ -48,7 +50,7 @@ export const dismissedRouter = router({
 
   // Get all dismissed properties for user
   getAll: protectedProcedure.query(async ({ ctx }) => {
-    const dismissed = await query(
+    const dismissed = await query<any[]>(
       `SELECT
         d.*,
         json_build_object(

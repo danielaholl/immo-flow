@@ -11,13 +11,14 @@ export const userPropertyParametersRouter = router({
   get: protectedProcedure
     .input(z.object({ propertyId: z.string().uuid() }))
     .query(async ({ input, ctx }) => {
-      const params = await queryOne(
+      const result = await queryOne<any>(
         `SELECT * FROM user_property_parameters
-         WHERE user_id = $1 AND property_id = $2`,
+         WHERE user_id = $1 AND property_id = $2
+         LIMIT 1`,
         [ctx.user.id, input.propertyId]
       );
 
-      return params || null;
+      return result || null;
     }),
 
   // Upsert (create or update) parameters
@@ -38,7 +39,7 @@ export const userPropertyParametersRouter = router({
       calculatedMonthlyCashflow: z.number().nullable().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
-      const params = await queryOne(
+      const result = await queryOne<any>(
         `INSERT INTO user_property_parameters
          (user_id, property_id, equity_percentage, interest_rate, amortization_rate, broker_commission, monthly_rent, monthly_fee, purchase_price, renovation_costs, calculated_gross_yield, calculated_rent_multiplier, calculated_monthly_cashflow)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
@@ -55,7 +56,6 @@ export const userPropertyParametersRouter = router({
            calculated_gross_yield = COALESCE($11, user_property_parameters.calculated_gross_yield),
            calculated_rent_multiplier = COALESCE($12, user_property_parameters.calculated_rent_multiplier),
            calculated_monthly_cashflow = COALESCE($13, user_property_parameters.calculated_monthly_cashflow),
-           -- Invalidate cached AI fazit when parameters change
            investor_fazit_text = NULL,
            investor_fazit_tips = NULL,
            investor_fazit_verdict = NULL,
@@ -78,11 +78,11 @@ export const userPropertyParametersRouter = router({
           input.renovationCosts ?? null,
           input.calculatedGrossYield ?? null,
           input.calculatedRentMultiplier ?? null,
-          input.calculatedMonthlyCashflow ?? null,
+          input.calculatedMonthlyCashflow ?? null
         ]
       );
 
-      return params;
+      return result;
     }),
 
   // Delete parameters for a property
@@ -90,8 +90,7 @@ export const userPropertyParametersRouter = router({
     .input(z.object({ propertyId: z.string().uuid() }))
     .mutation(async ({ input, ctx }) => {
       await query(
-        `DELETE FROM user_property_parameters
-         WHERE user_id = $1 AND property_id = $2`,
+        'DELETE FROM user_property_parameters WHERE user_id = $1 AND property_id = $2',
         [ctx.user.id, input.propertyId]
       );
 

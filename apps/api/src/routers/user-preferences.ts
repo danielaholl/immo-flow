@@ -10,19 +10,19 @@ export const userPreferencesRouter = router({
   // Get user's preference profile
   get: protectedProcedure.query(async ({ ctx }) => {
     try {
-      let data = await queryOne(
-        'SELECT * FROM user_preferences WHERE user_id = $1',
+      let data = await queryOne<any>(
+        'SELECT * FROM user_preferences WHERE user_id = $1 LIMIT 1',
         [ctx.user.id]
       );
 
-      // Check if we need to sync: no data OR data is empty (no price range, locations, etc.)
+      // Check if we need to sync: no data OR data is empty
       const needsSync = !data ||
         (!data.min_price && !data.max_price &&
-         (!data.preferred_locations || data.preferred_locations === '[]' ||
+         (!data.preferred_locations ||
           (Array.isArray(data.preferred_locations) && data.preferred_locations.length === 0)));
 
       if (needsSync) {
-        // Migrate favorites to property_interactions (using WHERE NOT EXISTS since there's no unique constraint)
+        // Migrate favorites to property_interactions
         await query(
           `INSERT INTO property_interactions (user_id, property_id, interaction_type, created_at)
            SELECT f.user_id, f.property_id, 'favorite', f.created_at
@@ -38,23 +38,23 @@ export const userPreferencesRouter = router({
         );
 
         // Count interactions after insert
-        const interactionsCount = await queryOne(
+        const interactionsCount = await queryOne<{ count: string }>(
           'SELECT COUNT(*) as count FROM property_interactions WHERE user_id = $1',
           [ctx.user.id]
         );
 
         // Calculate preferences (skip if no interactions yet)
-        if (interactionsCount && parseInt(interactionsCount.count) > 0) {
+        if (interactionsCount && parseInt(interactionsCount.count, 10) > 0) {
           try {
             await query('SELECT calculate_user_preferences($1)', [ctx.user.id]);
 
             // Re-fetch
-            data = await queryOne(
-              'SELECT * FROM user_preferences WHERE user_id = $1',
+            data = await queryOne<any>(
+              'SELECT * FROM user_preferences WHERE user_id = $1 LIMIT 1',
               [ctx.user.id]
             );
           } catch (calcError: any) {
-            // Handle foreign key error gracefully (user might not exist in users table yet)
+            // Handle foreign key error gracefully
             if (calcError.code !== '23503') {
               throw calcError;
             }
@@ -65,20 +65,9 @@ export const userPreferencesRouter = router({
       if (!data) return null;
 
       // Parse JSON fields
-      const rawLocations =
-        typeof data.preferred_locations === 'string'
-          ? JSON.parse(data.preferred_locations)
-          : data.preferred_locations || [];
-
-      const rawRooms =
-        typeof data.preferred_rooms === 'string'
-          ? JSON.parse(data.preferred_rooms)
-          : data.preferred_rooms || [];
-
-      const rawFeatures =
-        typeof data.preferred_features === 'string'
-          ? JSON.parse(data.preferred_features)
-          : data.preferred_features || [];
+      const rawLocations = Array.isArray(data.preferred_locations) ? data.preferred_locations : [];
+      const rawRooms = Array.isArray(data.preferred_rooms) ? data.preferred_rooms : [];
+      const rawFeatures = Array.isArray(data.preferred_features) ? data.preferred_features : [];
 
       // Transform to expected format with weights
       const totalLocations = rawLocations.length || 1;
@@ -107,7 +96,7 @@ export const userPreferencesRouter = router({
         price_range: {
           min: data.min_price || null,
           max: data.max_price || null,
-          avg: data.min_price && data.max_price ? (data.min_price + data.max_price) / 2 : null,
+          avg: data.min_price && data.max_price ? (Number(data.min_price) + Number(data.max_price)) / 2 : null,
         },
         preferred_rooms,
         preferred_features,
@@ -150,59 +139,26 @@ export const userPreferencesRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       try {
-        const result = await queryOne(
-          `INSERT INTO property_interactions (user_id, property_id, interaction_type, dwell_time_seconds, source, metadata)
+        const result = await queryOne<any>(
+          `INSERT INTO property_interactions
+           (user_id, property_id, interaction_type, dwell_time_seconds, source, metadata)
            VALUES ($1, $2, $3, $4, $5, $6)
            RETURNING *`,
           [
             ctx.user.id,
             input.propertyId,
             input.interactionType,
-            input.dwellTimeSeconds || 0,
+            input.dwellTimeSeconds ?? 0,
             input.source || null,
-            JSON.stringify(input.metadata || {}),
+            JSON.stringify(input.metadata ?? {})
           ]
         );
-
-        if (!result) {
-          throw new Error('Failed to insert interaction');
-        }
 
         return result;
       } catch (error) {
         console.error('Error tracking interaction:', error);
         throw new Error(
           `Failed to track interaction: ${error instanceof Error ? error.message : 'Unknown error'}`
-        );
-      }
-    }),
-
-  // Get user's interaction history
-  getInteractions: protectedProcedure
-    .input(
-      z
-        .object({
-          limit: z.number().positive().int().max(200).default(50),
-        })
-        .optional()
-    )
-    .query(async ({ ctx, input }) => {
-      const limit = input?.limit || 50;
-
-      try {
-        const results = await query(
-          `SELECT * FROM property_interactions
-           WHERE user_id = $1
-           ORDER BY created_at DESC
-           LIMIT $2`,
-          [ctx.user.id, limit]
-        );
-
-        return results;
-      } catch (error) {
-        console.error('Error fetching interactions:', error);
-        throw new Error(
-          `Failed to fetch interactions: ${error instanceof Error ? error.message : 'Unknown error'}`
         );
       }
     }),

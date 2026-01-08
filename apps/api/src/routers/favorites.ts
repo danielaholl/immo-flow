@@ -13,9 +13,8 @@ const FREE_FAVORITES_LIMIT = 5;
 
 export const favoritesRouter = router({
   // Get user favorites - includes full property data for detail view
-  // Uses PROPERTY_JSON_FIELDS to include description, documents, etc.
   getAll: protectedProcedure.query(async ({ ctx }) => {
-    const favorites = await query(
+    const result = await query<any[]>(
       `SELECT
         f.*,
         (
@@ -45,7 +44,7 @@ export const favoritesRouter = router({
       [ctx.user.id]
     );
 
-    return favorites;
+    return result;
   }),
 
   // Add favorite (with limit for free users)
@@ -56,11 +55,12 @@ export const favoritesRouter = router({
       const plan = await getUserPlan(ctx.user.id);
 
       if (plan === 'free') {
-        const countResult = await queryOne(
-          'SELECT COUNT(*)::int as count FROM favorites WHERE user_id = $1',
+        const countResult = await queryOne<{ count: string }>(
+          'SELECT COUNT(*) as count FROM favorites WHERE user_id = $1',
           [ctx.user.id]
         );
-        const currentCount = countResult?.count || 0;
+
+        const currentCount = parseInt(countResult?.count || '0', 10);
 
         if (currentCount >= FREE_FAVORITES_LIMIT) {
           throw new TRPCError({
@@ -70,7 +70,8 @@ export const favoritesRouter = router({
         }
       }
 
-      const favorite = await queryOne(
+      // Insert favorite (ON CONFLICT DO NOTHING)
+      const favorite = await queryOne<any>(
         `INSERT INTO favorites (user_id, property_id)
          VALUES ($1, $2)
          ON CONFLICT (user_id, property_id) DO NOTHING
@@ -78,7 +79,7 @@ export const favoritesRouter = router({
         [ctx.user.id, input.propertyId]
       );
 
-      // Track interaction for preference calculation (check if not exists)
+      // Track interaction for preference calculation
       await query(
         `INSERT INTO property_interactions (user_id, property_id, interaction_type)
          SELECT $1, $2, 'favorite'
@@ -92,7 +93,7 @@ export const favoritesRouter = router({
       // Recalculate user preferences
       await query('SELECT calculate_user_preferences($1)', [ctx.user.id]);
 
-      return favorite;
+      return favorite || null;
     }),
 
   // Remove favorite
@@ -111,8 +112,8 @@ export const favoritesRouter = router({
   isFavorite: protectedProcedure
     .input(z.object({ propertyId: z.string().uuid() }))
     .query(async ({ input, ctx }) => {
-      const favorite = await queryOne(
-        'SELECT id FROM favorites WHERE user_id = $1 AND property_id = $2',
+      const favorite = await queryOne<{ id: string }>(
+        'SELECT id FROM favorites WHERE user_id = $1 AND property_id = $2 LIMIT 1',
         [ctx.user.id, input.propertyId]
       );
 
@@ -121,7 +122,7 @@ export const favoritesRouter = router({
 
   // Sync favorites to property_interactions and recalculate preferences
   syncPreferences: protectedProcedure.mutation(async ({ ctx }) => {
-    // Migrate favorites to property_interactions (using WHERE NOT EXISTS)
+    // Migrate favorites to property_interactions
     await query(
       `INSERT INTO property_interactions (user_id, property_id, interaction_type, created_at)
        SELECT f.user_id, f.property_id, 'favorite', f.created_at
@@ -145,20 +146,22 @@ export const favoritesRouter = router({
   // Get favorites count and limit info (for UI display)
   getStatus: protectedProcedure.query(async ({ ctx }) => {
     const plan = await getUserPlan(ctx.user.id);
-    const countResult = await queryOne(
-      'SELECT COUNT(*)::int as count FROM favorites WHERE user_id = $1',
+
+    const countResult = await queryOne<{ count: string }>(
+      'SELECT COUNT(*) as count FROM favorites WHERE user_id = $1',
       [ctx.user.id]
     );
-    const count = countResult?.count || 0;
+
+    const favCount = parseInt(countResult?.count || '0', 10);
     const limit = plan === 'free' ? FREE_FAVORITES_LIMIT : null;
     const hasUnlimited = plan !== 'free';
 
     return {
-      count,
+      count: favCount,
       limit,
       hasUnlimited,
-      remaining: limit ? Math.max(0, limit - count) : null,
-      isAtLimit: limit ? count >= limit : false,
+      remaining: limit ? Math.max(0, limit - favCount) : null,
+      isAtLimit: limit ? favCount >= limit : false,
     };
   }),
 });

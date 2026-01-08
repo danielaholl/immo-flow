@@ -15,13 +15,20 @@ export const documentAccessRouter = router({
     .input(z.object({ propertyId: z.string().uuid() }))
     .mutation(async ({ input, ctx }) => {
       // Get user profile for data snapshot
-      const profile = await queryOne(
+      const profile = await queryOne<{
+        first_name: string | null;
+        last_name: string | null;
+        phone: string | null;
+      }>(
         'SELECT first_name, last_name, phone FROM user_profiles WHERE user_id = $1',
         [ctx.user.id]
       );
 
       // Get property to check release mode and ownership
-      const property = await queryOne(
+      const property = await queryOne<{
+        document_release_mode: string | null;
+        user_id: string;
+      }>(
         'SELECT document_release_mode, user_id FROM properties WHERE id = $1',
         [input.propertyId]
       );
@@ -44,26 +51,26 @@ export const documentAccessRouter = router({
         ? 'approved'
         : 'pending';
 
-      // Insert access request with user data snapshot
-      const request = await queryOne(
+      // Complex ON CONFLICT with CASE
+      const results = await query<any[]>(
         `INSERT INTO document_access_requests
-         (property_id, user_id, status, user_first_name, user_last_name, user_email, user_phone, responded_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         ON CONFLICT (property_id, user_id)
-         DO UPDATE SET
-           status = CASE
-             WHEN document_access_requests.status = 'denied' THEN 'pending'
-             ELSE document_access_requests.status
-           END,
-           user_first_name = EXCLUDED.user_first_name,
-           user_last_name = EXCLUDED.user_last_name,
-           user_email = EXCLUDED.user_email,
-           user_phone = EXCLUDED.user_phone,
-           requested_at = CASE
-             WHEN document_access_requests.status = 'denied' THEN NOW()
-             ELSE document_access_requests.requested_at
-           END
-         RETURNING *`,
+        (property_id, user_id, status, user_first_name, user_last_name, user_email, user_phone, responded_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        ON CONFLICT (property_id, user_id)
+        DO UPDATE SET
+          status = CASE
+            WHEN document_access_requests.status = 'denied' THEN 'pending'
+            ELSE document_access_requests.status
+          END,
+          user_first_name = EXCLUDED.user_first_name,
+          user_last_name = EXCLUDED.user_last_name,
+          user_email = EXCLUDED.user_email,
+          user_phone = EXCLUDED.user_phone,
+          requested_at = CASE
+            WHEN document_access_requests.status = 'denied' THEN NOW()
+            ELSE document_access_requests.requested_at
+          END
+        RETURNING *`,
         [
           input.propertyId,
           ctx.user.id,
@@ -72,12 +79,12 @@ export const documentAccessRouter = router({
           profile?.last_name || null,
           ctx.user.email,
           profile?.phone || null,
-          initialStatus === 'approved' ? new Date() : null
+          initialStatus === 'approved' ? new Date().toISOString() : null
         ]
       );
 
       return {
-        request,
+        request: results[0],
         isAutoApproved: initialStatus === 'approved',
         isOwner: false
       };
@@ -90,7 +97,7 @@ export const documentAccessRouter = router({
     .input(z.object({ propertyId: z.string().uuid() }))
     .query(async ({ input, ctx }) => {
       // Check if user is the owner
-      const property = await queryOne(
+      const property = await queryOne<{ user_id: string }>(
         'SELECT user_id FROM properties WHERE id = $1',
         [input.propertyId]
       );
@@ -105,8 +112,9 @@ export const documentAccessRouter = router({
         };
       }
 
-      const request = await queryOne(
-        'SELECT * FROM document_access_requests WHERE property_id = $1 AND user_id = $2',
+      const request = await queryOne<any>(
+        `SELECT * FROM document_access_requests
+         WHERE property_id = $1 AND user_id = $2`,
         [input.propertyId, ctx.user.id]
       );
 
@@ -151,8 +159,7 @@ export const documentAccessRouter = router({
 
       sql += ' ORDER BY dar.requested_at DESC';
 
-      const requests = await query(sql, values);
-      return requests;
+      return await query<any[]>(sql, values);
     }),
 
   /**
@@ -176,7 +183,7 @@ export const documentAccessRouter = router({
         values.push(input.propertyId);
       }
 
-      const result = await queryOne(sql, values);
+      const result = await queryOne<{ count: string }>(sql, values);
       return { count: parseInt(result?.count || '0', 10) };
     }),
 
@@ -191,7 +198,7 @@ export const documentAccessRouter = router({
     }))
     .mutation(async ({ input, ctx }) => {
       // Verify broker owns the property
-      const request = await queryOne(
+      const request = await queryOne<any>(
         `SELECT dar.*, p.user_id as property_owner_id
          FROM document_access_requests dar
          JOIN properties p ON dar.property_id = p.id
@@ -208,12 +215,12 @@ export const documentAccessRouter = router({
       }
 
       // Update request status
-      const updated = await queryOne(
+      const updated = await queryOne<any>(
         `UPDATE document_access_requests
-         SET status = $1, responded_at = NOW(), broker_response_message = $2
-         WHERE id = $3
+         SET status = $1, responded_at = $2, broker_response_message = $3
+         WHERE id = $4
          RETURNING *`,
-        [input.status, input.message || null, input.requestId]
+        [input.status, new Date().toISOString(), input.message || null, input.requestId]
       );
 
       return updated;
@@ -226,7 +233,7 @@ export const documentAccessRouter = router({
     .input(z.object({ propertyId: z.string().uuid() }))
     .mutation(async ({ input, ctx }) => {
       // Verify ownership
-      const property = await queryOne(
+      const property = await queryOne<{ user_id: string }>(
         'SELECT user_id FROM properties WHERE id = $1',
         [input.propertyId]
       );
@@ -235,12 +242,12 @@ export const documentAccessRouter = router({
         throw new Error('Unauthorized');
       }
 
-      const result = await query(
+      const result = await query<any[]>(
         `UPDATE document_access_requests
-         SET status = 'approved', responded_at = NOW()
-         WHERE property_id = $1 AND status = 'pending'
+         SET status = 'approved', responded_at = $1
+         WHERE property_id = $2 AND status = 'pending'
          RETURNING *`,
-        [input.propertyId]
+        [new Date().toISOString(), input.propertyId]
       );
 
       return { approvedCount: result.length };
@@ -256,7 +263,7 @@ export const documentAccessRouter = router({
     }))
     .mutation(async ({ input, ctx }) => {
       // Verify ownership
-      const property = await queryOne(
+      const property = await queryOne<{ user_id: string }>(
         'SELECT user_id FROM properties WHERE id = $1',
         [input.propertyId]
       );
@@ -279,8 +286,10 @@ export const documentAccessRouter = router({
   getReleaseMode: protectedProcedure
     .input(z.object({ propertyId: z.string().uuid() }))
     .query(async ({ input, ctx }) => {
-      // Verify ownership
-      const property = await queryOne(
+      const property = await queryOne<{
+        user_id: string;
+        document_release_mode: string | null;
+      }>(
         'SELECT user_id, document_release_mode FROM properties WHERE id = $1',
         [input.propertyId]
       );
@@ -302,7 +311,7 @@ export const documentAccessRouter = router({
     .input(z.object({ propertyId: z.string().uuid() }))
     .mutation(async ({ input, ctx }) => {
       // Verify ownership
-      const property = await queryOne(
+      const property = await queryOne<{ user_id: string }>(
         'SELECT user_id FROM properties WHERE id = $1',
         [input.propertyId]
       );
@@ -311,8 +320,7 @@ export const documentAccessRouter = router({
         throw new Error('Unauthorized');
       }
 
-      // Update all approved access requests to also have manual docs approved
-      const result = await query(
+      const result = await query<any[]>(
         `UPDATE document_access_requests
          SET manual_docs_approved = TRUE
          WHERE property_id = $1 AND status = 'approved' AND manual_docs_approved = FALSE
@@ -331,7 +339,7 @@ export const documentAccessRouter = router({
     .input(z.object({ propertyId: z.string().uuid() }))
     .query(async ({ input, ctx }) => {
       // Verify ownership
-      const property = await queryOne(
+      const property = await queryOne<{ user_id: string }>(
         'SELECT user_id FROM properties WHERE id = $1',
         [input.propertyId]
       );
@@ -340,7 +348,7 @@ export const documentAccessRouter = router({
         throw new Error('Unauthorized');
       }
 
-      const result = await queryOne(
+      const result = await queryOne<{ count: string }>(
         `SELECT COUNT(*) as count
          FROM document_access_requests
          WHERE property_id = $1 AND status = 'approved' AND manual_docs_approved = FALSE`,
@@ -358,7 +366,7 @@ export const documentAccessRouter = router({
     .input(z.object({ requestId: z.string().uuid() }))
     .mutation(async ({ input, ctx }) => {
       // Verify broker owns the property
-      const request = await queryOne(
+      const request = await queryOne<any>(
         `SELECT dar.*, p.user_id as property_owner_id
          FROM document_access_requests dar
          JOIN properties p ON dar.property_id = p.id
@@ -379,7 +387,7 @@ export const documentAccessRouter = router({
       }
 
       // Update manual_docs_approved for this user
-      const updated = await queryOne(
+      const updated = await queryOne<any>(
         `UPDATE document_access_requests
          SET manual_docs_approved = TRUE
          WHERE id = $1

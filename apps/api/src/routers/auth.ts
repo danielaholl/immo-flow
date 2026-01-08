@@ -26,7 +26,10 @@ export const authRouter = router({
     )
     .mutation(async ({ input }) => {
       // Check if user exists
-      const existing = await queryOne('SELECT id FROM users WHERE email = $1', [input.email]);
+      const existing = await queryOne<{ id: string }>(
+        'SELECT id FROM users WHERE email = $1 LIMIT 1',
+        [input.email]
+      );
 
       if (existing) {
         throw new Error('User already exists');
@@ -36,14 +39,14 @@ export const authRouter = router({
       const passwordHash = await bcrypt.hash(input.password, 10);
 
       // Create user
-      const user = await queryOne(
+      const newUser = await queryOne<{ id: string; email: string }>(
         `INSERT INTO users (email, password_hash, email_confirmed)
-         VALUES ($1, $2, $3)
+         VALUES ($1, $2, true)
          RETURNING id, email`,
-        [input.email, passwordHash, true]
+        [input.email, passwordHash]
       );
 
-      if (!user) {
+      if (!newUser) {
         throw new Error('Failed to create user');
       }
 
@@ -51,20 +54,20 @@ export const authRouter = router({
       await query(
         `INSERT INTO user_profiles (user_id, first_name, last_name)
          VALUES ($1, $2, $3)`,
-        [user.id, input.firstName, input.lastName]
+        [newUser.id, input.firstName || null, input.lastName || null]
       );
 
       // Generate JWT
       const token = jwt.sign(
-        { userId: user.id, email: user.email },
+        { userId: newUser.id, email: newUser.email },
         JWT_SECRET,
         { expiresIn: '7d' }
       );
 
       return {
         user: {
-          id: user.id,
-          email: user.email,
+          id: newUser.id,
+          email: newUser.email,
         },
         token,
       };
@@ -80,8 +83,12 @@ export const authRouter = router({
     )
     .mutation(async ({ input }) => {
       // Get user
-      const user = await queryOne(
-        'SELECT id, email, password_hash FROM users WHERE email = $1',
+      const user = await queryOne<{
+        id: string;
+        email: string;
+        password_hash: string | null;
+      }>(
+        'SELECT id, email, password_hash FROM users WHERE email = $1 LIMIT 1',
         [input.email]
       );
 
@@ -90,7 +97,7 @@ export const authRouter = router({
       }
 
       // Check password
-      const valid = await bcrypt.compare(input.password, user.password_hash);
+      const valid = await bcrypt.compare(input.password, user.password_hash || '');
 
       if (!valid) {
         throw new Error('Invalid credentials');
@@ -114,7 +121,7 @@ export const authRouter = router({
 
   // Get current user profile
   getProfile: protectedProcedure.query(async ({ ctx }) => {
-    const profile = await queryOne(
+    const result = await queryOne<any>(
       `SELECT u.id, u.email, up.*
        FROM users u
        LEFT JOIN user_profiles up ON u.id = up.user_id
@@ -122,7 +129,7 @@ export const authRouter = router({
       [ctx.user.id]
     );
 
-    return profile;
+    return result || null;
   }),
 
   // Update profile
@@ -140,69 +147,62 @@ export const authRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
+      // Build dynamic update
       const updates: string[] = [];
       const values: any[] = [];
       let paramCount = 1;
 
       if (input.firstName !== undefined) {
-        updates.push(`first_name = $${paramCount}`);
+        updates.push(`first_name = $${paramCount++}`);
         values.push(input.firstName);
-        paramCount++;
       }
       if (input.lastName !== undefined) {
-        updates.push(`last_name = $${paramCount}`);
+        updates.push(`last_name = $${paramCount++}`);
         values.push(input.lastName);
-        paramCount++;
       }
       if (input.phone !== undefined) {
-        updates.push(`phone = $${paramCount}`);
+        updates.push(`phone = $${paramCount++}`);
         values.push(input.phone);
-        paramCount++;
       }
       if (input.address !== undefined) {
-        updates.push(`address = $${paramCount}`);
+        updates.push(`address = $${paramCount++}`);
         values.push(input.address);
-        paramCount++;
       }
       if (input.company !== undefined) {
-        updates.push(`company = $${paramCount}`);
+        updates.push(`company = $${paramCount++}`);
         values.push(input.company);
-        paramCount++;
       }
       if (input.bio !== undefined) {
-        updates.push(`bio = $${paramCount}`);
+        updates.push(`bio = $${paramCount++}`);
         values.push(input.bio);
-        paramCount++;
       }
       if (input.avatarUrl !== undefined) {
-        updates.push(`avatar_url = $${paramCount}`);
+        updates.push(`avatar_url = $${paramCount++}`);
         values.push(input.avatarUrl);
-        paramCount++;
       }
       if (input.globalAddressConsent !== undefined) {
-        updates.push(`global_address_consent = $${paramCount}`);
+        updates.push(`global_address_consent = $${paramCount++}`);
         values.push(input.globalAddressConsent);
-        paramCount++;
       }
 
       if (updates.length === 0) {
-        return await queryOne(
-          'SELECT * FROM user_profiles WHERE user_id = $1',
+        const existing = await queryOne<any>(
+          'SELECT * FROM user_profiles WHERE user_id = $1 LIMIT 1',
           [ctx.user.id]
         );
+        return existing || null;
       }
 
       values.push(ctx.user.id);
-
-      const profile = await queryOne(
+      const updated = await queryOne<any>(
         `UPDATE user_profiles
-         SET ${updates.join(', ')}
+         SET ${updates.join(', ')}, updated_at = NOW()
          WHERE user_id = $${paramCount}
          RETURNING *`,
         values
       );
 
-      return profile;
+      return updated || null;
     }),
 
   // Create provider account from invitation
@@ -228,9 +228,10 @@ export const authRouter = router({
       }
 
       // Check if user already exists
-      const existingUser = await queryOne('SELECT id FROM users WHERE email = $1', [
-        tokenPayload.email,
-      ]);
+      const existingUser = await queryOne<{ id: string }>(
+        'SELECT id FROM users WHERE email = $1 LIMIT 1',
+        [tokenPayload.email]
+      );
 
       if (existingUser) {
         throw new Error('Account already exists with this email');
@@ -239,61 +240,54 @@ export const authRouter = router({
       // Create user account
       const passwordHash = await bcrypt.hash(input.password, 10);
 
-      const user = await queryOne(
+      const newUser = await queryOne<{ id: string; email: string }>(
         `INSERT INTO users (email, password_hash, email_confirmed)
-         VALUES ($1, $2, $3)
+         VALUES ($1, $2, true)
          RETURNING id, email`,
-        [tokenPayload.email, passwordHash, true] // Auto-verify via invitation
+        [tokenPayload.email, passwordHash]
       );
 
-      if (!user) {
+      if (!newUser) {
         throw new Error('Failed to create user');
       }
 
       // Create user profile
-      await queryOne(
+      await query(
         `INSERT INTO user_profiles (user_id, first_name, last_name, company, is_seller, is_buyer)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [
-          user.id,
-          input.first_name || null,
-          input.last_name || null,
-          input.company || null,
-          true, // is_seller = true for providers
-          false, // is_buyer = false
-        ]
+         VALUES ($1, $2, $3, $4, true, false)`,
+        [newUser.id, input.first_name || null, input.last_name || null, input.company || null]
       );
 
       // Create makler_free subscription
       const oneYearFromNow = new Date();
       oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
 
-      await queryOne(
+      await query(
         `INSERT INTO subscriptions (user_id, plan_type, status, current_period_start, current_period_end)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [user.id, 'makler_free', 'active', new Date(), oneYearFromNow]
+         VALUES ($1, 'makler_free', 'active', $2, $3)`,
+        [newUser.id, new Date().toISOString(), oneYearFromNow.toISOString()]
       );
 
       // Grant 1 free property listing + 3 free AI evaluations
-      await queryOne(
+      await query(
         `INSERT INTO user_credits (user_id, credit_type, amount, expires_at)
-         VALUES ($1, $2, $3, $4), ($1, $5, $6, $4)`,
-        [user.id, 'property_listing', 1, oneYearFromNow, 'ai_evaluation', 3]
+         VALUES ($1, 'property_listing', 1, $2), ($1, 'ai_evaluation', 3, $2)`,
+        [newUser.id, oneYearFromNow.toISOString()]
       );
 
       // Link provider contact to new user
-      await queryOne(
+      await query(
         `UPDATE property_provider_contacts
          SET linked_user_id = $1, invitation_accepted_at = $2
          WHERE property_id = $3 AND provider_email = $4`,
-        [user.id, new Date(), tokenPayload.property_id, tokenPayload.email]
+        [newUser.id, new Date(), tokenPayload.property_id, tokenPayload.email]
       );
 
       // Create auth token
-      const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
+      const token = jwt.sign({ userId: newUser.id }, JWT_SECRET, { expiresIn: '30d' });
 
       return {
-        user,
+        user: newUser,
         token,
         free_evaluations: 3,
         free_property_listing: 1,

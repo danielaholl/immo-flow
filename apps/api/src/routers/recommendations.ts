@@ -5,7 +5,7 @@
 import { z } from 'zod';
 import { router, protectedProcedure, publicProcedure } from '../trpc.js';
 import { getPersonalizedFeed, getTrendingProperties, invalidateUserFeed } from '../services/recommendation-engine.js';
-import { query } from '../db.js';
+import { query, queryOne } from '../db.js';
 
 export const recommendationsRouter = router({
   /**
@@ -21,13 +21,13 @@ export const recommendationsRouter = router({
     )
     .query(async ({ ctx, input }) => {
       try {
-        const properties = await getPersonalizedFeed(ctx.user.id, input.page, input.limit);
+        const result = await getPersonalizedFeed(ctx.user.id, input.page, input.limit);
 
         return {
-          properties,
+          properties: result,
           page: input.page,
           limit: input.limit,
-          total: properties.length,
+          total: result.length,
         };
       } catch (error) {
         console.error('[tRPC] getPersonalizedFeed error:', error);
@@ -54,19 +54,23 @@ export const recommendationsRouter = router({
     )
     .query(async ({ input }) => {
       try {
-        const properties = await getTrendingProperties(input.limit);
+        const result = await getTrendingProperties(input.limit);
 
         return {
-          properties,
-          total: properties.length,
+          properties: result,
+          total: result.length,
         };
       } catch (error) {
         console.error('[tRPC] getTrendingFeed error:', error);
         // Fallback to recent properties
-        const recent = await query(
-          `SELECT * FROM properties WHERE status = 'active' ORDER BY created_at DESC LIMIT $1`,
+        const recent = await query<any[]>(
+          `SELECT * FROM properties
+           WHERE status = 'active'
+           ORDER BY created_at DESC
+           LIMIT $1`,
           [input.limit]
         );
+
         return {
           properties: recent,
           total: recent.length,
@@ -100,26 +104,30 @@ export const recommendationsRouter = router({
    */
   getUserPreferences: protectedProcedure.query(async ({ ctx }) => {
     try {
-      const prefs = await query(
-        `SELECT
-           user_id,
-           preferred_locations,
-           min_price,
-           max_price,
-           preferred_rooms,
-           preferred_features,
-           interaction_count,
-           last_updated
+      const prefs = await queryOne<any>(
+        `SELECT user_id, preferred_locations, min_price, max_price,
+                preferred_rooms, preferred_features, interaction_count, last_updated
          FROM user_preferences
-         WHERE user_id = $1`,
+         WHERE user_id = $1
+         LIMIT 1`,
         [ctx.user.id]
       );
 
-      if (prefs.length === 0) {
+      if (!prefs) {
         return null;
       }
 
-      return prefs[0];
+      // Transform to snake_case for API compatibility
+      return {
+        user_id: prefs.user_id,
+        preferred_locations: prefs.preferred_locations,
+        min_price: prefs.min_price,
+        max_price: prefs.max_price,
+        preferred_rooms: prefs.preferred_rooms,
+        preferred_features: prefs.preferred_features,
+        interaction_count: prefs.interaction_count,
+        last_updated: prefs.last_updated,
+      };
     } catch (error) {
       console.error('[tRPC] getUserPreferences error:', error);
       return null;
@@ -142,9 +150,16 @@ export const recommendationsRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         await query(
-          `INSERT INTO property_interactions (user_id, property_id, interaction_type, dwell_time_seconds, metadata)
+          `INSERT INTO property_interactions
+           (user_id, property_id, interaction_type, dwell_time_seconds, metadata)
            VALUES ($1, $2, $3, $4, $5)`,
-          [ctx.user.id, input.propertyId, input.interactionType, input.dwellTimeSeconds || 0, input.metadata || {}]
+          [
+            ctx.user.id,
+            input.propertyId,
+            input.interactionType,
+            input.dwellTimeSeconds || 0,
+            JSON.stringify(input.metadata || {})
+          ]
         );
 
         // For significant interactions, invalidate cache
@@ -166,17 +181,17 @@ export const recommendationsRouter = router({
   getRecommendationStats: protectedProcedure.query(async ({ ctx }) => {
     try {
       const [cacheCount, interactionCount, trendingCount, similarityCount] = await Promise.all([
-        query<{ count: string }>('SELECT COUNT(*) as count FROM recommendations_cache WHERE user_id = $1', [ctx.user.id]),
-        query<{ count: string }>('SELECT COUNT(*) as count FROM property_interactions WHERE user_id = $1', [ctx.user.id]),
-        query<{ count: string }>('SELECT COUNT(*) as count FROM property_trending'),
-        query<{ count: string }>('SELECT COUNT(*) as count FROM property_similarities'),
+        queryOne<{ count: string }>('SELECT COUNT(*) as count FROM recommendations_cache WHERE user_id = $1', [ctx.user.id]),
+        queryOne<{ count: string }>('SELECT COUNT(*) as count FROM property_interactions WHERE user_id = $1', [ctx.user.id]),
+        queryOne<{ count: string }>('SELECT COUNT(*) as count FROM property_trending', []),
+        queryOne<{ count: string }>('SELECT COUNT(*) as count FROM property_similarities', []),
       ]);
 
       return {
-        cachedRecommendations: parseInt(cacheCount[0]?.count || '0'),
-        totalInteractions: parseInt(interactionCount[0]?.count || '0'),
-        trendingProperties: parseInt(trendingCount[0]?.count || '0'),
-        propertySimilarities: parseInt(similarityCount[0]?.count || '0'),
+        cachedRecommendations: Number(cacheCount?.count || 0),
+        totalInteractions: Number(interactionCount?.count || 0),
+        trendingProperties: Number(trendingCount?.count || 0),
+        propertySimilarities: Number(similarityCount?.count || 0),
       };
     } catch (error) {
       console.error('[tRPC] getRecommendationStats error:', error);

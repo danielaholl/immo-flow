@@ -4,7 +4,7 @@
  */
 import { z } from 'zod';
 import { router, protectedProcedure } from '../trpc.js';
-import { query } from '../db.js';
+import { query, queryOne } from '../db.js';
 import { TRPCError } from '@trpc/server';
 
 export const sellersRouter = router({
@@ -16,22 +16,22 @@ export const sellersRouter = router({
     const userId = ctx.user.id;
 
     // Get user_profile.id from users.id
-    const userProfileResult = await query(
-      'SELECT id FROM user_profiles WHERE user_id = $1',
+    const userProfile = await queryOne<{ id: string }>(
+      'SELECT id FROM user_profiles WHERE user_id = $1 LIMIT 1',
       [userId]
     );
 
-    if (userProfileResult.length === 0) {
+    if (!userProfile) {
       throw new TRPCError({
         code: 'NOT_FOUND',
         message: 'User profile not found',
       });
     }
 
-    const userProfileId = userProfileResult[0].id;
+    const userProfileId = userProfile.id;
 
     try {
-      // Run all queries in parallel for better performance
+      // Run all queries in parallel
       const [
         activePropertiesResult,
         totalContactsResult,
@@ -40,7 +40,7 @@ export const sellersRouter = router({
         totalFavoritesResult,
       ] = await Promise.all([
         // Query 1: Active Properties Count
-        query(
+        queryOne<{ count: string }>(
           `SELECT COUNT(*) as count
            FROM properties
            WHERE user_id = $1 AND status = 'active'`,
@@ -48,7 +48,7 @@ export const sellersRouter = router({
         ),
 
         // Query 2: Unique Contacts (distinct buyers who started conversations)
-        query(
+        queryOne<{ count: string }>(
           `SELECT COUNT(DISTINCT buyer_id) as count
            FROM conversations
            WHERE seller_id = $1`,
@@ -56,7 +56,7 @@ export const sellersRouter = router({
         ),
 
         // Query 3: Total Messages Sent by Seller
-        query(
+        queryOne<{ count: string }>(
           `SELECT COUNT(*) as count
            FROM messages m
            JOIN conversations c ON m.conversation_id = c.id
@@ -65,24 +65,24 @@ export const sellersRouter = router({
         ),
 
         // Query 4: AI Answer Rate Stats
-        query(
+        queryOne<{ total_conversations: string; ai_handled_conversations: string }>(
           `SELECT
-             COUNT(DISTINCT c.id) as total_conversations,
-             COUNT(DISTINCT c.id) FILTER (
-               WHERE EXISTS (
-                 SELECT 1 FROM messages m2
-                 WHERE m2.conversation_id = c.id
-                 AND m2.sender_type = 'ai'
-                 AND m2.is_ai_generated = true
-               )
-             ) as ai_handled_conversations
-           FROM conversations c
-           WHERE c.seller_id = $1`,
+            COUNT(DISTINCT c.id) as total_conversations,
+            COUNT(DISTINCT c.id) FILTER (
+              WHERE EXISTS (
+                SELECT 1 FROM messages m2
+                WHERE m2.conversation_id = c.id
+                AND m2.sender_type = 'ai'
+                AND m2.is_ai_generated = true
+              )
+            ) as ai_handled_conversations
+          FROM conversations c
+          WHERE c.seller_id = $1`,
           [userProfileId]
         ),
 
         // Query 5: Total Favorites across all properties
-        query(
+        queryOne<{ count: string }>(
           `SELECT COUNT(*) as count
            FROM favorites f
            JOIN properties p ON f.property_id = p.id
@@ -92,22 +92,17 @@ export const sellersRouter = router({
       ]);
 
       // Parse results
-      const activeProperties = parseInt(activePropertiesResult[0].count);
-      const totalContacts = parseInt(totalContactsResult[0].count);
-      const totalMessages = parseInt(totalMessagesResult[0].count);
-      const totalFavorites = parseInt(totalFavoritesResult[0].count);
+      const activeProperties = parseInt(activePropertiesResult?.count || '0');
+      const totalContacts = parseInt(totalContactsResult?.count || '0');
+      const totalMessages = parseInt(totalMessagesResult?.count || '0');
+      const totalFavorites = parseInt(totalFavoritesResult?.count || '0');
 
       // Calculate AI answer rate
-      const totalConversations = parseInt(
-        aiStatsResult[0].total_conversations
-      );
-      const aiHandledConversations = parseInt(
-        aiStatsResult[0].ai_handled_conversations
-      );
-      const aiAnswerRate =
-        totalConversations > 0
-          ? Math.round((aiHandledConversations / totalConversations) * 100)
-          : 0;
+      const totalConversations = parseInt(aiStatsResult?.total_conversations || '0');
+      const aiHandledConversations = parseInt(aiStatsResult?.ai_handled_conversations || '0');
+      const aiAnswerRate = totalConversations > 0
+        ? Math.round((aiHandledConversations / totalConversations) * 100)
+        : 0;
 
       return {
         activeProperties,
